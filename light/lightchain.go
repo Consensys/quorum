@@ -21,6 +21,7 @@ package light
 import (
 	"context"
 	"errors"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -555,6 +556,6 @@ func (lc *LightChain) EnableCheckFreq() {
 	atomic.StoreInt32(&lc.disableCheckFreq, 0)
 }
 
-func (lc *LightChain) SupportsMultitenancy() bool {
-	return lc.isMultitenant
+func (lc *LightChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, lc.isMultitenant
 }

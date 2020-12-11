@@ -296,11 +296,10 @@ func (b *LesApiBackend) AccountExtraDataStateReaderByNumber(ctx context.Context,
 	return s, err
 }
 
-func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
+func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) (bool, error) {
 	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes)
 	if err != nil {
-		// TODO log the error
-		return false
+		return false, err
 	}
-	return auth
+	return auth, nil
 }

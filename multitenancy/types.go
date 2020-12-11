@@ -1,9 +1,11 @@
 package multitenancy
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type ContractVisibility string
@@ -32,9 +34,14 @@ const (
 	AnyEOAAddress = "0x0"
 )
 
-// an auxiliary interface
-type Context interface {
-	SupportsMultitenancy() bool
+// Multitenancy support
+type ContextAware interface {
+	SupportsMultitenancy(ctx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
+}
+
+type OperationalSupport interface {
+	ContextAware
+	ContractAccessDecisionManager
 }
 
 // AccountStateSecurityAttribute contains security configuration ask

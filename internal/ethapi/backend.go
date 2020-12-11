@@ -34,12 +34,12 @@ import (
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
+	multitenancy.OperationalSupport
 	// General Ethereum API
 	Downloader() *downloader.Downloader
 	ProtocolVersion() int
@@ -88,15 +88,8 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
 
-	// Quorum - Multitenancy
-	// rpcCtx must carry the preauthenticated token in addition to the node config
-	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 	// AccountExtraDataStateReaderByNumber returns state reader at a given block
 	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
-	// Quorum - Multitenancy
-	// Performs matching logic between verified entitlements embedded in the authToken and
-	// the security attributes built from the request
-	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

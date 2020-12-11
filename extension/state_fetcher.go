@@ -1,21 +1,33 @@
 package extension
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
+	"github.com/ethereum/go-ethereum/multitenancy"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // ChainAccessor provides methods to fetch state and blocks from the local blockchain
 type ChainAccessor interface {
+	multitenancy.ContextAware
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
 	State() (*state.StateDB, *state.StateDB, error)
+	CurrentBlock() *types.Block
+}
+
+// Only extract required methods from ethService.APIBackend
+type APIBackendHelper interface {
+	multitenancy.OperationalSupport
+	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
 	CurrentBlock() *types.Block
 }
 

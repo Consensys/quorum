@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -106,7 +107,9 @@ func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Addres
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
 	// do multitenancy checks
-	if authToken, ok := api.privacyService.ethService.APIBackend.SupportsMultitenancy(ctx); ok {
+	chainAccessor := api.privacyService.stateFetcher.chainAccessor
+	apiHelper := api.privacyService.apiBackendHelper
+	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
 		if len(txa.PrivateFrom) == 0 {
 			return errors.New("You must specify 'privateFrom' when running in a multitenant node")
 		}
@@ -117,20 +120,21 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Party(txa.PrivateFrom).Build(),
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Party(txa.PrivateFrom).Build())
 
-		currentBlock := api.privacyService.ethService.APIBackend.CurrentBlock().Number().Int64()
-		extraDataReader, err := api.privacyService.ethService.APIBackend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+		currentBlock := chainAccessor.CurrentBlock().Number().Int64()
+		extraDataReader, err := apiHelper.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
 			return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 		}
 
 		managedParties, err := extraDataReader.ReadManagedParties(address)
-
-		// TODO verify if these are enough checks for toExtend
+		if err != nil {
+			return err
+		}
 		attributes = append(attributes,
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Party(txa.PrivateFrom).Parties(managedParties).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Party(txa.PrivateFrom).Parties(managedParties).Build())
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Parties(managedParties).Build(),
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Parties(managedParties).Build())
 
-		if authorized := api.privacyService.ethService.APIBackend.IsAuthorized(ctx, authToken, attributes); !authorized {
+		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes); !authorized {
 			return fmt.Errorf("not authorized")
 		}
 	}
@@ -358,9 +362,10 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	if authToken, ok := api.privacyService.ethService.APIBackend.SupportsMultitenancy(ctx); ok {
-		currentBlock := api.privacyService.ethService.APIBackend.CurrentBlock().Number().Int64()
-		extraDataReader, err := api.privacyService.ethService.APIBackend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+	apiHelper := api.privacyService.apiBackendHelper
+	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
+		currentBlock := apiHelper.CurrentBlock().Number().Int64()
+		extraDataReader, err := apiHelper.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
 			return "", fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 		}
@@ -371,7 +376,7 @@ func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensio
 		attributes := []*multitenancy.ContractSecurityAttribute{
 			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build(),
 		}
-		if authorized := api.privacyService.ethService.APIBackend.IsAuthorized(ctx, authToken, attributes); !authorized {
+		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes); !authorized {
 			return "", fmt.Errorf("not authorized")
 		}
 	}

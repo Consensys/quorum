@@ -30,7 +30,7 @@ import (
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
-	multitenancy.Context
+	multitenancy.ContextAware
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
@@ -51,7 +51,7 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	// mainly to overcome lost of test cases which pass ChainContext as nil value
 	// nil interface requires this check to make sure we don't get nil pointer reference error
 	if chain != nil && !reflect.ValueOf(chain).IsNil() {
-		supportsMultitenancy = chain.SupportsMultitenancy()
+		_, supportsMultitenancy = chain.SupportsMultitenancy(nil)
 	}
 	return vm.Context{
 		CanTransfer:          CanTransfer,

@@ -18,8 +18,10 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"io"
 	"math/big"
 	mrand "math/rand"
@@ -2377,6 +2379,6 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
 }
 
-func (bc *BlockChain) SupportsMultitenancy() bool {
-	return bc.isMultitenant
+func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, bc.isMultitenant
 }

@@ -374,13 +374,13 @@ func (b *EthAPIBackend) AccountExtraDataStateReaderByNumber(ctx context.Context,
 	return s, err
 }
 
-func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
+func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) (bool, error) {
 	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes)
 	if err != nil {
 		log.Error("failed to perform authorization check", "err", err, "granted", string(authToken.RawToken), "ask", attributes)
-		return false
+		return false, err
 	}
-	return auth
+	return auth, nil
 }
 
 // used by Quorum

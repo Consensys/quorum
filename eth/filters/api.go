@@ -621,8 +621,8 @@ func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log)
 			}
 			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 		}
-		if !api.backend.IsAuthorized(ctx, authToken, attributes) {
-			return false, nil
+		if ok, _ := api.backend.IsAuthorized(ctx, authToken, attributes); !ok {
+			return false, fmt.Errorf("not authorized")
 		}
 	}
 	return true, nil

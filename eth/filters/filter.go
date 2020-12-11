@@ -31,10 +31,11 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type Backend interface {
+	multitenancy.OperationalSupport
+
 	ChainDb() ethdb.Database
 	EventMux() *event.TypeMux
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
@@ -50,15 +51,8 @@ type Backend interface {
 	BloomStatus() (uint64, uint64)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 
-	// Quorum - Multitenancy
-	// rpcCtx must carry the preauthenticated token in addition to the config
-	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 	// AccountExtraDataStateReaderByNumber returns state reader at a given block height
 	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
-	// Quorum - Multitenancy
-	// Performs matching logic between verified entitlements embedded in the authToken and
-	// the security attributes built from the request
-	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool
 }
 
 // Filter can be used to retrieve and filter logs.

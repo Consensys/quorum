@@ -1,6 +1,8 @@
 package extension
 
 import (
+	"context"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
@@ -30,15 +32,15 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	factory.dataHandler = NewJsonFileDataHandler(node.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
-	// TODO - I have no idea what other bits (other than ethService.APIBackend) I may need from ethService so for now just keep a handle to it
-	// must revisit later and reduce access to only what is needed
-	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService)
+	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend)
 	if err != nil {
 		return nil, err
 	}
 	factory.backendService = backendService
 
-	privacyExtension.DefaultExtensionHandler.MultitenancyEnabled = ethService.BlockChain().SupportsMultitenancy()
+	_, isMultitenant := ethService.BlockChain().SupportsMultitenancy(context.Background())
+	privacyExtension.DefaultExtensionHandler.SupportMultitenancy(isMultitenant)
+
 	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
 
 	go backendService.initialise(node)

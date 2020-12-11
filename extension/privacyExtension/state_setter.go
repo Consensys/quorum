@@ -15,12 +15,16 @@ import (
 var DefaultExtensionHandler = NewExtensionHandler(private.P)
 
 type ExtensionHandler struct {
-	ptm                 private.PrivateTransactionManager
-	MultitenancyEnabled bool
+	ptm           private.PrivateTransactionManager
+	isMultitenant bool
 }
 
 func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *ExtensionHandler {
 	return &ExtensionHandler{ptm: transactionManager}
+}
+
+func (handler *ExtensionHandler) SupportMultitenancy(b bool) {
+	handler.isMultitenant = b
 }
 
 func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
@@ -43,7 +47,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 				// 0 then need to update the privacy metadata for the contract
 				//TODO: validate the old and new parties to ensure that all old parties are there
 				setPrivacyMetadata(privateState, address, hash)
-				if handler.MultitenancyEnabled {
+				if handler.isMultitenant {
 					setManagedParties(handler.ptm, privateState, address, hash)
 				}
 				extraMetaDataUpdated = true
@@ -52,7 +56,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 				if !found {
 					continue
 				}
-				if !handler.MultitenancyEnabled {
+				if !handler.isMultitenant {
 					managedParties = nil
 				}
 				if !validateAccountsExist([]common.Address{address}, accounts) {
