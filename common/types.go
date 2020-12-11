@@ -44,6 +44,7 @@ const (
 
 var (
 	ErrNotPrivateContract = errors.New("the provided address is not a private contract")
+	ErrNoAccountExtraData = errors.New("no account extra data found")
 
 	hashT    = reflect.TypeOf(Hash{})
 	addressT = reflect.TypeOf(Address{})

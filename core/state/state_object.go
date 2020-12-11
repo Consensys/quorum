@@ -18,6 +18,7 @@ package state
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -689,7 +690,7 @@ func (s *stateObject) getCommittedAccountExtraData() (*AccountExtraData, error) 
 		return nil, fmt.Errorf("unable to retrieve data from the accountExtraDataTrie. Cause: %v", err)
 	}
 	if len(val) == 0 {
-		return nil, fmt.Errorf("unable to retrieve extra data for contract %s. Cause: %v", s.address.Hex(), err)
+		return nil, fmt.Errorf("%s: %w", s.address.Hex(), common.ErrNoAccountExtraData)
 	}
 	var extraData AccountExtraData
 	if err := rlp.DecodeBytes(val, &extraData); err != nil {
@@ -726,8 +727,12 @@ func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 
 // End Quorum - Privacy Enhancements
 
+// ManagedParties will return empty if no account extra data found
 func (s *stateObject) ManagedParties() ([]string, error) {
 	extraData, err := s.AccountExtraData()
+	if errors.Is(err, common.ErrNoAccountExtraData) {
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
