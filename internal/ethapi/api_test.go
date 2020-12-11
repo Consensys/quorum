@@ -854,8 +854,8 @@ type StubPrivateTransactionManager struct {
 	creation bool
 }
 
-func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]string, common.EncryptedPayloadHash, error) {
-	return nil, arbitrarySimpleStorageContractEncryptedPayloadHash, nil
+func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error) {
+	return "", nil, arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 
 func (sptm *StubPrivateTransactionManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
@@ -870,8 +870,8 @@ func (sptm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (c
 	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 
-func (sptm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error) {
-	return nil, arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes(), nil
+func (sptm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) (string, []string, []byte, error) {
+	return "", nil, arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes(), nil
 }
 
 func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {

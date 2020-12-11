@@ -45,18 +45,18 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			switch attr.Action {
 			case ActionRead, ActionWrite, ActionCreate:
 				if (attr.To == common.Address{}) {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
+					query.Set(QueryOwnedEOA, toHexAddress(attr.From))
 				} else {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
+					query.Set(QueryOwnedEOA, toHexAddress(attr.To))
 				}
 			}
 		case VisibilityPrivate:
 			switch attr.Action {
 			case ActionRead, ActionWrite:
 				if (attr.To == common.Address{}) {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
+					query.Set(QueryOwnedEOA, toHexAddress(attr.From))
 				} else {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
+					query.Set(QueryOwnedEOA, toHexAddress(attr.To))
 				}
 				for _, tm := range attr.Parties {
 					query.Add(QueryFromTM, tm)
@@ -89,6 +89,13 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 	return matchCount == len(attributes), nil
 }
 
+func toHexAddress(a common.Address) string {
+	if (a == common.Address{}) {
+		return AnyEOAAddress
+	}
+	return strings.ToLower(a.Hex())
+}
+
 func match(attr *ContractSecurityAttribute, ask, granted *url.URL) bool {
 	askScheme := strings.ToLower(ask.Scheme)
 	if allowedPublic(askScheme) {
@@ -97,7 +104,7 @@ func match(attr *ContractSecurityAttribute, ask, granted *url.URL) bool {
 
 	isPathMatched := matchPath(strings.ToLower(ask.Path), strings.ToLower(granted.Path))
 	return askScheme == strings.ToLower(granted.Scheme) && //Note: "askScheme" here is "private" since we checked VisibilityPublic above.
-		matchHost(strings.ToLower(ask.Host), strings.ToLower(granted.Host)) && //whether i have permission to execute using this ethereum address
+		matchHost(attr.Action, strings.ToLower(ask.Host), strings.ToLower(granted.Host)) && //whether i have permission to execute using this ethereum address
 		isPathMatched && //is our permission for the same action (read, write, deploy)
 		matchQuery(attr, ask.Query(), granted.Query())
 }
@@ -106,8 +113,9 @@ func allowedPublic(scheme string) bool {
 	return scheme == string(VisibilityPublic)
 }
 
-func matchHost(ask string, granted string) bool {
-	return granted == AnyEOAAddress || ask == granted
+func matchHost(a ContractAction, ask string, granted string) bool {
+	// for READ action, we use owned.eoa query param instead
+	return granted == AnyEOAAddress || ask == granted || a == ActionRead
 }
 
 func matchPath(ask string, granted string) bool {

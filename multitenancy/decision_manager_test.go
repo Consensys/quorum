@@ -107,6 +107,26 @@ func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
 	}, ask, granted), "with read permission")
 }
 
+func TestMatch_whenContractReadPermission_AnyAction(t *testing.T) {
+	granted, _ := url.Parse("private://0x1234/_/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x1234&from.tm=A")
+
+	assert.True(t, match(&ContractSecurityAttribute{
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
+	}, ask, granted))
+}
+
+func TestMatch_whenContractReadPermission_AnyEoa(t *testing.T) {
+	granted, _ := url.Parse("private://0x1234/_/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x0&from.tm=A")
+
+	assert.True(t, match(&ContractSecurityAttribute{
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
+	}, ask, granted))
+}
+
 func TestMatch_whenContractReadPermission_EoaDifferent(t *testing.T) {
 	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87&from.tm=A")
 	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x945304eb96065b2a98b57a48a06ae28d285a71b5&from.tm=A")
