@@ -66,32 +66,58 @@ func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
 }
 
 func NewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {
-	cfg, err := engine.LoadConfig(cfgPath)
+	cfg, err := engine.FetchConfig(cfgPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read %s due to %s", cfgPath, err)
+		return nil, fmt.Errorf("error using %s due to: %s", cfgPath, err)
 	}
 
+	var client *engine.Client
+	if engine.IsSocketConfigured(cfg) {
+		client = createIPCClient(cfg)
+	} else {
+		client = createHTTPClient(cfg)
+	}
+
+	ptm, err := selectPrivateTxManager(client)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to private tx manager using %s due to: %s", cfgPath, err)
+	}
+	return ptm, nil
+}
+
+func createIPCClient(cfg engine.Config) *engine.Client {
 	client := &engine.Client{
 		HttpClient: &http.Client{
 			Transport: unixTransport(cfg),
 		},
 		BaseURL: "http+unix://c",
 	}
-
-	ptm, err := selectPrivateTxManager(client)
-	if err != nil {
-		return nil, fmt.Errorf("unable to connect to private tx manager using %s due to %s", cfgPath, err)
-	}
-	return ptm, nil
+	return client
 }
 
 func unixTransport(cfg engine.Config) *httpunix.Transport {
 	t := &httpunix.Transport{
-		DialTimeout:           time.Duration(cfg.DialTimeout) * time.Second,
-		RequestTimeout:        time.Duration(cfg.RequestTimeout) * time.Second,
-		ResponseHeaderTimeout: time.Duration(cfg.ResponseHeaderTimeout) * time.Second,
+		DialTimeout:           time.Duration(cfg.SocketConfig.DialTimeout) * time.Second,
+		RequestTimeout:        time.Duration(cfg.SocketConfig.RequestTimeout) * time.Second,
+		ResponseHeaderTimeout: time.Duration(cfg.SocketConfig.ResponseHeaderTimeout) * time.Second,
 	}
-	t.RegisterLocation("c", filepath.Join(cfg.WorkDir, cfg.Socket))
+	t.RegisterLocation("c", filepath.Join(cfg.SocketConfig.WorkDir, cfg.SocketConfig.Socket))
+	return t
+}
+
+func createHTTPClient(cfg engine.Config) *engine.Client {
+	client := &engine.Client{
+		HttpClient: &http.Client{
+			Timeout:   time.Duration(cfg.HttpConfig.ClientTimeout) * time.Second,
+			Transport: httpTransport(cfg),
+		},
+		BaseURL: cfg.HttpConfig.Url,
+	}
+	return client
+}
+
+func httpTransport(cfg engine.Config) *http.Transport {
+	t := &http.Transport{}
 	return t
 }
 
