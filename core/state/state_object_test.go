@@ -231,3 +231,9 @@ func TestRLP_AccountExtraData_whenHavingEmptyManagedParties(t *testing.T) {
 	assert.Nil(t, actual.ManagedParties)
 	assert.Nil(t, actual.PrivacyMetadata)
 }
+
+func TestCopy_whenNil(t *testing.T) {
+	var testObj *AccountExtraData = nil
+
+	assert.Nil(t, testObj.copy())
+}
