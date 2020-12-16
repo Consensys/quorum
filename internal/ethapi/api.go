@@ -1938,7 +1938,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 			evm.StateDB.SetNonce(contractAddr, 1)
 		}
 	}
-	return evm, nil
+	return evm, err
 }
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
@@ -2613,7 +2613,10 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 	}
 
 	evm, err := runSimulation(ctx, b, from, privateTx)
-
+	if evm == nil {
+		log.Debug("TX Simulation setup failed", "error", err)
+		return nil, common.Hash{}, err
+	}
 	if err != nil {
 		if privateTxArgs.PrivacyFlag.IsStandardPrivate() {
 			log.Debug("An error occurred during StandardPrivate transaction simulation. "+
