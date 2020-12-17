@@ -319,7 +319,7 @@ func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
 	View   *View
-	Digest istanbul.Proposal
+	Digest common.Hash
 }
 
 // EncodeRLP serializes b into the Ethereum RLP format.
@@ -331,7 +331,7 @@ func (b *Subject) EncodeRLP(w io.Writer) error {
 func (b *Subject) DecodeRLP(s *rlp.Stream) error {
 	var subject struct {
 		View   *View
-		Digest *types.Block
+		Digest common.Hash
 	}
 
 	if err := s.Decode(&subject); err != nil {
@@ -347,48 +347,50 @@ func (b *Subject) String() string {
 
 // RoundChangeMessage represents the message sent when msgRoundChange is broadcasted
 type RoundChangeMessage struct {
-	View          *View
-	PreparedRound *big.Int
-	PreparedBlock istanbul.Proposal
+	View                *View
+	PreparedRound       *big.Int
+	PreparedBlockDigest common.Hash
 }
 
 func (r *RoundChangeMessage) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{r.View, r.PreparedRound, r.PreparedBlock})
+	return rlp.Encode(w, []interface{}{r.View, r.PreparedRound, r.PreparedBlockDigest})
 }
 
 func (r *RoundChangeMessage) DecodeRLP(s *rlp.Stream) error {
 	var rcMessage struct {
-		View          *View
-		PreparedRound *big.Int
-		PreparedBlock *types.Block
+		View                *View
+		PreparedRound       *big.Int
+		PreparedBlockDigest common.Hash
 	}
 
 	if err := s.Decode(&rcMessage); err != nil {
 		return err
 	}
-	r.View, r.PreparedRound, r.PreparedBlock = rcMessage.View, rcMessage.PreparedRound, rcMessage.PreparedBlock
+	r.View, r.PreparedRound, r.PreparedBlockDigest = rcMessage.View, rcMessage.PreparedRound, rcMessage.PreparedBlockDigest
 	return nil
 }
 
 type PiggybackMessages struct {
 	RCMessages       *messageSet
 	PreparedMessages *messageSet
+	Proposal         istanbul.Proposal
 }
 
 func (p *PiggybackMessages) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{p.RCMessages, p.PreparedMessages})
+	return rlp.Encode(w, []interface{}{p.RCMessages, p.PreparedMessages, p.Proposal})
 }
 
 func (p *PiggybackMessages) DecodeRLP(s *rlp.Stream) error {
 	var piggybackMsgs struct {
 		RCMessages       *messageSet
 		PreparedMessages *messageSet
+		Proposal         *types.Block
 	}
 
 	if err := s.Decode(&piggybackMsgs); err != nil {
 		return err
 	}
-	p.RCMessages, p.PreparedMessages = piggybackMsgs.RCMessages, piggybackMsgs.PreparedMessages
+	p.RCMessages, p.PreparedMessages, p.Proposal = piggybackMsgs.RCMessages, piggybackMsgs.PreparedMessages, piggybackMsgs.Proposal
 
 	return nil
 }

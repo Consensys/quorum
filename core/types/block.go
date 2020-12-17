@@ -272,6 +272,9 @@ func CopyHeader(h *Header) *Header {
 func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	var eb extblock
 	_, size, _ := s.Kind()
+	if size == 0 {
+		return nil
+	}
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}

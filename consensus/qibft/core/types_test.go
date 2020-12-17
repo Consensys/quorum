@@ -80,7 +80,7 @@ func testSubject(t *testing.T) {
 			Round:    big.NewInt(1),
 			Sequence: big.NewInt(2),
 		},
-		Digest: makeBlock(5),
+		Digest: makeBlock(5).Hash(),
 	}
 
 	subjectPayload, _ := Encode(s)
@@ -108,7 +108,7 @@ func testSubject(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
-	if !reflect.DeepEqual(s.View, decodedSub.View) || s.Digest.Hash().Hex() != decodedSub.Digest.Hash().Hex() {
+	if !reflect.DeepEqual(s.View, decodedSub.View) || s.Digest.Hex() != decodedSub.Digest.Hex() {
 		t.Errorf("subject mismatch: have %v, want %v", decodedSub, s)
 	}
 }
@@ -119,7 +119,7 @@ func testSubjectWithSignature(t *testing.T) {
 			Round:    big.NewInt(1),
 			Sequence: big.NewInt(2),
 		},
-		Digest: makeBlock(5),
+		Digest: makeBlock(5).Hash(),
 	}
 	expectedSig := []byte{0x01}
 
@@ -270,9 +270,9 @@ func TestRCEncodeDeocdeRLP(t *testing.T) {
 		Sequence: big.NewInt(5),
 	}
 	rc := &RoundChangeMessage{
-		View:          view,
-		PreparedRound: big.NewInt(0),
-		PreparedBlock: makeBlock(5),
+		View:                view,
+		PreparedRound:       big.NewInt(0),
+		PreparedBlockDigest: makeBlock(5).Hash(),
 	}
 	rawRC, err := rlp.EncodeToBytes(rc)
 	if err != nil {

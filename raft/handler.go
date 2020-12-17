@@ -482,6 +482,10 @@ func (pm *ProtocolManager) startRaft() {
 			for _, entry := range entries {
 				if entry.Type == raftpb.EntryNormal {
 					var block types.Block
+					if len(entry.Data) == 0 {
+						log.Warn("wal entry data is of length 0")
+						continue
+					}
 					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
 						log.Error("error decoding block: ", "err", err)
 						continue

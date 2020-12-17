@@ -63,8 +63,10 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round
-		c.current.preparedBlock = prepare.Digest
 		c.PreparedRoundPrepares = c.current.Prepares
+		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {
+			c.current.preparedBlock = c.current.Proposal()
+		}
 
 		c.setState(StatePrepared)
 		c.sendCommit()
@@ -78,7 +80,7 @@ func (c *core) verifyPrepare(prepare *Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	sub := c.current.Subject()
-	if !reflect.DeepEqual(prepare.View, sub.View) || prepare.Digest.Hash().Hex() != sub.Digest.Hash().Hex() {
+	if !reflect.DeepEqual(prepare.View, sub.View) || prepare.Digest.Hex() != sub.Digest.Hex() {
 		logger.Warn("Inconsistent subjects between PREPARE and proposal", "expected", sub, "got", prepare)
 		return errInconsistentSubject
 	}

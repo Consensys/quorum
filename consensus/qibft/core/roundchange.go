@@ -43,21 +43,16 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
-	// Now we have the new round number and sequence number
-	prepares := c.PreparedRoundPrepares
-	if prepares == nil {
-		prepares = newMessageSet(c.valSet)
+	var preparedBlockDigest common.Hash
+	if c.current.preparedBlock != nil {
+		preparedBlockDigest = c.current.preparedBlock.Hash()
 	}
-	// If a block has not been prepared and a round change message occurs the preparedBlock is nil, setting it to NilBlock, so that decoding works fine
-	preparedBlock := c.current.preparedBlock
-	if preparedBlock == nil {
-		preparedBlock = NilBlock()
-	}
+
 	cv = c.currentView()
 	rc := &RoundChangeMessage{
-		View:          cv,
-		PreparedRound: c.current.preparedRound,
-		PreparedBlock: preparedBlock,
+		View:                cv,
+		PreparedRound:       c.current.preparedRound,
+		PreparedBlockDigest: preparedBlockDigest,
 	}
 
 	payload, err := Encode(rc)
@@ -67,11 +62,13 @@ func (c *core) sendRoundChange(round *big.Int) {
 	}
 
 	var piggybackMsgPayload []byte
-	piggybackMsg := &PiggybackMessages{PreparedMessages: prepares, RCMessages: newMessageSet(c.valSet)}
-	piggybackMsgPayload, err = Encode(piggybackMsg)
-	if err != nil {
-		logger.Error("Failed to encode Piggyback messages accompanying ROUND CHANGE", "err", err)
-		return
+	if c.PreparedRoundPrepares != nil {
+		piggybackMsg := &PiggybackMessages{PreparedMessages: c.PreparedRoundPrepares, RCMessages: newMessageSet(c.valSet), Proposal: c.current.preparedBlock}
+		piggybackMsgPayload, err = Encode(piggybackMsg)
+		if err != nil {
+			logger.Error("Failed to encode Piggyback messages accompanying ROUND CHANGE", "err", err)
+			return
+		}
 	}
 
 	c.broadcast(&message{
@@ -92,7 +89,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		return errFailedDecodeRoundChange
 	}
 
-	// Decode Prepare messages that piggyback Round Change message
+	// Decode Prepare messages and Prepared block that piggyback Round Change message
 	var piggybackMsgs *PiggybackMessages
 	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
 		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggybackMsgs); err != nil {
@@ -111,14 +108,18 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	if roundView.Round.Cmp(cv.Round) >= 0 {
-		pb := rc.PreparedBlock
 		pr := rc.PreparedRound
-		// Checking if NilBlock was sent as prepared block
-		if NilBlock().Hash() == pb.Hash() {
+		var pb istanbul.Proposal
+		var preparedMessages *messageSet
+		if piggybackMsgs == nil || piggybackMsgs.Proposal == nil {
 			pb = nil
 			pr = nil
+			preparedMessages = nil
+		} else {
+			preparedMessages = piggybackMsgs.PreparedMessages
+			pb = piggybackMsgs.Proposal
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, piggybackMsgs.PreparedMessages, c.QuorumSize())
+		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, preparedMessages, c.QuorumSize())
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 			return err
@@ -150,7 +151,6 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 			RCMessages:      roundChangeMessages,
 			PrepareMessages: prepareMessages,
 		}
-
 		c.sendPreprepare(r)
 	}
 	return nil
@@ -297,7 +297,7 @@ func (rcs *roundChangeSet) MaxRound(num int) *big.Int {
 	return maxRound
 }
 
-// NilBlock represents a nil block and is sent in RoundChangeMessage if PreparedBlock is nil
+// NilBlock represents a nil block and is sent in RoundChangeMessage if PreparedBlockDigest is nil
 func NilBlock() *types.Block {
 	header := &types.Header{
 		Difficulty: big.NewInt(0),

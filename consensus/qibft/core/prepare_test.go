@@ -38,7 +38,7 @@ func TestHandlePrepare(t *testing.T) {
 			Round:    big.NewInt(0),
 			Sequence: proposal.Number(),
 		},
-		Digest: proposal,
+		Digest: proposal.Hash(),
 	}
 
 	testCases := []struct {
@@ -243,7 +243,7 @@ OUTER:
 		if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
-		if !reflect.DeepEqual(m.View, expectedSubject.View) || m.Digest.Hash().Hex() != expectedSubject.Digest.Hash().Hex() {
+		if !reflect.DeepEqual(m.View, expectedSubject.View) || m.Digest.Hex() != expectedSubject.Digest.Hex() {
 			t.Errorf("subject mismatch: have %v, want %v", m, expectedSubject)
 		}
 	}
@@ -269,7 +269,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: nil,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
@@ -281,7 +281,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: errInconsistentSubject,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -293,7 +293,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: errInconsistentSubject,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: makeBlock(5),
+				Digest: makeBlock(5).Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -305,7 +305,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: errInconsistentSubject,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: nil},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -317,7 +317,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: errInconsistentSubject,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
@@ -329,7 +329,7 @@ func TestVerifyPrepare(t *testing.T) {
 			expected: errInconsistentSubject,
 			prepare: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},

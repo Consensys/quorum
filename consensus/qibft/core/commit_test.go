@@ -37,7 +37,7 @@ func TestHandleCommit(t *testing.T) {
 			Round:    big.NewInt(0),
 			Sequence: proposal.Number(),
 		},
-		Digest: proposal,
+		Digest: proposal.Hash(),
 	}
 
 	testCases := []struct {
@@ -235,7 +235,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: nil,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
@@ -247,7 +247,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: errInconsistentSubject,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -259,7 +259,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: errInconsistentSubject,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: makeBlock(5),
+				Digest: makeBlock(5).Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -271,7 +271,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: errInconsistentSubject,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: nil},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
@@ -283,7 +283,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: errInconsistentSubject,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
@@ -295,7 +295,7 @@ func TestVerifyCommit(t *testing.T) {
 			expected: errInconsistentSubject,
 			commit: &Subject{
 				View:   &View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
-				Digest: newTestProposal(),
+				Digest: newTestProposal().Hash(),
 			},
 			roundState: newTestRoundState(
 				&View{Round: big.NewInt(0), Sequence: big.NewInt(0)},

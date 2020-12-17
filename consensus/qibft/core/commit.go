@@ -19,6 +19,7 @@ package core
 import (
 	"reflect"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
@@ -27,7 +28,7 @@ func (c *core) sendCommit() {
 	c.broadcastCommit(sub)
 }
 
-func (c *core) sendCommitForOldBlock(view *View, digest istanbul.Proposal) {
+func (c *core) sendCommitForOldBlock(view *View, digest common.Hash) {
 	sub := &Subject{
 		View:   view,
 		Digest: digest,
@@ -83,7 +84,7 @@ func (c *core) verifyCommit(commit *Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	sub := c.current.Subject()
-	if !reflect.DeepEqual(commit.View, sub.View) || commit.Digest.Hash().Hex() != sub.Digest.Hash().Hex() {
+	if !reflect.DeepEqual(commit.View, sub.View) || commit.Digest.Hex() != sub.Digest.Hex() {
 		logger.Warn("Inconsistent subjects between commit and proposal", "expected", sub, "got", commit)
 		return errInconsistentSubject
 	}

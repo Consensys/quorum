@@ -199,15 +199,15 @@ func TestStoreBacklog(t *testing.T) {
 	// push prepare msg
 	subject := &Subject{
 		View:   v,
-		Digest: preparedBlock,
+		Digest: preparedBlock.Hash(),
 	}
 	subjectPayload, _ := Encode(subject)
 
 	// round change message
 	rcMessage := &RoundChangeMessage{
-		View:          v,
-		PreparedRound: v.Round,
-		PreparedBlock: preparedBlock,
+		View:                v,
+		PreparedRound:       v.Round,
+		PreparedBlockDigest: preparedBlock.Hash(),
 	}
 
 	rcPayload, _ := Encode(rcMessage)
@@ -272,7 +272,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 	// push a future msg
 	subject := &Subject{
 		View:   v,
-		Digest: makeBlock(5),
+		Digest: makeBlock(5).Hash(),
 	}
 	subjectPayload, _ := Encode(subject)
 	m := &message{
@@ -310,14 +310,14 @@ func TestProcessBacklog(t *testing.T) {
 
 	subject := &Subject{
 		View:   v,
-		Digest: makeBlock(5),
+		Digest: makeBlock(5).Hash(),
 	}
 	subjectPayload, _ := Encode(subject)
 
 	roundChange := &RoundChangeMessage{
-		View:          v,
-		PreparedRound: v.Round,
-		PreparedBlock: makeBlock(5),
+		View:                v,
+		PreparedRound:       v.Round,
+		PreparedBlockDigest: makeBlock(5).Hash(),
 	}
 
 	roundChangePayload, _ := Encode(roundChange)

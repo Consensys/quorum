@@ -39,22 +39,24 @@ func (c *core) sendPreprepare(request *Request) {
 			return
 		}
 		// Encode RoundChange messages that piggyback Preprepare message
-
 		var piggybackMsgPayload []byte
 		rcMsgs := request.RCMessages
 		prepareMsgs := request.PrepareMessages
-		if rcMsgs == nil {
-			rcMsgs = newMessageSet(c.valSet)
+		if rcMsgs != nil || prepareMsgs != nil {
+			if rcMsgs == nil {
+				rcMsgs = newMessageSet(c.valSet)
+			}
+			if prepareMsgs == nil {
+				prepareMsgs = newMessageSet(c.valSet)
+			}
+			piggybackMsgPayload, err = Encode(&PiggybackMessages{RCMessages: rcMsgs, PreparedMessages: prepareMsgs, Proposal: nil})
+			if err != nil {
+				logger.Error("Failed to encode Piggyback messages accompanying Preprepare", "err", err)
+				return
+			}
+		} else {
+			piggybackMsgPayload = nil
 		}
-		if prepareMsgs == nil {
-			prepareMsgs = newMessageSet(c.valSet)
-		}
-		piggybackMsgPayload, err = Encode(&PiggybackMessages{RCMessages: rcMsgs, PreparedMessages: prepareMsgs})
-		if err != nil {
-			logger.Error("Failed to encode Piggyback messages accompanying Preprepare", "err", err)
-			return
-		}
-
 		c.broadcast(&message{
 			Code:          msgPreprepare,
 			Msg:           preprepare,
@@ -97,7 +99,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
 			// 2. The given block must exist
 			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal)
+				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
 				return nil
 			}
 		}

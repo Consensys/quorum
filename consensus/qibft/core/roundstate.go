@@ -72,7 +72,7 @@ func (s *roundState) Subject() *Subject {
 			Round:    new(big.Int).Set(s.round),
 			Sequence: new(big.Int).Set(s.sequence),
 		},
-		Digest: s.Preprepare.Proposal,
+		Digest: s.Preprepare.Proposal.Hash(),
 	}
 }
 

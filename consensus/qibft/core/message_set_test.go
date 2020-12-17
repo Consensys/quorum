@@ -74,7 +74,7 @@ func TestMessageSetWithSubject(t *testing.T) {
 
 	sub := &Subject{
 		View:   view,
-		Digest: makeBlock(5),
+		Digest: makeBlock(5).Hash(),
 	}
 
 	rawSub, err := rlp.EncodeToBytes(sub)
@@ -121,9 +121,9 @@ func TestMessageSetEncodeDecode(t *testing.T) {
 	ms.view = view
 
 	rc := &RoundChangeMessage{
-		View:          view,
-		PreparedRound: big.NewInt(0),
-		PreparedBlock: proposal,
+		View:                view,
+		PreparedRound:       big.NewInt(0),
+		PreparedBlockDigest: proposal.Hash(),
 	}
 
 	encodedRC, err := rlp.EncodeToBytes(rc)
@@ -172,8 +172,8 @@ func TestMessageSetEncodeDecode(t *testing.T) {
 	var rcMsg *RoundChangeMessage
 	err = encodedRCMsg.Decode(&rcMsg)
 
-	if rcMsg.PreparedBlock.Hash() != rc.PreparedBlock.Hash() {
-		t.Errorf("rc message mismatch: have %v, want %v", rcMsg.PreparedBlock.Hash(), rc.PreparedBlock.Hash())
+	if rcMsg.PreparedBlockDigest != rc.PreparedBlockDigest {
+		t.Errorf("rc message mismatch: have %v, want %v", rcMsg.PreparedBlockDigest, rc.PreparedBlockDigest)
 	}
 
 }

@@ -96,7 +96,7 @@ func testParameterizedCase(
 	for index, validator := range validatorSet.List() {
 		var m *message
 		if index < rcForNil {
-			m = createRoundChangeMessage(validator.Address(), round, 0, NilBlock())
+			m = createRoundChangeMessage(validator.Address(), round, 0, nil)
 		} else if index >= rcForNil && index < rcForNil+rcEqualToTargetRound {
 			m = createRoundChangeMessage(validator.Address(), round, targetPreparedRound, block)
 		} else if index >= rcForNil+rcEqualToTargetRound && index < rcForNil+rcEqualToTargetRound+rcLowerThanTargetRound {
@@ -135,10 +135,14 @@ func testParameterizedCase(
 }
 
 func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *message {
+	var preparedBlockHash common.Hash
+	if preparedBlock != nil {
+		preparedBlockHash = preparedBlock.Hash()
+	}
 	m, _ := Encode(&RoundChangeMessage{
-		View:          &View{big.NewInt(round), big.NewInt(1)},
-		PreparedRound: big.NewInt(preparedRound),
-		PreparedBlock: preparedBlock,
+		View:                &View{big.NewInt(round), big.NewInt(1)},
+		PreparedRound:       big.NewInt(preparedRound),
+		PreparedBlockDigest: preparedBlockHash,
 	})
 
 	return &message{
@@ -151,7 +155,7 @@ func createRoundChangeMessage(from common.Address, round int64, preparedRound in
 func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message {
 	m, _ := Encode(&Subject{
 		View:   &View{big.NewInt(round), big.NewInt(1)},
-		Digest: preparedBlock,
+		Digest: preparedBlock.Hash(),
 	})
 
 	return &message{

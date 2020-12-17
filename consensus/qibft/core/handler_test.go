@@ -38,8 +38,8 @@ func TestHandleMsg(t *testing.T) {
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
 		},
-		PreparedRound: big.NewInt(0),
-		PreparedBlock: makeBlock(5),
+		PreparedRound:       big.NewInt(0),
+		PreparedBlockDigest: makeBlock(5).Hash(),
 	})
 	// with a matched payload. msgPreprepare should match with *istanbul.Preprepare in normal case.
 	msg := &message{
@@ -60,8 +60,8 @@ func TestHandleMsg(t *testing.T) {
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
 		},
-		PreparedRound: big.NewInt(0),
-		PreparedBlock: makeBlock(1),
+		PreparedRound:       big.NewInt(0),
+		PreparedBlockDigest: makeBlock(1).Hash(),
 	})
 	// with a unmatched payload. msgPrepare should match with *istanbul.Subject in normal case.
 	msg = &message{
@@ -82,8 +82,8 @@ func TestHandleMsg(t *testing.T) {
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
 		},
-		PreparedRound: big.NewInt(0),
-		PreparedBlock: makeBlock(5),
+		PreparedRound:       big.NewInt(0),
+		PreparedBlockDigest: makeBlock(5).Hash(),
 	})
 	// with a unmatched payload. istanbul.MsgCommit should match with *istanbul.Subject in normal case.
 	msg = &message{

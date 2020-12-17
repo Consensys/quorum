@@ -11,10 +11,10 @@ import (
 // Returns true if the `proposal` is justified by the set `roundChangeMessages` of ROUND-CHANGE messages
 // and by the set `prepareMessages` of PREPARE messages.
 // For this we must either have:
-//     - a quorum of ROUND-CHANGE messages with preparedRound and preparedBlock equal to nil; or
+//     - a quorum of ROUND-CHANGE messages with preparedRound and preparedBlockDigest equal to nil; or
 //     - a ROUND-CHANGE message (1) whose preparedRound is not nil and is equal or higher than the
 //           preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
-//           preparedBlock match the round and block of `quorumSize` PREPARE messages.
+//           preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
 func justify(proposal istanbul.Proposal, roundChangeMessages *messageSet, prepareMessages *messageSet, quorumSize int) bool {
 	// Check the size of the set of ROUND-CHANGE messages
 	if roundChangeMessages.Size() < quorumSize {
@@ -37,7 +37,7 @@ func justify(proposal istanbul.Proposal, roundChangeMessages *messageSet, prepar
 		if iteration == 0 { // Get the round of the first message
 			preparedRound = prepareMessage.View.Round
 		}
-		if preparedRound.Cmp(prepareMessage.View.Round) != 0 || proposal.Hash() != prepareMessage.Digest.Hash() {
+		if preparedRound.Cmp(prepareMessage.View.Round) != 0 || proposal.Hash() != prepareMessage.Digest {
 			return false
 		}
 		iteration++
@@ -59,18 +59,17 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages *messageSet, quoru
 		if err := msg.Decode(&roundChangeMessage); err != nil {
 			continue
 		}
-		if roundChangeMessage.PreparedRound.Cmp(common.Big0) == 0 && roundChangeMessage.PreparedBlock.Hash() == NilBlock().Hash() {
+		if roundChangeMessage.PreparedRound.Cmp(common.Big0) == 0 && common.EmptyHash(roundChangeMessage.PreparedBlockDigest) {
 			nilCount++
 			if nilCount == quorumSize {
 				return true
 			}
 		}
 	}
-
 	return false
 }
 
-// Checks whether a set of ROUND-CHANGE messages has some message with `preparedRound` and `preparedBlock`,
+// Checks whether a set of ROUND-CHANGE messages has some message with `preparedRound` and `preparedBlockDigest`,
 // and has `quorumSize` messages with prepared round equal to nil or equal or lower than `preparedRound`.
 func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages *messageSet, preparedRound *big.Int, preparedBlock istanbul.Proposal, quorumSize int) bool {
 	lowerOrEqualRoundCount := 0
@@ -83,7 +82,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 
 		if roundChangeMessage.PreparedRound == nil || roundChangeMessage.PreparedRound.Cmp(preparedRound) <= 0 {
 			lowerOrEqualRoundCount++
-			if roundChangeMessage.PreparedRound != nil && roundChangeMessage.PreparedRound.Cmp(preparedRound) == 0 && roundChangeMessage.PreparedBlock.Hash() == preparedBlock.Hash() {
+			if roundChangeMessage.PreparedRound != nil && roundChangeMessage.PreparedRound.Cmp(preparedRound) == 0 && roundChangeMessage.PreparedBlockDigest == preparedBlock.Hash() {
 				hasMatchingMessage = true
 			}
 			if lowerOrEqualRoundCount >= quorumSize && hasMatchingMessage {
@@ -96,7 +95,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 }
 
 // Checks whether the round and block of a set of PREPARE messages of at least quorumSize match the
-// preparedRound and preparedBlock of a ROUND-CHANGE message.
+// preparedRound and preparedBlockDigest of a ROUND-CHANGE message.
 func hasMatchingRoundChangeAndPrepares(roundChangeMessage *RoundChangeMessage, prepareMessages *messageSet, quorumSize int) bool {
 	if prepareMessages.Size() < quorumSize {
 		return false
@@ -107,7 +106,7 @@ func hasMatchingRoundChangeAndPrepares(roundChangeMessage *RoundChangeMessage, p
 		if err := msg.Decode(&prepare); err != nil {
 			return false
 		}
-		if prepare.Digest.Hash() != roundChangeMessage.PreparedBlock.Hash() {
+		if prepare.Digest != roundChangeMessage.PreparedBlockDigest {
 			return false
 		}
 		if prepare.View.Round.Cmp(roundChangeMessage.PreparedRound) != 0 {
