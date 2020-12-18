@@ -184,11 +184,18 @@ type EVM struct {
 	addressStack      []common.Address
 }
 
+// AffectedType defines attributes indicating how a contract is affected
+// as the result of the contract code execution in an EVM
 type AffectedType struct {
+	// reason captures how the contract is affected.
+	// Default to MessageCall and set to Creation if the contract under execution is newly created.
 	reason AffectedReason
-	mode   AffectedMode
+	// mode captures how the state is operated as the result of contract code execution.
+	// Default to ModeRead and set to ModeWrite if there exists a state modifying opcode during the execution.
+	mode AffectedMode
 }
 
+// AffectedReason defines a type of operation that was applied to a contract.
 type AffectedReason byte
 
 const (
@@ -197,6 +204,7 @@ const (
 	MessageCall
 )
 
+// AffectedMode defines a mode in which the state is operated as the result of contract code execution.
 type AffectedMode byte
 
 const (

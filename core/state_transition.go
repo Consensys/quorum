@@ -201,6 +201,9 @@ func (st *StateTransition) preCheck() error {
 //    and NOT the actual private payload
 // 2. For private transactions, we only deduct intrinsic gas from the gas pool
 //    regardless the current node is party to the transaction or not
+// 3. With multitenancy support, we enforce the party set in the contract index must contain all
+//    parties from the transaction. This is to detect unauthorized access from a legit proxy contract
+//    to an unauthorized contract.
 func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
 	if err = st.preCheck(); err != nil {
 		return
@@ -214,7 +217,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	snapshot := st.evm.StateDB.Snapshot()
 
 	var data []byte
-	var managedParties []string
+	var managedPartiesInTx []string
 	isPrivate := false
 	publicState := st.state
 	pmh := newPMH(st)
@@ -222,7 +225,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		isPrivate = true
 		pmh.snapshot = snapshot
 		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
-		_, managedParties, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
+		_, managedPartiesInTx, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -309,7 +312,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	// do the affected contract managed party checks
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && st.evm.SupportsMultitenancy && msg.IsPrivate() {
-		if len(managedParties) > 0 {
+		if len(managedPartiesInTx) > 0 {
 			for _, address := range evm.AffectedContracts() {
 				managedPartiesInContract, err := st.evm.StateDB.ReadManagedParties(address)
 				if err != nil {
@@ -317,9 +320,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				}
 				// managed parties for public contracts is empty so nothing to check there
 				if len(managedPartiesInContract) > 0 {
-					if !containsAll(managedPartiesInContract, managedParties) {
+					if !containsAll(managedPartiesInContract, managedPartiesInTx) {
 						log.Debug("Managed parties check has failed for contract", "addr", address, "EPH",
-							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedParties)
+							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedPartiesInTx)
 						st.evm.RevertToSnapshot(snapshot)
 						// TODO - see whether we can find a way to store this error and make it available via customizations to getTransactionReceipt or an alternate API
 						return nil, 0, true, nil
@@ -348,8 +351,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			log.Debug("Save to extra data",
 				"address", strings.ToLower(address.Hex()),
 				"isPrivate", isPrivate,
-				"parties", managedParties)
-			st.evm.StateDB.WriteManagedParties(address, managedParties)
+				"parties", managedPartiesInTx)
+			st.evm.StateDB.WriteManagedParties(address, managedPartiesInTx)
 		}
 	}
 

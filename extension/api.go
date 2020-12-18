@@ -106,8 +106,6 @@ func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Addres
 }
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
-	// do multitenancy checks
-	chainAccessor := api.privacyService.stateFetcher.chainAccessor
 	apiHelper := api.privacyService.apiBackendHelper
 	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
 		if len(txa.PrivateFrom) == 0 {
@@ -119,7 +117,7 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Create().PrivateFrom(txa.PrivateFrom).Build(),
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Party(txa.PrivateFrom).Build(),
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Party(txa.PrivateFrom).Build())
-
+		chainAccessor := api.privacyService.stateFetcher.chainAccessor
 		currentBlock := chainAccessor.CurrentBlock().Number().Int64()
 		extraDataReader, err := apiHelper.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
