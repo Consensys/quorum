@@ -23,70 +23,81 @@ type AccountAccessDecisionManager interface {
 // based on what is entitled in the proto.PreAuthenticatedAuthenticationToken
 // and what is asked in ContractSecurityAttribute list.
 type ContractAccessDecisionManager interface {
-	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*ContractSecurityAttribute) (bool, error)
+	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*ContractSecurityAttribute) (bool, error)
 }
 
 type DefaultContractAccessDecisionManager struct {
+}
+
+// isAuthorized performs authorization check for one security attribute against
+// the granted access inside the pre-authenticated access token.
+func (cm *DefaultContractAccessDecisionManager) isAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attr *ContractSecurityAttribute) (bool, error) {
+	query := url.Values{}
+	switch attr.Visibility {
+	case VisibilityPublic:
+		switch attr.Action {
+		case ActionRead, ActionWrite, ActionCreate:
+			if (attr.To == common.Address{}) {
+				query.Set(QueryOwnedEOA, toHexAddress(attr.From))
+			} else {
+				query.Set(QueryOwnedEOA, toHexAddress(attr.To))
+			}
+		}
+	case VisibilityPrivate:
+		switch attr.Action {
+		case ActionRead, ActionWrite:
+			if (attr.To == common.Address{}) {
+				query.Set(QueryOwnedEOA, toHexAddress(attr.From))
+			} else {
+				query.Set(QueryOwnedEOA, toHexAddress(attr.To))
+			}
+			for _, tm := range attr.Parties {
+				query.Add(QueryFromTM, tm)
+			}
+		case ActionCreate:
+			query.Set(QueryFromTM, attr.PrivateFrom)
+		}
+	}
+	// construct request permission identifier
+	request, err := url.Parse(fmt.Sprintf("%s://%s/%s/%s?%s", attr.Visibility, toHexAddress(attr.From), attr.Action, "contracts", query.Encode()))
+	if err != nil {
+		return false, err
+	}
+	// compare the contract security attribute with the consolidate list
+	for _, granted := range authToken.GetAuthorities() {
+		pi, err := url.Parse(granted.GetRaw())
+		if err != nil {
+			continue
+		}
+		granted := pi.String()
+		ask := request.String()
+		isMatched := match(attr, request, pi)
+		log.Debug("Checking contract access", "passed", isMatched, "granted", granted, "ask", ask)
+		if isMatched {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // IsAuthorized performs authorization check for each security attribute against
 // the granted access inside the pre-authenticated access token.
 //
 // All security attributes must pass.
-func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*ContractSecurityAttribute) (bool, error) {
-	matchCount := 0
+func (cm *DefaultContractAccessDecisionManager) IsAuthorized(_ context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*ContractSecurityAttribute) (bool, error) {
 	if len(attributes) == 0 {
 		return false, nil
 	}
 	for _, attr := range attributes {
-		query := url.Values{}
-		switch attr.Visibility {
-		case VisibilityPublic:
-			switch attr.Action {
-			case ActionRead, ActionWrite, ActionCreate:
-				if (attr.To == common.Address{}) {
-					query.Set(QueryOwnedEOA, toHexAddress(attr.From))
-				} else {
-					query.Set(QueryOwnedEOA, toHexAddress(attr.To))
-				}
-			}
-		case VisibilityPrivate:
-			switch attr.Action {
-			case ActionRead, ActionWrite:
-				if (attr.To == common.Address{}) {
-					query.Set(QueryOwnedEOA, toHexAddress(attr.From))
-				} else {
-					query.Set(QueryOwnedEOA, toHexAddress(attr.To))
-				}
-				for _, tm := range attr.Parties {
-					query.Add(QueryFromTM, tm)
-				}
-			case ActionCreate:
-				query.Set(QueryFromTM, attr.PrivateFrom)
-			}
-		}
-		// construct request permission identifier
-		request, err := url.Parse(fmt.Sprintf("%s://%s/%s/%s?%s", attr.Visibility, strings.ToLower(attr.From.Hex()), attr.Action, "contracts", query.Encode()))
+		isMatched, err := cm.isAuthorized(authToken, attr)
 		if err != nil {
 			return false, err
 		}
-		// compare the contract security attribute with the consolidate list
-		for _, granted := range authToken.GetAuthorities() {
-			pi, err := url.Parse(granted.GetRaw())
-			if err != nil {
-				continue
-			}
-			granted := pi.String()
-			ask := request.String()
-			isMatched := match(attr, request, pi)
-			log.Debug("Checking contract access", "passed", isMatched, "granted", granted, "ask", ask)
-			if isMatched {
-				matchCount++
-				break
-			}
+		if !isMatched {
+			return false, nil
 		}
 	}
-	return matchCount == len(attributes), nil
+	return true, nil
 }
 
 func toHexAddress(a common.Address) string {

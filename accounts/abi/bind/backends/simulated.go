@@ -548,7 +548,7 @@ func (fb *filterBackend) AccountExtraDataStateReaderByNumber(context.Context, rp
 	panic("not supported")
 }
 
-func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) (bool, error) {
+func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
 	panic("not supported")
 }
 

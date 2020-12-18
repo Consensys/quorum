@@ -993,7 +993,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 				}
 				attributes = append(attributes,
 					multitenancy.NewContractSecurityAttributeBuilder().Visibility(visibility).Read().Parties(managedParties).Build())
-				if ok, _ := b.IsAuthorized(ctx, authToken, attributes); !ok {
+				if ok, _ := b.IsAuthorized(ctx, authToken, attributes...); !ok {
 					return nil, 0, false, fmt.Errorf("not authorized")
 				}
 			}
@@ -1543,7 +1543,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 			}
 			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 		}
-		if ok, _ := s.b.IsAuthorized(ctx, authToken, attributes); !ok {
+		if ok, _ := s.b.IsAuthorized(ctx, authToken, attributes...); !ok {
 			return nil, fmt.Errorf("not authorized")
 		}
 	}
@@ -1738,7 +1738,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		if err != nil {
 			return common.Hash{}, err
 		}
-		if authorized, _ := b.IsAuthorized(ctx, authToken, attributes); !authorized {
+		if authorized, _ := b.IsAuthorized(ctx, authToken, attributes...); !authorized {
 			return common.Hash{}, fmt.Errorf("not authorized")
 		}
 	}

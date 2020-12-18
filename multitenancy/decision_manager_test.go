@@ -274,7 +274,7 @@ func runTestCases(t *testing.T, testCases []*testCase) {
 		b, err := testObject.IsAuthorized(
 			context.Background(),
 			&proto.PreAuthenticatedAuthenticationToken{Authorities: authorities},
-			tc.ask)
+			tc.ask...)
 		if !assert.NoError(t, err, tc.msg) {
 			return
 		}

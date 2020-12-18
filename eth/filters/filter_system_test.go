@@ -162,7 +162,7 @@ func (b *testBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.B
 	return nil, nil
 }
 
-func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) (bool, error) {
+func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
 	return true, nil
 }
 
