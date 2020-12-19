@@ -144,6 +144,11 @@ var (
 		Usage: "Data directory for the databases and keystore",
 		Value: DirectoryString(node.DefaultDataDir()),
 	}
+	RaftLogDirFlag = DirectoryFlag{
+		Name:  "raftlogdir",
+		Usage: "Raft log directory for the raft-state, raft-snap and raft-wal folders",
+		Value: DirectoryString(node.DefaultDataDir()),
+	}
 	AncientFlag = DirectoryFlag{
 		Name:  "datadir.ancient",
 		Usage: "Data directory for ancient chain segments (default = inside chaindata)",
@@ -897,6 +902,26 @@ func MakeDataDir(ctx *cli.Context) string {
 	return ""
 }
 
+// MakeRaftLogDir retrieves the currently requested data directory, terminating
+// if none (or the empty string) is specified. If the node is starting a testnet,
+// the a subdirectory of the specified raflogdir will be used.
+func MakeRaftLogDir(ctx *cli.Context) string {
+	if path := ctx.GlobalString(RaftLogDirFlag.Name); path != "" {
+		if ctx.GlobalBool(TestnetFlag.Name) {
+			return filepath.Join(path, "testnet")
+		}
+		if ctx.GlobalBool(RinkebyFlag.Name) {
+			return filepath.Join(path, "rinkeby")
+		}
+		if ctx.GlobalBool(GoerliFlag.Name) {
+			return filepath.Join(path, "goerli")
+		}
+		return path
+	}
+	Fatalf("Cannot determine default raft log directory, please set manually(--raftlogdir)")
+	return ""
+}
+
 // setNodeKey creates a node key from set command line flags, either loading it
 // from a file or as a specified hex value. If neither flags were provided, this
 // method returns nil and an emphemeral key is to be generated.
@@ -1299,6 +1324,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
 	setDataDir(ctx, cfg)
+	setRaftLogDir(ctx, cfg)
 	setSmartCard(ctx, cfg)
 
 	if ctx.GlobalIsSet(ExternalSignerFlag.Name) {
@@ -1360,6 +1386,13 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	}
 	if err := SetPlugins(ctx, cfg); err != nil {
 		Fatalf(err.Error())
+	}
+}
+
+func setRaftLogDir(ctx *cli.Context, cfg *node.Config) {
+	switch {
+	case ctx.GlobalIsSet(RaftLogDirFlag.Name):
+		cfg.RaftLogDir = ctx.GlobalString(RaftLogDirFlag.Name)
 	}
 }
 
@@ -1855,6 +1888,7 @@ func RegisterPermissionService(stack *node.Node, useDns bool) {
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
+	raftLogDir := ctx.GlobalString(RaftLogDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
@@ -1895,7 +1929,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 
 		ethereum := <-ethChan
 		ethChan <- ethereum
-		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
+		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, raftLogDir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}
