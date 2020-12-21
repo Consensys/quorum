@@ -133,7 +133,7 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Parties(managedParties).Build())
 
 		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes...); !authorized {
-			return fmt.Errorf("not authorized")
+			return multitenancy.ErrNotAuthorized
 		}
 	}
 	return nil
@@ -375,7 +375,7 @@ func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensio
 			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build(),
 		}
 		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes...); !authorized {
-			return "", fmt.Errorf("not authorized")
+			return "", multitenancy.ErrNotAuthorized
 		}
 	}
 	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{})

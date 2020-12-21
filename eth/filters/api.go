@@ -352,7 +352,7 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("not authorized")
+		return returnLogs(nil), nil
 	}
 	return returnLogs(logs), err
 }
@@ -414,7 +414,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("not authorized")
+		return returnLogs(nil), nil
 	}
 	return returnLogs(logs), nil
 }
@@ -451,7 +451,7 @@ func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (in
 				return nil, err
 			}
 			if !ok {
-				return nil, fmt.Errorf("not authorized")
+				return returnLogs(nil), nil
 			}
 
 			return returnLogs(logs), nil
@@ -622,7 +622,7 @@ func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log)
 			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 		}
 		if ok, _ := api.backend.IsAuthorized(ctx, authToken, attributes...); !ok {
-			return false, fmt.Errorf("not authorized")
+			return false, nil
 		}
 	}
 	return true, nil

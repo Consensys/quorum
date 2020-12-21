@@ -2,6 +2,7 @@ package multitenancy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -9,6 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+)
+
+var (
+	ErrNotAuthorized = errors.New("not authorized")
 )
 
 // AccountAccessDecisionManager performs authorization checks for Ethereum Account
