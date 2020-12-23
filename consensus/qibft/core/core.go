@@ -281,7 +281,6 @@ func (c *core) startNewRound(round *big.Int) {
 func (c *core) updateRoundState(view *View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
-
 	} else {
 		c.current = newRoundState(view, validatorSet, nil, nil, c.backend.HasBadProposal)
 	}

@@ -62,6 +62,12 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 		return err
 	}
 
+	// Check if a quorum of prepare message have been received corresponding to the commit digest. If not, then return a errInvalidMessage error
+	if commit.Digest != c.current.Proposal().Hash() {
+		c.logger.Error("commit digest does not match proposal hash", "proposal", c.current.Proposal().Hash(), "commit", commit.Digest, "state", c.state)
+		return errInvalidMessage
+	}
+
 	if err := c.verifyCommit(commit, src); err != nil {
 		return err
 	}

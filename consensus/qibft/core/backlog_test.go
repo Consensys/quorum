@@ -99,6 +99,24 @@ func TestCheckMessage(t *testing.T) {
 				if err != errFutureMessage {
 					t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 				}
+			} else if testStates[i] == StatePreprepared {
+				if testCode[j] == msgPreprepare {
+					if err != errInvalidMessage {
+						t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+					}
+				} else if testCode[j] == msgCommit {
+					if err != errFutureMessage {
+						t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+					}
+				}
+			} else if testStates[i] == StatePrepared && testCode[j] < msgCommit {
+				if err != errInvalidMessage {
+					t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+				}
+			} else if testStates[i] == StateCommitted {
+				if err != errInvalidMessage {
+					t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+				}
 			} else if err != nil {
 				t.Errorf("error mismatch: have %v, want %v", err, nil)
 			}
@@ -133,6 +151,14 @@ func TestCheckMessage(t *testing.T) {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
+		} else if testCode[i] == msgPreprepare {
+			if err != errInvalidMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+			}
+		} else if testCode[i] == msgCommit {
+			if err != errFutureMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+			}
 		} else if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
@@ -145,6 +171,10 @@ func TestCheckMessage(t *testing.T) {
 		if testCode[i] == msgRoundChange {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+		} else if testCode[i] < msgCommit {
+			if err != errInvalidMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
 			}
 		} else if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
@@ -159,8 +189,8 @@ func TestCheckMessage(t *testing.T) {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
-		} else if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
+		} else if err != errInvalidMessage {
+			t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
 		}
 	}
 

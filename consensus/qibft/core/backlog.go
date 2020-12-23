@@ -57,17 +57,34 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 		return errOldMessage
 	}
 
-	// StateAcceptRequest only accepts msgPreprepare
-	// other messages are future messages
-	if c.state == StateAcceptRequest {
+	switch c.state {
+	case StateAcceptRequest:
+		// StateAcceptRequest only accepts msgPreprepare and msgRoundChange
+		// other messages are future messages
 		if msgCode > msgPreprepare {
 			return errFutureMessage
 		}
 		return nil
+	case StatePreprepared:
+		// StatePreprepared only accepts msgPrepare and msgRoundChange
+		// message less than msgPrepare are invalid and greater are future messages
+		if msgCode < msgPrepare {
+			return errInvalidMessage
+		} else if msgCode > msgPrepare {
+			return errFutureMessage
+		}
+		return nil
+	case StatePrepared:
+		// StatePrepared only accepts msgCommit and msgRoundChange
+		// other messages are invalid messages
+		if msgCode < msgCommit {
+			return errInvalidMessage
+		}
+		return nil
+	case StateCommitted:
+		// StateCommit rejects all messages other than msgRoundChange
+		return errInvalidMessage
 	}
-
-	// For states(StatePreprepared, StatePrepared, StateCommitted),
-	// can accept all message types if processing with same view
 	return nil
 }
 

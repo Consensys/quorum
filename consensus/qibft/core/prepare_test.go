@@ -191,6 +191,10 @@ OUTER:
 		r0 := v0.engine.(*core)
 
 		for i, v := range test.system.backends {
+			// Only process 3 nodes, as the block would be prepared at that stage, any subsequent prepare messages would return errInvalid message
+			if i == 3 {
+				continue
+			}
 			validator := r0.valSet.GetByIndex(uint64(i))
 			m, _ := Encode(v.engine.(*core).current.Subject())
 			if err := r0.handlePrepare(&message{

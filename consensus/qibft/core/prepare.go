@@ -49,6 +49,12 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 		return err
 	}
 
+	// Check if a preprepare message has been received corresponding to the prepare digest. If not, then return a errInvalidMessage error so that the message can be ignored
+	if prepare.Digest != c.current.Proposal().Hash() {
+		c.logger.Error("prepare digest does not match proposal hash", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
+		return errInvalidMessage
+	}
+
 	// If it is locked, it can only process on the locked block.
 	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
 	if err := c.verifyPrepare(prepare, src); err != nil {

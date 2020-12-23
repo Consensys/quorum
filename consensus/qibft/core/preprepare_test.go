@@ -96,13 +96,10 @@ func TestHandlePreprepare(t *testing.T) {
 				// force remove replica 0, let replica 1 be the proposer
 				sys.backends = sys.backends[1:]
 
-				for i, backend := range sys.backends {
+				for _, backend := range sys.backends {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
-					if i != 0 {
-						// replica 0 is the proposer
-						c.state = StatePreprepared
-					}
+					c.state = StateAcceptRequest
 				}
 				return sys
 			}(),

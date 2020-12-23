@@ -112,7 +112,7 @@ func TestHandleCommit(t *testing.T) {
 							expectedSubject.View,
 							c.valSet,
 						)
-						c.state = StatePreprepared
+						c.state = StatePrepared
 					} else {
 						c.current = newTestRoundState(
 							&View{
@@ -132,7 +132,7 @@ func TestHandleCommit(t *testing.T) {
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
-				for i, backend := range sys.backends {
+				for _, backend := range sys.backends {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					c.current = newTestRoundState(
@@ -145,11 +145,9 @@ func TestHandleCommit(t *testing.T) {
 
 					// only replica0 stays at StatePreprepared
 					// other replicas are at StatePrepared
-					if i != 0 {
-						c.state = StatePrepared
-					} else {
-						c.state = StatePreprepared
-					}
+
+					c.state = StatePrepared
+
 				}
 				return sys
 			}(),
@@ -166,6 +164,10 @@ OUTER:
 		r0 := v0.engine.(*core)
 
 		for i, v := range test.system.backends {
+			// Only process 3 nodes, as the block would be committed at that stage, any subsequent commit messages would return errInvalid message
+			if i == 3 {
+				continue
+			}
 			validator := r0.valSet.GetByIndex(uint64(i))
 			m, _ := Encode(v.engine.(*core).current.Subject())
 			if err := r0.handleCommit(&message{
