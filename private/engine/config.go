@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -30,8 +31,15 @@ type socketConfig struct {
 }
 
 type httpConfig struct {
-	Url           string // transaction manager URL for HTTP connection
-	ClientTimeout uint   // timeout for overall client call (seconds), not valid for IPC socket
+	Url             string // transaction manager URL for HTTP connection
+	Tls             string // if "OFF" then TLS disabled, if "STRICT" then TLS enabled
+	RootCA          string // path to file containing certificate for root CA
+	ClientCert      string // path to file containing client certificate (or chain of certs)
+	ClientKey       string // path to file containing client's private key
+	ClientTimeout   uint   // timeout for overall client call (seconds), zero means timeout disabled
+	IdleConnTimeout uint   // timeout for idle connection (seconds), zero means no limit
+	WriteBufferSize int    // size of the write buffer (bytes), if zero then uses http.Transport default
+	ReadBufferSize  int    // size of the read buffer (bytes), if zero then uses http.Transport default
 }
 
 var DefaultSocketTimeouts = socketConfig{
@@ -40,11 +48,16 @@ var DefaultSocketTimeouts = socketConfig{
 	ResponseHeaderTimeout: 5,
 }
 var DefaultHttpTimeouts = httpConfig{
-	ClientTimeout: 10,
+	ClientTimeout:   10,
+	IdleConnTimeout: 10,
 }
 
 func IsSocketConfigured(cfg Config) bool {
 	return cfg.ConnectionType == socketConnection
+}
+
+func IsTlsConfigured(cfg Config) bool {
+	return cfg.HttpConfig.Tls == "STRICT"
 }
 
 // FetchConfig sets up the configuration for the connection to a txn manager.
@@ -80,6 +93,7 @@ func LoadConfigFile(path string, cfg *Config) error {
 	if _, err := toml.DecodeFile(path, cfg); err != nil {
 		return err
 	}
+	cfg.HttpConfig.Tls = strings.ToUpper(cfg.HttpConfig.Tls)
 
 	if cfg.SocketConfig.Socket != "" && cfg.HttpConfig.Url != "" {
 		return fmt.Errorf("cannot specify both Socket and HTTP connections in config file")
@@ -89,6 +103,16 @@ func LoadConfigFile(path string, cfg *Config) error {
 		cfg.ConnectionType = socketConnection
 	} else if cfg.HttpConfig.Url != "" {
 		cfg.ConnectionType = httpConnection
+		switch cfg.HttpConfig.Tls {
+		case "OFF":
+			//no action needed
+		case "STRICT":
+			if cfg.HttpConfig.RootCA == "" || cfg.HttpConfig.ClientCert == "" || cfg.HttpConfig.ClientKey == "" {
+				return fmt.Errorf("missing details for HTTP connection with TLS, config file must specify: rootCA, clientCert, clientKey")
+			}
+		default:
+			return fmt.Errorf("invalid value for 'Tls' in config file, must be either OFF or STRICT")
+		}
 	} else {
 		return fmt.Errorf("either Socket or HTTP connection must be specified in config file")
 	}

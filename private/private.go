@@ -1,6 +1,8 @@
 package private
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,7 +23,7 @@ import (
 var (
 	// global variable to be accessed by other packages
 	// singleton gateway to interact with private transaction manager
-	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+	P PrivateTransactionManager
 )
 
 type Identifiable interface {
@@ -46,6 +48,10 @@ type PrivateTransactionManager interface {
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 }
 
+func Init() {
+	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+}
+
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 	cfgPath := os.Getenv(name)
 	if cfgPath == "" {
@@ -68,19 +74,24 @@ func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
 func NewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {
 	cfg, err := engine.FetchConfig(cfgPath)
 	if err != nil {
-		return nil, fmt.Errorf("error using %s due to: %s", cfgPath, err)
+		return nil, fmt.Errorf("error using '%s' due to: %s", cfgPath, err)
 	}
 
 	var client *engine.Client
 	if engine.IsSocketConfigured(cfg) {
 		client = createIPCClient(cfg)
+	} else if engine.IsTlsConfigured(cfg) {
+		client, err = createHTTPClientUsingTLS(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create http.client to private tx manager using '%s' due to: %s", cfgPath, err)
+		}
 	} else {
 		client = createHTTPClient(cfg)
 	}
 
 	ptm, err := selectPrivateTxManager(client)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to private tx manager using %s due to: %s", cfgPath, err)
+		return nil, fmt.Errorf("unable to connect to private tx manager using '%s' due to: %s", cfgPath, err)
 	}
 	return ptm, nil
 }
@@ -117,8 +128,58 @@ func createHTTPClient(cfg engine.Config) *engine.Client {
 }
 
 func httpTransport(cfg engine.Config) *http.Transport {
-	t := &http.Transport{}
+	t := &http.Transport{
+		IdleConnTimeout: time.Duration(cfg.HttpConfig.IdleConnTimeout) * time.Second,
+		WriteBufferSize: cfg.HttpConfig.WriteBufferSize,
+		ReadBufferSize:  cfg.HttpConfig.ReadBufferSize,
+	}
 	return t
+}
+
+func createHTTPClientUsingTLS(cfg engine.Config) (*engine.Client, error) {
+	transport, err := httpTransportUsingTLS(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &engine.Client{
+		HttpClient: &http.Client{
+			Timeout:   time.Duration(cfg.HttpConfig.ClientTimeout) * time.Second,
+			Transport: transport,
+		},
+		BaseURL: cfg.HttpConfig.Url,
+	}
+	return client, nil
+}
+
+func httpTransportUsingTLS(cfg engine.Config) (*http.Transport, error) {
+	rootCAPool := x509.NewCertPool()
+	rootCA, err := ioutil.ReadFile(cfg.HttpConfig.RootCA)
+	if err != nil {
+		return nil, fmt.Errorf("reading RootCA certificate from '%v' failed : %v", cfg.HttpConfig.RootCA, err)
+	}
+	if !rootCAPool.AppendCertsFromPEM(rootCA) {
+		return nil, fmt.Errorf("failed to add RootCA certificate to pool, check that '%v' contains a valid cert", cfg.HttpConfig.RootCA)
+	}
+
+	t := &http.Transport{
+		IdleConnTimeout: time.Duration(cfg.HttpConfig.IdleConnTimeout) * time.Second,
+		WriteBufferSize: cfg.HttpConfig.WriteBufferSize,
+		ReadBufferSize:  cfg.HttpConfig.ReadBufferSize,
+		TLSClientConfig: &tls.Config{
+			RootCAs: rootCAPool,
+			// Load clients key-pair. This will be sent to server
+			GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
+				c, err := tls.LoadX509KeyPair(cfg.HttpConfig.ClientCert, cfg.HttpConfig.ClientKey)
+				if err != nil {
+					return nil, fmt.Errorf("failed to load client key pair from '%v', '%v': %v", cfg.HttpConfig.ClientCert, cfg.HttpConfig.ClientKey, err)
+				}
+				return &c, nil
+			},
+		},
+	}
+
+	return t, nil
 }
 
 // First call /upcheck to make sure the private tx manager is up
@@ -142,7 +203,7 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 	}
 	var privateTxManager PrivateTransactionManager
 	defer func() {
-		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", version)
+		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", string(version))
 	}()
 	if res.StatusCode != 200 {
 		// Constellation doesn't have /version endpoint

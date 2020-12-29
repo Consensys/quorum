@@ -33,7 +33,7 @@ func Is(ptm interface{}) bool {
 func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
 	ptmVersion, err := parseVersion(version)
 	if err != nil {
-		log.Error("Error parsing version components from the tessera version: %s. Unable to extract transaction manager features.", version)
+		log.Error(fmt.Sprintf("Error parsing version components from the tessera version: %s. Unable to extract transaction manager features.", version))
 	}
 	return &tesseraPrivateTxManager{
 		features: engine.NewFeatureSet(tesseraVersionFeatures(ptmVersion)...),
