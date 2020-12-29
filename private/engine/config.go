@@ -37,7 +37,7 @@ type httpConfig struct {
 	ClientCert      string // path to file containing client certificate (or chain of certs)
 	ClientKey       string // path to file containing client's private key
 	ClientTimeout   uint   // timeout for overall client call (seconds), zero means timeout disabled
-	IdleConnTimeout uint   // timeout for idle connection (seconds), zero means no limit
+	IdleConnTimeout uint   // timeout for idle connection (seconds), zero means timeout disabled
 	WriteBufferSize int    // size of the write buffer (bytes), if zero then uses http.Transport default
 	ReadBufferSize  int    // size of the read buffer (bytes), if zero then uses http.Transport default
 }
