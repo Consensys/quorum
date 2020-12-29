@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	pcore "github.com/ethereum/go-ethereum/permission/core"
 )
 
 const (
@@ -153,7 +154,6 @@ type TxPoolConfig struct {
 	// Quorum
 	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
 	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
-
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -560,8 +560,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
 			return ErrEtherValueUnsupported
 		}
-		// Check if the sender account is authorized to perform the transaction
-		if err := checkAccount(from, tx.To()); err != nil {
+		// Quorum - check if the sender account is authorized to perform the transaction
+		if err := pcore.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
 			return err
 		}
 	} else {
@@ -1593,26 +1593,6 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
-}
-
-// checks if the account is has the necessary access for the transaction
-func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
-	access := types.GetAcctAccess(fromAcct)
-
-	switch access {
-	case types.ReadOnly:
-		return errors.New("read only account. cannot transact")
-
-	case types.Transact:
-		if toAcct == nil {
-			return errors.New("account does not have contract create permissions")
-		}
-
-	case types.FullAccess, types.ContractDeploy:
-		return nil
-
-	}
-	return nil
 }
 
 // helper function to return chainHeadChannel size

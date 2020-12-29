@@ -466,13 +466,16 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Quorum
 	//
 	// checking if permissions is enabled and staring the permissions service
-	if stack.IsPermissionEnabled() {
-		var permissionService *permission.PermissionCtrl
-		if err := stack.Service(&permissionService); err != nil {
-			utils.Fatalf("Permission service not runnning: %v", err)
-		}
-		if err := permissionService.AfterStart(); err != nil {
-			utils.Fatalf("Permission service post construct failure: %v", err)
+	if stack.Config().EnableNodePermission {
+		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
+		if stack.IsPermissionEnabled() {
+			var permissionService *permission.PermissionCtrl
+			if err := stack.Service(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}
 		}
 	}
 

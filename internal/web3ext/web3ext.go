@@ -960,6 +960,18 @@ web3._extend({
                        params: 1,
                        inputFormatter: [null]
                }),
+               new web3._extend.Method({
+                       name: 'transactionAllowed',
+                       call: 'quorumPermission_transactionAllowed',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'connectionAllowed',
+                       call: 'quorumPermission_connectionAllowed',
+                       params: 4,
+                       inputFormatter: [null, null, null, null]
+               }),
 
        ],
        properties:
