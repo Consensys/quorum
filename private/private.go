@@ -79,13 +79,16 @@ func NewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {
 
 	var client *engine.Client
 	if engine.IsSocketConfigured(cfg) {
+		log.Info("Connecting to private tx manager using IPC socket")
 		client = createIPCClient(cfg)
 	} else if engine.IsTlsConfigured(cfg) {
+		log.Info("Connecting to private tx manager using HTTPS")
 		client, err = createHTTPClientUsingTLS(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create http.client to private tx manager using '%s' due to: %s", cfgPath, err)
 		}
 	} else {
+		log.Info("Connecting to private tx manager using HTTP")
 		client = createHTTPClient(cfg)
 	}
 
