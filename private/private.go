@@ -23,7 +23,7 @@ import (
 var (
 	// global variable to be accessed by other packages
 	// singleton gateway to interact with private transaction manager
-	P PrivateTransactionManager
+	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
 )
 
 type Identifiable interface {
@@ -46,10 +46,6 @@ type PrivateTransactionManager interface {
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
 	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
-}
-
-func Init() {
-	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
 }
 
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {

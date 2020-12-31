@@ -45,7 +45,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
-	"github.com/ethereum/go-ethereum/private"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -265,8 +264,6 @@ func init() {
 		if err := debug.Setup(ctx, logdir); err != nil {
 			return err
 		}
-
-		private.Init() //Quorum: Initialise connection to private transaction manager
 
 		return nil
 	}
