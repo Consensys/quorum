@@ -13,7 +13,9 @@ import (
 )
 
 var (
-	ErrNotAuthorized = errors.New("not authorized")
+	ErrNotAuthorized               = errors.New("not authorized")
+	CtxKeyAuthorizeCreateFunc      = "AUTHORIZE_CREATE_FUNC"
+	CtxKeyAuthorizeMessageCallFunc = "AUTHORIZE_MESSAGE_CALL_FUNC"
 )
 
 // AccountAccessDecisionManager performs authorization checks for Ethereum Account
@@ -23,6 +25,11 @@ var (
 type AccountAccessDecisionManager interface {
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attr *AccountStateSecurityAttribute) (bool, error)
 }
+
+type AuthorizeCreateFunc func() bool
+
+// AuthorizeMessageCallFunc returns if a contract is authorized to be read / write
+type AuthorizeMessageCallFunc func(contractAddress common.Address) (authorizedRead bool, authorizedWrite bool, err error)
 
 // ContractAccessDecisionManager performs authorization checks for contract
 // based on what is entitled in the proto.PreAuthenticatedAuthenticationToken

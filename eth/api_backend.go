@@ -226,7 +226,10 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 	from.SetBalance(math.MaxBig256)
 	vmError := func() error { return nil }
 
-	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	evmCtx := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	if _, ok := b.SupportsMultitenancy(ctx); ok {
+		evmCtx = core.NewMultitenancyAwareEVMContext(ctx, evmCtx)
+	}
 
 	// Set the private state to public state if contract address is not present in the private state
 	to := common.Address{}
@@ -239,7 +242,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 		privateState = statedb.state
 	}
 
-	return vm.NewEVM(context, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
+	return vm.NewEVM(evmCtx, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {

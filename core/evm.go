@@ -17,6 +17,7 @@
 package core
 
 import (
+	"context"
 	"math/big"
 	"reflect"
 
@@ -54,18 +55,33 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 		_, supportsMultitenancy = chain.SupportsMultitenancy(nil)
 	}
 	return vm.Context{
-		CanTransfer:          CanTransfer,
-		Transfer:             Transfer,
-		GetHash:              GetHashFn(header, chain),
-		Origin:               msg.From(),
-		Coinbase:             beneficiary,
-		BlockNumber:          new(big.Int).Set(header.Number),
-		Time:                 new(big.Int).SetUint64(header.Time),
-		Difficulty:           new(big.Int).Set(header.Difficulty),
-		GasLimit:             header.GasLimit,
-		GasPrice:             new(big.Int).Set(msg.GasPrice()),
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      msg.From(),
+		Coinbase:    beneficiary,
+		BlockNumber: new(big.Int).Set(header.Number),
+		Time:        new(big.Int).SetUint64(header.Time),
+		Difficulty:  new(big.Int).Set(header.Difficulty),
+		GasLimit:    header.GasLimit,
+		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+
 		SupportsMultitenancy: supportsMultitenancy,
 	}
+}
+
+// Quorum
+//
+// This EVM context is meant for simulation when doing multitenancy check.
+// It enriches the given EVM context with multitenancy-specific references
+func NewMultitenancyAwareEVMContext(ctx context.Context, evmCtx vm.Context) vm.Context {
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeCreateFunc).(multitenancy.AuthorizeCreateFunc); ok {
+		evmCtx.AuthorizeCreateFunc = f
+	}
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeMessageCallFunc).(multitenancy.AuthorizeMessageCallFunc); ok {
+		evmCtx.AuthorizeMessageCallFunc = f
+	}
+	return evmCtx
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number

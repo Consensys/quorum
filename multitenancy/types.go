@@ -163,6 +163,14 @@ func (csab *ContractSecurityAttributeBuilder) WriteOnlyIf(b bool) *ContractSecur
 	}
 }
 
+// set Parties only if b is true, ignore otherwise
+func (csab *ContractSecurityAttributeBuilder) PartiesOnlyIf(b bool, tmPubKeys []string) *ContractSecurityAttributeBuilder {
+	if b {
+		return csab.Parties(tmPubKeys)
+	}
+	return csab
+}
+
 func (csab *ContractSecurityAttributeBuilder) Parties(tmPubKeys []string) *ContractSecurityAttributeBuilder {
 	parties := make([]string, len(tmPubKeys))
 	copy(parties, tmPubKeys)

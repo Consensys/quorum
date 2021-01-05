@@ -53,6 +53,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -947,8 +948,36 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
+	enrichedCtx := ctx
+	// create callbacks to support runtime multitenancy checks during the run
+	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
+		var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
+			var readSecAttr *multitenancy.ContractSecurityAttribute
+			if len(data) == 0 { // public READ
+				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).ToEOA(*msg.To()).Public().Read().Build()
+			} else {
+				currentBlock := b.CurrentBlock().Number().Int64()
+				extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+				if err != nil {
+					return false, false, fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
+				}
+				managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+				isPrivate := true
+				if errors.Is(err, common.ErrNotPrivateContract) {
+					isPrivate = false
+				} else if err != nil {
+					return false, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
+				}
+				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
+			}
+			authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
+			return authorizedRead, false, nil
+		}
+		enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeMessageCallFunc, authorizeMessageCallFunc)
+	}
+
 	// Get a new instance of the EVM.
-	evm, vmError, err := b.GetEVM(ctx, msg, state, header)
+	evm, vmError, err := b.GetEVM(enrichedCtx, msg, state, header)
 	if err != nil {
 		return nil, 0, false, err
 	}
@@ -962,7 +991,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
 	gp := new(core.GasPool).AddGas(math.MaxUint64)
-	res, gas, failed, err := core.ApplyMessage(evm, msg, gp)
+	res, gas, failed, applyErr := core.ApplyMessage(evm, msg, gp)
 	if err := vmError(); err != nil {
 		return nil, 0, false, err
 	}
@@ -970,36 +999,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	if evm.Cancelled() {
 		return nil, 0, false, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
-
-	// perform multi tenancy verification
-	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
-		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-		if len(data) == 0 { // value transfer, public READ
-			attributes = append(attributes,
-				multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).ToEOA(*msg.To()).Public().Read().Build())
-		} else { // contract READ
-			extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(header.Number.Int64()))
-			if err != nil {
-				return nil, 0, false, fmt.Errorf("no account extra data reader at block %v: %w", header.Number, err)
-			}
-			// a read can't produce a write so we only construct READ security attributes
-			for _, contractAddress := range evm.CalledContracts() {
-				managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
-				visibility := multitenancy.VisibilityPrivate
-				if errors.Is(err, common.ErrNotPrivateContract) {
-					visibility = multitenancy.VisibilityPublic
-				} else if err != nil {
-					return nil, 0, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
-				}
-				attributes = append(attributes,
-					multitenancy.NewContractSecurityAttributeBuilder().Visibility(visibility).Read().Parties(managedParties).Build())
-				if ok, _ := b.IsAuthorized(ctx, authToken, attributes...); !ok {
-					return nil, 0, false, multitenancy.ErrNotAuthorized
-				}
-			}
-		}
-	}
-	return res, gas, failed, err
+	return res, gas, failed, applyErr
 }
 
 // Call executes the given transaction on the state for the given block number.
@@ -1541,7 +1541,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 			} else if err != nil {
 				return nil, fmt.Errorf("contract %s not found in the index due to %s", ca.Hex(), err.Error())
 			}
-			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
+			attr := attrBuilder.Parties(managedParties).Build()
+			log.Trace("Contract Security Attribute", "address", ca.Hex(), "attribute", attr)
+			attributes = append(attributes, attr)
 		}
 		if ok, _ := s.b.IsAuthorized(ctx, authToken, attributes...); !ok {
 			return nil, multitenancy.ErrNotAuthorized
@@ -1731,15 +1733,12 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 				return common.Hash{}, fmt.Errorf("missing privateFrom")
 			}
 		}
-		attributes, err := buildContractSecurityAttributes(ctx, b, from, originalTx, &PrivateTxArgs{
+		err := performMultitenancyChecks(ctx, authToken, b, from, originalTx, &PrivateTxArgs{
 			PrivateFrom: privateFrom,
 			PrivateFor:  privateFor,
 		})
 		if err != nil {
 			return common.Hash{}, err
-		}
-		if authorized, _ := b.IsAuthorized(ctx, authToken, attributes...); !authorized {
-			return common.Hash{}, multitenancy.ErrNotAuthorized
 		}
 	}
 
@@ -1760,89 +1759,60 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 
 // Quorum
 //
-// buildContractSecurityAttributes is to use the given transaction and construct
+// performMultitenancyChecks is to use the given transaction and construct
 // expected security attributes being checked against entitled ones. The
 // transaction is fed into the simulation engine in order to determine the impact.
-func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) ([]*multitenancy.ContractSecurityAttribute, error) {
-	currentBlock := b.CurrentBlock().Number().Int64()
-	extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
-	if err != nil {
-		return nil, fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
-	}
-	evm, err := runSimulation(ctx, b, fromEOA, tx)
-	if err != nil {
-		log.Error("Simulated execution", "error", err)
-		return nil, err
-	}
-	createdContractAddresses := evm.CreatedContracts()
-	for _, ca := range createdContractAddresses {
-		log.Trace("Simulation results", "created", ca.Hex())
-	}
-	affectedContracts := make(map[common.Address]vm.AffectedMode)
-	for _, a := range evm.CalledContracts() {
-		if mode, err := evm.AffectedMode(a); err != nil {
-			return nil, err
-		} else {
-			log.Trace("Simulation results", "affected", a.Hex(), "mode", mode)
-			affectedContracts[a] = mode
-		}
-	}
-	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-	visibility := multitenancy.VisibilityPublic
+func performMultitenancyChecks(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken,
+	b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) error {
+
 	if tx.IsPrivate() {
-		visibility = multitenancy.VisibilityPrivate
-		// enforce authorization check for privateFrom
+		// before running simulation, we verify the ownership of privateFrom
 		// user must be entitled for all actions
 		// READ and WRITE actions are taking Parties into consideration so
 		// we need to populate it with privateFrom
-		attributes = append(attributes,
+		if authorized, _ := b.IsAuthorized(ctx, authToken,
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Create().PrivateFrom(privateArgs.PrivateFrom).Build(),
 			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Write().Party(privateArgs.PrivateFrom).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Read().Party(privateArgs.PrivateFrom).Build())
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Read().Party(privateArgs.PrivateFrom).Build(),
+		); !authorized {
+			return multitenancy.ErrNotAuthorized
+		}
 	}
-	// the main logic below is to build correct security attributes based on
-	// information available
-	thisTxSecAttrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
-		FromEOA(fromEOA).PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom)
-	if tx.To() == nil { // contract creation
-		thisTxSecAttrBuilder.Create().Visibility(visibility)
-	} else { // message call
-		thisTxSecAttrBuilder.Write()
-		contractAddress := *tx.To()
+	currentBlock := b.CurrentBlock().Number().Int64()
+	extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+	if err != nil {
+		return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
+	}
+	// create callbacks to support runtime multitenancy checks during simulation
+	createContractSA := multitenancy.NewContractSecurityAttributeBuilder().
+		FromEOA(fromEOA).PrivateIf(tx.IsPrivate()).Create().PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom).Build()
+	authorizedCreate, _ := b.IsAuthorized(ctx, authToken, createContractSA)
+	var authorizeCreateFunc multitenancy.AuthorizeCreateFunc = func() bool {
+		return authorizedCreate
+	}
+	var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
 		managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
-		if err != nil && !errors.Is(err, common.ErrNotPrivateContract) {
-			return nil, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
-		}
-		thisTxSecAttrBuilder.Parties(managedParties).Visibility(visibility)
-		// if this message call results in contracts creation
-		if len(createdContractAddresses) > 0 {
-			createContractSecAttrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
-				FromEOA(fromEOA).Visibility(visibility).Create().
-				PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom)
-			attributes = append(attributes, createContractSecAttrBuilder.Build())
-		}
-	}
-	thisTxSecAttr := thisTxSecAttrBuilder.Build()
-	log.Trace("Built contract security attributes", "address", tx.To(), "attributes", thisTxSecAttr)
-	attributes = append(attributes, thisTxSecAttr)
-	for a, mode := range affectedContracts {
-		managedParties, err := extraDataReader.ReadManagedParties(a)
 		isPrivate := true
 		if errors.Is(err, common.ErrNotPrivateContract) {
 			isPrivate = false
 		} else if err != nil {
-			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
+			return false, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 		}
-		attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
-			FromEOA(fromEOA).Parties(managedParties).
-			PrivateFromOnlyIf(isPrivate, privateArgs.PrivateFrom).PrivateIf(isPrivate).
-			ReadOnlyIf(mode&vm.ModeRead == vm.ModeRead).
-			WriteOnlyIf(mode&vm.ModeWrite == vm.ModeWrite)
-		attr := attrBuilder.Build()
-		log.Trace("Built affected contract security attributes", "address", a, "attributes", attr)
-		attributes = append(attributes, attr)
+		readSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
+		authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
+		writeSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Write().Build()
+		authorizedWrite, _ := b.IsAuthorized(ctx, authToken, writeSecAttr)
+		log.Trace("Authorized Message Call", "read", authorizedRead, "write", authorizedWrite, "address", contractAddress.Hex())
+		return authorizedRead, authorizedWrite, nil
 	}
-	return attributes, nil
+	enrichedCtx := ctx
+	enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeCreateFunc, authorizeCreateFunc)
+	enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeMessageCallFunc, authorizeMessageCallFunc)
+	if _, err := runSimulation(enrichedCtx, b, fromEOA, tx); err != nil {
+		log.Error("Simulated execution for multitenancy", "error", err)
+		return err
+	}
+	return nil
 }
 
 // Quorum
