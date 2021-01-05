@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
@@ -45,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -264,6 +266,13 @@ func init() {
 		if err := debug.Setup(ctx, logdir); err != nil {
 			return err
 		}
+
+		err := private.Init() //Quorum: Initialise connection to private transaction manager
+		if err != nil {
+			return err
+		}
+		privacyExtension.Init() //Quorum: Initialise privacy extension manager
+
 		return nil
 	}
 
