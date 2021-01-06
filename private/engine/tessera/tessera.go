@@ -313,7 +313,8 @@ func (t *tesseraPrivateTxManager) DecryptPayload(payload common.DecryptRequest) 
 }
 
 func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	req, err := http.NewRequest("GET", "http+unix://c/transaction/"+url.PathEscape(txHash.ToBase64())+"/isSender", nil)
+	requestUrl := "/transaction/" + url.PathEscape(txHash.ToBase64()) + "/isSender"
+	req, err := http.NewRequest("GET", t.client.FullPath(requestUrl), nil)
 	if err != nil {
 		return false, err
 	}
@@ -325,6 +326,7 @@ func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (
 	}
 
 	if err != nil {
+		log.Error("Failed to get isSender from tessera", "err", err)
 		return false, err
 	}
 
@@ -341,8 +343,8 @@ func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (
 }
 
 func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
-	requestUrl := "http+unix://c/transaction/" + url.PathEscape(txHash.ToBase64()) + "/participants"
-	req, err := http.NewRequest("GET", requestUrl, nil)
+	requestUrl := "/transaction/" + url.PathEscape(txHash.ToBase64()) + "/participants"
+	req, err := http.NewRequest("GET", t.client.FullPath(requestUrl), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -354,6 +356,7 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 	}
 
 	if err != nil {
+		log.Error("Failed to get participants from tessera", "err", err)
 		return nil, err
 	}
 
