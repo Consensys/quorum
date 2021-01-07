@@ -1518,21 +1518,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
 		}
 
-		receiptAddr := receipt.ContractAddress
-		if receiptAddr == (common.Address{}) {
-			receiptAddr = *tx.To()
-		}
-		ok, err := s.hasAccessToContract(ctx, authToken, extraDataReader, receiptAddr)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			fields["status"] = hexutil.Uint(1)
-			fields["logs"] = [][]*types.Log{}
-			fields["logsBloom"] = types.Bloom{}
-			return fields, nil
-		}
-
 		filteredLogs := make([]*types.Log, 0)
 		for _, l := range receipt.Logs {
 			ok, err := s.hasAccessToContract(ctx, authToken, extraDataReader, l.Address)
