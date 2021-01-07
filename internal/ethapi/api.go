@@ -1529,7 +1529,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		if !ok {
 			fields["status"] = hexutil.Uint(1)
 			fields["logs"] = [][]*types.Log{}
-			// TODO - should we overwrite bloom/gasUsed/cumulativeGasUsed
+			fields["logsBloom"] = types.Bloom{}
 			return fields, nil
 		}
 
@@ -1543,8 +1543,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 				filteredLogs = append(filteredLogs, l)
 			}
 		}
-		// TODO - should we recalculate bloom based on the filtered logs
 		fields["logs"] = filteredLogs
+		receiptClone := &types.Receipt{PostState: receipt.PostState, Status: receipt.Status, Logs: filteredLogs}
+		fields["logsBloom"] = types.CreateBloom(types.Receipts{receiptClone})
 	}
 	return fields, nil
 }
