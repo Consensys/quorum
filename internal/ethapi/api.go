@@ -23,12 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"math/big"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
