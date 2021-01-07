@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"math/big"
 	"net/http"
 	"strings"
@@ -53,7 +54,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -1507,49 +1507,61 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if receipt.Logs == nil {
 		fields["logs"] = [][]*types.Log{}
 	}
-	contractAddresses := make([]common.Address, 0)
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
-		contractAddresses = append(contractAddresses, receipt.ContractAddress)
 	}
-	for _, log := range receipt.Logs {
-		contractAddresses = append(contractAddresses, log.Address)
-	}
-	log.Debug("Found contract addresses", "count", len(contractAddresses))
 	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
 		extraDataReader, err := s.b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 		if err != nil {
 			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
 		}
-		// now if the message call doesn't produce any events, we need to get contract address in another way
-		if len(contractAddresses) == 0 {
-			// by looking up in our contract index
-			if _, err := extraDataReader.ReadManagedParties(*tx.To()); err == nil {
-				contractAddresses = append(contractAddresses, *tx.To())
-			} else {
-				// this is value transfer for public transaction
-				return fields, nil
+
+		receiptAddr := receipt.ContractAddress
+		if receiptAddr == (common.Address{}) {
+			receiptAddr = *tx.To()
+		}
+		ok, err := s.hasAccessToContract(ctx, authToken, extraDataReader, receiptAddr)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			fields["status"] = hexutil.Uint(1)
+			fields["logs"] = [][]*types.Log{}
+			// TODO - should we overwrite bloom/gasUsed/cumulativeGasUsed
+			return fields, nil
+		}
+
+		filteredLogs := make([]*types.Log, 0)
+		for _, l := range receipt.Logs {
+			ok, err := s.hasAccessToContract(ctx, authToken, extraDataReader, l.Address)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				filteredLogs = append(filteredLogs, l)
 			}
 		}
-		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-		for _, ca := range contractAddresses {
-			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
-			managedParties, err := extraDataReader.ReadManagedParties(ca)
-			if errors.Is(err, common.ErrNotPrivateContract) {
-				attrBuilder.Public()
-			} else if err != nil {
-				return nil, fmt.Errorf("contract %s not found in the index due to %s", ca.Hex(), err.Error())
-			}
-			attr := attrBuilder.Parties(managedParties).Build()
-			log.Trace("Contract Security Attribute", "address", ca.Hex(), "attribute", attr)
-			attributes = append(attributes, attr)
-		}
-		if ok, _ := s.b.IsAuthorized(ctx, authToken, attributes...); !ok {
-			return nil, multitenancy.ErrNotAuthorized
-		}
+		// TODO - should we recalculate bloom based on the filtered logs
+		fields["logs"] = filteredLogs
 	}
 	return fields, nil
+}
+
+func (s *PublicTransactionPoolAPI) hasAccessToContract(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, extraDataReader vm.AccountExtraDataStateReader, addr common.Address) (bool, error) {
+	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+	attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
+	managedParties, err := extraDataReader.ReadManagedParties(addr)
+	if errors.Is(err, common.ErrNotPrivateContract) {
+		attrBuilder.Public()
+	} else if err != nil {
+		return false, fmt.Errorf("contract %s not found in the index due to %s", addr.Hex(), err.Error())
+	}
+	attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
+
+	ok, _ := s.b.IsAuthorized(ctx, authToken, attributes...)
+
+	return ok, nil
 }
 
 // Quorum: if signing a private TX, set with tx.SetPrivate() before calling this method.

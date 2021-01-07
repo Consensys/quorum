@@ -347,14 +347,11 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 	if err != nil {
 		return nil, err
 	}
-	ok, err := api.isAuthorized(ctx, logs)
+	authLogs, err := api.filterUnAuthorized(ctx, logs)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
-		return returnLogs(nil), nil
-	}
-	return returnLogs(logs), err
+	return returnLogs(authLogs), err
 }
 
 // UninstallFilter removes the filter with the given filter id.
@@ -409,14 +406,11 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if err != nil {
 		return nil, err
 	}
-	ok, err := api.isAuthorized(ctx, logs)
+	authLogs, err := api.filterUnAuthorized(ctx, logs)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
-		return returnLogs(nil), nil
-	}
-	return returnLogs(logs), nil
+	return returnLogs(authLogs), nil
 }
 
 // GetFilterChanges returns the logs for the filter with the given id since
@@ -446,15 +440,11 @@ func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (in
 		case LogsSubscription:
 			logs := f.logs
 			f.logs = nil
-			ok, err := api.isAuthorized(ctx, logs)
+			authLogs, err := api.filterUnAuthorized(ctx, logs)
 			if err != nil {
 				return nil, err
 			}
-			if !ok {
-				return returnLogs(nil), nil
-			}
-
-			return returnLogs(logs), nil
+			return returnLogs(authLogs), nil
 		}
 	}
 
@@ -600,30 +590,32 @@ func decodeTopic(s string) (common.Hash, error) {
 
 // Quorum
 // Perform authorization check for each logs based on the contract addresses
-func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log) (bool, error) {
+func (api *PublicFilterAPI) filterUnAuthorized(ctx context.Context, logs []*types.Log) ([]*types.Log, error) {
 	if len(logs) == 0 {
-		return true, nil
+		return logs, nil
 	}
 	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
-		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+		filteredLogs := make([]*types.Log, 0)
 		for _, l := range logs {
+			attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
 			contractAddress := l.Address
 			extraDataReader, err := api.backend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
 			if err != nil {
-				return false, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
+				return nil, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
 			}
 			managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
 			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
 			if errors.Is(err, common.ErrNotPrivateContract) {
 				attrBuilder.Public()
 			} else if err != nil {
-				return false, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
+				return nil, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
 			}
 			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
+			if ok, _ := api.backend.IsAuthorized(ctx, authToken, attributes...); ok {
+				filteredLogs = append(filteredLogs, l)
+			}
 		}
-		if ok, _ := api.backend.IsAuthorized(ctx, authToken, attributes...); !ok {
-			return false, nil
-		}
+		return filteredLogs, nil
 	}
-	return true, nil
+	return logs, nil
 }
