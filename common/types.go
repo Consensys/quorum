@@ -64,7 +64,7 @@ func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
 func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
 	bytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return EncryptedPayloadHash{}, err
+		return EncryptedPayloadHash{}, fmt.Errorf("unable to convert base64 string %s to EncryptedPayloadHash. Cause: %v", b64, err)
 	}
 	return BytesToEncryptedPayloadHash(bytes), nil
 }
@@ -100,6 +100,10 @@ func (eph EncryptedPayloadHash) TerminalString() string {
 func (eph EncryptedPayloadHash) BytesTypeRef() *hexutil.Bytes {
 	b := hexutil.Bytes(eph.Bytes())
 	return &b
+}
+
+func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
+	return eph == EncryptedPayloadHash{}
 }
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
@@ -188,6 +192,23 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(h)
 }
 
+func (h Hash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(h.Bytes())
+}
+
+// Decode base64 string to Hash
+// if String is empty then return empty hash
+func Base64ToHash(b64 string) (Hash, error) {
+	if b64 == "" {
+		return Hash{}, nil
+	}
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return Hash{}, fmt.Errorf("unable to convert base64 string %s to Hash. Cause: %v", b64, err)
+	}
+	return BytesToHash(bytes), nil
+}
+
 // Scan implements Scanner for database/sql.
 func (h *Hash) Scan(src interface{}) error {
 	srcB, ok := src.([]byte)
@@ -232,6 +253,48 @@ func (h *UnprefixedHash) UnmarshalText(input []byte) error {
 // MarshalText encodes the hash as hex.
 func (h UnprefixedHash) MarshalText() ([]byte, error) {
 	return []byte(hex.EncodeToString(h[:])), nil
+}
+
+func (ephs EncryptedPayloadHashes) ToBase64s() []string {
+	a := make([]string, 0, len(ephs))
+	for eph := range ephs {
+		a = append(a, eph.ToBase64())
+	}
+	return a
+}
+
+func (ephs EncryptedPayloadHashes) NotExist(eph EncryptedPayloadHash) bool {
+	_, ok := ephs[eph]
+	return !ok
+}
+
+func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
+	ephs[eph] = struct{}{}
+}
+
+func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {
+	ephs := make(EncryptedPayloadHashes)
+	for _, b64 := range b64s {
+		data, err := Base64ToEncryptedPayloadHash(b64)
+		if err != nil {
+			return nil, err
+		}
+		ephs.Add(data)
+	}
+	return ephs, nil
+}
+
+// Print hex but only first 3 and last 3 bytes
+func FormatTerminalString(data []byte) string {
+	l := len(data)
+	if l > 0 {
+		if l > 6 {
+			return fmt.Sprintf("%x…%x", data[:3], data[l-3:])
+		} else {
+			return fmt.Sprintf("%x", data[:])
+		}
+	}
+	return ""
 }
 
 /////////// Address
@@ -433,4 +496,13 @@ func (ma *MixedcaseAddress) ValidChecksum() bool {
 // Original returns the mixed-case input string
 func (ma *MixedcaseAddress) Original() string {
 	return ma.original
+}
+
+type DecryptRequest struct {
+	SenderKey       []byte   `json:"senderKey"`
+	CipherText      []byte   `json:"cipherText"`
+	CipherTextNonce []byte   `json:"cipherTextNonce"`
+	RecipientBoxes  []string `json:"recipientBoxes"`
+	RecipientNonce  []byte   `json:"recipientNonce"`
+	RecipientKeys   []string `json:"recipientKeys"`
 }

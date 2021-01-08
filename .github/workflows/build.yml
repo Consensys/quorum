@@ -4,7 +4,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
-      - .gitignore
+      - 'mkdocs.yml'
+      - '.gitignore'
     branches:
       - master
 env:
@@ -22,7 +23,7 @@ jobs:
         # ###[error]    natupnp_test.go:165: not discovered
         # must be sommething with Github Actions VM networking setup.
         # Event Ubuntu requires a workaround
-        os: ["ubuntu-latest"]
+        os: ["ubuntu-18.04"]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -43,17 +44,34 @@ jobs:
           sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
       - name: 'Prepare environment'
         run: |
-          echo "::add-path::$(go env GOPATH)/bin"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: 'Run tests and build all'
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           make test all
+  publish-docker:
+    name: Publish Docker Image
+    needs:
+      - build
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Build and publish to Docker Hub'
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: ${{ secrets.DOCKER_REPO }}
+          tag_with_ref: true
+          add_git_labels: true
   notify:
     if: always()
     name: Notify
     needs:
       - build
-    runs-on: ubuntu-latest
+      - publish-docker
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup metadata'
         id: setup

@@ -20,6 +20,7 @@ package ethapi
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -45,6 +46,7 @@ type Backend interface {
 	EventMux() *event.TypeMux
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
+	CallTimeOut() time.Duration
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API

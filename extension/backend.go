@@ -1,7 +1,6 @@
 package extension
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -257,7 +257,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 
-					//fetch all the participants and send
+					// fetch all the participants and send
 					payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
 					fetchedParties, err := service.ptm.GetParticipants(payload)
 					if err != nil || len(fetchedParties) == 0 {
@@ -272,13 +272,6 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 
-					recipientPTMKey, err := caller.TargetRecipientPTMKey(&bind.CallOpts{Pending: false})
-					if err != nil {
-						log.Error("[contract] caller.TargetRecipientPTMKey", "error", err)
-						return
-					}
-					log.Debug("Extension: able to retrieve the public key of the new party", "publicKey", recipientPTMKey)
-
 					//we found the account, so we can send
 					contractToExtend, err := caller.ContractToExtend(nil)
 					if err != nil {
@@ -292,14 +285,31 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 
-					log.Debug("Extension: send the state dump to the new recipient", "recipient", recipientPTMKey)
-					//send to PTM
-					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{recipientPTMKey})
+					log.Debug("Extension: send the state dump to the new recipient", "recipients", fetchedParties)
+
+					// PSV & PP changes
+					// send the new transaction with state dump to all participants
+					extraMetaData := engine.ExtraMetadata{PrivacyFlag: engine.PrivacyFlagStandardPrivate}
+					privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend)
 					if err != nil {
-						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipient", recipientPTMKey, "error", err)
+						log.Error("[privacyMetaData] fetch err", "err", err)
+					} else {
+						extraMetaData.PrivacyFlag = privacyMetaData.PrivacyFlag
+						if privacyMetaData.PrivacyFlag == engine.PrivacyFlagStateValidation {
+							storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend)
+							if err != nil {
+								log.Error("[storageRoot] fetch err", "err", err)
+							}
+							extraMetaData.ACMerkleRoot = storageRoot
+						}
+					}
+					hashOfStateData, err := service.ptm.Send(entireStateData, "", fetchedParties, &extraMetaData)
+
+					if err != nil {
+						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)
 						return
 					}
-					hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)
+					hashofStateDataBase64 := hashOfStateData.ToBase64()
 
 					transactor, err := service.managementContractFacade.Transactor(l.Address)
 					if err != nil {
@@ -368,7 +378,6 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
-
 	if txa.GasPrice != nil {
 		txArgs.GasPrice = txa.GasPrice.ToInt()
 	}
@@ -376,4 +385,36 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 		txArgs.GasLimit = uint64(*txa.Gas)
 	}
 	return txArgs, nil
+}
+
+// returns the participant list for a given private contract
+func (service *PrivacyService) GetAllParticipants(blockHash common.Hash, address common.Address) ([]string, error) {
+	privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address)
+	if err != nil {
+		return nil, err
+	}
+	if privacyMetaData.PrivacyFlag.IsStandardPrivate() {
+		return nil, nil
+	}
+
+	participants, err := service.ptm.GetParticipants(privacyMetaData.CreationTxHash)
+	if err != nil {
+		return nil, err
+	}
+	return participants, nil
+}
+
+// check if the node had created the contract
+func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, address common.Address) bool {
+	privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address)
+	if err != nil {
+		return true
+	}
+
+	isCreator, err := service.ptm.IsSender(privacyMetaData.CreationTxHash)
+	if err != nil {
+		return false
+	}
+
+	return isCreator
 }

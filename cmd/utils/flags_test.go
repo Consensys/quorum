@@ -78,6 +78,15 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 	assert.Equal(t, 100000, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name), "immutability threshold value not set")
 }
 
+func TestSetTimeOutForCall(t *testing.T) {
+	fs := &flag.FlagSet{}
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(10)))
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "timeoutforcall flag not set")
+	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(EVMCallTimeOutFlag.Name), "timeoutforcall value not set")
+}
+
 func TestSetPlugins_whenTypical(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "q-")
 	if err != nil {

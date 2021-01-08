@@ -22,6 +22,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -212,9 +214,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	var data []byte
 	isPrivate := false
 	publicState := st.state
+	pmh := newPMH(st)
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, err = private.P.Receive(st.data)
+		pmh.snapshot = st.evm.StateDB.Snapshot()
+		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
+		data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -224,6 +229,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 		if err != nil {
 			return nil, 0, false, nil
+		}
+
+		pmh.hasPrivatePayload = data != nil
+
+		if ok, err := pmh.prepare(); !ok {
+			return nil, 0, true, err
 		}
 	} else {
 		data = st.data
@@ -282,6 +293,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 
+	// Quorum - Privacy Enhancements
+	// perform privacy enhancements checks
+	if pmh.mustVerify() {
+		var exitEarly = false
+		exitEarly, err = pmh.verify(vmerr)
+		if exitEarly {
+			return nil, 0, true, err
+		}
+	}
+	// End Quorum - Privacy Enhancements
+
 	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
 	// However, if private contract then we don't want to do this else we can get
 	// a mismatch between a (non-participant) minter and (participant) validator,
@@ -320,3 +342,25 @@ func (st *StateTransition) refundGas() {
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
+
+// Quorum - Privacy Enhancements - implement the pmcStateTransitionAPI interface
+func (st *StateTransition) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	st.evm.SetTxPrivacyMetadata(pm)
+}
+func (st *StateTransition) IsPrivacyEnhancementsEnabled() bool {
+	return st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.BlockNumber)
+}
+func (st *StateTransition) RevertToSnapshot(snapshot int) {
+	st.evm.StateDB.RevertToSnapshot(snapshot)
+}
+func (st *StateTransition) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	return st.evm.StateDB.GetStatePrivacyMetadata(addr)
+}
+func (st *StateTransition) CalculateMerkleRoot() (common.Hash, error) {
+	return st.evm.CalculateMerkleRoot()
+}
+func (st *StateTransition) AffectedContracts() []common.Address {
+	return st.evm.AffectedContracts()
+}
+
+// End Quorum - Privacy Enhancements

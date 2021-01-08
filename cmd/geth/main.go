@@ -18,7 +18,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -165,6 +164,7 @@ var (
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
 		utils.AllowedFutureBlockTimeFlag,
+		utils.EVMCallTimeOutFlag,
 		// End-Quorum
 	}
 
@@ -322,21 +322,9 @@ func geth(ctx *cli.Context) error {
 	}
 	prepare(ctx)
 
-	if !quorumValidatePrivateTransactionManager() {
-		return errors.New("the PRIVATE_CONFIG environment variable must be specified for Quorum")
-	}
-
-	// raft mode does not support --exitwhensynced
-	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		return errors.New("raft consensus does not support --exitwhensynced")
-	}
-
 	node := makeFullNode(ctx)
 	defer node.Close()
 	startNode(ctx, node)
-
-	// Check if a valid consensus is used
-	quorumValidateConsensus(node, ctx.GlobalBool(utils.RaftModeFlag.Name))
 
 	node.Wait()
 	return nil
@@ -348,6 +336,15 @@ func geth(ctx *cli.Context) error {
 func startNode(ctx *cli.Context, stack *node.Node) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
+
+	if !quorumValidatePrivateTransactionManager() {
+		utils.Fatalf("the PRIVATE_CONFIG environment variable must be specified for Quorum")
+	}
+
+	// raft mode does not support --exitwhensynced
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		utils.Fatalf("raft consensus does not support --exitwhensynced")
+	}
 
 	// Start up the node itself
 	utils.StartNode(stack)
@@ -453,13 +450,16 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Quorum
 	//
 	// checking if permissions is enabled and staring the permissions service
-	if stack.IsPermissionEnabled() {
-		var permissionService *permission.PermissionCtrl
-		if err := stack.Service(&permissionService); err != nil {
-			utils.Fatalf("Permission service not runnning: %v", err)
-		}
-		if err := permissionService.AfterStart(); err != nil {
-			utils.Fatalf("Permission service post construct failure: %v", err)
+	if stack.Config().EnableNodePermission {
+		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
+		if stack.IsPermissionEnabled() {
+			var permissionService *permission.PermissionCtrl
+			if err := stack.Service(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}
 		}
 	}
 
@@ -488,6 +488,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
+
+	// checks quorum features that depend on the ethereum service
+	quorumValidateEthService(stack, ctx.GlobalBool(utils.RaftModeFlag.Name))
 }
 
 // unlockAccounts unlocks any account specifically requested.

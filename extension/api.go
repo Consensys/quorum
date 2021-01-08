@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 var (
@@ -72,6 +72,14 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 	return status, nil
 }
 
+// returns the contract being extended for the given management contract
+func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address) (common.Address, error) {
+	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+	opts := bind.CallOpts{Pending: true, From: from}
+
+	return caller.ContractToExtend(&opts)
+}
+
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
 	// check if the passed contract is public contract
@@ -108,8 +116,19 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", errors.New("contract extension process complete. nothing to accept")
 	}
 
-	if !types.CheckIfAdminAccount(txa.From) {
+	if !core.CheckIfAdminAccount(txa.From) {
 		return "", errors.New("account cannot accept extension")
+	}
+
+	toExtend, err := api.getContractExtended(addressToVoteOn, txa.From)
+	if err != nil {
+		return "", err
+	}
+
+	// get all participants for the contract being extended
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	if err == nil {
+		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
 
 	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
@@ -128,7 +147,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From) {
 		return "", errors.New("already voted")
 	}
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
 	if err != nil {
 		return "", err
 	}
@@ -179,16 +198,21 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 		return "", errors.New("invalid recipient address")
 	}
 
+	// check if contract creator
+	if !api.privacyService.CheckIfContractCreator(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend) {
+		return "", errors.New("operation not allowed")
+	}
+
 	// if running in permissioned mode with new permissions model
 	// ensure that the account extending the contract is an admin
 	// account and recipient account is an admin account as well
 	if txa.From == recipientAddr {
 		return "", errors.New("account accepting the extension cannot be the account initiating extension")
 	}
-	if !types.CheckIfAdminAccount(txa.From) {
+	if !core.CheckIfAdminAccount(txa.From) {
 		return "", errors.New("account not an org admin account, cannot initiate extension")
 	}
-	if !types.CheckIfAdminAccount(recipientAddr) {
+	if !core.CheckIfAdminAccount(recipientAddr) {
 		return "", errors.New("recipient account address is not an org admin account. cannot accept extension")
 	}
 
@@ -207,6 +231,12 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 		}
 	default:
 		return "", errors.New("invalid transaction manager keys given in privateFor argument")
+	}
+
+	// get all participants for the contract being extended
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	if err == nil {
+		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
 
 	//generate some valid transaction options for sending in the transaction
@@ -235,6 +265,17 @@ func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address
 	}
 	if status {
 		return "", errors.New("contract extension process complete. nothing to cancel")
+	}
+
+	toExtend, err := api.getContractExtended(extensionContract, txa.From)
+	if err != nil {
+		return "", err
+	}
+
+	// get all participants for the contract being extended
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	if err == nil {
+		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
 
 	txArgs, err := api.privacyService.GenerateTransactOptions(txa)

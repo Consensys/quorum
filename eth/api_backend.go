@@ -19,7 +19,9 @@ package eth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	pcore "github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -48,6 +51,9 @@ type EthAPIBackend struct {
 	//
 	// hex node id from node public key
 	hexNodeId string
+
+	// timeout value for call
+	evmCallTimeOut time.Duration
 }
 
 // ChainConfig returns the active chain configuration.
@@ -256,7 +262,7 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	// validation for node need to happen here and cannot be done as a part of
 	// validateTx in tx_pool.go as tx_pool validation will happen in every node
-	if b.hexNodeId != "" && !types.ValidateNodeForTxn(b.hexNodeId, signedTx.From()) {
+	if b.hexNodeId != "" && !pcore.ValidateNodeForTxn(b.hexNodeId, signedTx.From()) {
 		return errors.New("cannot send transaction from this node")
 	}
 	return b.eth.txPool.AddLocal(signedTx)
@@ -329,6 +335,10 @@ func (b *EthAPIBackend) AccountManager() *accounts.Manager {
 
 func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
+}
+
+func (b *EthAPIBackend) CallTimeOut() time.Duration {
+	return b.evmCallTimeOut
 }
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
@@ -417,6 +427,21 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 		return s.privateState.GetNonce(addr)
 	}
 	return s.state.GetNonce(addr)
+}
+
+func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetStatePrivacyMetadata(addr)
+	}
+	return nil, fmt.Errorf("The provided address is not a private contract: %x", addr)
+}
+
+func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	getFunc := s.state.GetRLPEncodedStateObject
+	if s.privateState.Exist(addr) {
+		getFunc = s.privateState.GetRLPEncodedStateObject
+	}
+	return getFunc(addr)
 }
 
 func (s EthAPIState) GetProof(addr common.Address) ([][]byte, error) {
