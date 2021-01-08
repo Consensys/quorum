@@ -51,8 +51,8 @@ func TestNodeInfo(t *testing.T) {
 	}{
 		{"ethash", nil, nil, false},
 		{"raft", nil, nil, true},
-		{"istanbul", nil, &params.IstanbulConfig{1, 1, big.NewInt(0)}, false},
-		{"clique", &params.CliqueConfig{1, 1, 0}, nil, false},
+		{"istanbul", nil, &params.IstanbulConfig{Epoch: 1, ProposerPolicy: 1, Ceil2Nby3Block: big.NewInt(0)}, false},
+		{"clique", &params.CliqueConfig{Period: 1, Epoch: 1}, nil, false},
 	}
 
 	// Make sure anything we screw up is restored

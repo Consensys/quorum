@@ -130,7 +130,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	}
 
 	assert.NotEqual(t, privacyMetaData.CreationTxHash, hash)
-	privacyMetaData = &state.PrivacyMetadata{hash, engine.PrivacyFlagPartyProtection}
+	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
 	statedb.SetStatePrivacyMetadata(address, privacyMetaData)
 
 	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)

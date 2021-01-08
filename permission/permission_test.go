@@ -102,7 +102,7 @@ func setup() {
 	guardianKey, _ = crypto.GenerateKey()
 
 	// Create a network-less protocol stack and start an Ethereum service within
-	stack, err = node.New(&node.Config{
+	stack, _ = node.New(&node.Config{
 		DataDir:           "",
 		KeyStoreDir:       ksdir,
 		UseLightweightKDF: true,
@@ -403,7 +403,7 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 
 	assert.Equal(t, orgCacheSize, len(pcore.OrgInfoMap.GetOrgList()))
 
-	orgDetails, err := testObject.GetOrgDetails(arbitraryNetworkAdminOrg)
+	orgDetails, _ := testObject.GetOrgDetails(arbitraryNetworkAdminOrg)
 	assert.Equal(t, orgDetails.AcctList[0].AcctId, guardianAddress)
 	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 }
@@ -580,7 +580,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err := testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
+	_, _ = testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
 	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, pcore.AcctPendingApproval)
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
@@ -783,7 +783,7 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	ptype.UpdateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
 	ptype.UpdateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
 
-	blob, err := ioutil.ReadFile(permFile.Name())
+	blob, _ := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)
@@ -793,7 +793,7 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	ptype.UpdatePermissionedNodes(testObject.node, d, arbitraryNode1, ptype.NodeAdd, true)
 	ptype.UpdatePermissionedNodes(testObject.node, d, arbitraryNode1, ptype.NodeDelete, true)
 
-	blob, err = ioutil.ReadFile(permFile.Name())
+	blob, _ = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)
 		return
@@ -802,7 +802,7 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 
 	ptype.UpdateDisallowedNodes(d, arbitraryNode2, ptype.NodeAdd)
 	ptype.UpdateDisallowedNodes(d, arbitraryNode2, ptype.NodeDelete)
-	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
+	blob, _ = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)
 		return
@@ -819,7 +819,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected file not there error")
 
 	fileName := d + "/permission-config.json"
-	_, err = os.Create(fileName)
+	os.Create(fileName)
 	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected unmarshalling error")
 
@@ -838,7 +838,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.SubOrgBreadth = new(big.Int)
 	tmpPermCofig.SubOrgDepth = new(big.Int)
 
-	blob, err := json.Marshal(tmpPermCofig)
+	blob, _ := json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
@@ -870,7 +870,7 @@ func TestParsePermissionConfig(t *testing.T) {
 
 	_ = os.Remove(fileName)
 	tmpPermCofig.Accounts = append(tmpPermCofig.Accounts, common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d"))
-	blob, err = json.Marshal(tmpPermCofig)
+	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
@@ -891,11 +891,11 @@ func TestParsePermissionConfig(t *testing.T) {
 
 	_ = os.Remove(fileName)
 	tmpPermCofig.InterfAddress = common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
-	blob, err = json.Marshal(tmpPermCofig)
+	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
-	permConfig, err := ptype.ParsePermissionConfig(d)
+	permConfig, _ := ptype.ParsePermissionConfig(d)
 	assert.False(t, permConfig.IsEmpty(), "expected non empty object")
 }
 
