@@ -23,7 +23,8 @@ import (
 var (
 	// global variable to be accessed by other packages
 	// singleton gateway to interact with private transaction manager
-	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+	P                PrivateTransactionManager
+	isPrivacyEnabled = false
 )
 
 type Identifiable interface {
@@ -48,23 +49,35 @@ type PrivateTransactionManager interface {
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 }
 
-func FromEnvironmentOrNil(name string) PrivateTransactionManager {
+func Init() error {
+	var err error
+	P, err = FromEnvironmentOrNil("PRIVATE_CONFIG")
+	return err
+}
+
+func IsPrivacyEnabled() bool {
+	return isPrivacyEnabled
+}
+
+func FromEnvironmentOrNil(name string) (PrivateTransactionManager, error) {
 	cfgPath := os.Getenv(name)
 	if cfgPath == "" {
-		return nil
+		return nil, nil
 	}
 	if strings.EqualFold(cfgPath, "ignore") {
-		return &notinuse.PrivateTransactionManager{}
+		return &notinuse.PrivateTransactionManager{}, nil
 	}
 	return MustNewPrivateTxManager(cfgPath)
 }
 
-func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
+func MustNewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {
 	ptm, err := NewPrivateTxManager(cfgPath)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return ptm
+
+	isPrivacyEnabled = true
+	return ptm, nil
 }
 
 func NewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {

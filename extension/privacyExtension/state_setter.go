@@ -12,10 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum/private"
 )
 
-var DefaultExtensionHandler = NewExtensionHandler(private.P)
+var DefaultExtensionHandler *ExtensionHandler
 
 type ExtensionHandler struct {
 	ptm private.PrivateTransactionManager
+}
+
+func Init() {
+	DefaultExtensionHandler = NewExtensionHandler(private.P)
 }
 
 func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *ExtensionHandler {

@@ -1,6 +1,7 @@
 package private
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -23,11 +24,10 @@ func TestFromEnvironmentOrNil_whenNoConfig(t *testing.T) {
 		}
 	}()
 	os.Unsetenv("ARBITRARY_CONFIG_ENV")
-	p := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
 
-	if p != nil {
-		t.Errorf("expected no instance to be set")
-	}
+	assert.NoError(t, err, "unexpected error")
+	assert.Equal(t, p, nil, "expected no instance to be set")
 }
 
 func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T) {
@@ -44,8 +44,9 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T)
 		}
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
-	p := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
 
+	assert.NoError(t, err, "unexpected error")
 	if !constellation.Is(p) {
 		t.Errorf("expected Constellation to be used but found %v", reflect.TypeOf(p))
 	}
@@ -66,8 +67,9 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithTessera(t *testing.T) {
 		}
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
-	p := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
 
+	assert.NoError(t, err, "unexpected error")
 	if !tessera.Is(p) {
 		t.Errorf("expected Tessera to be used but found %v", reflect.TypeOf(p))
 	}
