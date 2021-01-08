@@ -253,32 +253,32 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
-	stateObject := self.getStateObject(addr)
+func (s *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
 	}
 	return nil, nil
 }
 
-func (self *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
-	stateObject := self.getStateObject(addr)
+func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetCommittedPrivacyMetadata()
 	}
 	return nil, nil
 }
 
-func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
-	stateObject := self.getStateObject(addr)
+func (s *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	stateObject := s.getStateObject(addr)
 	if stateObject == nil {
 		return nil, fmt.Errorf("no state found for %s", addr.Hex())
 	}
 	// When calculating the execution hash or simulating the transaction the stateOject state is not committed/updated
 	// In order to reflect the updated state invoke stateObject.updateRoot on a copy of the state object.
 	if len(stateObject.pendingStorage) > 0 || len(stateObject.dirtyStorage) > 0 || stateObject.dirtyCode {
-		cpy := stateObject.deepCopy(self)
-		cpy.updateRoot(self.db)
+		cpy := stateObject.deepCopy(s)
+		cpy.updateRoot(s.db)
 		return rlp.EncodeToBytes(cpy)
 	}
 	return rlp.EncodeToBytes(stateObject)
@@ -387,12 +387,12 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // Quorum
 // GetStorageRoot returns the root of the storage associated with the given address.
-func (self *StateDB) GetStorageRoot(addr common.Address) (common.Hash, error) {
-	so := self.getStateObject(addr)
+func (s *StateDB) GetStorageRoot(addr common.Address) (common.Hash, error) {
+	so := s.getStateObject(addr)
 	if so == nil {
 		return common.Hash{}, fmt.Errorf("can't find state object")
 	}
-	return so.storageRoot(self.db), nil
+	return so.storageRoot(s.db), nil
 }
 
 /*
@@ -429,8 +429,8 @@ func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
-	stateObject := self.GetOrNewStateObject(addr)
+func (s *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetStatePrivacyMetadata(metadata)
 	}
@@ -659,7 +659,7 @@ func (s *StateDB) Copy() *StateDB {
 		db:   s.db,
 		trie: s.db.CopyTrie(s.trie),
 		// Quorum - Privacy Enhancements
-		privacyMetaDataTrie: self.db.CopyTrie(self.privacyMetaDataTrie),
+		privacyMetaDataTrie: s.db.CopyTrie(s.privacyMetaDataTrie),
 		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),

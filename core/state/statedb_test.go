@@ -31,8 +31,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/private/engine"
 
-	"gopkg.in/check.v1"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
