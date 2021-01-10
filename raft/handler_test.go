@@ -162,6 +162,7 @@ func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg
 
 func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey, nodes []*enode.Node) (*RaftService, error) {
 	datadir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
+	raftlogdir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
 
 	ctx, _, err := prepareServiceContext(key)
 	if err != nil {
@@ -175,7 +176,7 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 		return nil, err
 	}
 
-	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir, false)
+	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir, raftlogdir, false)
 	if err != nil {
 		return nil, err
 	}
