@@ -138,7 +138,7 @@ func (t *BlockTest) Run(snapshotter bool) error {
 	if common.Hash(t.json.BestBlock) != cmlast {
 		return fmt.Errorf("last block hash validation mismatch: want: %x, have: %x", t.json.BestBlock, cmlast)
 	}
-	newDB, _, _, err := chain.State()
+	newDB, _, err := chain.State()
 	if err != nil {
 		return err
 	}

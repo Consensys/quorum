@@ -120,12 +120,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, mtS
 					privateReceipt.MTVersions[psi] = mtPrivateReceipt
 					// TODO - figure out contract extension for each private state
 					allLogs = append(allLogs, mtPrivateReceipt.Logs...)
+
+					p.bc.CheckAndSetPrivateState(mtPrivateReceipt.Logs, mtPrivateState, psi)
 				}
 			}
 
 			privateReceipts = append(privateReceipts, privateReceipt)
 
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState, "private")
 		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)

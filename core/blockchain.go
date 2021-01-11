@@ -211,24 +211,24 @@ type BlockChain struct {
 	processor  Processor  // Block transaction processor interface
 	vmConfig   vm.Config
 
-	badBlocks       *lru.Cache                         // Bad block cache
-	shouldPreserve  func(*types.Block) bool            // Function used to determine whether should preserve the given block.
-	terminateInsert func(common.Hash, uint64) bool     // Testing hook used to terminate ancient receipt chain insertion.
-	setPrivateState func([]*types.Log, *state.StateDB) // Function to check extension and set private state
+	badBlocks       *lru.Cache                                 // Bad block cache
+	shouldPreserve  func(*types.Block) bool                    // Function used to determine whether should preserve the given block.
+	terminateInsert func(common.Hash, uint64) bool             // Testing hook used to terminate ancient receipt chain insertion.
+	setPrivateState func([]*types.Log, *state.StateDB, string) // Function to check extension and set private state
 
 	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
 	isMultitenant     bool           // if this blockchain supports multitenancy
 }
 
 // function pointer for updating private state
-func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)) {
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB, string)) {
 	bc.setPrivateState = ps
 }
 
 // function to update the private state as a part contract state extension
-func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
 	if bc.setPrivateState != nil {
-		bc.setPrivateState(txLogs, privateState)
+		bc.setPrivateState(txLogs, privateState, psi)
 	}
 }
 

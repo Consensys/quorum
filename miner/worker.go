@@ -840,13 +840,13 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 					log.PSI = psi
 				}
 				privateReceipt.MTVersions[psi] = mtPrivateReceipt
-				// TODO - figure out contract extension for each private state
 				allLogs = append(allLogs, mtPrivateReceipt.Logs...)
+				w.chain.CheckAndSetPrivateState(allLogs, privateState, psi)
 			}
 		}
 
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(allLogs, privateState)
+		w.chain.CheckAndSetPrivateState(allLogs, privateState, "private")
 	}
 	return allLogs, nil
 }

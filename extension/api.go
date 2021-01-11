@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	psiCore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/permission/core"
@@ -33,20 +35,43 @@ func NewPrivateExtensionAPI(privacyService *PrivacyService) *PrivateExtensionAPI
 }
 
 // ActiveExtensionContracts returns the list of all currently outstanding extension contracts
-func (api *PrivateExtensionAPI) ActiveExtensionContracts() []ExtensionContract {
+func (api *PrivateExtensionAPI) ActiveExtensionContracts(ctx context.Context) []ExtensionContract {
 	api.privacyService.mu.Lock()
 	defer api.privacyService.mu.Unlock()
 
-	extracted := make([]ExtensionContract, 0, len(api.privacyService.currentContracts))
-	for _, contract := range api.privacyService.currentContracts {
+	if authToken, ok := api.privacyService.apiBackendHelper.SupportsMultitenancy(ctx); ok {
+		var ownedkeys []string
+		for _, granted := range authToken.GetAuthorities() {
+			pi, _ := url.Parse(granted.GetRaw())
+			for a, b := range pi.Query() {
+				if a == "from.tm" {
+					ownedkeys = append(ownedkeys, b...)
+				}
+			}
+		}
+
+		if len(ownedkeys) != 0 {
+			extracted := make([]ExtensionContract, 0)
+			for _, key := range ownedkeys {
+				psi, _ := psiCore.PSIS.ResolveForManagedParty(key)
+				for _, contract := range api.privacyService.psiContracts[psi] {
+					extracted = append(extracted, *contract)
+				}
+			}
+			return extracted
+		}
+	}
+
+	extracted := make([]ExtensionContract, 0)
+	for _, contract := range api.privacyService.psiContracts["private"] {
 		extracted = append(extracted, *contract)
 	}
 	return extracted
 }
 
 // checks of the passed contract address is under extension process
-func (api *PrivateExtensionAPI) checkIfContractUnderExtension(toExtend common.Address) bool {
-	for _, v := range api.ActiveExtensionContracts() {
+func (api *PrivateExtensionAPI) checkIfContractUnderExtension(ctx context.Context, toExtend common.Address) bool {
+	for _, v := range api.ActiveExtensionContracts(ctx) {
 		if v.ContractExtended == toExtend {
 			return true
 		}
@@ -159,13 +184,9 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", errors.New("account cannot accept extension")
 	}
 
-	toExtend, err := api.getContractExtended(addressToVoteOn, txa.From)
-	if err != nil {
-		return "", err
-	}
-
+	psi, _ := psiCore.PSIS.ResolveForUserContext(ctx)
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn, psi)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
@@ -217,7 +238,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) (string, error) {
 	// check if the contract to be extended is already under extension
 	// if yes throw an error
-	if api.checkIfContractUnderExtension(toExtend) {
+	if api.checkIfContractUnderExtension(ctx, toExtend) {
 		return "", errors.New("contract extension in progress for the given contract address")
 	}
 
@@ -241,8 +262,9 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("invalid recipient address")
 	}
 
+	psi, _ := psiCore.PSIS.ResolveForUserContext(ctx)
 	// check if contract creator
-	if !api.privacyService.CheckIfContractCreator(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend) {
+	if !api.privacyService.CheckIfContractCreator(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend, psi) {
 		return "", errors.New("operation not allowed")
 	}
 
@@ -277,7 +299,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	}
 
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend, psi)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
@@ -315,13 +337,9 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
 
-	toExtend, err := api.getContractExtended(extensionContract, txa.From)
-	if err != nil {
-		return "", err
-	}
-
+	psi, _ := psiCore.PSIS.ResolveForUserContext(ctx)
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), extensionContract, psi)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}

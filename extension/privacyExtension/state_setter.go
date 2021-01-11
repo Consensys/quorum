@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
@@ -31,7 +32,7 @@ func (handler *ExtensionHandler) SupportMultitenancy(b bool) {
 	handler.isMultitenant = b
 }
 
-func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
+func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
 	extraMetaDataUpdated := false
 	for _, txLog := range txLogs {
 		if logContainsExtensionTopic(txLog) {
@@ -56,7 +57,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 				}
 				extraMetaDataUpdated = true
 			} else {
-				managedParties, accounts, privacyMetaData, found := handler.FetchStateData(txLog.Address, hash, uuid)
+				managedParties, accounts, privacyMetaData, found := handler.FetchStateData(txLog.Address, hash, uuid, psi)
 				if !found {
 					continue
 				}
@@ -78,8 +79,8 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 	}
 }
 
-func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string) ([]string, map[string]extension.AccountWithMetadata, *state.PrivacyMetadata, bool) {
-	if uuidIsSentByUs := handler.UuidIsOwn(address, uuid); !uuidIsSentByUs {
+func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string, psi string) ([]string, map[string]extension.AccountWithMetadata, *state.PrivacyMetadata, bool) {
+	if uuidIsSentByUs := handler.UuidIsOwn(address, uuid, psi); !uuidIsSentByUs {
 		return nil, nil, nil, false
 	}
 
@@ -118,7 +119,7 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]string, []byte
 	return managedParties, stateData, privacyMetaData, true
 }
 
-func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) bool {
+func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, psi string) bool {
 	if uuid == "" {
 		//we never called accept
 		log.Warn("Extension: State shared by accept never called")
@@ -126,20 +127,33 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 	}
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
-	if isSender {
-		if err != nil {
-			log.Debug("Extension: could not determine if we are sender", "err", err.Error())
-			return false
-		}
+	if err != nil {
+		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
+		return false
+	}
 
-		_, _, encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
+	if isSender {
+		senderPublicKey, _, encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
 		if err != nil {
 			log.Debug("Extension: payload not found", "err", err)
 			return false
 		}
-		var payload common.DecryptRequest
-		err = json.Unmarshal(encryptedPayload, &payload)
+
+		//check the given PSI is same as PSI of sender key
+		senderPsi, err := core.PSIS.ResolveForManagedParty(senderPublicKey)
 		if err != nil {
+			log.Debug("Extension: unable to determine sender public key PSI", "err", err)
+			return false
+		}
+
+		if psi != "private" && senderPsi != psi {
+			// sender was another tenant on this node
+			//not an error case, so no need to log an error
+			return false
+		}
+
+		var payload common.DecryptRequest
+		if err := json.Unmarshal(encryptedPayload, &payload); err != nil {
 			log.Debug("Extension: payload unmarshal failed", "err", err)
 		}
 
