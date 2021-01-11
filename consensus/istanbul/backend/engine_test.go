@@ -418,7 +418,6 @@ OUT1:
 	}
 	_, results = engine.VerifyHeaders(chain, headers, nil)
 	timeout = time.NewTimer(timeoutDura)
-	index = 0
 OUT2:
 	for {
 		select {
