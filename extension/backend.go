@@ -106,8 +106,8 @@ func (service *PrivacyService) watchForNewContracts() error {
 	cb := func(foundLog types.Log) {
 		service.mu.Lock()
 
-		tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
-		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
+				tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
+				from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
 		if err != nil {
