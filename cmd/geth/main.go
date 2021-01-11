@@ -44,8 +44,8 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
-	cli "gopkg.in/urfave/cli.v1"
 	"github.com/ethereum/go-ethereum/plugin"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 const (

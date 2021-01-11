@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
-	etcdRaft "github.com/coreos/etcd/raft"
 	"io/ioutil"
 	"net"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	etcdRaft "github.com/coreos/etcd/raft"
 
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"

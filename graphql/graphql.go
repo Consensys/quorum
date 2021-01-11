@@ -313,7 +313,6 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	return &ret, nil
 }
 
-
 // Quorum
 func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
 	ret := false

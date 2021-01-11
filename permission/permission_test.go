@@ -29,9 +29,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	"github.com/ethereum/go-ethereum/permission/v1"
+	v1 "github.com/ethereum/go-ethereum/permission/v1"
 	v1bind "github.com/ethereum/go-ethereum/permission/v1/bind"
-	"github.com/ethereum/go-ethereum/permission/v2"
+	v2 "github.com/ethereum/go-ethereum/permission/v2"
 	v2bind "github.com/ethereum/go-ethereum/permission/v2/bind"
 	"github.com/stretchr/testify/assert"
 )

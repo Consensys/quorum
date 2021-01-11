@@ -47,9 +47,9 @@ type ProtocolManager struct {
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
-	role          etcdRaft.StateType    // Role: minter or verifier
-	appliedIndex  uint64 // The index of the last-applied raft entry
-	snapshotIndex uint64 // The index of the latest snapshot.
+	role          etcdRaft.StateType // Role: minter or verifier
+	appliedIndex  uint64             // The index of the last-applied raft entry
+	snapshotIndex uint64             // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
 	leader       uint16
@@ -685,8 +685,6 @@ func (pm *ProtocolManager) handleRoleChange(raftRole etcdRaft.StateType) {
 		}
 		pm.minter.stop()
 	}
-
-
 
 }
 
