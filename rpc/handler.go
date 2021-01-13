@@ -374,7 +374,11 @@ func (h *handler) handleSubscribe(cp *callProc, msg *jsonrpcMessage) *jsonrpcMes
 
 // runMethod runs the Go callback for an RPC method.
 func (h *handler) runMethod(ctx context.Context, msg *jsonrpcMessage, callb *callback, args []reflect.Value) *jsonrpcMessage {
-	result, err := callb.call(ctx, msg.Method, args)
+	//Quorum
+	//Pass the request ID to the method as part of the context, in case the method needs it later
+	contextWithId := context.WithValue(ctx, "id", &msg.ID)
+	//End-Quorum
+	result, err := callb.call(contextWithId, msg.Method, args)
 	if err != nil {
 		return msg.errorResponse(err)
 	}

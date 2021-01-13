@@ -239,3 +239,38 @@ func (s *stubAuthenticationManager) Authenticate(_ context.Context, _ string) (*
 func (s *stubAuthenticationManager) IsEnabled(_ context.Context) (bool, error) {
 	return s.isEnabled, s.stubErr
 }
+
+// This test checks that the `ID` from the RPC call is passed to the handler method
+func TestServerContextIdCaptured(t *testing.T) {
+	server := newTestServer()
+	defer server.Stop()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("can't listen:", err)
+	}
+	defer listener.Close()
+	go server.ServeListener(listener)
+
+	var (
+		request  = `{"jsonrpc":"2.0","id":1,"method":"test_echoCtxId"}` + "\n"
+		wantResp = `{"jsonrpc":"2.0","id":1,"result":1}` + "\n"
+	)
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal("can't dial:", err)
+	}
+	defer conn.Close()
+	// Write the request, then half-close the connection so the server stops reading.
+	conn.Write([]byte(request))
+	conn.(*net.TCPConn).CloseWrite()
+	// Now try to get the response.
+	buf := make([]byte, 2000)
+	n, err := conn.Read(buf)
+	if err != nil {
+		t.Fatal("read error:", err)
+	}
+	if !bytes.Equal(buf[:n], []byte(wantResp)) {
+		t.Fatalf("wrong response: %s", buf[:n])
+	}
+}
