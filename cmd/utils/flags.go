@@ -1373,7 +1373,7 @@ func setRaftLogDir(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(RaftLogDirFlag.Name){
 		cfg.RaftLogDir = ctx.GlobalString(RaftLogDirFlag.Name)
 	}else{
-		cfg.RaftLogDir = ctx.GlobalString(DataDirFlag.Name)
+		cfg.RaftLogDir = cfg.DataDir
 	}
 }
 
@@ -1868,7 +1868,7 @@ func RegisterPermissionService(stack *node.Node, useDns bool) {
 
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
-	raftLogDir := ctx.GlobalString(RaftLogDirFlag.Name)
+	raftLogDir := cfg.RaftLogDir // default value is set either 'datadir' or 'raftlogdir'  
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
