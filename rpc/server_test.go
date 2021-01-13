@@ -267,10 +267,7 @@ func TestServerContextIdCaptured(t *testing.T) {
 	// Now try to get the response.
 	buf := make([]byte, 2000)
 	n, err := conn.Read(buf)
-	if err != nil {
-		t.Fatal("read error:", err)
-	}
-	if !bytes.Equal(buf[:n], []byte(wantResp)) {
-		t.Fatalf("wrong response: %s", buf[:n])
-	}
+
+	assert.NoErrorf(t, err, "read error:", err)
+	assert.Equalf(t, buf[:n], []byte(wantResp), "wrong response: %s", buf[:n])
 }
