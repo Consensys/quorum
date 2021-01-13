@@ -902,26 +902,6 @@ func MakeDataDir(ctx *cli.Context) string {
 	return ""
 }
 
-// MakeRaftLogDir retrieves the currently requested data directory, terminating
-// if none (or the empty string) is specified. If the node is starting a testnet,
-// the a subdirectory of the specified raflogdir will be used.
-func MakeRaftLogDir(ctx *cli.Context) string {
-	if path := ctx.GlobalString(RaftLogDirFlag.Name); path != "" {
-		if ctx.GlobalBool(TestnetFlag.Name) {
-			return filepath.Join(path, "testnet")
-		}
-		if ctx.GlobalBool(RinkebyFlag.Name) {
-			return filepath.Join(path, "rinkeby")
-		}
-		if ctx.GlobalBool(GoerliFlag.Name) {
-			return filepath.Join(path, "goerli")
-		}
-		return path
-	}
-	Fatalf("Cannot determine default raft log directory, please set manually(--raftlogdir)")
-	return ""
-}
-
 // setNodeKey creates a node key from set command line flags, either loading it
 // from a file or as a specified hex value. If neither flags were provided, this
 // method returns nil and an emphemeral key is to be generated.
@@ -1929,7 +1909,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 
 		ethereum := <-ethChan
 		ethChan <- ethereum
-		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, raftLogDir, useDns)
+		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, raftLogDir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}

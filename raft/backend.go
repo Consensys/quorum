@@ -38,7 +38,7 @@ type RaftService struct {
 	calcGasLimitFunc func(block *types.Block) uint64
 }
 
-func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir, raftLogDir string, useDns bool) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, raftLogDir string, useDns bool) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:         ctx.EventMux,
 		chainDb:          e.ChainDb(),
@@ -54,7 +54,7 @@ func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raft
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, raftLogDir, service.minter, service.downloader, useDns); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, raftLogDir, service.minter, service.downloader, useDns); err != nil {
 		return nil, err
 	}
 
