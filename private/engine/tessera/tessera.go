@@ -120,11 +120,11 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 			ACMerkleRoot:   extra.ACMerkleRoot,
 			PrivacyFlag:    extra.PrivacyFlag,
 			ManagedParties: response.ManagedParties,
-			Sender:         response.Sender,
+			Sender:         response.SenderKey,
 		},
 	}, gocache.DefaultExpiration)
 
-	return response.Sender, response.ManagedParties, eph, nil
+	return response.SenderKey, response.ManagedParties, eph, nil
 }
 
 func (t *tesseraPrivateTxManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
@@ -235,7 +235,7 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 		}
 		response.Key = string(returnedHash)
 		response.ManagedParties = managedParties
-		response.Sender = sender
+		response.SenderKey = sender
 	}
 
 	hashBytes, err := base64.StdEncoding.DecodeString(response.Key)
@@ -254,13 +254,13 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 					ACMerkleRoot:   extra.ACMerkleRoot,
 					PrivacyFlag:    extra.PrivacyFlag,
 					ManagedParties: response.ManagedParties,
-					Sender:         response.Sender,
+					Sender:         response.SenderKey,
 				},
 			}, gocache.DefaultExpiration)
 			t.cache.Delete(cacheKeyTemp)
 		}
 	}
-	return response.Sender, response.ManagedParties, hashBytes, err
+	return response.SenderKey, response.ManagedParties, hashBytes, err
 }
 
 func (t *tesseraPrivateTxManager) Receive(hash common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
@@ -315,7 +315,7 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 			ACMerkleRoot:   acMerkleRoot,
 			PrivacyFlag:    response.PrivacyFlag,
 			ManagedParties: response.ManagedParties,
-			Sender:         response.Sender,
+			Sender:         response.SenderKey,
 		}
 	}
 
@@ -324,7 +324,7 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 		Extra:   extra,
 	}, gocache.DefaultExpiration)
 
-	return response.Sender, response.ManagedParties, response.Payload, &extra, nil
+	return response.SenderKey, response.ManagedParties, response.Payload, &extra, nil
 }
 
 // retrieve raw will not return information about medata
