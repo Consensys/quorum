@@ -1370,9 +1370,9 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 }
 
 func setRaftLogDir(ctx *cli.Context, cfg *node.Config) {
-	if ctx.GlobalIsSet(RaftLogDirFlag.Name){
+	if ctx.GlobalIsSet(RaftLogDirFlag.Name) {
 		cfg.RaftLogDir = ctx.GlobalString(RaftLogDirFlag.Name)
-	}else{
+	} else {
 		cfg.RaftLogDir = cfg.DataDir
 	}
 }
@@ -1868,7 +1868,7 @@ func RegisterPermissionService(stack *node.Node, useDns bool) {
 
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
-	raftLogDir := nodeCfg.RaftLogDir // default value is set either 'datadir' or 'raftlogdir'  
+	raftLogDir := nodeCfg.RaftLogDir // default value is set either 'datadir' or 'raftlogdir'
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
@@ -1880,7 +1880,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		peers := nodeCfg.StaticNodes()
 
 		var myId uint16
-		var joinExisting bool 
+		var joinExisting bool
 
 		if joinExistingId > 0 {
 			myId = uint16(joinExistingId)
