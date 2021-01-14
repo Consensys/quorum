@@ -221,10 +221,14 @@ func (api *API) Status() (*Status, error) {
 	}, nil
 }
 
-func (api *API) IsValidator() (bool, error) {
-
-	header := api.chain.CurrentHeader()
-	blockNumber := rpc.BlockNumber(header.Number.Int64())
+func (api *API) IsValidator(blockNum *rpc.BlockNumber) (bool, error) {
+	var blockNumber rpc.BlockNumber
+	if blockNum != nil {
+		blockNumber = *blockNum
+	} else {
+		header := api.chain.CurrentHeader()
+		blockNumber = rpc.BlockNumber(header.Number.Int64())
+	}
 	s, _ := api.GetValidators(&blockNumber)
 
 	for _, v := range s {

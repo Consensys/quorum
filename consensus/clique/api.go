@@ -17,6 +17,7 @@
 package clique
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -130,21 +131,50 @@ type Status struct {
 // - the number of active signers,
 // - the number of signers,
 // - the percentage of in-turn blocks
-func (api *API) Status() (*Status, error) {
+func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNumber) (*Status, error) {
 	var (
-		numBlocks = uint64(64)
-		header    = api.chain.CurrentHeader()
+		numBlocks uint64
+		header    *types.Header
 		diff      = uint64(0)
 		optimals  = 0
+
+		start uint64
+		end   uint64
 	)
-	snap, err := api.clique.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
+	if startBlockNum != nil && endBlockNum == nil {
+		return nil, errors.New("pass the end block number")
+	}
+
+	if startBlockNum == nil && endBlockNum != nil {
+		return nil, errors.New("pass the start block number")
+	}
+
+	if startBlockNum == nil && endBlockNum == nil {
+		numBlocks = uint64(64)
+		header = api.chain.CurrentHeader()
+		end = header.Number.Uint64()
+		start = end - numBlocks
+	} else {
+		end = uint64(*endBlockNum)
+		start = uint64(*startBlockNum)
+		if start > end {
+			return nil, errors.New("start block number should be less than end block number")
+		}
+
+		if end > api.chain.CurrentHeader().Number.Uint64() {
+			return nil, errors.New("end block number should be less than or equal to current block height")
+		}
+
+		numBlocks = end - start
+		header = api.chain.GetHeaderByNumber(end)
+	}
+
+	snap, err := api.clique.snapshot(api.chain, end, header.Hash(), nil)
 	if err != nil {
 		return nil, err
 	}
 	var (
 		signers = snap.signers()
-		end     = header.Number.Uint64()
-		start   = end - numBlocks
 	)
 	if numBlocks > end {
 		start = 1
