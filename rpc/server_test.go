@@ -240,11 +240,15 @@ func (s *stubAuthenticationManager) IsEnabled(_ context.Context) (bool, error) {
 	return s.isEnabled, s.stubErr
 }
 
-// This test checks that the `ID` from the RPC call is passed to the handler method
+// Quorum - This test checks that the `ID` from the RPC call is passed to the handler method
 func TestServerContextIdCaptured(t *testing.T) {
+	var (
+		request  = `{"jsonrpc":"2.0","id":1,"method":"test_echoCtxId"}` + "\n"
+		wantResp = `{"jsonrpc":"2.0","id":1,"result":1}` + "\n"
+	)
+
 	server := newTestServer()
 	defer server.Stop()
-
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal("can't listen:", err)
@@ -252,10 +256,6 @@ func TestServerContextIdCaptured(t *testing.T) {
 	defer listener.Close()
 	go server.ServeListener(listener)
 
-	var (
-		request  = `{"jsonrpc":"2.0","id":1,"method":"test_echoCtxId"}` + "\n"
-		wantResp = `{"jsonrpc":"2.0","id":1,"result":1}` + "\n"
-	)
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	if err != nil {
 		t.Fatal("can't dial:", err)
