@@ -34,7 +34,7 @@ import (
 )
 
 type Backend interface {
-	multitenancy.OperationalSupport
+	multitenancy.AuthorizationProvider
 
 	ChainDb() ethdb.Database
 	EventMux() *event.TypeMux
@@ -51,8 +51,8 @@ type Backend interface {
 	BloomStatus() (uint64, uint64)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 
-	// AccountExtraDataStateReaderByNumber returns state reader at a given block height
-	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
+	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
+	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 }
 
 // Filter can be used to retrieve and filter logs.

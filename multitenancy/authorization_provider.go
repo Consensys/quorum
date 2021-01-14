@@ -18,11 +18,11 @@ var (
 	CtxKeyAuthorizeMessageCallFunc = "AUTHORIZE_MESSAGE_CALL_FUNC"
 )
 
-// AccountAccessDecisionManager performs authorization checks for Ethereum Account
+// AccountAuthorizationProvider performs authorization checks for Ethereum Account
 // based on what is entitled in the proto.PreAuthenticatedAuthenticationToken
 // and what is asked in ContractSecurityAttribute list.
 // Note: place holder for future, this is to protect Value Transfer between accounts.
-type AccountAccessDecisionManager interface {
+type AccountAuthorizationProvider interface {
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attr *AccountStateSecurityAttribute) (bool, error)
 }
 
@@ -31,19 +31,19 @@ type AuthorizeCreateFunc func() bool
 // AuthorizeMessageCallFunc returns if a contract is authorized to be read / write
 type AuthorizeMessageCallFunc func(contractAddress common.Address) (authorizedRead bool, authorizedWrite bool, err error)
 
-// ContractAccessDecisionManager performs authorization checks for contract
+// ContractAuthorizationProvider performs authorization checks for contract
 // based on what is entitled in the proto.PreAuthenticatedAuthenticationToken
 // and what is asked in ContractSecurityAttribute list.
-type ContractAccessDecisionManager interface {
+type ContractAuthorizationProvider interface {
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*ContractSecurityAttribute) (bool, error)
 }
 
-type DefaultContractAccessDecisionManager struct {
+type DefaultContractAuthorizationProvider struct {
 }
 
 // isAuthorized performs authorization check for one security attribute against
 // the granted access inside the pre-authenticated access token.
-func (cm *DefaultContractAccessDecisionManager) isAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attr *ContractSecurityAttribute) (bool, error) {
+func (cm *DefaultContractAuthorizationProvider) isAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attr *ContractSecurityAttribute) (bool, error) {
 	query := url.Values{}
 	switch attr.Visibility {
 	case VisibilityPublic:
@@ -96,7 +96,7 @@ func (cm *DefaultContractAccessDecisionManager) isAuthorized(authToken *proto.Pr
 // the granted access inside the pre-authenticated access token.
 //
 // All security attributes must pass.
-func (cm *DefaultContractAccessDecisionManager) IsAuthorized(_ context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*ContractSecurityAttribute) (bool, error) {
+func (cm *DefaultContractAuthorizationProvider) IsAuthorized(_ context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*ContractSecurityAttribute) (bool, error) {
 	if len(attributes) == 0 {
 		return false, nil
 	}

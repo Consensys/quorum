@@ -14,104 +14,104 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockAccountExtraDataStateReader is a mock of AccountExtraDataStateReader interface.
-type MockAccountExtraDataStateReader struct {
+// MockAccountExtraDataStateGetter is a mock of AccountExtraDataStateGetter interface.
+type MockAccountExtraDataStateGetter struct {
 	ctrl     *gomock.Controller
-	recorder *MockAccountExtraDataStateReaderMockRecorder
+	recorder *MockAccountExtraDataStateGetterMockRecorder
 }
 
-// MockAccountExtraDataStateReaderMockRecorder is the mock recorder for MockAccountExtraDataStateReader.
-type MockAccountExtraDataStateReaderMockRecorder struct {
-	mock *MockAccountExtraDataStateReader
+// MockAccountExtraDataStateGetterMockRecorder is the mock recorder for MockAccountExtraDataStateGetter.
+type MockAccountExtraDataStateGetterMockRecorder struct {
+	mock *MockAccountExtraDataStateGetter
 }
 
-// NewMockAccountExtraDataStateReader creates a new mock instance.
-func NewMockAccountExtraDataStateReader(ctrl *gomock.Controller) *MockAccountExtraDataStateReader {
-	mock := &MockAccountExtraDataStateReader{ctrl: ctrl}
-	mock.recorder = &MockAccountExtraDataStateReaderMockRecorder{mock}
+// NewMockAccountExtraDataStateGetter creates a new mock instance.
+func NewMockAccountExtraDataStateGetter(ctrl *gomock.Controller) *MockAccountExtraDataStateGetter {
+	mock := &MockAccountExtraDataStateGetter{ctrl: ctrl}
+	mock.recorder = &MockAccountExtraDataStateGetterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockAccountExtraDataStateReader) EXPECT() *MockAccountExtraDataStateReaderMockRecorder {
+func (m *MockAccountExtraDataStateGetter) EXPECT() *MockAccountExtraDataStateGetterMockRecorder {
 	return m.recorder
 }
 
-// ReadPrivacyMetadata mocks base method.
-func (m *MockAccountExtraDataStateReader) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+// GetPrivacyMetadata mocks base method.
+func (m *MockAccountExtraDataStateGetter) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPrivacyMetadata", addr)
+	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
 	ret0, _ := ret[0].(*state.PrivacyMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadPrivacyMetadata indicates an expected call of ReadPrivacyMetadata.
-func (mr *MockAccountExtraDataStateReaderMockRecorder) ReadPrivacyMetadata(addr interface{}) *gomock.Call {
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+func (mr *MockAccountExtraDataStateGetterMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateReader)(nil).ReadPrivacyMetadata), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateGetter)(nil).GetPrivacyMetadata), addr)
 }
 
-// ReadManagedParties mocks base method.
-func (m *MockAccountExtraDataStateReader) ReadManagedParties(addr common.Address) ([]string, error) {
+// GetManagedParties mocks base method.
+func (m *MockAccountExtraDataStateGetter) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManagedParties", addr)
+	ret := m.ctrl.Call(m, "GetManagedParties", addr)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadManagedParties indicates an expected call of ReadManagedParties.
-func (mr *MockAccountExtraDataStateReaderMockRecorder) ReadManagedParties(addr interface{}) *gomock.Call {
+// GetManagedParties indicates an expected call of GetManagedParties.
+func (mr *MockAccountExtraDataStateGetterMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManagedParties", reflect.TypeOf((*MockAccountExtraDataStateReader)(nil).ReadManagedParties), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockAccountExtraDataStateGetter)(nil).GetManagedParties), addr)
 }
 
-// MockAccountExtraDataStateWriter is a mock of AccountExtraDataStateWriter interface.
-type MockAccountExtraDataStateWriter struct {
+// MockAccountExtraDataStateSetter is a mock of AccountExtraDataStateSetter interface.
+type MockAccountExtraDataStateSetter struct {
 	ctrl     *gomock.Controller
-	recorder *MockAccountExtraDataStateWriterMockRecorder
+	recorder *MockAccountExtraDataStateSetterMockRecorder
 }
 
-// MockAccountExtraDataStateWriterMockRecorder is the mock recorder for MockAccountExtraDataStateWriter.
-type MockAccountExtraDataStateWriterMockRecorder struct {
-	mock *MockAccountExtraDataStateWriter
+// MockAccountExtraDataStateSetterMockRecorder is the mock recorder for MockAccountExtraDataStateSetter.
+type MockAccountExtraDataStateSetterMockRecorder struct {
+	mock *MockAccountExtraDataStateSetter
 }
 
-// NewMockAccountExtraDataStateWriter creates a new mock instance.
-func NewMockAccountExtraDataStateWriter(ctrl *gomock.Controller) *MockAccountExtraDataStateWriter {
-	mock := &MockAccountExtraDataStateWriter{ctrl: ctrl}
-	mock.recorder = &MockAccountExtraDataStateWriterMockRecorder{mock}
+// NewMockAccountExtraDataStateSetter creates a new mock instance.
+func NewMockAccountExtraDataStateSetter(ctrl *gomock.Controller) *MockAccountExtraDataStateSetter {
+	mock := &MockAccountExtraDataStateSetter{ctrl: ctrl}
+	mock.recorder = &MockAccountExtraDataStateSetterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockAccountExtraDataStateWriter) EXPECT() *MockAccountExtraDataStateWriterMockRecorder {
+func (m *MockAccountExtraDataStateSetter) EXPECT() *MockAccountExtraDataStateSetterMockRecorder {
 	return m.recorder
 }
 
-// WritePrivacyMetadata mocks base method.
-func (m *MockAccountExtraDataStateWriter) WritePrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
+// SetPrivacyMetadata mocks base method.
+func (m *MockAccountExtraDataStateSetter) SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WritePrivacyMetadata", addr, pm)
+	m.ctrl.Call(m, "SetPrivacyMetadata", addr, pm)
 }
 
-// WritePrivacyMetadata indicates an expected call of WritePrivacyMetadata.
-func (mr *MockAccountExtraDataStateWriterMockRecorder) WritePrivacyMetadata(addr, pm interface{}) *gomock.Call {
+// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata.
+func (mr *MockAccountExtraDataStateSetterMockRecorder) SetPrivacyMetadata(addr, pm interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateWriter)(nil).WritePrivacyMetadata), addr, pm)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateSetter)(nil).SetPrivacyMetadata), addr, pm)
 }
 
-// WriteManagedParties mocks base method.
-func (m *MockAccountExtraDataStateWriter) WriteManagedParties(addr common.Address, managedParties []string) {
+// SetManagedParties mocks base method.
+func (m *MockAccountExtraDataStateSetter) SetManagedParties(addr common.Address, managedParties []string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WriteManagedParties", addr, managedParties)
+	m.ctrl.Call(m, "SetManagedParties", addr, managedParties)
 }
 
-// WriteManagedParties indicates an expected call of WriteManagedParties.
-func (mr *MockAccountExtraDataStateWriterMockRecorder) WriteManagedParties(addr, managedParties interface{}) *gomock.Call {
+// SetManagedParties indicates an expected call of SetManagedParties.
+func (mr *MockAccountExtraDataStateSetterMockRecorder) SetManagedParties(addr, managedParties interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteManagedParties", reflect.TypeOf((*MockAccountExtraDataStateWriter)(nil).WriteManagedParties), addr, managedParties)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedParties", reflect.TypeOf((*MockAccountExtraDataStateSetter)(nil).SetManagedParties), addr, managedParties)
 }
 
 // MockMinimalApiState is a mock of MinimalApiState interface.
@@ -137,34 +137,34 @@ func (m *MockMinimalApiState) EXPECT() *MockMinimalApiStateMockRecorder {
 	return m.recorder
 }
 
-// ReadPrivacyMetadata mocks base method.
-func (m *MockMinimalApiState) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+// GetPrivacyMetadata mocks base method.
+func (m *MockMinimalApiState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPrivacyMetadata", addr)
+	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
 	ret0, _ := ret[0].(*state.PrivacyMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadPrivacyMetadata indicates an expected call of ReadPrivacyMetadata.
-func (mr *MockMinimalApiStateMockRecorder) ReadPrivacyMetadata(addr interface{}) *gomock.Call {
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+func (mr *MockMinimalApiStateMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPrivacyMetadata", reflect.TypeOf((*MockMinimalApiState)(nil).ReadPrivacyMetadata), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockMinimalApiState)(nil).GetPrivacyMetadata), addr)
 }
 
-// ReadManagedParties mocks base method.
-func (m *MockMinimalApiState) ReadManagedParties(addr common.Address) ([]string, error) {
+// GetManagedParties mocks base method.
+func (m *MockMinimalApiState) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManagedParties", addr)
+	ret := m.ctrl.Call(m, "GetManagedParties", addr)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadManagedParties indicates an expected call of ReadManagedParties.
-func (mr *MockMinimalApiStateMockRecorder) ReadManagedParties(addr interface{}) *gomock.Call {
+// GetManagedParties indicates an expected call of GetManagedParties.
+func (mr *MockMinimalApiStateMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManagedParties", reflect.TypeOf((*MockMinimalApiState)(nil).ReadManagedParties), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockMinimalApiState)(nil).GetManagedParties), addr)
 }
 
 // GetBalance mocks base method.
@@ -393,34 +393,34 @@ func (m *MockStateDB) EXPECT() *MockStateDBMockRecorder {
 	return m.recorder
 }
 
-// ReadPrivacyMetadata mocks base method.
-func (m *MockStateDB) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+// GetPrivacyMetadata mocks base method.
+func (m *MockStateDB) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPrivacyMetadata", addr)
+	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
 	ret0, _ := ret[0].(*state.PrivacyMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadPrivacyMetadata indicates an expected call of ReadPrivacyMetadata.
-func (mr *MockStateDBMockRecorder) ReadPrivacyMetadata(addr interface{}) *gomock.Call {
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+func (mr *MockStateDBMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).ReadPrivacyMetadata), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).GetPrivacyMetadata), addr)
 }
 
-// ReadManagedParties mocks base method.
-func (m *MockStateDB) ReadManagedParties(addr common.Address) ([]string, error) {
+// GetManagedParties mocks base method.
+func (m *MockStateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManagedParties", addr)
+	ret := m.ctrl.Call(m, "GetManagedParties", addr)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadManagedParties indicates an expected call of ReadManagedParties.
-func (mr *MockStateDBMockRecorder) ReadManagedParties(addr interface{}) *gomock.Call {
+// GetManagedParties indicates an expected call of GetManagedParties.
+func (mr *MockStateDBMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManagedParties", reflect.TypeOf((*MockStateDB)(nil).ReadManagedParties), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockStateDB)(nil).GetManagedParties), addr)
 }
 
 // GetBalance mocks base method.
@@ -626,28 +626,28 @@ func (mr *MockStateDBMockRecorder) SetStorage(addr, storage interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockStateDB)(nil).SetStorage), addr, storage)
 }
 
-// WritePrivacyMetadata mocks base method.
-func (m *MockStateDB) WritePrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
+// SetPrivacyMetadata mocks base method.
+func (m *MockStateDB) SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WritePrivacyMetadata", addr, pm)
+	m.ctrl.Call(m, "SetPrivacyMetadata", addr, pm)
 }
 
-// WritePrivacyMetadata indicates an expected call of WritePrivacyMetadata.
-func (mr *MockStateDBMockRecorder) WritePrivacyMetadata(addr, pm interface{}) *gomock.Call {
+// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata.
+func (mr *MockStateDBMockRecorder) SetPrivacyMetadata(addr, pm interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).WritePrivacyMetadata), addr, pm)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).SetPrivacyMetadata), addr, pm)
 }
 
-// WriteManagedParties mocks base method.
-func (m *MockStateDB) WriteManagedParties(addr common.Address, managedParties []string) {
+// SetManagedParties mocks base method.
+func (m *MockStateDB) SetManagedParties(addr common.Address, managedParties []string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WriteManagedParties", addr, managedParties)
+	m.ctrl.Call(m, "SetManagedParties", addr, managedParties)
 }
 
-// WriteManagedParties indicates an expected call of WriteManagedParties.
-func (mr *MockStateDBMockRecorder) WriteManagedParties(addr, managedParties interface{}) *gomock.Call {
+// SetManagedParties indicates an expected call of SetManagedParties.
+func (mr *MockStateDBMockRecorder) SetManagedParties(addr, managedParties interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteManagedParties", reflect.TypeOf((*MockStateDB)(nil).WriteManagedParties), addr, managedParties)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedParties", reflect.TypeOf((*MockStateDB)(nil).SetManagedParties), addr, managedParties)
 }
 
 // CreateAccount mocks base method.

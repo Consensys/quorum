@@ -29,8 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
-
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -55,6 +53,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -958,11 +957,11 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).ToEOA(*msg.To()).Public().Read().Build()
 			} else {
 				currentBlock := b.CurrentBlock().Number().Int64()
-				extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+				extraDataReader, err := b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
 				if err != nil {
 					return false, false, fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 				}
-				managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+				managedParties, err := extraDataReader.GetManagedParties(contractAddress)
 				isPrivate := true
 				if errors.Is(err, common.ErrNotPrivateContract) {
 					isPrivate = false
@@ -972,6 +971,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
 			}
 			authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
+			log.Trace("Authorized Message Call", "read", authorizedRead, "address", contractAddress.Hex(), "securityAttribute", readSecAttr)
 			return authorizedRead, false, nil
 		}
 		enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeMessageCallFunc, authorizeMessageCallFunc)
@@ -1423,7 +1423,7 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	if state == nil || err != nil {
 		return nil, err
 	}
-	return state.ReadPrivacyMetadata(address)
+	return state.GetPrivacyMetadata(address)
 }
 
 // /Quorum
@@ -1513,14 +1513,14 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		fields["contractAddress"] = receipt.ContractAddress
 	}
 	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
-		extraDataReader, err := s.b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+		extraDataReader, err := s.b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(blockNumber))
 		if err != nil {
 			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
 		}
 
 		filteredLogs := make([]*types.Log, 0)
 		for _, l := range receipt.Logs {
-			ok, err := s.hasAccessToContract(ctx, authToken, extraDataReader, l.Address)
+			ok, err := s.isContractAuthorized(ctx, authToken, extraDataReader, l.Address)
 			if err != nil {
 				return nil, err
 			}
@@ -1535,18 +1535,16 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	return fields, nil
 }
 
-func (s *PublicTransactionPoolAPI) hasAccessToContract(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, extraDataReader vm.AccountExtraDataStateReader, addr common.Address) (bool, error) {
-	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+func (s *PublicTransactionPoolAPI) isContractAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, extraDataReader vm.AccountExtraDataStateGetter, addr common.Address) (bool, error) {
 	attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
-	managedParties, err := extraDataReader.ReadManagedParties(addr)
+	managedParties, err := extraDataReader.GetManagedParties(addr)
 	if errors.Is(err, common.ErrNotPrivateContract) {
 		attrBuilder.Public()
 	} else if err != nil {
 		return false, fmt.Errorf("contract %s not found in the index due to %s", addr.Hex(), err.Error())
 	}
-	attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 
-	ok, _ := s.b.IsAuthorized(ctx, authToken, attributes...)
+	ok, _ := s.b.IsAuthorized(ctx, authToken, attrBuilder.Parties(managedParties).Build())
 
 	return ok, nil
 }
@@ -1769,16 +1767,12 @@ func performMultitenancyChecks(ctx context.Context, authToken *proto.PreAuthenti
 		// user must be entitled for all actions
 		// READ and WRITE actions are taking Parties into consideration so
 		// we need to populate it with privateFrom
-		if authorized, _ := b.IsAuthorized(ctx, authToken,
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Create().PrivateFrom(privateArgs.PrivateFrom).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Write().Party(privateArgs.PrivateFrom).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Read().Party(privateArgs.PrivateFrom).Build(),
-		); !authorized {
+		if authorized, _ := b.IsAuthorized(ctx, authToken, multitenancy.FullAccessContractSecurityAttributes(fromEOA, privateArgs.PrivateFrom)...); !authorized {
 			return multitenancy.ErrNotAuthorized
 		}
 	}
 	currentBlock := b.CurrentBlock().Number().Int64()
-	extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+	extraDataReader, err := b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
 	if err != nil {
 		return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 	}
@@ -1786,11 +1780,12 @@ func performMultitenancyChecks(ctx context.Context, authToken *proto.PreAuthenti
 	createContractSA := multitenancy.NewContractSecurityAttributeBuilder().
 		FromEOA(fromEOA).PrivateIf(tx.IsPrivate()).Create().PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom).Build()
 	authorizedCreate, _ := b.IsAuthorized(ctx, authToken, createContractSA)
+	log.Debug("Authorized Contract Creation", "create", authorizedCreate, "securityAttribute", createContractSA)
 	var authorizeCreateFunc multitenancy.AuthorizeCreateFunc = func() bool {
 		return authorizedCreate
 	}
 	var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
-		managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+		managedParties, err := extraDataReader.GetManagedParties(contractAddress)
 		isPrivate := true
 		if errors.Is(err, common.ErrNotPrivateContract) {
 			isPrivate = false
@@ -1799,9 +1794,10 @@ func performMultitenancyChecks(ctx context.Context, authToken *proto.PreAuthenti
 		}
 		readSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
 		authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
+		log.Trace("Authorized Message Call", "read", authorizedRead, "address", contractAddress.Hex(), "securityAttribute", readSecAttr)
 		writeSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Write().Build()
 		authorizedWrite, _ := b.IsAuthorized(ctx, authToken, writeSecAttr)
-		log.Trace("Authorized Message Call", "read", authorizedRead, "write", authorizedWrite, "address", contractAddress.Hex())
+		log.Trace("Authorized Message Call", "write", authorizedWrite, "address", contractAddress.Hex(), "securityAttribute", writeSecAttr)
 		return authorizedRead, authorizedWrite, nil
 	}
 	enrichedCtx := ctx
@@ -2601,12 +2597,12 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 	privacyFlag := privateTxArgs.PrivacyFlag
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
 	for _, addr := range addresses {
-		// ReadPrivacyMetadata is invoked directly on the privateState (as the tx is private) and it returns:
+		// GetPrivacyMetadata is invoked directly on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
 		// 2. private contracts of type:
 		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"
 		// 2.2. PartyProtection/PSV: privacyMetadata = <data>, err = nil
-		privacyMetadata, err := evm.StateDB.ReadPrivacyMetadata(addr)
+		privacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
 		if err != nil && privacyFlag.IsNotStandardPrivate() {

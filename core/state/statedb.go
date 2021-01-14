@@ -114,7 +114,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 	}
 
 	// Quorum - Privacy Enhancements - retrieve the privacy metadata root corresponding to the account state root
-	extraDataRoot := db.AccountExtraDataLinker().Find(root)
+	extraDataRoot := db.AccountExtraDataLinker().GetAccountExtraDataRoot(root)
 	log.Debug("Account Extra Data root", "hash", extraDataRoot)
 	accountExtraDataTrie, err := db.OpenTrie(extraDataRoot)
 	if err != nil {
@@ -253,7 +253,7 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) ReadPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+func (self *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
@@ -269,7 +269,7 @@ func (self *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*Pri
 	return nil, nil
 }
 
-func (self *StateDB) ReadManagedParties(addr common.Address) ([]string, error) {
+func (self *StateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.ManagedParties()
@@ -437,14 +437,14 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) WritePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
+func (self *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetStatePrivacyMetadata(metadata)
 	}
 }
 
-func (self *StateDB) WriteManagedParties(addr common.Address, managedParties []string) {
+func (self *StateDB) SetManagedParties(addr common.Address, managedParties []string) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil && len(managedParties) > 0 {
 		stateObject.SetManagedParties(managedParties)

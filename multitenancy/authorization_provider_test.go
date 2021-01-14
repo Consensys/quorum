@@ -264,7 +264,7 @@ func TestMatch_whenNotEscaped(t *testing.T) {
 }
 
 func runTestCases(t *testing.T, testCases []*testCase) {
-	testObject := &DefaultContractAccessDecisionManager{}
+	testObject := &DefaultContractAuthorizationProvider{}
 	for _, tc := range testCases {
 		log.Debug("--> Running test case: " + tc.msg)
 		authorities := make([]*proto.GrantedAuthority, 0)

@@ -291,13 +291,13 @@ func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.Pre
 	return nil, false
 }
 
-func (b *LesApiBackend) AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
 }
 
 func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
-	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes...)
+	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
 	if err != nil {
 		return false, err
 	}

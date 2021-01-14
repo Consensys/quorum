@@ -86,7 +86,7 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 	log.Trace("Verify hashes of affected contracts", "expectedHashes", pmh.receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 	privacyFlag := pmh.receivedPrivacyMetadata.PrivacyFlag
 	for _, addr := range actualACAddresses {
-		// ReadPrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
+		// GetPrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
 		// 2. private contracts of type:
 		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"

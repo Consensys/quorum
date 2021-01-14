@@ -318,13 +318,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && st.evm.SupportsMultitenancy && msg.IsPrivate() {
 		if len(managedPartiesInTx) > 0 {
 			for _, address := range evm.AffectedContracts() {
-				managedPartiesInContract, err := st.evm.StateDB.ReadManagedParties(address)
+				managedPartiesInContract, err := st.evm.StateDB.GetManagedParties(address)
 				if err != nil {
 					return nil, 0, true, err
 				}
 				// managed parties for public contracts is empty so nothing to check there
 				if len(managedPartiesInContract) > 0 {
-					if !containsAll(managedPartiesInContract, managedPartiesInTx) {
+					if common.NotContainsAll(managedPartiesInContract, managedPartiesInTx) {
 						log.Debug("Managed parties check has failed for contract", "addr", address, "EPH",
 							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedPartiesInTx)
 						st.evm.RevertToSnapshot(snapshot)
@@ -356,7 +356,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				"address", strings.ToLower(address.Hex()),
 				"isPrivate", isPrivate,
 				"parties", managedPartiesInTx)
-			st.evm.StateDB.WriteManagedParties(address, managedPartiesInTx)
+			st.evm.StateDB.SetManagedParties(address, managedPartiesInTx)
 		}
 	}
 
@@ -364,22 +364,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return ret, 0, vmerr != nil, err
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
-}
-
-func containsAll(source, target []string) bool {
-	for _, str := range target {
-		found := false
-		for _, sourceStr := range source {
-			if sourceStr == str {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }
 
 func (st *StateTransition) refundGas() {
@@ -415,7 +399,7 @@ func (st *StateTransition) RevertToSnapshot(snapshot int) {
 	st.evm.StateDB.RevertToSnapshot(snapshot)
 }
 func (st *StateTransition) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
-	return st.evm.StateDB.ReadPrivacyMetadata(addr)
+	return st.evm.StateDB.GetPrivacyMetadata(addr)
 }
 func (st *StateTransition) CalculateMerkleRoot() (common.Hash, error) {
 	return st.evm.CalculateMerkleRoot()

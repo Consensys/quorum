@@ -101,8 +101,8 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	// Quorum - Multitenancy
-	// contractAccessDecisionManager is set after node starts instead in New()
-	contractAccessDecisionManager multitenancy.ContractAccessDecisionManager
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
 }
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
@@ -121,8 +121,8 @@ func (s *Ethereum) SetContractBackend(backend bind.ContractBackend) {
 // Quorum
 //
 // Set the decision manager for multitenancy support
-func (s *Ethereum) SetContractAccessDecisionManager(dm multitenancy.ContractAccessDecisionManager) {
-	s.contractAccessDecisionManager = dm
+func (s *Ethereum) SetContractAuthorizationProvider(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 // New creates a new Ethereum object (including the

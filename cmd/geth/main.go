@@ -348,7 +348,7 @@ func geth(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 // Quorum
-// - Enrich eth/les service with ContractAccessDecisionManager for multitenancy support if prequisites are met
+// - Enrich eth/les service with ContractAuthorizationProvider for multitenancy support if prequisites are met
 func startNode(ctx *cli.Context, stack *node.Node) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
@@ -391,7 +391,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	if err := stack.Service(&ethService); err != nil {
 		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
 	}
-	setContractAccessDecisionManagerFunc := ethService.SetContractAccessDecisionManager
+	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
 	// Set contract backend for ethereum service if local node
 	// is serving LES requests.
 	if ctx.GlobalInt(utils.LightLegacyServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
@@ -409,14 +409,14 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
 		}
 		lesService.SetContractBackend(ethClient)
-		setContractAccessDecisionManagerFunc = lesService.SetContractAccessDecisionManager
+		setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
 	}
 
-	// Set ContractAccessDecisionManager if multitenancy flag is on AND plugin security is configured
+	// Set ContractAuthorizationProvider if multitenancy flag is on AND plugin security is configured
 	if ctx.GlobalBool(utils.MultitenancyFlag.Name) {
 		if stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
 			log.Info("Node supports multitenancy")
-			setContractAccessDecisionManagerFunc(&multitenancy.DefaultContractAccessDecisionManager{})
+			setContractAuthzProviderFunc(&multitenancy.DefaultContractAuthorizationProvider{})
 		} else {
 			utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
 		}

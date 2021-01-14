@@ -597,21 +597,18 @@ func (api *PublicFilterAPI) filterUnAuthorized(ctx context.Context, logs []*type
 	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
 		filteredLogs := make([]*types.Log, 0)
 		for _, l := range logs {
-			attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-			contractAddress := l.Address
-			extraDataReader, err := api.backend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
+			extraDataReader, err := api.backend.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
 			if err != nil {
 				return nil, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
 			}
-			managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
 			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
+			managedParties, err := extraDataReader.GetManagedParties(l.Address)
 			if errors.Is(err, common.ErrNotPrivateContract) {
 				attrBuilder.Public()
 			} else if err != nil {
-				return nil, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
+				return nil, fmt.Errorf("contract %s not found in the index due to %s", l.Address.Hex(), err.Error())
 			}
-			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
-			if ok, _ := api.backend.IsAuthorized(ctx, authToken, attributes...); ok {
+			if ok, _ := api.backend.IsAuthorized(ctx, authToken, attrBuilder.Parties(managedParties).Build()); ok {
 				filteredLogs = append(filteredLogs, l)
 			}
 		}

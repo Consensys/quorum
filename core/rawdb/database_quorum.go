@@ -89,11 +89,11 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 // AccountExtraDataLinker maintains mapping between root hash of the state trie
 // and root hash of state.AccountExtraData trie
 type AccountExtraDataLinker interface {
-	// Find returns the root hash of the state.AccountExtraData trie from
+	// GetAccountExtraDataRoot returns the root hash of the state.AccountExtraData trie from
 	// the given root hash of the state trie.
 	//
 	// It returns an empty hash if not found.
-	Find(stateRoot common.Hash) common.Hash
+	GetAccountExtraDataRoot(stateRoot common.Hash) common.Hash
 	// Link saves the mapping between root hash of the state trie and
 	// root hash of state.AccountExtraData trie to the persistent storage.
 	// Don't write the mapping if extraDataRoot is an emptyRoot
@@ -112,7 +112,7 @@ func NewAccountExtraDataLinker(db ethdb.Database) AccountExtraDataLinker {
 	}
 }
 
-func (pml *ethdbAccountExtraDataLinker) Find(stateRoot common.Hash) common.Hash {
+func (pml *ethdbAccountExtraDataLinker) GetAccountExtraDataRoot(stateRoot common.Hash) common.Hash {
 	return GetAccountExtraDataRoot(pml.db, stateRoot)
 }
 

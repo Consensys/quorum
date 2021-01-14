@@ -39,9 +39,10 @@ type ContextAware interface {
 	SupportsMultitenancy(ctx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 }
 
-type OperationalSupport interface {
+// AuthorizationProvider specifies APIs to be implemented to provide multitenancy capability
+type AuthorizationProvider interface {
 	ContextAware
-	ContractAccessDecisionManager
+	ContractAuthorizationProvider
 }
 
 // AccountStateSecurityAttribute contains security configuration ask
@@ -187,112 +188,13 @@ func (csab *ContractSecurityAttributeBuilder) Build() *ContractSecurityAttribute
 	return &csab.secAttr
 }
 
-type ContractSecurityAttributeBuilder struct {
-	secAttr ContractSecurityAttribute
-}
-
-func NewContractSecurityAttributeBuilder() *ContractSecurityAttributeBuilder {
-	return &ContractSecurityAttributeBuilder{
-		secAttr: ContractSecurityAttribute{
-			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
-			Parties:                       make([]string, 0),
-		},
+// FullAccessContractSecurityAttributes returns a list of contract security attributes.
+// The attributes are used to verify ownership of a TM key which is going to be used
+// to send a private transaction.
+func FullAccessContractSecurityAttributes(fromEOA common.Address, privateFrom string) []*ContractSecurityAttribute {
+	return []*ContractSecurityAttribute{
+		NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Create().PrivateFrom(privateFrom).Build(),
+		NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Write().Party(privateFrom).Build(),
+		NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Read().Party(privateFrom).Build(),
 	}
-}
-
-func (csab *ContractSecurityAttributeBuilder) FromEOA(eoa common.Address) *ContractSecurityAttributeBuilder {
-	csab.secAttr.AccountStateSecurityAttribute.From = eoa
-	return csab
-}
-
-// ethereum account destination
-func (csab *ContractSecurityAttributeBuilder) ToEOA(eoa common.Address) *ContractSecurityAttributeBuilder {
-	csab.secAttr.AccountStateSecurityAttribute.To = eoa
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) PrivateFrom(tmPubKey string) *ContractSecurityAttributeBuilder {
-	csab.secAttr.PrivateFrom = tmPubKey
-	return csab
-}
-
-// set privateFrom only if b is true, ignore otherwise
-func (csab *ContractSecurityAttributeBuilder) PrivateFromOnlyIf(b bool, tmPubKey string) *ContractSecurityAttributeBuilder {
-	if b {
-		csab.secAttr.PrivateFrom = tmPubKey
-	}
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) Visibility(v ContractVisibility) *ContractSecurityAttributeBuilder {
-	csab.secAttr.Visibility = v
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) Private() *ContractSecurityAttributeBuilder {
-	return csab.Visibility(VisibilityPrivate)
-}
-
-// set VisibilityPrivate if b is true, VisibilityPublic otherwise
-func (csab *ContractSecurityAttributeBuilder) PrivateIf(b bool) *ContractSecurityAttributeBuilder {
-	if b {
-		return csab.Visibility(VisibilityPrivate)
-	} else {
-		return csab.Visibility(VisibilityPublic)
-	}
-}
-
-func (csab *ContractSecurityAttributeBuilder) Public() *ContractSecurityAttributeBuilder {
-	return csab.Visibility(VisibilityPublic)
-}
-
-func (csab *ContractSecurityAttributeBuilder) Action(a ContractAction) *ContractSecurityAttributeBuilder {
-	csab.secAttr.Action = a
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) Create() *ContractSecurityAttributeBuilder {
-	return csab.Action(ActionCreate)
-}
-
-func (csab *ContractSecurityAttributeBuilder) Read() *ContractSecurityAttributeBuilder {
-	return csab.Action(ActionRead)
-}
-
-func (csab *ContractSecurityAttributeBuilder) Write() *ContractSecurityAttributeBuilder {
-	return csab.Action(ActionWrite)
-}
-
-// set ActionRead only if b is true, ignore otherwise
-func (csab *ContractSecurityAttributeBuilder) ReadOnlyIf(b bool) *ContractSecurityAttributeBuilder {
-	if b {
-		return csab.Action(ActionRead)
-	} else {
-		return csab
-	}
-}
-
-// set ActionWrite only if b is true, ignore otherwise
-func (csab *ContractSecurityAttributeBuilder) WriteOnlyIf(b bool) *ContractSecurityAttributeBuilder {
-	if b {
-		return csab.Action(ActionWrite)
-	} else {
-		return csab
-	}
-}
-
-func (csab *ContractSecurityAttributeBuilder) Parties(tmPubKeys []string) *ContractSecurityAttributeBuilder {
-	parties := make([]string, len(tmPubKeys))
-	copy(parties, tmPubKeys)
-	csab.secAttr.Parties = parties
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) Party(tmPubKey string) *ContractSecurityAttributeBuilder {
-	csab.secAttr.Parties = append(csab.secAttr.Parties, tmPubKey)
-	return csab
-}
-
-func (csab *ContractSecurityAttributeBuilder) Build() *ContractSecurityAttribute {
-	return &csab.secAttr
 }

@@ -125,13 +125,13 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
 	// we don't save PrivacyMetadata if it's standardprivate
-	privacyMetaData, err := statedb.ReadPrivacyMetadata(address)
+	privacyMetaData, err := statedb.GetPrivacyMetadata(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 
 	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
-	statedb.WritePrivacyMetadata(address, privacyMetaData)
+	statedb.SetPrivacyMetadata(address, privacyMetaData)
 
-	privacyMetaData, err = statedb.ReadPrivacyMetadata(address)
+	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}
@@ -142,7 +142,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	newHash := common.BytesToEncryptedPayloadHash(arbitraryBytes2)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes2))
 
-	privacyMetaData, err = statedb.ReadPrivacyMetadata(address)
+	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}

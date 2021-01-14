@@ -39,7 +39,7 @@ import (
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
-	multitenancy.OperationalSupport
+	multitenancy.AuthorizationProvider
 	// General Ethereum API
 	Downloader() *downloader.Downloader
 	ProtocolVersion() int
@@ -88,8 +88,8 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
 
-	// AccountExtraDataStateReaderByNumber returns state reader at a given block
-	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
+	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
+	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

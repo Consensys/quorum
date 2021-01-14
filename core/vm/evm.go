@@ -242,10 +242,24 @@ const (
 type AffectedMode byte
 
 const (
+	// ModeUnknown indicates an auxiliary mode used during initialization of an affected contract
 	ModeUnknown AffectedMode = iota
-	ModeRead    AffectedMode = iota
-	ModeWrite                = ModeRead << 1
+	// ModeRead indicates that state has not been modified as the result of contract code execution
+	ModeRead AffectedMode = iota
+	// ModeWrite indicates that state has been modified as the result of contract code execution
+	ModeWrite = ModeRead << 1
 )
+
+func ModeOf(isWrite bool) AffectedMode {
+	if isWrite {
+		return ModeWrite
+	}
+	return ModeRead
+}
+
+func (mode AffectedMode) IsAuthorized(actualMode AffectedMode) bool {
+	return mode&actualMode != actualMode
+}
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
@@ -563,12 +577,12 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
-	evm.StateDB.CreateAccount(address)
 	if evm.SupportsMultitenancy && evm.AuthorizeCreateFunc != nil {
 		if authorized := evm.AuthorizeCreateFunc(); !authorized {
 			return nil, common.Address{}, gas, multitenancy.ErrNotAuthorized
 		}
 	}
+	evm.StateDB.CreateAccount(address)
 	evm.affectedContracts[address] = newAffectedType(Creation, ModeWrite|ModeRead)
 	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
@@ -577,7 +591,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
 		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
 			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
-			evm.StateDB.WritePrivacyMetadata(address, pm)
+			evm.StateDB.SetPrivacyMetadata(address, pm)
 			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)
 		}
 	}
@@ -786,24 +800,31 @@ func (evm *EVM) popAddress() {
 
 // Quorum
 //
+// peekAddress retrieves the affected contract address from the top of the stack
+func (evm *EVM) peekAddress() common.Address {
+	l := len(evm.addressStack)
+	if l == 0 {
+		return common.Address{}
+	}
+	return evm.addressStack[l-1]
+}
+
+// Quorum
+//
 // captureOperationMode stores the type of operation being applied on the current
 // affected contract whose address is on top of the stack.
 // For multitenancy, it checks if the mode is allowed. Also it bubbles up the last error
 // captured. This helps to avoid "evm: execution revert" generic error
 func (evm *EVM) captureOperationMode(isWriteOperation bool) error {
-	l := len(evm.addressStack)
-	if l == 0 {
+	currentAddress := evm.peekAddress()
+	if (currentAddress == common.Address{}) {
 		return nil
 	}
-	currentAddress := evm.addressStack[l-1]
-	actualMode := ModeRead
-	if isWriteOperation {
-		actualMode = ModeWrite
-	}
+	actualMode := ModeOf(isWriteOperation)
 	if t, ok := evm.affectedContracts[currentAddress]; ok {
 		// perform multitenancy check
 		if evm.enforceMultitenancyCheck() {
-			if t.mode&actualMode != actualMode {
+			if t.mode.IsAuthorized(actualMode) {
 				log.Trace("Multitenancy check for captureOperationMode()", "address", currentAddress.Hex(), "actual", actualMode, "expect", t.mode)
 				evm.lastError = multitenancy.ErrNotAuthorized
 			}

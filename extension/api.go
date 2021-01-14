@@ -112,19 +112,15 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 			return errors.New("You must specify 'privateFrom' when running in a multitenant node")
 		}
 		// check whether the user has access to txa.PrivateFrom and the txa.From eth account
-		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-		attributes = append(attributes,
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Create().PrivateFrom(txa.PrivateFrom).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Party(txa.PrivateFrom).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Party(txa.PrivateFrom).Build())
+		attributes := multitenancy.FullAccessContractSecurityAttributes(txa.From, txa.PrivateFrom)
 		chainAccessor := api.privacyService.stateFetcher.chainAccessor
 		currentBlock := chainAccessor.CurrentBlock().Number().Int64()
-		extraDataReader, err := apiHelper.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
 			return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 		}
 
-		managedParties, err := extraDataReader.ReadManagedParties(address)
+		managedParties, err := extraDataReader.GetManagedParties(address)
 		if err != nil {
 			return err
 		}
@@ -363,18 +359,16 @@ func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensio
 	apiHelper := api.privacyService.apiBackendHelper
 	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
 		currentBlock := apiHelper.CurrentBlock().Number().Int64()
-		extraDataReader, err := apiHelper.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
 			return "", fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 		}
-		managedParties, err := extraDataReader.ReadManagedParties(extensionContract)
+		managedParties, err := extraDataReader.GetManagedParties(extensionContract)
 		if err != nil {
 			return "", err
 		}
-		attributes := []*multitenancy.ContractSecurityAttribute{
-			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build(),
-		}
-		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes...); !authorized {
+		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken,
+			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build()); !authorized {
 			return "", multitenancy.ErrNotAuthorized
 		}
 	}

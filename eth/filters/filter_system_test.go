@@ -158,7 +158,7 @@ func (b *testBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAu
 	return nil, false
 }
 
-func (b *testBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+func (b *testBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	return nil, nil
 }
 

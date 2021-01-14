@@ -3,14 +3,13 @@ package privacyExtension
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/engine"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata, managedParties []string) bool {
@@ -32,10 +31,10 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
 		if privacyMetaData.PrivacyFlag != engine.PrivacyFlagStandardPrivate {
-			privateState.WritePrivacyMetadata(contractAddress, privacyMetaData)
+			privateState.SetPrivacyMetadata(contractAddress, privacyMetaData)
 		}
 		if managedParties != nil {
-			privateState.WriteManagedParties(contractAddress, managedParties)
+			privateState.SetManagedParties(contractAddress, managedParties)
 		}
 	}
 	return true
@@ -43,7 +42,7 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 
 // updates the privacy metadata
 func setPrivacyMetadata(privateState *state.StateDB, address common.Address, hash string) {
-	privacyMetaData, err := privateState.ReadPrivacyMetadata(address)
+	privacyMetaData, err := privateState.GetPrivacyMetadata(address)
 	if err != nil || privacyMetaData.PrivacyFlag.IsStandardPrivate() {
 		return
 	}
@@ -54,11 +53,11 @@ func setPrivacyMetadata(privateState *state.StateDB, address common.Address, has
 		return
 	}
 	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)
-	privateState.WritePrivacyMetadata(address, pm)
+	privateState.SetPrivacyMetadata(address, pm)
 }
 
 func setManagedParties(ptm private.PrivateTransactionManager, privateState *state.StateDB, address common.Address, hash string) {
-	existingManagedParties, err := privateState.ReadManagedParties(address)
+	existingManagedParties, err := privateState.GetManagedParties(address)
 	if err != nil {
 		return
 	}
@@ -70,27 +69,8 @@ func setManagedParties(ptm private.PrivateTransactionManager, privateState *stat
 	}
 
 	_, managedParties, _, _, err := ptm.Receive(ptmHash)
-	newManagedParties := appendSkipDuplicates(existingManagedParties, managedParties)
-	privateState.WriteManagedParties(address, newManagedParties)
-}
-
-func appendSkipDuplicates(list1 []string, list2 []string) (result []string) {
-	result = list1
-	for _, val := range list2 {
-		if !sliceContains(list1, val) {
-			result = append(result, val)
-		}
-	}
-	return result
-}
-
-func sliceContains(list []string, item string) bool {
-	for _, val := range list {
-		if val == item {
-			return true
-		}
-	}
-	return false
+	newManagedParties := common.AppendSkipDuplicates(existingManagedParties, managedParties...)
+	privateState.SetManagedParties(address, newManagedParties)
 }
 
 func logContainsExtensionTopic(receivedLog *types.Log) bool {

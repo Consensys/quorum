@@ -26,8 +26,8 @@ type ChainAccessor interface {
 
 // Only extract required methods from ethService.APIBackend
 type APIBackendHelper interface {
-	multitenancy.OperationalSupport
-	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
+	multitenancy.AuthorizationProvider
+	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 	CurrentBlock() *types.Block
 }
 
@@ -96,7 +96,7 @@ func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address c
 		return nil, err
 	}
 
-	privacyMetaData, err := privateState.ReadPrivacyMetadata(address)
+	privacyMetaData, err := privateState.GetPrivacyMetadata(address)
 	if err != nil {
 		return nil, err
 	}

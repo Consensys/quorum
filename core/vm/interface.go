@@ -26,21 +26,21 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type AccountExtraDataStateReader interface {
+type AccountExtraDataStateGetter interface {
 	// Return nil for public contract
-	ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
-	ReadManagedParties(addr common.Address) ([]string, error)
+	GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
+	GetManagedParties(addr common.Address) ([]string, error)
 }
 
-type AccountExtraDataStateWriter interface {
-	WritePrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata)
-	WriteManagedParties(addr common.Address, managedParties []string)
+type AccountExtraDataStateSetter interface {
+	SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata)
+	SetManagedParties(addr common.Address, managedParties []string)
 }
 
 // Quorum uses a cut-down StateDB, MinimalApiState. We leave the methods in StateDB commented out so they'll produce a
 // conflict when upstream changes.
 type MinimalApiState interface {
-	AccountExtraDataStateReader
+	AccountExtraDataStateGetter
 
 	GetBalance(addr common.Address) *big.Int
 	SetBalance(addr common.Address, balance *big.Int)
@@ -65,7 +65,7 @@ type MinimalApiState interface {
 // StateDB is an EVM database for full state querying.
 type StateDB interface {
 	MinimalApiState
-	AccountExtraDataStateWriter
+	AccountExtraDataStateSetter
 
 	CreateAccount(common.Address)
 

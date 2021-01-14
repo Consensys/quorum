@@ -103,7 +103,7 @@ func TestPrivacyEnhancements_CreateC1(t *testing.T) {
 	var getPrivacyMetadataFunc func(common.Address) (*state.PrivacyMetadata, error)
 	cfg.onAfterEVM = func(evm *vm.EVM) {
 		affectedContracts = evm.AffectedContracts()
-		getPrivacyMetadataFunc = evm.StateDB.ReadPrivacyMetadata
+		getPrivacyMetadataFunc = evm.StateDB.GetPrivacyMetadata
 	}
 	stubPrivateTx = newTypicalPrivateTx(cfg)
 	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{
@@ -173,7 +173,7 @@ func TestPrivacyEnhancements_CreateC1_StandardPrivate(t *testing.T) {
 	var getPrivacyMetadataFunc func(common.Address) (*state.PrivacyMetadata, error)
 	cfg.onAfterEVM = func(evm *vm.EVM) {
 		affectedContracts = evm.AffectedContracts()
-		getPrivacyMetadataFunc = evm.StateDB.ReadPrivacyMetadata
+		getPrivacyMetadataFunc = evm.StateDB.GetPrivacyMetadata
 	}
 	stubPrivateTx = newTypicalPrivateTx(cfg)
 	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{

@@ -68,15 +68,15 @@ type LightEthereum struct {
 	netRPCService  *ethapi.PublicNetAPI
 
 	// Quorum - Multitenancy
-	// contractAccessDecisionManager is set after node starts instead in New()
-	contractAccessDecisionManager multitenancy.ContractAccessDecisionManager
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
 }
 
 // Quorum
 //
 // Set the decision manager for multitenancy support
-func (s *LightEthereum) SetContractAccessDecisionManager(dm multitenancy.ContractAccessDecisionManager) {
-	s.contractAccessDecisionManager = dm
+func (s *LightEthereum) SetContractAuthorizationManager(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {

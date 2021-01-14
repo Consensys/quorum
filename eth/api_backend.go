@@ -372,13 +372,13 @@ func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.Pre
 	return nil, false
 }
 
-func (b *EthAPIBackend) AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+func (b *EthAPIBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
 }
 
 func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
-	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes...)
+	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
 	if err != nil {
 		log.Error("failed to perform authorization check", "err", err, "granted", string(authToken.RawToken), "ask", attributes)
 		return false, err
@@ -459,16 +459,16 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (s EthAPIState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.ReadPrivacyMetadata(addr)
+		return s.privateState.GetPrivacyMetadata(addr)
 	}
 	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
 }
 
-func (s EthAPIState) ReadManagedParties(addr common.Address) ([]string, error) {
+func (s EthAPIState) GetManagedParties(addr common.Address) ([]string, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.ReadManagedParties(addr)
+		return s.privateState.GetManagedParties(addr)
 	}
 	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
 }

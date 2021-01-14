@@ -132,7 +132,7 @@ func TestAccountExtraDataLinker_whenFinding(t *testing.T) {
 
 	pml := NewAccountExtraDataLinker(db)
 
-	pmrRetrieved := pml.Find(psr)
+	pmrRetrieved := pml.GetAccountExtraDataRoot(psr)
 
 	if pmrRetrieved != pmr {
 		t.Fatal("the mapping should have been retrieved")
@@ -145,7 +145,7 @@ func TestAccountExtraDataLinker_whenNotFound(t *testing.T) {
 
 	pml := NewAccountExtraDataLinker(db)
 
-	pmrRetrieved := pml.Find(psr)
+	pmrRetrieved := pml.GetAccountExtraDataRoot(psr)
 
 	if !common.EmptyHash(pmrRetrieved) {
 		t.Fatal("the retrieved privacy metadata root should be the empty hash")

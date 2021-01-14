@@ -98,7 +98,7 @@ func newAccountExtraDataLinkerStub() rawdb.AccountExtraDataLinker {
 	return &stubAccountExtraDataLinker{}
 }
 
-func (pml *stubAccountExtraDataLinker) Find(_ common.Hash) common.Hash {
+func (pml *stubAccountExtraDataLinker) GetAccountExtraDataRoot(_ common.Hash) common.Hash {
 	return common.Hash{}
 }
 

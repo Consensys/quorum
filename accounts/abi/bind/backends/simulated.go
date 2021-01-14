@@ -544,7 +544,7 @@ func (fb *filterBackend) ServiceFilter(ctx context.Context, ms *bloombits.Matche
 	panic("not supported")
 }
 
-func (fb *filterBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+func (fb *filterBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	panic("not supported")
 }
 
