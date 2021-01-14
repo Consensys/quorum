@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
-	etcdRaft "github.com/coreos/etcd/raft"
 	"io/ioutil"
 	"net"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	etcdRaft "github.com/coreos/etcd/raft"
 
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
@@ -155,9 +156,9 @@ func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg
 		EventMux: new(event.TypeMux),
 	}
 	// config is private field so we need some workaround to set the value
-	configField := reflect.ValueOf(ctx).Elem().FieldByName("config")
+	configField := reflect.ValueOf(ctx).Elem().FieldByName("Config")
 	configField = reflect.NewAt(configField.Type(), unsafe.Pointer(configField.UnsafeAddr())).Elem()
-	configField.Set(reflect.ValueOf(cfg))
+	configField.Set(reflect.ValueOf(*cfg))
 	return
 }
 

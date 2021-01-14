@@ -415,10 +415,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	// Quorum
 	if pm.raftMode {
-		if msg.Code != TransactionMsg &&
+		// TODO ricardolyn: refactor to reduce duplication of msg.Code
+		if msg.Code != TransactionMsg && msg.Code != PooledTransactionsMsg &&
+			msg.Code != GetPooledTransactionsMsg && msg.Code != NewPooledTransactionHashesMsg &&
 			msg.Code != GetBlockHeadersMsg && msg.Code != BlockHeadersMsg &&
 			msg.Code != GetBlockBodiesMsg && msg.Code != BlockBodiesMsg {
 
+			// Error coming from here
 			log.Info("raft: ignoring message", "code", msg.Code)
 
 			return nil
