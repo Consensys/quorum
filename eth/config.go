@@ -168,7 +168,10 @@ type Config struct {
 	CheckpointOracle *params.CheckpointOracleConfig `toml:",omitempty"`
 
 	// Istanbul block override (TODO: remove after the fork)
-	OverrideIstanbul *big.Int `toml:",omitempty"`
+	OverrideIstanbul *big.Int
+
+	// timeout value for call
+	EVMCallTimeOut time.Duration
 
 	// MuirGlacier block override (TODO: remove after the fork)
 	OverrideMuirGlacier *big.Int `toml:",omitempty"`

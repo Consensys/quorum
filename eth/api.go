@@ -308,33 +308,57 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 // DumpBlock retrieves the entire state of the database at a given block.
 // Quorum adds an additional parameter to support private state dump
 func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
-	var publicState, privateState *state.StateDB
-	var err error
-	if blockNr == rpc.PendingBlockNumber {
-		// If we're dumping the pending state, we need to request
-		// both the pending block as well as the pending state from
-		// the miner and operate on those
-		_, publicState, privateState = api.eth.miner.Pending()
-	} else {
-		var block *types.Block
-		if blockNr == rpc.LatestBlockNumber {
-			block = api.eth.blockchain.CurrentBlock()
-		} else {
-			block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
-		}
-		if block == nil {
-			return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
-		}
-		publicState, privateState, err = api.eth.BlockChain().StateAt(block.Root())
-		if err != nil {
-			return state.Dump{}, err
-		}
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return state.Dump{}, err
 	}
 
 	if typ != nil && *typ == "private" {
 		return privateState.RawDump(false, false, true), nil
 	}
 	return publicState.RawDump(false, false, true), nil
+}
+
+// Quorum
+// DumpAddress retrieves the state of an address at a given block.
+// Quorum adds an additional parameter to support private state dump
+func (api *PublicDebugAPI) DumpAddress(address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return state.DumpAccount{}, err
+	}
+
+	if accountDump, ok := privateState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	if accountDump, ok := publicState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	return state.DumpAccount{}, errors.New("error retrieving state")
+}
+
+//Quorum
+//Taken from DumpBlock, as it was reused in DumpAddress.
+//Contains modifications from the original to return the private state db, as well as public.
+func (api *PublicDebugAPI) getStateDbsFromBlockNumber(blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
+	if blockNr == rpc.PendingBlockNumber {
+		// If we're dumping the pending state, we need to request
+		// both the pending block as well as the pending state from
+		// the miner and operate on those
+		_, publicState, privateState := api.eth.miner.Pending()
+		return publicState, privateState, nil
+	}
+
+	var block *types.Block
+	if blockNr == rpc.LatestBlockNumber {
+		block = api.eth.blockchain.CurrentBlock()
+	} else {
+		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+	}
+	if block == nil {
+		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
+	}
+	return api.eth.BlockChain().StateAt(block.Root())
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over

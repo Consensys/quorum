@@ -23,8 +23,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -55,6 +58,12 @@ type (
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
+		// Using CodeAddr is favour over contract.Address()
+		// During DelegateCall() CodeAddr is the address of the delegated account
+		address := *contract.CodeAddr
+		if _, ok := evm.affectedContracts[address]; !ok {
+			evm.affectedContracts[address] = MessageCall
+		}
 		precompiles := PrecompiledContractsHomestead
 		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
@@ -62,7 +71,7 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		if evm.chainRules.IsIstanbul {
 			precompiles = PrecompiledContractsIstanbul
 		}
-		if p := precompiles[*contract.CodeAddr]; p != nil {
+		if p := precompiles[address]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
 		}
 	}
@@ -149,11 +158,24 @@ type EVM struct {
 	privateState      PrivateState
 	states            [1027]*state.StateDB // TODO(joel) we should be able to get away with 1024 or maybe 1025
 	currentStateDepth uint
+
 	// This flag has different semantics from the `Interpreter:readOnly` flag (though they interact and could maybe
 	// be simplified). This is set by Quorum when it's inside a Private State -> Public State read.
 	quorumReadOnly bool
 	readOnlyDepth  uint
+
+	// these are for privacy enhancements
+	affectedContracts map[common.Address]AffectedType // affected contract account address -> type
+	currentTx         *types.Transaction              // transaction currently being applied on this EVM
 }
+
+type AffectedType byte
+
+const (
+	_                     = iota
+	Creation AffectedType = iota
+	MessageCall
+)
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
@@ -168,6 +190,8 @@ func NewEVM(ctx Context, statedb, privateState StateDB, chainConfig *params.Chai
 
 		publicState:  statedb,
 		privateState: privateState,
+
+		affectedContracts: make(map[common.Address]AffectedType),
 	}
 
 	if chainConfig.IsEWASM(ctx.BlockNumber) {
@@ -406,12 +430,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// future scenarios
 	stateDb.AddBalance(addr, bigZero)
 
-	// We do an AddBalance of zero here, just in order to trigger a touch.
-	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
-	// but is the correct thing to do and matters on other networks, in tests, and potential
-	// future scenarios
-	evm.StateDB.AddBalance(addr, bigZero)
-
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
@@ -475,8 +493,17 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
+	evm.affectedContracts[address] = Creation
 	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
+	}
+	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
+		// for calls (reading contract state) or finding the affected contracts there is no transaction
+		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
+			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
+			evm.StateDB.SetStatePrivacyMetadata(address, pm)
+			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)
+		}
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
@@ -595,8 +622,12 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 	return state
 }
 
-func (env *EVM) PublicState() PublicState   { return env.publicState }
-func (env *EVM) PrivateState() PrivateState { return env.privateState }
+func (env *EVM) PublicState() PublicState           { return env.publicState }
+func (env *EVM) PrivateState() PrivateState         { return env.privateState }
+func (env *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
+func (env *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	env.currentTx.SetTxPrivacyMetadata(pm)
+}
 func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from
@@ -631,4 +662,40 @@ func (env *EVM) Depth() int { return env.depth }
 // read only.
 func (self *EVM) RevertToSnapshot(snapshot int) {
 	self.StateDB.RevertToSnapshot(snapshot)
+}
+
+// Returns all affected contracts that are NOT due to creation transaction
+func (evm *EVM) AffectedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t == MessageCall {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+func (evm *EVM) CreatedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t == Creation {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+// Return MerkleRoot of all affected contracts (due to both creation and message call)
+func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
+	combined := new(trie.Trie)
+	for addr := range evm.affectedContracts {
+		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		if err := combined.TryUpdate(addr.Bytes(), data); err != nil {
+			return common.Hash{}, err
+		}
+	}
+	return combined.Hash(), nil
 }

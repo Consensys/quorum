@@ -47,9 +47,9 @@ type ProtocolManager struct {
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
-	role          etcdRaft.StateType    // Role: minter or verifier
-	appliedIndex  uint64 // The index of the last-applied raft entry
-	snapshotIndex uint64 // The index of the latest snapshot.
+	role          etcdRaft.StateType // Role: minter or verifier
+	appliedIndex  uint64             // The index of the last-applied raft entry
+	snapshotIndex uint64             // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
 	leader       uint16
@@ -289,6 +289,11 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
+	thisEnode := enode.MustParse(pm.p2pServer.NodeInfo().Enode)
+	if thisEnode.EnodeID() == node.EnodeID() {
+		return fmt.Errorf("enode is this enode (self): node with this enode has already been added to the cluster: %s", node.ID())
+	}
+
 	for _, peer := range pm.peers {
 		peerRaftId := peer.address.RaftId
 		peerNode := peer.p2pNode
@@ -321,11 +326,11 @@ func (pm *ProtocolManager) peerExist(node *enode.Node) bool {
 	return false
 }
 
-func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint16, error) {
+func (pm *ProtocolManager) ProposeNewPeer(enodeURL string, isLearner bool) (uint16, error) {
 	if pm.isLearnerNode() {
 		return 0, errors.New("learner node can't add peer or learner")
 	}
-	node, err := enode.ParseV4(enodeId)
+	node, err := enode.ParseV4(enodeURL)
 	if err != nil {
 		return 0, err
 	}
@@ -341,7 +346,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	}
 
 	if !node.HasRaftPort() {
-		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
+		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeURL)
 	}
 
 	if err := pm.isNodeAlreadyInCluster(node); err != nil {
@@ -680,8 +685,6 @@ func (pm *ProtocolManager) handleRoleChange(raftRole etcdRaft.StateType) {
 		}
 		pm.minter.stop()
 	}
-
-
 
 }
 

@@ -607,7 +607,7 @@ func signer(c *cli.Context) error {
 
 		// start http server
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
-		listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"account"}, cors, vhosts, rpc.DefaultHTTPTimeouts, nil, nil)
+		listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"account", "plugin@account"}, cors, vhosts, rpc.DefaultHTTPTimeouts, nil, nil)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}

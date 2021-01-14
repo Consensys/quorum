@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 const (
@@ -201,7 +202,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		// Quorum
 		// added for permissions changes to indicate node sync up has started
 		// if peer's TD is smaller than ours, no sync will happen
-		types.SetSyncStatus()
+		core.SetSyncStatus()
 		return
 	}
 	// Otherwise try to sync with the downloader

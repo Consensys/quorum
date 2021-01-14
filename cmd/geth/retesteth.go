@@ -663,7 +663,7 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, pvtst, err = api.blockchain.StateAt(root)
+		statedb, _, err = api.blockchain.StateAt(root)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
@@ -773,7 +773,7 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, pvtstdb, err = api.blockchain.StateAt(root)
+		statedb, _, err = api.blockchain.StateAt(root)
 		if err != nil {
 			return StorageRangeResult{}, err
 		}

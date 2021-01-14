@@ -131,7 +131,7 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 
 	// Private transaction 2
-	err = helper.MakeCall(true, key, prvContractAddr, nil)
+	helper.MakeCall(true, key, prvContractAddr, nil)
 	stateEntry = privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)

@@ -15,6 +15,7 @@
 */**/*dapps*
 build/_vendor/pkg
 .idea
+*.iml
 
 #*
 .#*

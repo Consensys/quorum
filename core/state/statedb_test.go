@@ -29,6 +29,8 @@ import (
 	"testing"
 	"testing/quick"
 
+	"github.com/ethereum/go-ethereum/private/engine"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -322,6 +324,22 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			args: make([]int64, 2),
 		},
 		{
+			name: "SetStatePrivacyMetadata",
+			fn: func(a testAction, s *StateDB) {
+
+				privFlag := engine.PrivacyFlagType((uint64(a.args[0])%2)*2 + 1) // the only possible values should be 1 and 3
+				b := make([]byte, 8)
+				binary.BigEndian.PutUint64(b, uint64(a.args[1]))
+				hash := common.BytesToEncryptedPayloadHash(b)
+
+				s.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+					CreationTxHash: hash,
+					PrivacyFlag:    privFlag,
+				})
+			},
+			args: make([]int64, 2),
+		},
+		{
 			name: "CreateAccount",
 			fn: func(a testAction, s *StateDB) {
 				s.CreateAccount(addr)
@@ -462,6 +480,9 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
 		checkeq("GetCodeSize", state.GetCodeSize(addr), checkstate.GetCodeSize(addr))
+		statePM, _ := state.GetStatePrivacyMetadata(addr)
+		checkStatePM, _ := checkstate.GetStatePrivacyMetadata(addr)
+		checkeq("GetStatePrivacyMetadata", statePM, checkStatePM)
 		// Check storage.
 		if obj := state.getStateObject(addr); obj != nil {
 			state.ForEachStorage(addr, func(key, value common.Hash) bool {
@@ -711,3 +732,154 @@ func TestDeleteCreateRevert(t *testing.T) {
 		t.Fatalf("self-destructed contract came alive")
 	}
 }
+
+// Quorum - Privacy Enhancements
+func TestPrivacyMetadataIsSavedOnStateDbCommit(t *testing.T) {
+	ethDb := rawdb.NewMemoryDatabase()
+	stateDb := NewDatabase(ethDb)
+	state, _ := New(common.Hash{}, stateDb)
+
+	addr := common.Address{1}
+	state.CreateAccount(addr)
+
+	state.SetNonce(addr, uint64(1))
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		CreationTxHash: common.EncryptedPayloadHash{1},
+	})
+
+	privMetaData, _ := state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData != nil {
+		t.Errorf("privacy metadata should not have been stored before commit")
+	}
+
+	state.Commit(false)
+
+	privMetaData, _ = state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData == nil {
+		t.Errorf("privacy metadata should have been stored during commit")
+	}
+}
+
+func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t *testing.T) {
+	ethDb := rawdb.NewMemoryDatabase()
+	stateDb := NewDatabase(ethDb)
+	state, _ := New(common.Hash{}, stateDb)
+
+	addr := common.Address{1}
+	state.CreateAccount(addr)
+
+	state.SetNonce(addr, uint64(1))
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		CreationTxHash: common.EncryptedPayloadHash{1},
+	})
+	state.Commit(false)
+
+	privMetaData, _ := state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData == nil {
+		t.Errorf("privacy metadata should have been stored during commit")
+	}
+
+	state.CreateAccount(addr)
+	state.SetNonce(addr, uint64(1))
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagStateValidation,
+		CreationTxHash: common.EncryptedPayloadHash{1},
+	})
+
+	state.Commit(false)
+
+	privMetaData, _ = state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData == nil {
+		t.Errorf("privacy metadata should have been updated during commit")
+	} else if privMetaData.PrivacyFlag != engine.PrivacyFlagStateValidation {
+		t.Errorf("privacy metadata should have StateValidation as the the privacy flag")
+	}
+}
+
+func TestPrivacyMetadataIsRemovedOnAccountSuicide(t *testing.T) {
+	ethDb := rawdb.NewMemoryDatabase()
+	stateDb := NewDatabase(ethDb)
+	state, _ := New(common.Hash{}, stateDb)
+
+	addr := common.Address{1}
+	state.CreateAccount(addr)
+
+	state.SetNonce(addr, uint64(1))
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		CreationTxHash: common.EncryptedPayloadHash{1},
+	})
+	state.Commit(false)
+
+	privMetaData, _ := state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData == nil {
+		t.Errorf("privacy metadata should have been stored during commit")
+	}
+
+	state.Suicide(addr)
+	state.Commit(false)
+
+	privMetaData, _ = state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData != nil {
+		t.Errorf("privacy metadata should have been deleted during account suicide")
+	}
+}
+
+func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
+	ethDb := rawdb.NewMemoryDatabase()
+	stateDb := NewDatabase(ethDb)
+	state, _ := New(common.Hash{}, stateDb)
+
+	addr := common.Address{1}
+	state.CreateAccount(addr)
+
+	state.SetNonce(addr, uint64(1))
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("one")),
+	})
+	state.Commit(false)
+
+	privMetaData, _ := state.GetCommittedStatePrivacyMetadata(addr)
+	if privMetaData == nil {
+		t.Errorf("privacy metadata should have been stored during commit")
+	}
+
+	// update privacy metadata
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagStateValidation,
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("two")),
+	})
+
+	// record the snapshot
+	snapshot := state.Snapshot()
+
+	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("two")) {
+		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
+	}
+
+	// update the metadata
+	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+		PrivacyFlag:    engine.PrivacyFlagStateValidation,
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("three")),
+	})
+
+	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("three")) {
+		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
+	}
+
+	// revert to snapshot
+	state.RevertToSnapshot(snapshot)
+
+	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("two")) {
+		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
+	}
+
+}
+
+// End Quorum - Privacy Enhancements
