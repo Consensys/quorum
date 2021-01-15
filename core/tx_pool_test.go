@@ -87,10 +87,7 @@ func pricedDataTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key
 	return tx
 }
 
-func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
-	return setupTxPoolWithConfig(params.TestChainConfig)
-}
-
+// Quorum - created setupTxPoolWithConfig(...) from original setupTxPool() to allow passing a ChainConfig as argument
 func setupTxPoolWithConfig(config *params.ChainConfig) (*TxPool, *ecdsa.PrivateKey) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	blockchain := &testBlockChain{statedb, statedb, 10000000, new(event.Feed)}
@@ -99,6 +96,10 @@ func setupTxPoolWithConfig(config *params.ChainConfig) (*TxPool, *ecdsa.PrivateK
 	pool := NewTxPool(testTxPoolConfig, config, blockchain)
 
 	return pool, key
+}
+
+func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
+	return setupTxPoolWithConfig(params.TestChainConfig)
 }
 
 func setupQuorumTxPool() (*TxPool, *ecdsa.PrivateKey) {
