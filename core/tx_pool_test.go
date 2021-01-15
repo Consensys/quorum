@@ -93,7 +93,6 @@ func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
 
 func setupTxPoolWithConfig(config *params.ChainConfig) (*TxPool, *ecdsa.PrivateKey) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
-	// TODO ricardolyn: investigate why 1m is not enough for gasLimit. changed to 10m for now
 	blockchain := &testBlockChain{statedb, statedb, 10000000, new(event.Feed)}
 
 	key, _ := crypto.GenerateKey()

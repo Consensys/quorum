@@ -415,15 +415,14 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	// Quorum
 	if pm.raftMode {
-		// TODO ricardolyn: refactor to reduce duplication of msg.Code
-		if msg.Code != TransactionMsg && msg.Code != PooledTransactionsMsg &&
-			msg.Code != GetPooledTransactionsMsg && msg.Code != NewPooledTransactionHashesMsg &&
-			msg.Code != GetBlockHeadersMsg && msg.Code != BlockHeadersMsg &&
-			msg.Code != GetBlockBodiesMsg && msg.Code != BlockBodiesMsg {
-
-			// Error coming from here
+		switch msg.Code {
+		case TransactionMsg, PooledTransactionsMsg,
+			GetPooledTransactionsMsg, NewPooledTransactionHashesMsg,
+			GetBlockHeadersMsg, BlockHeadersMsg,
+			GetBlockBodiesMsg, BlockBodiesMsg:
+			// supported by Raft
+		default:
 			log.Info("raft: ignoring message", "code", msg.Code)
-
 			return nil
 		}
 	} else if handler, ok := pm.engine.(consensus.Handler); ok {
