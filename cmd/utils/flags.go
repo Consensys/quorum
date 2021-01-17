@@ -875,6 +875,52 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
+
+	// Quorum Private Transaction Manager connection options
+	QuorumPTMUnixSocketFlag = DirectoryFlag{
+		Name:  "ptm.socket",
+		Usage: "Path to the ipc file when using unix domain socket for the private transaction manager connection",
+	}
+	QuorumPTMUrlFlag = cli.StringFlag{
+		Name:  "ptm.url",
+		Usage: "URL when using http connection to private transaction manager",
+	}
+	QuorumPTMTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.timeout",
+		Usage: "Timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMDialTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.dialtimeout",
+		Usage: "Dial timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMHttpIdleTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.http.idletimeout",
+		Usage: "Idle timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMHttpWriteBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.writebuffersize",
+		Usage: "Size of the write buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+	}
+	QuorumPTMHttpReadBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.readbuffersize",
+		Usage: "Size of the read buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+	}
+	QuorumPTMTlsModeFlag = cli.StringFlag{
+		Name:  "ptm.tls.mode",
+		Usage: `If "off" then TLS disabled (default). If "strict" then will use TLS for http connection to private transaction manager`,
+	}
+	QuorumPTMTlsRootCaFlag = DirectoryFlag{
+		Name:  "ptm.tls.rootca",
+		Usage: "Path to file containing root CA certificate for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsClientCertFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientcert",
+		Usage: "Path to file containing client certificate (or chain of certs) for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsClientKeyFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientkey",
+		Usage: "Path to file containing client's private key for TLS connection to private transaction manager",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating

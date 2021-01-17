@@ -171,6 +171,17 @@ var (
 		utils.PluginPublicKeyFlag,
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
+		utils.QuorumPTMUnixSocketFlag,
+		utils.QuorumPTMUrlFlag,
+		utils.QuorumPTMTimeoutFlag,
+		utils.QuorumPTMDialTimeoutFlag,
+		utils.QuorumPTMHttpIdleTimeoutFlag,
+		utils.QuorumPTMHttpWriteBufferSizeFlag,
+		utils.QuorumPTMHttpReadBufferSizeFlag,
+		utils.QuorumPTMTlsModeFlag,
+		utils.QuorumPTMTlsRootCaFlag,
+		utils.QuorumPTMTlsClientCertFlag,
+		utils.QuorumPTMTlsClientKeyFlag,
 		// End-Quorum
 	}
 
@@ -267,11 +278,9 @@ func init() {
 			return err
 		}
 
-		err := private.Init() //Quorum: Initialise connection to private transaction manager
-		if err != nil {
+		if err := quorumInitialisePrivacy(ctx); err != nil {
 			return err
 		}
-		privacyExtension.Init() //Quorum: Initialise privacy extension manager
 
 		return nil
 	}
@@ -281,6 +290,22 @@ func init() {
 		console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
 }
 
 func main() {
@@ -357,10 +382,6 @@ func geth(ctx *cli.Context) error {
 func startNode(ctx *cli.Context, stack *node.Node) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
-
-	if !quorumValidatePrivateTransactionManager() {
-		utils.Fatalf("the PRIVATE_CONFIG environment variable must be specified for Quorum")
-	}
 
 	// raft mode does not support --exitwhensynced
 	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {

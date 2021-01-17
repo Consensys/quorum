@@ -1,7 +1,6 @@
 package private
 
 import (
-	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +11,10 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/private/engine/tessera"
-
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
+	"github.com/ethereum/go-ethereum/private/engine/tessera"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFromEnvironmentOrNil_whenNoConfig(t *testing.T) {
@@ -24,10 +24,10 @@ func TestFromEnvironmentOrNil_whenNoConfig(t *testing.T) {
 		}
 	}()
 	os.Unsetenv("ARBITRARY_CONFIG_ENV")
-	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
 
 	assert.NoError(t, err, "unexpected error")
-	assert.Equal(t, p, nil, "expected no instance to be set")
+	assert.Equal(t, cfg.ConnectionType, engine.NoConnection, "expected no instance to be set")
 }
 
 func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T) {
@@ -44,7 +44,8 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T)
 		}
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
-	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	p, err := NewPrivateTxManager(cfg)
 
 	assert.NoError(t, err, "unexpected error")
 	if !constellation.Is(p) {
@@ -67,7 +68,8 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithTessera(t *testing.T) {
 		}
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
-	p, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
+	p, err := NewPrivateTxManager(cfg)
 
 	assert.NoError(t, err, "unexpected error")
 	if !tessera.Is(p) {
