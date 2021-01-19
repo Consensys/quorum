@@ -182,6 +182,7 @@ var (
 		utils.QuorumPTMTlsRootCaFlag,
 		utils.QuorumPTMTlsClientCertFlag,
 		utils.QuorumPTMTlsClientKeyFlag,
+		utils.QuorumPTMTlsInsecureSkipVerify,
 		// End-Quorum
 	}
 

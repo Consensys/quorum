@@ -30,7 +30,7 @@ httpIdleConnTimeout = 102
 httpWriteBufferSize = 1001
 httpReadBufferSize = 1002
 `
-var httpConfigFileWithInvalidTls = `
+var httpConfigFileWithInvalidTlsMode = `
 httpUrl = "http:localhost:9101"
 tlsMode = "ABC"
 `
@@ -51,10 +51,18 @@ tlsMode = "strict"
 tlsRootCA = "mydir/rootca.cert.pem"
 tlsClientCert = "mydir/client.cert.pem"
 tlsClientKey = "mydir/client.key.pem"
+tlsInsecureSkipVerify = true
 `
-var invalidHttpTlsConfigFileNoCerts = `
+var httpTlsConfigFileNoRootCert = `
 httpUrl = "https:localhost:9101"
 tlsMode = "STRICT"
+tlsClientCert = "mydir/client.cert.pem"
+tlsClientKey = "mydir/client.key.pem"
+`
+var invalidHttpTlsConfigFileNoClientCert = `
+httpUrl = "https:localhost:9101"
+tlsMode = "STRICT"
+tlsRootCA = "mydir/rootca.cert.pem"
 `
 var httpTlsConfigFileWithHTTPOnly = `
 httpUrl = "http:localhost:9101"
@@ -156,8 +164,8 @@ func TestLoadHttpConfigWithTimeouts(t *testing.T) {
 }
 
 func TestLoadHttpConfigWithInvalidTls(t *testing.T) {
-	configFile := filepath.Join(os.TempDir(), "httpConfigFileWithInvalidTls.toml")
-	if err := ioutil.WriteFile(configFile, []byte(httpConfigFileWithInvalidTls), 0600); err != nil {
+	configFile := filepath.Join(os.TempDir(), "httpConfigFileWithInvalidTlsMode.toml")
+	if err := ioutil.WriteFile(configFile, []byte(httpConfigFileWithInvalidTlsMode), 0600); err != nil {
 		t.Fatalf("Failed to create config file for unit test, error: %v", err)
 	}
 	defer os.Remove(configFile)
@@ -190,6 +198,7 @@ func TestLoadHttpTlsConfigWithTimeouts(t *testing.T) {
 		assert.Equal(t, uint(102), cfg.HttpIdleConnTimeout, "Did not get expected http HttpIdleConnTimeout from config file")
 		assert.Equal(t, int(1001), cfg.HttpWriteBufferSize, "Did not get expected http HttpWriteBufferSize from config file")
 		assert.Equal(t, int(1002), cfg.HttpReadBufferSize, "Did not get expected http HttpReadBufferSize from config file")
+		assert.False(t, cfg.TlsInsecureSkipVerify, "Did not get expected TlsInsecureSkipVerify value from config file")
 	}
 
 	err = cfg.Validate()
@@ -208,15 +217,30 @@ func TestLoadHttpConfigWithDefaultTimeouts(t *testing.T) {
 		assert.False(t, IsSocketConfigured(cfg), "IsSocketConfigured() returned true, when expecting false")
 		assert.Equal(t, "https:localhost:9101", cfg.HttpUrl, "Did not get expected http url from config file")
 		assert.Equal(t, DefaultConfig.Timeout, cfg.Timeout, "Did not get expected http Timeout from config file")
+		assert.True(t, cfg.TlsInsecureSkipVerify, "Did not get expected TlsInsecureSkipVerify value from config file")
 	}
 
 	err = cfg.Validate()
 	assert.NoError(t, err)
 }
 
-func TestHTTPMissingCerts(t *testing.T) {
-	configFile := filepath.Join(os.TempDir(), "invalidHttpTlsConfigFileNoCerts.toml")
-	if err := ioutil.WriteFile(configFile, []byte(invalidHttpTlsConfigFileNoCerts), 0600); err != nil {
+func TestHTTPTlsWithBlankRootCert(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "httpTlsConfigFileNoRootCert.toml")
+	if err := ioutil.WriteFile(configFile, []byte(httpTlsConfigFileNoRootCert), 0600); err != nil {
+		t.Fatalf("Failed to create config file for unit test, error: %v", err)
+	}
+	defer os.Remove(configFile)
+
+	cfg, err := FetchConfig(configFile)
+	assert.NoError(t, err)
+
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestHTTPTlsMissingClientCerts(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "invalidHttpTlsConfigFileNoClientCert.toml")
+	if err := ioutil.WriteFile(configFile, []byte(invalidHttpTlsConfigFileNoClientCert), 0600); err != nil {
 		t.Fatalf("Failed to create config file for unit test, error: %v", err)
 	}
 	defer os.Remove(configFile)
@@ -226,11 +250,11 @@ func TestHTTPMissingCerts(t *testing.T) {
 
 	err = cfg.Validate()
 	if assert.Error(t, err) {
-		assert.Contains(t, err.Error(), "missing details for HTTP connection with TLS, configuration must specify: rootCA, clientCert, clientKey")
+		assert.Contains(t, err.Error(), "missing details for HTTP connection with TLS, configuration must specify: clientCert and clientKey")
 	}
 }
 
-func TestTlsWithHTTPOnly(t *testing.T) {
+func TestTlsWithHTTPUrlOnly(t *testing.T) {
 	configFile := filepath.Join(os.TempDir(), "httpTlsConfigFileWithHTTPOnly.toml")
 	if err := ioutil.WriteFile(configFile, []byte(httpTlsConfigFileWithHTTPOnly), 0600); err != nil {
 		t.Fatalf("Failed to create config file for unit test, error: %v", err)

@@ -163,13 +163,19 @@ func createHTTPClientUsingTLS(cfg engine.Config) (*engine.Client, error) {
 }
 
 func httpTransportUsingTLS(cfg engine.Config) (*http.Transport, error) {
-	rootCAPool := x509.NewCertPool()
-	rootCA, err := ioutil.ReadFile(cfg.TlsRootCA)
+	rootCAPool, err := x509.SystemCertPool()
 	if err != nil {
-		return nil, fmt.Errorf("reading TlsRootCA certificate from '%v' failed : %v", cfg.TlsRootCA, err)
+		rootCAPool = x509.NewCertPool()
 	}
-	if !rootCAPool.AppendCertsFromPEM(rootCA) {
-		return nil, fmt.Errorf("failed to add TlsRootCA certificate to pool, check that '%v' contains a valid cert", cfg.TlsRootCA)
+
+	if len(cfg.TlsRootCA) != 0 {
+		rootCA, err := ioutil.ReadFile(cfg.TlsRootCA)
+		if err != nil {
+			return nil, fmt.Errorf("reading TlsRootCA certificate from '%v' failed : %v", cfg.TlsRootCA, err)
+		}
+		if !rootCAPool.AppendCertsFromPEM(rootCA) {
+			return nil, fmt.Errorf("failed to add TlsRootCA certificate to pool, check that '%v' contains a valid cert", cfg.TlsRootCA)
+		}
 	}
 
 	t := &http.Transport{
@@ -177,7 +183,8 @@ func httpTransportUsingTLS(cfg engine.Config) (*http.Transport, error) {
 		WriteBufferSize: cfg.HttpWriteBufferSize,
 		ReadBufferSize:  cfg.HttpReadBufferSize,
 		TLSClientConfig: &tls.Config{
-			RootCAs: rootCAPool,
+			RootCAs:            rootCAPool,
+			InsecureSkipVerify: cfg.TlsInsecureSkipVerify,
 			// Load clients key-pair. This will be sent to server
 			GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
 				c, err := tls.LoadX509KeyPair(cfg.TlsClientCert, cfg.TlsClientKey)

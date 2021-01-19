@@ -21,19 +21,20 @@ const (
 )
 
 type Config struct {
-	ConnectionType      string `toml:"-"` // connection type is not loaded from toml
-	Socket              string // filename for unix domain socket
-	WorkDir             string // directory for unix domain socket
-	HttpUrl             string // transaction manager URL for HTTP connection
-	Timeout             uint   // timeout for overall client call (seconds), zero means timeout disabled
-	DialTimeout         uint   // timeout for connecting to unix socket (seconds)
-	HttpIdleConnTimeout uint   // timeout for idle http connection (seconds), zero means timeout disabled
-	HttpWriteBufferSize int    // size of http connection write buffer (bytes), if zero then uses http.Transport default
-	HttpReadBufferSize  int    // size of http connection read buffer (bytes), if zero then uses http.Transport default
-	TlsMode             string // whether TLS is enabled on HTTP connection (can be "off" or "strict")
-	TlsRootCA           string // path to file containing certificate for root CA
-	TlsClientCert       string // path to file containing client certificate (or chain of certs)
-	TlsClientKey        string // path to file containing client's private key
+	ConnectionType        string `toml:"-"` // connection type is not loaded from toml
+	Socket                string // filename for unix domain socket
+	WorkDir               string // directory for unix domain socket
+	HttpUrl               string // transaction manager URL for HTTP connection
+	Timeout               uint   // timeout for overall client call (seconds), zero means timeout disabled
+	DialTimeout           uint   // timeout for connecting to unix socket (seconds)
+	HttpIdleConnTimeout   uint   // timeout for idle http connection (seconds), zero means timeout disabled
+	HttpWriteBufferSize   int    // size of http connection write buffer (bytes), if zero then uses http.Transport default
+	HttpReadBufferSize    int    // size of http connection read buffer (bytes), if zero then uses http.Transport default
+	TlsMode               string // whether TLS is enabled on HTTP connection (can be "off" or "strict")
+	TlsRootCA             string // path to file containing certificate for root CA (defaults to host's certificates)
+	TlsClientCert         string // path to file containing client certificate (or chain of certs)
+	TlsClientKey          string // path to file containing client's private key
+	TlsInsecureSkipVerify bool   // if true then does not verify that server certificate is CA signed
 }
 
 var NoConnectionConfig = Config{
@@ -135,8 +136,8 @@ func (cfg *Config) Validate() error {
 			if !strings.Contains(strings.ToLower(cfg.HttpUrl), "https") {
 				return fmt.Errorf("connection is configured with TLS but HTTPS url is not specified")
 			}
-			if len(cfg.TlsRootCA) == 0 || len(cfg.TlsClientCert) == 0 || len(cfg.TlsClientKey) == 0 {
-				return fmt.Errorf("missing details for HTTP connection with TLS, configuration must specify: rootCA, clientCert, clientKey")
+			if len(cfg.TlsClientCert) == 0 || len(cfg.TlsClientKey) == 0 {
+				return fmt.Errorf("missing details for HTTP connection with TLS, configuration must specify: clientCert and clientKey")
 			}
 		default:
 			return fmt.Errorf("invalid value for TLS mode in config file, must be either OFF or STRICT")
@@ -198,4 +199,8 @@ func (cfg *Config) SetTlsClientCert(tlsClientCert string) {
 
 func (cfg *Config) SetTlsClientKey(tlsClientKey string) {
 	cfg.TlsClientKey = tlsClientKey
+}
+
+func (cfg *Config) SetTlsInsecureSkipVerify(tlsInsecureSkipVerify bool) {
+	cfg.TlsInsecureSkipVerify = tlsInsecureSkipVerify
 }

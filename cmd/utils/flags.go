@@ -911,7 +911,7 @@ var (
 	}
 	QuorumPTMTlsRootCaFlag = DirectoryFlag{
 		Name:  "ptm.tls.rootca",
-		Usage: "Path to file containing root CA certificate for TLS connection to private transaction manager",
+		Usage: "Path to file containing root CA certificate for TLS connection to private transaction manager (defaults to host's certificates)",
 	}
 	QuorumPTMTlsClientCertFlag = DirectoryFlag{
 		Name:  "ptm.tls.clientcert",
@@ -920,6 +920,10 @@ var (
 	QuorumPTMTlsClientKeyFlag = DirectoryFlag{
 		Name:  "ptm.tls.clientkey",
 		Usage: "Path to file containing client's private key for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsInsecureSkipVerify = cli.BoolFlag{
+		Name:  "ptm.tls.insecureskipverify",
+		Usage: "Disable verification of server's TLS certificate on connection to private transaction manager",
 	}
 )
 

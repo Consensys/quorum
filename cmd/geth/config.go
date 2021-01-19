@@ -311,6 +311,9 @@ func QuorumSetupPrivacyConfiguration(ctx *cli.Context) (engine.Config, error) {
 	if ctx.GlobalIsSet(utils.QuorumPTMTlsClientKeyFlag.Name) {
 		cfg.SetTlsClientKey(ctx.GlobalString(utils.QuorumPTMTlsClientKeyFlag.Name))
 	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsInsecureSkipVerify.Name) {
+		cfg.SetTlsInsecureSkipVerify(ctx.Bool(utils.QuorumPTMTlsInsecureSkipVerify.Name))
+	}
 
 	if err = cfg.Validate(); err != nil {
 		return cfg, err

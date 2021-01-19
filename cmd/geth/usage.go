@@ -297,6 +297,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.QuorumPTMTlsRootCaFlag,
 			utils.QuorumPTMTlsClientCertFlag,
 			utils.QuorumPTMTlsClientKeyFlag,
+			utils.QuorumPTMTlsInsecureSkipVerify,
 		},
 	},
 	{
