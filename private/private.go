@@ -80,20 +80,9 @@ func NewPrivateTxManager(cfg engine.Config) (PrivateTransactionManager, error) {
 		return &notinuse.PrivateTransactionManager{}, nil
 	}
 
-	var client *engine.Client
-	if engine.IsSocketConfigured(cfg) {
-		log.Info("Connecting to private tx manager using IPC socket")
-		client = createIPCClient(cfg)
-	} else if cfg.TlsMode != engine.TlsOff {
-		log.Info("Connecting to private tx manager using HTTPS")
-		var err error
-		client, err = createHTTPClientUsingTLS(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create http.client to private tx manager due to: %s", err)
-		}
-	} else {
-		log.Info("Connecting to private tx manager using HTTP")
-		client = createHTTPClient(cfg)
+	client, err := createClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create connection to private tx manager due to: %s", err)
 	}
 
 	ptm, err := selectPrivateTxManager(client)
@@ -105,14 +94,42 @@ func NewPrivateTxManager(cfg engine.Config) (PrivateTransactionManager, error) {
 	return ptm, nil
 }
 
-func createIPCClient(cfg engine.Config) *engine.Client {
-	client := &engine.Client{
-		HttpClient: &http.Client{
-			Transport: unixTransport(cfg),
-		},
-		BaseURL: "http+unix://c",
+func createClient(cfg engine.Config) (*engine.Client, error) {
+	var client *engine.Client
+	if engine.IsSocketConfigured(cfg) {
+
+		log.Info("Connecting to private tx manager using IPC socket")
+		client = &engine.Client{
+			HttpClient: &http.Client{
+				Transport: unixTransport(cfg),
+			},
+			BaseURL: "http+unix://c",
+		}
+
+	} else {
+
+		transport := httpTransport(cfg)
+		if cfg.TlsMode == engine.TlsOff {
+			log.Info("Connecting to private tx manager using HTTP")
+		} else {
+			log.Info("Connecting to private tx manager using HTTPS")
+			err := setHttpTransportToUseTLS(cfg, transport)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create http.client to private tx manager due to: %s", err)
+			}
+		}
+
+		client = &engine.Client{
+			HttpClient: &http.Client{
+				Timeout:   time.Duration(cfg.Timeout) * time.Second,
+				Transport: transport,
+			},
+			BaseURL: cfg.HttpUrl,
+		}
+
 	}
-	return client
+
+	return client, nil
 }
 
 func unixTransport(cfg engine.Config) *httpunix.Transport {
@@ -126,17 +143,6 @@ func unixTransport(cfg engine.Config) *httpunix.Transport {
 	return t
 }
 
-func createHTTPClient(cfg engine.Config) *engine.Client {
-	client := &engine.Client{
-		HttpClient: &http.Client{
-			Timeout:   time.Duration(cfg.Timeout) * time.Second,
-			Transport: httpTransport(cfg),
-		},
-		BaseURL: cfg.HttpUrl,
-	}
-	return client
-}
-
 func httpTransport(cfg engine.Config) *http.Transport {
 	t := &http.Transport{
 		IdleConnTimeout: time.Duration(cfg.HttpIdleConnTimeout) * time.Second,
@@ -146,23 +152,7 @@ func httpTransport(cfg engine.Config) *http.Transport {
 	return t
 }
 
-func createHTTPClientUsingTLS(cfg engine.Config) (*engine.Client, error) {
-	transport, err := httpTransportUsingTLS(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &engine.Client{
-		HttpClient: &http.Client{
-			Timeout:   time.Duration(cfg.Timeout) * time.Second,
-			Transport: transport,
-		},
-		BaseURL: cfg.HttpUrl,
-	}
-	return client, nil
-}
-
-func httpTransportUsingTLS(cfg engine.Config) (*http.Transport, error) {
+func setHttpTransportToUseTLS(cfg engine.Config, transport *http.Transport) error {
 	rootCAPool, err := x509.SystemCertPool()
 	if err != nil {
 		rootCAPool = x509.NewCertPool()
@@ -171,32 +161,28 @@ func httpTransportUsingTLS(cfg engine.Config) (*http.Transport, error) {
 	if len(cfg.TlsRootCA) != 0 {
 		rootCA, err := ioutil.ReadFile(cfg.TlsRootCA)
 		if err != nil {
-			return nil, fmt.Errorf("reading TlsRootCA certificate from '%v' failed : %v", cfg.TlsRootCA, err)
+			return fmt.Errorf("reading TlsRootCA certificate from '%v' failed : %v", cfg.TlsRootCA, err)
 		}
 		if !rootCAPool.AppendCertsFromPEM(rootCA) {
-			return nil, fmt.Errorf("failed to add TlsRootCA certificate to pool, check that '%v' contains a valid cert", cfg.TlsRootCA)
+			return fmt.Errorf("failed to add TlsRootCA certificate to pool, check that '%v' contains a valid cert", cfg.TlsRootCA)
 		}
 	}
 
-	t := &http.Transport{
-		IdleConnTimeout: time.Duration(cfg.HttpIdleConnTimeout) * time.Second,
-		WriteBufferSize: cfg.HttpWriteBufferSize,
-		ReadBufferSize:  cfg.HttpReadBufferSize,
-		TLSClientConfig: &tls.Config{
-			RootCAs:            rootCAPool,
-			InsecureSkipVerify: cfg.TlsInsecureSkipVerify,
-			// Load clients key-pair. This will be sent to server
-			GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
-				c, err := tls.LoadX509KeyPair(cfg.TlsClientCert, cfg.TlsClientKey)
-				if err != nil {
-					return nil, fmt.Errorf("failed to load client key pair from '%v', '%v': %v", cfg.TlsClientCert, cfg.TlsClientKey, err)
-				}
-				return &c, nil
-			},
+	transport.TLSClientConfig = &tls.Config{
+		RootCAs:            rootCAPool,
+		InsecureSkipVerify: cfg.TlsInsecureSkipVerify,
+		// Load clients key-pair. This will be sent to server
+		GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
+			c, err := tls.LoadX509KeyPair(cfg.TlsClientCert, cfg.TlsClientKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load client key pair from '%v', '%v': %v", cfg.TlsClientCert, cfg.TlsClientKey, err)
+			}
+			return &c, nil
 		},
 	}
+	transport.IdleConnTimeout = time.Duration(cfg.HttpIdleConnTimeout) * time.Second
 
-	return t, nil
+	return nil
 }
 
 // First call /upcheck to make sure the private tx manager is up
