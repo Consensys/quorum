@@ -32,7 +32,7 @@ type MTManagedState struct {
 
 func NewMTStateService(bc *BlockChain, previousBlockHash common.Hash) (*MTStateService, error) {
 	mtPrivateStateTrieRoot := rawdb.GetMTPrivateStateRoot(bc.db, previousBlockHash)
-	tr, err := bc.privateStateCache.OpenTrie(mtPrivateStateTrieRoot)
+	tr, err := bc.mtServiceCache.OpenTrie(mtPrivateStateTrieRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +40,32 @@ func NewMTStateService(bc *BlockChain, previousBlockHash common.Hash) (*MTStateS
 		trie:          tr,
 		bc:            bc,
 		managedStates: make(map[string]*MTManagedState)}, nil
+}
+
+//utility function for debugging
+func (mt *MTStateService) GetManagedStateRoots() []string {
+	myMap := mt.managedStates
+	keys := make([]string, 0, len(myMap))
+
+	for k, _ := range myMap {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+//utility function for debugging
+func (mt *MTStateService) GetManagedStates() []*MTManagedState {
+	myMap := mt.managedStates
+	keys := make([]*MTManagedState, 0, len(myMap))
+
+	for _, v := range myMap {
+		keys = append(keys, v)
+	}
+	return keys
+}
+
+func (mt *MTStateService) GetOverallPrivateState() (*state.StateDB, error) {
+	return mt.GetPrivateState("private")
 }
 
 func (mt *MTStateService) GetPrivateState(psi string) (*state.StateDB, error) {
@@ -63,8 +89,22 @@ func (mt *MTStateService) GetPrivateState(psi string) (*state.StateDB, error) {
 	return statedb, nil
 }
 
-// commit - commits all private states, updates the trie of private states
-func (mt *MTStateService) Commit(block *types.Block) error {
+func (mt *MTStateService) Reset() error {
+	for psi, managedState := range mt.managedStates {
+		root, err := mt.trie.TryGet([]byte(psi))
+		if err != nil {
+			return err
+		}
+		err = managedState.stateDb.Reset(common.BytesToHash(root))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// commitAndWrite- commits all private states, updates the trie of private states, writes to disk
+func (mt *MTStateService) CommitAndWrite(block *types.Block) error {
 	for psi, managedState := range mt.managedStates {
 		// commit each managed state
 		privateRoot, err := managedState.stateDb.Commit(mt.bc.chainConfig.IsEIP158(block.Number()))
@@ -90,7 +130,29 @@ func (mt *MTStateService) Commit(block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	privateTriedb := mt.bc.privateStateCache.TrieDB()
+	privateTriedb := mt.bc.mtServiceCache.TrieDB()
 	err = privateTriedb.Commit(mtRoot, false)
+	return err
+}
+
+// commit - commits all private states, updates the trie of private states only
+func (mt *MTStateService) Commit(block *types.Block) error {
+	for psi, managedState := range mt.managedStates {
+		// commit each managed state
+		privateRoot, err := managedState.stateDb.Commit(mt.bc.chainConfig.IsEIP158(block.Number()))
+		if err != nil {
+			return err
+		}
+		// update the managed state root in the trie of states
+		err = mt.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+	// commit the trie of states
+	_, err := mt.trie.Commit(nil)
+	if err != nil {
+		return err
+	}
 	return err
 }
