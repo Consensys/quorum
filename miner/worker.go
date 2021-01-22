@@ -652,6 +652,22 @@ func (w *worker) resultLoop() {
 					log.BlockHash = hash
 				}
 				logs = append(logs, receipt.Logs...)
+
+				for _, mtReceipt := range receipt.MTVersions {
+					// add block location fields
+					mtReceipt.BlockHash = hash
+					mtReceipt.BlockNumber = block.Number()
+					mtReceipt.TransactionIndex = uint(i + offset)
+
+					//prvReceipts[i] = new(types.Receipt)
+					//*prvReceipts[i] = *receipt
+					// Update the block hash in all logs since it is now available and not when the
+					// receipt/log of individual transactions were created.
+					for _, log := range mtReceipt.Logs {
+						log.BlockHash = hash
+					}
+					logs = append(logs, mtReceipt.Logs...)
+				}
 			}
 
 			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
