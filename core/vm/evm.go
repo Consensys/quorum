@@ -63,30 +63,14 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		// Using CodeAddr is favour over contract.Address()
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
-		if _, ok := evm.affectedContracts[address]; !ok {
-			evm.affectedContracts[address] = newAffectedType(MessageCall, ModeUnknown)
-			// for multitenancy, we cache the expectation of AffectedMode to be used later
-			// when an opcode is executed.
-			if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil {
-				// when contract code is empty, there's no execution hence the
-				// multitenancy check will not happen in captureOperationMode().
-				// This additional check to ensure we capture this case
-				if len(contract.Code) == 0 {
-					return nil, multitenancy.ErrNotAuthorized
-				}
-				authorizedRead, authorizedWrite, err := evm.AuthorizeMessageCallFunc(address)
-				if err != nil {
-					return nil, err
-				}
-				expectedMode := evm.affectedContracts[address].mode
-				if authorizedRead {
-					expectedMode = expectedMode | ModeRead
-				}
-				if authorizedWrite {
-					expectedMode = expectedMode | ModeWrite
-				}
-				evm.affectedContracts[address].mode = expectedMode
-			}
+		// during simulation/eth_call, when contract code is empty, there's no execution hence the
+		// multitenancy check will not happen in captureOperationMode().
+		// This additional check to ensure we capture this case
+		if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(contract.Code) == 0 {
+			return nil, multitenancy.ErrNotAuthorized
+		}
+		if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+			return nil, err
 		}
 		// When delegatecall, need to capture the operation mode in the context of contract.Address()
 		// the affected contract is required read only mode
@@ -152,7 +136,7 @@ type Context struct {
 	// It's only injected during simulation
 	AuthorizeCreateFunc multitenancy.AuthorizeCreateFunc
 	// AuthorizeMessageCallFunc performs tenancy authorization check for message call to a contract.
-	// It's only injected during simulation
+	// It's only injected during simulation/eth_call
 	AuthorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc
 }
 
@@ -229,6 +213,10 @@ type AffectedType struct {
 	mode AffectedMode
 }
 
+func (t AffectedType) String() string {
+	return fmt.Sprintf("reason=%d,mode=%d", t.reason, t.mode)
+}
+
 // AffectedReason defines a type of operation that was applied to a contract.
 type AffectedReason byte
 
@@ -248,6 +236,9 @@ const (
 	ModeRead AffectedMode = iota
 	// ModeWrite indicates that state has been modified as the result of contract code execution
 	ModeWrite = ModeRead << 1
+	// ModeUpdated indicates that the affected mode has been setup for multitenancy check.
+	// This is mainly used during simulation and eth_call
+	ModeUpdated = ModeRead << 7
 )
 
 func ModeOf(isWrite bool) AffectedMode {
@@ -257,8 +248,27 @@ func ModeOf(isWrite bool) AffectedMode {
 	return ModeRead
 }
 
-func (mode AffectedMode) IsAuthorized(actualMode AffectedMode) bool {
-	return mode&actualMode != actualMode
+func (mode AffectedMode) IsNotAuthorized(actualMode AffectedMode) bool {
+	return mode.Has(ModeUpdated) && !mode.Has(actualMode)
+}
+
+func (mode AffectedMode) Update(authorizedRead bool, authorizedWrite bool) AffectedMode {
+	newMode := mode | ModeUpdated
+	if authorizedRead {
+		newMode = newMode | ModeRead
+	}
+	if authorizedWrite {
+		newMode = newMode | ModeWrite
+	}
+	return newMode
+}
+
+func (mode AffectedMode) Has(modes ...AffectedMode) bool {
+	expectedMode := ModeUnknown
+	for _, m := range modes {
+		expectedMode = expectedMode | m
+	}
+	return mode&expectedMode == expectedMode
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -705,6 +715,7 @@ func getDualState(evm *EVM, addr common.Address) StateDB {
 
 	if evm.PrivateState().Exist(addr) {
 		state = evm.PrivateState()
+		evm.captureAffectedContract(addr, ModeUnknown)
 	} else if evm.PublicState().Exist(addr) {
 		state = evm.PublicState()
 	}
@@ -818,13 +829,13 @@ func (evm *EVM) peekAddress() common.Address {
 func (evm *EVM) captureOperationMode(isWriteOperation bool) error {
 	currentAddress := evm.peekAddress()
 	if (currentAddress == common.Address{}) {
-		return nil
+		return evm.lastError
 	}
 	actualMode := ModeOf(isWriteOperation)
 	if t, ok := evm.affectedContracts[currentAddress]; ok {
 		// perform multitenancy check
 		if evm.enforceMultitenancyCheck() {
-			if t.mode.IsAuthorized(actualMode) {
+			if t.mode.IsNotAuthorized(actualMode) {
 				log.Trace("Multitenancy check for captureOperationMode()", "address", currentAddress.Hex(), "actual", actualMode, "expect", t.mode)
 				evm.lastError = multitenancy.ErrNotAuthorized
 			}
@@ -838,7 +849,43 @@ func (evm *EVM) captureOperationMode(isWriteOperation bool) error {
 	return nil
 }
 
-// enforceMultitenancyCheck returns true if EVM is enforced to do multitenancy check, false otherwise
+// Quorum
+//
+// captureAffectedContract stores the contract address to the affectedContract list if not yet there.
+// The affected mode is also updated if required.
+// Default affected reason is MessageCall.
+// In simulation/eth_call for multitenancy, it sets the expectation of AffectedMode
+// to be verified later when an opcode is executed.
+func (evm *EVM) captureAffectedContract(address common.Address, mode AffectedMode) error {
+	affectedType, found := evm.affectedContracts[address]
+	if !found {
+		affectedType = newAffectedType(MessageCall, mode)
+		evm.affectedContracts[address] = affectedType
+	}
+	if affectedType.mode != ModeUnknown {
+		return nil
+	}
+	if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil {
+		authorizedRead, authorizedWrite, err := evm.AuthorizeMessageCallFunc(address)
+		if err != nil {
+			return err
+		}
+		// if we don't authorize either read/write, it's unauthorized access
+		// and we need to inform EVM
+		if !authorizedRead && !authorizedWrite {
+			evm.lastError = multitenancy.ErrNotAuthorized
+			log.Debug("Affected contract not authorized", "address", address.Hex(), "read", authorizedRead, "write", authorizedWrite)
+			return multitenancy.ErrNotAuthorized
+		}
+		oldMode := affectedType.mode
+		affectedType.mode = affectedType.mode.Update(authorizedRead, authorizedWrite)
+		log.Debug("AffectedMode changed", "address", address.Hex(), "old", oldMode, "new", affectedType.mode)
+	}
+	return nil
+}
+
+// enforceMultitenancyCheck returns true if EVM is enforced to do multitenancy check
+// during simulation/eth_call, false otherwise
 func (evm *EVM) enforceMultitenancyCheck() bool {
 	return evm.AuthorizeCreateFunc != nil || evm.AuthorizeMessageCallFunc != nil
 }
