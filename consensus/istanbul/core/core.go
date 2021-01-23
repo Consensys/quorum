@@ -144,7 +144,7 @@ func (c *core) broadcast(msg *message) {
 	}
 
 	// Broadcast payload
-	if err = c.backend.Broadcast(c.valSet, payload); err != nil {
+	if err = c.backend.Broadcast(c.valSet, msg.Code, payload); err != nil {
 		logger.Error("Failed to broadcast message", "msg", msg, "err", err)
 		return
 	}

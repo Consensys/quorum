@@ -36,10 +36,10 @@ type Backend interface {
 	EventMux() *event.TypeMux
 
 	// Broadcast sends a message to all validators (include self)
-	Broadcast(valSet ValidatorSet, payload []byte) error
+	Broadcast(valSet ValidatorSet, code uint64, payload []byte) error
 
 	// Gossip sends a message to all validators (exclude self)
-	Gossip(valSet ValidatorSet, payload []byte) error
+	Gossip(valSet ValidatorSet, code uint64, payload []byte) error
 
 	// Commit delivers an approved proposal to backend.
 	// The delivered proposal will be put into blockchain.
