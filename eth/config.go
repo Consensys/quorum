@@ -168,4 +168,6 @@ type Config struct {
 
 	// timeout value for call
 	EVMCallTimeOut time.Duration
+
+	EnableMultitenancy bool
 }

@@ -312,12 +312,16 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 // handleCall processes method calls.
 // Quorum:
 //   This is where server handle the call requests hence we enforce authorization check
-//   before the actual processing of the call
+//   before the actual processing of the call. It also populates context with preauthenticated
+//   token so the responsible RPC method can leverage if needed (e.g: in multi tenancy)
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
 	if r, ok := h.conn.(securityContextResolver); ok {
 		if err := secureCall(r, msg); err != nil {
 			return securityErrorMessage(msg, err)
 		}
+		secCtx := r.Resolve()
+		h.log.Debug("Enrich call context with token from security context")
+		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
 	}
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)

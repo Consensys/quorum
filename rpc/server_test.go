@@ -168,7 +168,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerFails(t *testing.T) {
 	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.True(t, hasError, "must have error")
 	assert.EqualError(t, actualErr, "internal error")
-	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	assert.False(t, hasAuthToken, "must not be preauthenticated")
 }
 
@@ -182,7 +182,7 @@ func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
 
 	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.False(t, hasError, "must not have error")
-	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	assert.True(t, hasAuthToken, "must be preauthenticated")
 }
 
@@ -195,7 +195,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.
 
 	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.False(t, hasError, "must not have error")
-	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	assert.False(t, hasAuthToken, "must not be preauthenticated")
 }
 
@@ -209,7 +209,7 @@ func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
 	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.True(t, hasError, "must have error")
 	assert.EqualError(t, actualErr, "missing access token")
-	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	assert.False(t, hasAuthToken, "must not be preauthenticated")
 }
 

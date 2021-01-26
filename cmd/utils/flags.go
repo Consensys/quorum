@@ -875,6 +875,11 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
+	// Multitenancy setting
+	MultitenancyFlag = cli.BoolFlag{
+		Name:  "multitenancy",
+		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1553,7 +1558,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-
+	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 }
