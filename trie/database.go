@@ -131,9 +131,11 @@ type rawShortNode struct {
 	Val node
 }
 
-func (n rawShortNode) canUnload(uint16, uint16) bool { panic("this should never end up in a live trie") }
-func (n rawShortNode) cache() (hashNode, bool)       { panic("this should never end up in a live trie") }
-func (n rawShortNode) fstring(ind string) string     { panic("this should never end up in a live trie") }
+func (n rawShortNode) canUnload(uint16, uint16) bool {
+	panic("this should never end up in a live trie")
+}
+func (n rawShortNode) cache() (hashNode, bool)   { panic("this should never end up in a live trie") }
+func (n rawShortNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
 // cachedNode is all the information we know about a single cached node in the
 // memory database write layer.
