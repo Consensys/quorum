@@ -97,7 +97,13 @@ func (c *core) handleEvents() {
 					c.storeRequestMsg(r)
 				}
 			case istanbul.MessageEvent:
-				if err := c.handleMsg(ev.Payload); err == nil {
+				var err error
+				if _, ok := MessageCodes()[ev.Code]; ok {
+					err = c.handleQBFTMsg(ev.Code, ev.Payload)
+				} else {
+					err = c.handleMsg(ev.Payload)
+				}
+				if err == nil {
 					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
 			case backlogEvent:
@@ -131,6 +137,14 @@ func (c *core) handleEvents() {
 // sendEvent sends events to mux
 func (c *core) sendEvent(ev interface{}) {
 	c.backend.EventMux().Post(ev)
+}
+
+func (c *core) handleQBFTMsg(code uint64, payload []byte) error {
+	switch code {
+	case commitMsgCode:
+		c.handleCommitMsg(payload)
+	}
+	return nil
 }
 
 func (c *core) handleMsg(payload []byte) error {

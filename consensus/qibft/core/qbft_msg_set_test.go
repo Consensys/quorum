@@ -103,8 +103,8 @@ func TestMessageSetWithSubject(t *testing.T) {
 	}
 }
 
-// TestMessageSetEncodeDecode tests RLP encoding and decoding of messageSet, it does so by
-// first encoding a RoundChangeMessage and then encoding a messageSet.
+// TestMessageSetEncodeDecode tests RLP encoding and decoding of qbftMsgSet, it does so by
+// first encoding a RoundChangeMessage and then encoding a qbftMsgSet.
 // It verifies encoding by decoding these messages and asserting the decoded values
 func TestMessageSetEncodeDecode(t *testing.T) {
 	valSet := newTestValidatorSet(4)
@@ -156,7 +156,7 @@ func TestMessageSetEncodeDecode(t *testing.T) {
 	var decodedMsgSet *messageSet
 	err = encodedMessages.Decode(&decodedMsgSet)
 	if err != nil {
-		t.Errorf("failed to decode messageSet: %v", err)
+		t.Errorf("failed to decode qbftMsgSet: %v", err)
 	}
 	decodedMsg := decodedMsgSet.messages[firstVal.Address()]
 

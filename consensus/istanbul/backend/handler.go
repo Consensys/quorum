@@ -23,6 +23,8 @@ import (
 	"math/big"
 	"reflect"
 
+	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -33,12 +35,8 @@ import (
 )
 
 const (
-	istanbulMsg = 0x11
 	NewBlockMsg = 0x07
-	bftPreprepareMsg = 0x81
-	bftPrepareMsg = 0x82
-	bftCommitMsg = 0x83
-	bftRoundChangeMsg = 0x84
+	istanbulMsg = 0x11
 )
 
 var (
@@ -64,7 +62,7 @@ func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	if msg.Code == istanbulMsg || (msg.Code >= bftPreprepareMsg && msg.Code <= bftCommitMsg) {
+	if _, ok := qibftCore.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			return true, istanbul.ErrStoppedEngine
 		}
@@ -91,7 +89,7 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		sb.knownMessages.Add(hash, true)
 
 		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
-			Code: msg.Code,
+			Code:    msg.Code,
 			Payload: data,
 		})
 		return true, nil

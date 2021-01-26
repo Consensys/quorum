@@ -19,6 +19,8 @@ package core
 import (
 	"reflect"
 
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
@@ -48,6 +50,51 @@ func (c *core) broadcastCommit(sub *Subject) {
 		Code: msgCommit,
 		Msg:  encodedSubject,
 	})
+}
+
+func (c *core) handleCommitMsg(message []byte) error {
+	var commit CommitMsg
+	var err error
+
+	// 1. RLP decode
+	if err = rlp.DecodeBytes(message, &commit); err != nil { // TODO: implement the DecodeRLP method
+		return errFailedDecodeCommit
+	}
+
+	// 2. Verify signature
+	var payload []byte
+	if payload, err = commit.EncodedPayload(); err != nil {
+		return errInvalidMessage
+	}
+
+	var source common.Address
+	if source, err = c.checkValidatorSignature(payload, commit.Signature); err != nil {
+		return errInvalidSigner
+	}
+	commit.source = source
+
+	// 3. Check view and state
+	if err := c.checkMessage(msgCommit, &commit.View); err != nil {
+		return err
+	}
+
+	// 4. Check digest
+	if commit.Digest != c.current.Proposal().Hash() {
+		return errInvalidMessage
+	}
+
+	// 5. Add to received msgs
+	if err := c.current.QBFTCommits.Add(&commit); err != nil {
+		c.logger.Error("Failed to save commit message", "msg", commit, "err", err)
+		return err
+	}
+
+	// 6. Check threshold and decide
+	if c.current.Commits.Size() >= c.QuorumSize() {
+		c.commit()
+	}
+
+	return nil
 }
 
 func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
