@@ -108,6 +108,8 @@ type peer struct {
 	getPooledTx func(common.Hash) *types.Transaction // Callback used to retrieve transaction from txpool
 
 	term chan struct{} // Termination channel to stop the broadcaster
+
+	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, getPooledTx func(hash common.Hash) *types.Transaction) *peer {
@@ -330,6 +332,7 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 	p.knownTxs.Add(hash)
 }
 
+// Quorum: this was added with the origin "istanbul" implementation.
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
 func (p *peer) Send(msgcode uint64, data interface{}) error {

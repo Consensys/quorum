@@ -220,13 +220,13 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
 	// Quorum: Set p2p.Protocol info from engine.Protocol()
-	length, ok := pm.engine.Protocol().Lengths[version]
+	length, ok := protocolLengths[version]
 	if !ok {
 		panic("makeProtocol for unknown version")
 	}
 
 	return p2p.Protocol{
-		Name:    pm.engine.Protocol().Name,
+		Name:    protocolName,
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
@@ -235,7 +235,7 @@ func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
 			case pm.newPeerCh <- peer:
 				pm.wg.Add(1)
 				defer pm.wg.Done()
-				return pm.handle(peer)
+				return pm.handle(peer, protocolName)
 			case <-pm.quitSync:
 				return p2p.DiscQuitting
 			}
@@ -330,9 +330,10 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter, ge
 	return newPeer(pv, p, rw, getPooledTx)
 }
 
+// quorum: protoname is either "eth" or a subprotocol that overrides "eth", e.g. legacy "istanbul/99"
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
-func (pm *ProtocolManager) handle(p *peer) error {
+func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 	// Ignore maxPeers if this is a trusted peer
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
@@ -347,8 +348,8 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, pm.engine.Protocol().Name); err != nil {
-		p.Log().Debug("Ethereum handshake failed", "err", err)
+	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, protoName); err != nil {
+		p.Log().Debug("Ethereum handshake failed", "protoName", protoName, "err", err)
 		return err
 	}
 	// Register the peer locally
@@ -391,6 +392,15 @@ func (pm *ProtocolManager) handle(p *peer) error {
 			return err
 		}
 	}
+
+	// Quorum notify other subprotocols that the eth peer is ready, and has been added to the peerset.
+	select {
+	case p.EthPeerRegistered <- true:
+	default:
+		p.Log().Debug("no subprotocol waiting on EthPeerRegistered", "protoName", protoName)
+	}
+	// Quorum
+
 	// Handle incoming messages until the connection is torn down
 	for {
 		if err := pm.handleMsg(p); err != nil {
@@ -425,7 +435,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			log.Info("raft: ignoring message", "code", msg.Code)
 			return nil
 		}
-	} else if handler, ok := pm.engine.(consensus.Handler); ok {
+	} else if handler, ok := pm.engine.(consensus.Handler); ok { // quorum: NewBlock required for consensus, e.g. "istanbul"
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
 		handled, err := handler.HandleMsg(addr, msg)
