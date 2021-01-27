@@ -1,6 +1,6 @@
 module github.com/ethereum/go-ethereum
 
-go 1.15.5
+go 1.15
 
 replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487
 
