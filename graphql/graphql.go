@@ -330,7 +330,7 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 		return &hexutil.Bytes{}, err
 	}
 	if tx.IsPrivate() {
-		privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		_, _, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		if err != nil || tx == nil {
 			return &hexutil.Bytes{}, err
 		}
@@ -985,7 +985,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", nil, true)
 	return hash, err
 }
 

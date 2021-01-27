@@ -27,10 +27,13 @@ import (
 )
 
 var (
-	privateRootPrefix                      = []byte("P")
-	privateBloomPrefix                     = []byte("Pb")
-	quorumEIP155ActivatedPrefix            = []byte("quorum155active")
-	privateRootToPrivacyMetadataRootPrefix = []byte("PSR2PMDR")
+	privateRootPrefix           = []byte("P")
+	privateBloomPrefix          = []byte("Pb")
+	quorumEIP155ActivatedPrefix = []byte("quorum155active")
+	// Quorum
+	// we introduce a generic approach to store extra data for an account. PrivacyMetadata is wrapped.
+	// However, this value is kept as-is to support backward compatibility
+	stateRootToExtraDataRootPrefix = []byte("PSR2PMDR")
 	// emptyRoot is the known root hash of an empty trie. Duplicate from `trie/trie.go#emptyRoot`
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
@@ -52,8 +55,8 @@ func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	return common.BytesToHash(root)
 }
 
-func GetPrivacyMetadataStateRootForPrivateStateRoot(db ethdb.KeyValueReader, privateStateRoot common.Hash) common.Hash {
-	root, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...))
+func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
 	return common.BytesToHash(root)
 }
 
@@ -61,8 +64,10 @@ func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }
 
-func WritePrivacyMetadataStateRootForPrivateStateRoot(db ethdb.KeyValueWriter, privateStateRoot, privacyMetadataRoot common.Hash) error {
-	return db.Put(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...), privacyMetadataRoot[:])
+// WriteRootHashMapping stores the mapping between root hash of state trie and
+// root hash of state.AccountExtraData trie to persistent storage
+func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot common.Hash) error {
+	return db.Put(append(stateRootToExtraDataRootPrefix, stateRoot[:]...), extraDataRoot[:])
 }
 
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
@@ -81,28 +86,39 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 	return bloom
 }
 
-type PrivacyMetadataLinker interface {
-	PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash
-	LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error
+// AccountExtraDataLinker maintains mapping between root hash of the state trie
+// and root hash of state.AccountExtraData trie
+type AccountExtraDataLinker interface {
+	// GetAccountExtraDataRoot returns the root hash of the state.AccountExtraData trie from
+	// the given root hash of the state trie.
+	//
+	// It returns an empty hash if not found.
+	GetAccountExtraDataRoot(stateRoot common.Hash) common.Hash
+	// Link saves the mapping between root hash of the state trie and
+	// root hash of state.AccountExtraData trie to the persistent storage.
+	// Don't write the mapping if extraDataRoot is an emptyRoot
+	Link(stateRoot, extraDataRoot common.Hash) error
 }
 
-type ethDBPrivacyMetadataLinker struct {
+// ethdbAccountExtraDataLinker implements AccountExtraDataLinker using ethdb.Database
+// as the persistence storage
+type ethdbAccountExtraDataLinker struct {
 	db ethdb.Database
 }
 
-func NewPrivacyMetadataLinker(db ethdb.Database) PrivacyMetadataLinker {
-	return &ethDBPrivacyMetadataLinker{
+func NewAccountExtraDataLinker(db ethdb.Database) AccountExtraDataLinker {
+	return &ethdbAccountExtraDataLinker{
 		db: db,
 	}
 }
 
-func (pml *ethDBPrivacyMetadataLinker) PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash {
-	return GetPrivacyMetadataStateRootForPrivateStateRoot(pml.db, privateStateRoot)
+func (pml *ethdbAccountExtraDataLinker) GetAccountExtraDataRoot(stateRoot common.Hash) common.Hash {
+	return GetAccountExtraDataRoot(pml.db, stateRoot)
 }
 
-func (pml *ethDBPrivacyMetadataLinker) LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error {
-	if privacyMetadataRoot != emptyRoot {
-		return WritePrivacyMetadataStateRootForPrivateStateRoot(pml.db, privateStateRoot, privacyMetadataRoot)
+func (pml *ethdbAccountExtraDataLinker) Link(stateRoot, extraDataRoot common.Hash) error {
+	if extraDataRoot != emptyRoot {
+		return WriteRootHashMapping(pml.db, stateRoot, extraDataRoot)
 	}
 	return nil
 }

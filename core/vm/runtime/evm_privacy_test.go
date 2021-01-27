@@ -7,23 +7,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/rawdb"
-
-	"github.com/ethereum/go-ethereum/private/engine"
-
-	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
-
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
-	"github.com/ethereum/go-ethereum/core/state"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -110,7 +103,7 @@ func TestPrivacyEnhancements_CreateC1(t *testing.T) {
 	var getPrivacyMetadataFunc func(common.Address) (*state.PrivacyMetadata, error)
 	cfg.onAfterEVM = func(evm *vm.EVM) {
 		affectedContracts = evm.AffectedContracts()
-		getPrivacyMetadataFunc = evm.StateDB.GetStatePrivacyMetadata
+		getPrivacyMetadataFunc = evm.StateDB.GetPrivacyMetadata
 	}
 	stubPrivateTx = newTypicalPrivateTx(cfg)
 	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{
@@ -180,7 +173,7 @@ func TestPrivacyEnhancements_CreateC1_StandardPrivate(t *testing.T) {
 	var getPrivacyMetadataFunc func(common.Address) (*state.PrivacyMetadata, error)
 	cfg.onAfterEVM = func(evm *vm.EVM) {
 		affectedContracts = evm.AffectedContracts()
-		getPrivacyMetadataFunc = evm.StateDB.GetStatePrivacyMetadata
+		getPrivacyMetadataFunc = evm.StateDB.GetPrivacyMetadata
 	}
 	stubPrivateTx = newTypicalPrivateTx(cfg)
 	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{

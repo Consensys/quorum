@@ -164,7 +164,7 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 		if authToken, err := s.authenticationManager.Authenticate(context.Background(), token); err != nil {
 			securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{err.Error()})
 		} else {
-			securityContext = context.WithValue(securityContext, ctxPreauthenticatedToken, authToken)
+			securityContext = context.WithValue(securityContext, CtxPreauthenticatedToken, authToken)
 		}
 	} else {
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})

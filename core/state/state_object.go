@@ -18,15 +18,16 @@ package state
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -80,8 +81,12 @@ type stateObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
-	// Quorum - Privacy Enhancements
-	privacyMetadata *PrivacyMetadata
+	// Quorum
+	// contains extra data that is linked to the account
+	accountExtraData *AccountExtraData
+	// as there are many fields in accountExtraData which might be concurrently changed
+	// this is to make sure we can keep track of changes individually.
+	accountExtraDataMutex sync.Mutex
 
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
@@ -94,8 +99,9 @@ type stateObject struct {
 	dirtyCode bool // true if the code was updated
 	suicided  bool
 	deleted   bool
-	// Quroum - Privacy Enhancements
-	dirtyPrivacyMetadata bool
+	// Quorum
+	// flag to track changes in AccountExtraData
+	dirtyAccountExtraData bool
 }
 
 // empty returns whether the account is considered empty.
@@ -110,12 +116,6 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
-}
-
-//attached to every private contract account
-type PrivacyMetadata struct {
-	CreationTxHash common.EncryptedPayloadHash `json:"creationTxHash"`
-	PrivacyFlag    engine.PrivacyFlagType      `json:"privacyFlag"`
 }
 
 // newObject creates a state object.
@@ -137,13 +137,6 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		originStorage:  make(Storage),
 		pendingStorage: make(Storage),
 		dirtyStorage:   make(Storage),
-	}
-}
-
-func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
-	return &PrivacyMetadata{
-		CreationTxHash: creationTxHash,
-		PrivacyFlag:    privacyFlag,
 	}
 }
 
@@ -406,9 +399,9 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.suicided = s.suicided
 	stateObject.dirtyCode = s.dirtyCode
 	stateObject.deleted = s.deleted
-	// Quorum - Privacy Enhancements - copy privacy metadata fields
-	stateObject.privacyMetadata = s.privacyMetadata
-	stateObject.dirtyPrivacyMetadata = s.dirtyPrivacyMetadata
+	// Quorum - copy AccountExtraData
+	stateObject.accountExtraData = s.accountExtraData
+	stateObject.dirtyAccountExtraData = s.dirtyAccountExtraData
 
 	return stateObject
 }
@@ -466,22 +459,59 @@ func (s *stateObject) setNonce(nonce uint64) {
 	s.data.Nonce = nonce
 }
 
-// Quorum - Privacy Enhancements
-func (s *stateObject) SetStatePrivacyMetadata(metadata *PrivacyMetadata) {
-	prevPM, _ := s.PrivacyMetadata()
-	s.db.journal.append(privacyMetadataChange{
+// Quorum
+// SetAccountExtraData modifies the AccountExtraData reference and journals it
+func (s *stateObject) SetAccountExtraData(extraData *AccountExtraData) {
+	current, _ := s.AccountExtraData()
+	s.db.journal.append(accountExtraDataChange{
 		account: &s.address,
-		prev:    prevPM,
+		prev:    current,
 	})
-	s.setStatePrivacyMetadata(metadata)
+	s.setAccountExtraData(extraData)
 }
 
-func (s *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) {
-	s.privacyMetadata = metadata
-	s.dirtyPrivacyMetadata = true
+// A new AccountExtraData will be created if not exists.
+// This must be called after successfully acquiring accountExtraDataMutex lock
+func (s *stateObject) journalAccountExtraData() *AccountExtraData {
+	current, _ := s.AccountExtraData()
+	s.db.journal.append(accountExtraDataChange{
+		account: &s.address,
+		prev:    current.copy(),
+	})
+	if current == nil {
+		current = &AccountExtraData{}
+	}
+	return current
 }
 
-// End Quorum - Privacy Enhancements
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetStatePrivacyMetadata(pm *PrivacyMetadata) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.PrivacyMetadata = pm
+	s.setAccountExtraData(newExtraData)
+}
+
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetManagedParties(managedParties []string) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.ManagedParties = managedParties
+	s.setAccountExtraData(newExtraData)
+}
+
+// Quorum
+// setAccountExtraData modifies the AccountExtraData reference in this state object
+func (s *stateObject) setAccountExtraData(extraData *AccountExtraData) {
+	s.accountExtraData = extraData
+	s.dirtyAccountExtraData = true
+}
 
 func (s *stateObject) CodeHash() []byte {
 	return s.data.CodeHash
@@ -495,30 +525,82 @@ func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
+// Quorum
+// AccountExtraData returns the extra data in this state object.
+// It will also update the reference by searching the accountExtraDataTrie.
+//
+// This method enforces on returning error and never returns (nil, nil).
+func (s *stateObject) AccountExtraData() (*AccountExtraData, error) {
+	if s.accountExtraData != nil {
+		return s.accountExtraData, nil
+	}
+	val, err := s.getCommittedAccountExtraData()
+	if err != nil {
+		return nil, err
+	}
+	s.accountExtraData = val
+	return val, nil
+}
+
+// Quorum
+// getCommittedAccountExtraData looks for an entry in accountExtraDataTrie.
+//
+// This method enforces on returning error and never returns (nil, nil).
+func (s *stateObject) getCommittedAccountExtraData() (*AccountExtraData, error) {
+	val, err := s.db.accountExtraDataTrie.TryGet(s.address.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve data from the accountExtraDataTrie. Cause: %v", err)
+	}
+	if len(val) == 0 {
+		return nil, fmt.Errorf("%s: %w", s.address.Hex(), common.ErrNoAccountExtraData)
+	}
+	var extraData AccountExtraData
+	if err := rlp.DecodeBytes(val, &extraData); err != nil {
+		return nil, fmt.Errorf("unable to decode to AccountExtraData. Cause: %v", err)
+	}
+	return &extraData, nil
+}
+
 // Quorum - Privacy Enhancements
+// PrivacyMetadata returns the reference to PrivacyMetadata.
+// It will returrn an error if no PrivacyMetadata is in the AccountExtraData.
 func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
-	if s.privacyMetadata != nil {
-		return s.privacyMetadata, nil
+	extraData, err := s.AccountExtraData()
+	if err != nil {
+		return nil, err
 	}
-	val, err := s.GetCommittedPrivacyMetadata()
-	if val != nil {
-		s.privacyMetadata = val
+	// extraData can't be nil. Refer to s.AccountExtraData()
+	if extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("no privacy metadata data for contract %s", s.address.Hex())
 	}
-	return val, err
+	return extraData.PrivacyMetadata, nil
 }
 
 func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
-	val, err := s.db.privacyMetaDataTrie.TryGet(s.address.Bytes())
+	extraData, err := s.getCommittedAccountExtraData()
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve metadata from the privacyMetadataTrie. Cause: %v", err)
+		return nil, err
 	}
-	if len(val) == 0 {
+	if extraData == nil || extraData.PrivacyMetadata == nil {
 		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
 	}
-	return bytesToPrivacyMetadata(val)
+	return extraData.PrivacyMetadata, nil
 }
 
 // End Quorum - Privacy Enhancements
+
+// ManagedParties will return empty if no account extra data found
+func (s *stateObject) ManagedParties() ([]string, error) {
+	extraData, err := s.AccountExtraData()
+	if errors.Is(err, common.ErrNoAccountExtraData) {
+		return []string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	// extraData can't be nil. Refer to s.AccountExtraData()
+	return extraData.ManagedParties, nil
+}
 
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
@@ -526,18 +608,3 @@ func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 func (s *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
 }
-
-// Quorum - Privacy Enhancements
-func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
-	return rlp.EncodeToBytes(pm)
-}
-
-func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
-	var data *PrivacyMetadata
-	if err := rlp.DecodeBytes(b, &data); err != nil {
-		return nil, fmt.Errorf("unable to decode privacy metadata. Cause: %v", err)
-	}
-	return data, nil
-}
-
-// End Quorum - Privacy Enhancements

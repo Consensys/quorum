@@ -48,11 +48,11 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -91,8 +91,6 @@ type Ethereum struct {
 
 	APIBackend *EthAPIBackend
 
-	securityPlugin *plugin.SecurityPluginTemplate
-
 	miner     *miner.Miner
 	gasPrice  *big.Int
 	etherbase common.Address
@@ -101,6 +99,10 @@ type Ethereum struct {
 	netRPCService *ethapi.PublicNetAPI
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+
+	// Quorum - Multitenancy
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
 }
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
@@ -114,6 +116,13 @@ func (s *Ethereum) SetContractBackend(backend bind.ContractBackend) {
 	if s.lesServer != nil {
 		s.lesServer.SetContractBackend(backend)
 	}
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *Ethereum) SetContractAuthorizationProvider(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 // New creates a new Ethereum object (including the
@@ -214,7 +223,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 		}
 	)
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve)
+	newBlockChainFunc := core.NewBlockChain
+	if config.EnableMultitenancy {
+		newBlockChainFunc = core.NewMultitenantBlockChain
+	}
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve)
 	if err != nil {
 		return nil, err
 	}
@@ -250,15 +263,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		gpoParams.Default = config.Miner.GasPrice
 	}
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
-
-	// Set Security plugin in eth
-	var pluginManager *plugin.PluginManager
-	if err := ctx.Service(&pluginManager); err == nil {
-		sp := new(plugin.SecurityPluginTemplate)
-		if err := pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err == nil {
-			eth.securityPlugin = sp
-		}
-	}
 
 	return eth, nil
 }

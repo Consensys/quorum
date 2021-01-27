@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
@@ -165,6 +166,7 @@ var (
 		utils.PluginPublicKeyFlag,
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
+		utils.MultitenancyFlag,
 		// End-Quorum
 	}
 
@@ -333,6 +335,8 @@ func geth(ctx *cli.Context) error {
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
+// Quorum
+// - Enrich eth/les service with ContractAuthorizationProvider for multitenancy support if prequisites are met
 func startNode(ctx *cli.Context, stack *node.Node) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
@@ -371,6 +375,11 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 	ethClient := ethclient.NewClient(rpcClient)
 
+	var ethService *eth.Ethereum
+	if err := stack.Service(&ethService); err != nil {
+		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+	}
+	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
 	// Set contract backend for ethereum service if local node
 	// is serving LES requests.
 	if ctx.GlobalInt(utils.LightLegacyServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
@@ -388,6 +397,17 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
 		}
 		lesService.SetContractBackend(ethClient)
+		setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
+	}
+
+	// Set ContractAuthorizationProvider if multitenancy flag is on AND plugin security is configured
+	if ctx.GlobalBool(utils.MultitenancyFlag.Name) {
+		if stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
+			log.Info("Node supports multitenancy")
+			setContractAuthzProviderFunc(&multitenancy.DefaultContractAuthorizationProvider{})
+		} else {
+			utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
+		}
 	}
 
 	go func() {

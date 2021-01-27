@@ -17,17 +17,21 @@
 package core
 
 import (
+	"context"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/multitenancy"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
+	multitenancy.ContextAware
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
@@ -44,6 +48,12 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	} else {
 		beneficiary = *author
 	}
+	supportsMultitenancy := false
+	// mainly to overcome lost of test cases which pass ChainContext as nil value
+	// nil interface requires this check to make sure we don't get nil pointer reference error
+	if chain != nil && !reflect.ValueOf(chain).IsNil() {
+		_, supportsMultitenancy = chain.SupportsMultitenancy(nil)
+	}
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -55,7 +65,23 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 		Difficulty:  new(big.Int).Set(header.Difficulty),
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+
+		SupportsMultitenancy: supportsMultitenancy,
 	}
+}
+
+// Quorum
+//
+// This EVM context is meant for simulation when doing multitenancy check.
+// It enriches the given EVM context with multitenancy-specific references
+func NewMultitenancyAwareEVMContext(ctx context.Context, evmCtx vm.Context) vm.Context {
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeCreateFunc).(multitenancy.AuthorizeCreateFunc); ok {
+		evmCtx.AuthorizeCreateFunc = f
+	}
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeMessageCallFunc).(multitenancy.AuthorizeMessageCallFunc); ok {
+		evmCtx.AuthorizeMessageCallFunc = f
+	}
+	return evmCtx
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number

@@ -8,9 +8,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
-func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata) bool {
+func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata, managedParties []string) bool {
 	log.Debug("Extension: set private state explicitly from state dump")
 	for key, value := range accounts {
 		stateDump := value.State
@@ -28,14 +30,19 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 		for keyStore, valueStore := range stateDump.Storage {
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
-		privateState.SetStatePrivacyMetadata(contractAddress, privacyMetaData)
+		if privacyMetaData.PrivacyFlag != engine.PrivacyFlagStandardPrivate {
+			privateState.SetPrivacyMetadata(contractAddress, privacyMetaData)
+		}
+		if managedParties != nil {
+			privateState.SetManagedParties(contractAddress, managedParties)
+		}
 	}
 	return true
 }
 
 // updates the privacy metadata
 func setPrivacyMetadata(privateState *state.StateDB, address common.Address, hash string) {
-	privacyMetaData, err := privateState.GetStatePrivacyMetadata(address)
+	privacyMetaData, err := privateState.GetPrivacyMetadata(address)
 	if err != nil || privacyMetaData.PrivacyFlag.IsStandardPrivate() {
 		return
 	}
@@ -46,7 +53,24 @@ func setPrivacyMetadata(privateState *state.StateDB, address common.Address, has
 		return
 	}
 	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)
-	privateState.SetStatePrivacyMetadata(address, pm)
+	privateState.SetPrivacyMetadata(address, pm)
+}
+
+func setManagedParties(ptm private.PrivateTransactionManager, privateState *state.StateDB, address common.Address, hash string) {
+	existingManagedParties, err := privateState.GetManagedParties(address)
+	if err != nil {
+		return
+	}
+
+	ptmHash, err := common.Base64ToEncryptedPayloadHash(hash)
+	if err != nil {
+		log.Error("setting privacy metadata failed", "err", err)
+		return
+	}
+
+	_, managedParties, _, _, err := ptm.Receive(ptmHash)
+	newManagedParties := common.AppendSkipDuplicates(existingManagedParties, managedParties...)
+	privateState.SetManagedParties(address, newManagedParties)
 }
 
 func logContainsExtensionTopic(receivedLog *types.Log) bool {
