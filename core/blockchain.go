@@ -1754,7 +1754,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 // private receipts, return a new slice where the default for each location is
 // the public receipt but we take the private receipt in each place we have
 // one.
-func mergeReceipts(pub, priv types.Receipts) types.Receipts {
+func MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
 		m[receipt.TxHash] = receipt
@@ -2019,7 +2019,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			return it.index, err
 		}
 
-		allReceipts := mergeReceipts(receipts, privateReceipts)
+		allReceipts := MergeReceipts(receipts, privateReceipts)
 		proctime := time.Since(start)
 		// Update the metrics touched during block validation
 		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them

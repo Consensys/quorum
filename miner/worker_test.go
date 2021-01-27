@@ -36,6 +36,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -166,12 +170,17 @@ func (b *testWorkerBackend) newRandomUncle() *types.Block {
 	return blocks[0]
 }
 
-func (b *testWorkerBackend) newRandomTx(creation bool) *types.Transaction {
+func (b *testWorkerBackend) newRandomTx(creation bool, private bool) *types.Transaction {
+	var signer types.Signer
+	signer = types.HomesteadSigner{}
+	if private {
+		signer = types.QuorumPrivateTxSigner{}
+	}
 	var tx *types.Transaction
 	if creation {
-		tx, _ = types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), testGas, nil, common.FromHex(testCode)), types.HomesteadSigner{}, testBankKey)
+		tx, _ = types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), testGas, nil, common.FromHex(testCode)), signer, testBankKey)
 	} else {
-		tx, _ = types.SignTx(types.NewTransaction(b.txPool.Nonce(testBankAddress), testUserAddress, big.NewInt(1000), params.TxGas, nil, nil), types.HomesteadSigner{}, testBankKey)
+		tx, _ = types.SignTx(types.NewTransaction(b.txPool.Nonce(testBankAddress), testUserAddress, big.NewInt(1000), params.TxGas, nil, nil), signer, testBankKey)
 	}
 	return tx
 }
@@ -501,4 +510,146 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	case <-time.NewTimer(time.Second).C:
 		t.Error("interval reset timeout")
 	}
+}
+
+func TestPrivatePSIStateCreated(t *testing.T) {
+	ptm := &mockPrivateTransactionManager{
+		returns: make(map[string][]interface{}),
+		count:   make(map[string]int),
+	}
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = ptm
+	ptm.returns["Receive"] = []interface{}{
+		"", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil,
+	}
+
+	db := rawdb.NewMemoryDatabase()
+	chainConfig := params.AllCliqueProtocolChanges
+	chainConfig.IsQuorum = true
+	defer func() { chainConfig.IsQuorum = false }()
+
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
+	defer w.close()
+
+	newBlock := make(chan *types.Block)
+	listenNewBlock := func() {
+		sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
+		defer sub.Unsubscribe()
+
+		for item := range sub.Chan() {
+			newBlock <- item.Data.(core.NewMinedBlockEvent).Block
+		}
+	}
+
+	// Ensure worker has finished initialization
+	for {
+		b := w.pendingBlock()
+		if b != nil && b.NumberU64() == 1 {
+			break
+		}
+	}
+	w.start() // Start mining!
+
+	// Ignore first 2 commits caused by start operation
+	ignored := make(chan struct{}, 2)
+	w.skipSealHook = func(task *task) bool {
+		ignored <- struct{}{}
+		return true
+	}
+	for i := 0; i < 2; i++ {
+		<-ignored
+	}
+
+	go listenNewBlock()
+
+	// Ignore empty commit here for less noise
+	w.skipSealHook = func(task *task) bool {
+		return len(task.receipts) == 0
+	}
+	for i := 0; i < 5; i++ {
+		randomPrivateTx := b.newRandomTx(true, true)
+		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
+		b.txPool.AddLocal(randomPrivateTx)
+		select {
+		case blk := <-newBlock:
+			//check if the tx is present
+			found := blk.Transaction(randomPrivateTx.Hash())
+			if found == nil {
+				continue
+			}
+
+			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
+			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, "private")
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "psi1")
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "psi2")
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "other")
+			assert.False(t, privDb.Exist(expectedContractAddress))
+		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
+			t.Fatalf("timeout")
+		}
+	}
+
+	logsChan := make(chan []*types.Log)
+	sub := b.BlockChain().SubscribeLogsEvent(logsChan)
+	defer sub.Unsubscribe()
+
+	logsContractData := "6080604052348015600f57600080fd5b507f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405160405180910390a1603e8060496000396000f3fe6080604052600080fdfea265627a7a72315820937805cb4f2481262ad95d420ab93220f11ceaea518c7ccf119fc2c58f58050d64736f6c63430005110032"
+	tx, _ := types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), 470000, nil, common.FromHex(logsContractData)), types.QuorumPrivateTxSigner{}, testBankKey)
+
+	ptm.returns["Receive"][2] = common.FromHex(logsContractData)
+
+	b.txPool.AddLocal(tx)
+
+	select {
+	case <-newBlock:
+	}
+	select {
+	case logs := <-logsChan:
+		assert.Len(t, logs, 3)
+		assert.Equal(t, "private", logs[0].PSI)
+		assert.Equal(t, "psi1", logs[1].PSI)
+		assert.Equal(t, "psi2", logs[2].PSI)
+	case <-time.NewTimer(3 * time.Second).C:
+		t.Error("timeout")
+	}
+}
+
+type mockPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
+	returns map[string][]interface{}
+	count   map[string]int
+}
+
+func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
+	mpm.count["Receive"]++
+	values := mpm.returns["Receive"]
+	var (
+		r1 string
+		r2 []string
+		r3 []byte
+		r4 *engine.ExtraMetadata
+		r5 error
+	)
+	if values[0] != nil {
+		r1 = values[0].(string)
+	}
+	if values[1] != nil {
+		r2 = values[1].([]string)
+	}
+	if values[2] != nil {
+		r3 = values[2].([]byte)
+	}
+	if values[3] != nil {
+		r4 = values[3].(*engine.ExtraMetadata)
+	}
+	if values[4] != nil {
+		r5 = values[4].(error)
+	}
+	return r1, r2, r3, r4, r5
 }

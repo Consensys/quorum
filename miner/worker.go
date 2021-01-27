@@ -659,8 +659,6 @@ func (w *worker) resultLoop() {
 					mtReceipt.BlockNumber = block.Number()
 					mtReceipt.TransactionIndex = uint(i + offset)
 
-					//prvReceipts[i] = new(types.Receipt)
-					//*prvReceipts[i] = *receipt
 					// Update the block hash in all logs since it is now available and not when the
 					// receipt/log of individual transactions were created.
 					for _, log := range mtReceipt.Logs {
@@ -670,7 +668,7 @@ func (w *worker) resultLoop() {
 				}
 			}
 
-			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
+			allReceipts := core.MergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
 			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.mtService, true)
@@ -695,32 +693,6 @@ func (w *worker) resultLoop() {
 			return
 		}
 	}
-}
-
-// Given a slice of public receipts and an overlapping (smaller) slice of
-// private receipts, return a new slice where the default for each location is
-// the public receipt but we take the private receipt in each place we have
-// one.
-func mergeReceipts(pub, priv types.Receipts) types.Receipts {
-	m := make(map[common.Hash]*types.Receipt)
-	for _, receipt := range pub {
-		m[receipt.TxHash] = receipt
-	}
-	for _, receipt := range priv {
-		publicReceipt := m[receipt.TxHash]
-		publicReceipt.MTVersions = make(map[string]*types.Receipt)
-		publicReceipt.MTVersions[core.EmptyPrivateStateMetadata.ID] = receipt
-		for psi, mtReceipt := range receipt.MTVersions {
-			publicReceipt.MTVersions[psi] = mtReceipt
-		}
-	}
-
-	ret := make(types.Receipts, 0, len(pub))
-	for _, pubReceipt := range pub {
-		ret = append(ret, m[pubReceipt.TxHash])
-	}
-
-	return ret
 }
 
 // makeCurrent creates a new environment for the current cycle.

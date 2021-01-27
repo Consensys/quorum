@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/stretchr/testify/assert"
 )
 
 // Tests that setting the flag for Quorum EIP155 activation read values correctly
@@ -150,4 +151,19 @@ func TestAccountExtraDataLinker_whenNotFound(t *testing.T) {
 	if !common.EmptyHash(pmrRetrieved) {
 		t.Fatal("the retrieved privacy metadata root should be the empty hash")
 	}
+}
+
+func TestMTPrivateStateRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	blockRoot := common.HexToHash("0x4c50c7d11e58e5c6f40fa1a630ffcb3a017453e7f9d0ec8ccb01033fcf9f2210")
+	mtRoot := common.HexToHash("0x5c46375b6b333983077e152d1b6ca101d0586a6565fa75750deb1b07154bbdca")
+
+	err := WriteMTPrivateStateRoot(db, blockRoot, mtRoot)
+	assert.Nil(t, err)
+
+	retrievedRoot := GetMTPrivateStateRoot(db, blockRoot)
+	assert.Equal(t, mtRoot, retrievedRoot)
+
+	retrievedEmptyRoot := GetMTPrivateStateRoot(db, common.Hash{})
+	assert.Equal(t, common.Hash{}, retrievedEmptyRoot)
 }

@@ -57,13 +57,13 @@ func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash
 	return common.BytesToHash(root)
 }
 
-func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
-	return db.Put(append(mtPrivateRootPrefix, blockRoot[:]...), root[:])
-}
-
 func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
 	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
 	return common.BytesToHash(root)
+}
+
+func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(mtPrivateRootPrefix, blockRoot[:]...), root[:])
 }
 
 // WriteRootHashMapping stores the mapping between root hash of state trie and
@@ -75,9 +75,8 @@ func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot comm
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
 // with the number given as identifier (i.e. block number).
 func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts) error {
-	//only private receipts in
-	//this is a top level receipt (with implied PSI "private")
-	//then MT versions having receipts per PSI
+	//takes a list of private receipts, which will be the "private" PSI receipt,
+	//and flatten all the MPS receipts into a single list, which the bloom can work with
 	var flattenedReceipts []*types.Receipt
 	for _, privReceipt := range receipts {
 		flattenedReceipts = append(flattenedReceipts, privReceipt)
