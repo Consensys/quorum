@@ -879,7 +879,7 @@ var (
 	MultitenancyFlag = cli.BoolFlag{
 		Name:  "multitenancy",
 		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
-	}  
+	}
 
 	// Quorum Private Transaction Manager connection options
 	QuorumPTMUnixSocketFlag = DirectoryFlag{
