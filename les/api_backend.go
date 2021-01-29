@@ -36,8 +36,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type LesApiBackend struct {
@@ -279,4 +281,25 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
 	}
+}
+
+func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+		return authToken, true
+	}
+	return nil, false
+}
+
+func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	s, _, err := b.StateAndHeaderByNumber(ctx, number)
+	return s, err
+}
+
+func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
+	if err != nil {
+		return false, err
+	}
+	return auth, nil
 }

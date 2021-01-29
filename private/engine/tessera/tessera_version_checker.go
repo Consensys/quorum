@@ -15,9 +15,11 @@ type Version [versionLength]uint64
 var (
 	zero                       = Version{0, 0, 0}
 	privacyEnhancementsVersion = Version{2, 0, 0}
+	multitenancyVersion        = Version{2, 1, 0}
 
 	featureVersions = map[engine.PrivateTransactionManagerFeature]Version{
 		engine.PrivacyEnhancements: privacyEnhancementsVersion,
+		engine.MultiTenancy:        multitenancyVersion,
 	}
 )
 

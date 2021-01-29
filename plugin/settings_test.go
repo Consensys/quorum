@@ -186,8 +186,8 @@ func TestPluginInterfaceName_UnmarshalJSON_whenTypical(t *testing.T) {
 	}
 }
 `), &value))
-	assert.Contains(value.MyMap, PluginInterfaceName("Foo"))
-	assert.Contains(value.MyMap, PluginInterfaceName("BAR"))
+	assert.Contains(value.MyMap, PluginInterfaceName("foo"))
+	assert.Contains(value.MyMap, PluginInterfaceName("bar"))
 }
 
 func TestAccountAPIProviderFunc_OnlyExposeAccountCreationAPI(t *testing.T) {

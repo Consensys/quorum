@@ -17,6 +17,9 @@
 package clique
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -116,4 +119,89 @@ func (api *API) Discard(address common.Address) {
 	defer api.clique.lock.Unlock()
 
 	delete(api.clique.proposals, address)
+}
+
+type Status struct {
+	InturnPercent float64                `json:"inturnPercent"`
+	SigningStatus map[common.Address]int `json:"sealerActivity"`
+	NumBlocks     uint64                 `json:"numBlocks"`
+}
+
+// Status returns the status of the last N blocks,
+// - the number of active signers,
+// - the number of signers,
+// - the percentage of in-turn blocks
+func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNumber) (*Status, error) {
+	var (
+		numBlocks uint64
+		header    *types.Header
+		diff      = uint64(0)
+		optimals  = 0
+
+		start uint64
+		end   uint64
+	)
+	if startBlockNum != nil && endBlockNum == nil {
+		return nil, errors.New("pass the end block number")
+	}
+
+	if startBlockNum == nil && endBlockNum != nil {
+		return nil, errors.New("pass the start block number")
+	}
+
+	if startBlockNum == nil && endBlockNum == nil {
+		numBlocks = uint64(64)
+		header = api.chain.CurrentHeader()
+		end = header.Number.Uint64()
+		start = end - numBlocks
+	} else {
+		end = uint64(*endBlockNum)
+		start = uint64(*startBlockNum)
+		if start > end {
+			return nil, errors.New("start block number should be less than end block number")
+		}
+
+		if end > api.chain.CurrentHeader().Number.Uint64() {
+			return nil, errors.New("end block number should be less than or equal to current block height")
+		}
+
+		numBlocks = end - start
+		header = api.chain.GetHeaderByNumber(end)
+	}
+
+	snap, err := api.clique.snapshot(api.chain, end, header.Hash(), nil)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		signers = snap.signers()
+	)
+	if numBlocks > end {
+		start = 1
+		numBlocks = end - start
+	}
+	signStatus := make(map[common.Address]int)
+	for _, s := range signers {
+		signStatus[s] = 0
+	}
+	for n := start; n < end; n++ {
+		h := api.chain.GetHeaderByNumber(n)
+		if h == nil {
+			return nil, fmt.Errorf("missing block %d", n)
+		}
+		if h.Difficulty.Cmp(diffInTurn) == 0 {
+			optimals++
+		}
+		diff += h.Difficulty.Uint64()
+		sealer, err := api.clique.Author(h)
+		if err != nil {
+			return nil, err
+		}
+		signStatus[sealer]++
+	}
+	return &Status{
+		InturnPercent: float64((100 * optimals)) / float64(numBlocks),
+		SigningStatus: signStatus,
+		NumBlocks:     numBlocks,
+	}, nil
 }
