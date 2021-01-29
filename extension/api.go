@@ -111,25 +111,17 @@ func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
 	// check if the passed contract is public contract
-	publicStateDb, _, _ := api.privacyService.stateFetcher.chainAccessor.State()
-	if publicStateDb != nil && publicStateDb.Exist(toExtend) {
-		return true
-	}
-	return false
+	chain := api.privacyService.stateFetcher.chainAccessor
+	publicStateDb, _, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), "private")
+	return publicStateDb != nil && publicStateDb.Exist(toExtend)
 }
 
 // checks if the contract being extended is available on the node
-func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Address) bool {
+func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi string, toExtend common.Address) bool {
 	// check if the private contract exists on the node extending the contract
-	// TODO identify the relevant PSI
-	_, mtService, _ := api.privacyService.stateFetcher.chainAccessor.State()
-	privateStateDb, _ := mtService.GetEmptyState()
-	if privateStateDb != nil {
-		if privateStateDb.GetCode(toExtend) != nil {
-			return true
-		}
-	}
-	return false
+	chain := api.privacyService.stateFetcher.chainAccessor
+	_, privateStateDb, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), psi)
+	return privateStateDb != nil && privateStateDb.GetCode(toExtend) != nil
 }
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
@@ -247,11 +239,6 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("extending a public contract!!! not allowed")
 	}
 
-	// check if a public contract is being extended
-	if !api.checkIfPrivateStateExists(toExtend) {
-		return "", errors.New("extending a non-existent private contract!!! not allowed")
-	}
-
 	err := api.doMultiTenantChecks(ctx, toExtend, txa)
 	if err != nil {
 		return "", err
@@ -263,6 +250,12 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	}
 
 	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
+
+	// check if a private contract exists
+	if !api.checkIfPrivateStateExists(psm.ID, toExtend) {
+		return "", errors.New("extending a non-existent private contract!!! not allowed")
+	}
+
 	// check if contract creator
 	if !api.privacyService.CheckIfContractCreator(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend, psm.ID) {
 		return "", errors.New("operation not allowed")

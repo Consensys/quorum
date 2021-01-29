@@ -51,7 +51,7 @@ func NewJsonFileDataHandler(dataDirectory string) *JsonFileDataHandler {
 }
 
 /*
-	The stratehy when loading the save file is too check if the newer "psiContracts" field is present.
+	The strategy when loading the save file is too check if the newer "psiContracts" field is present.
 	If so, then everything should exist under that key, and so we can unmarshal and return immediately.
 
 	If not, then the save file was made from a previous version. Load up all the data as before and

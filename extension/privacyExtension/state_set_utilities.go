@@ -84,9 +84,6 @@ func logContainsExtensionTopic(receivedLog *types.Log) bool {
 // present in the state map, and that no  other accounts exist in the state map
 // that are unexpected
 func validateAccountsExist(expectedAccounts []common.Address, actualAccounts map[string]extension.AccountWithMetadata) bool {
-	if len(expectedAccounts) != len(actualAccounts) {
-		return false
-	}
 	for _, account := range expectedAccounts {
 		_, exists := actualAccounts[account.String()]
 		if !exists {

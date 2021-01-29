@@ -18,7 +18,7 @@ type TesseraPrivacyGroupPSISImpl struct {
 func (t *TesseraPrivacyGroupPSISImpl) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
 	psm, found := t.residentGroupByKey[managedParty]
 	if !found {
-		return nil, fmt.Errorf("Unable to find private state for managed party", "managedParty", managedParty)
+		return nil, fmt.Errorf("Unable to find private state for managed party %s", managedParty)
 	}
 
 	return psm, nil
@@ -35,7 +35,7 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context)
 		psiBase64 := base64.StdEncoding.EncodeToString([]byte(psi))
 		psm, found = t.privacyGroupById[psiBase64]
 		if !found {
-			return nil, fmt.Errorf("Unable to find private state for context psi", "psi", psi)
+			return nil, fmt.Errorf("Unable to find private state for context psi %s", psi)
 		}
 	}
 	return psm, nil
@@ -52,14 +52,14 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 
 		existing, found := privacyGroupById[group.PrivacyGroupId]
 		if found {
-			return nil, fmt.Errorf("privacy groups id clash", "id", existing.ID, "existing.Name", existing.Name, "duplicate.Name", group.Name)
+			return nil, fmt.Errorf("privacy groups id clash id=%s existing.Name=%s duplicate.Name=%s", existing.ID, existing.Name, group.Name)
 		}
 		privacyGroupById[group.PrivacyGroupId] = privacyGroupToPrivateStateMetadata(group)
 		if group.Type == "RESIDENT" {
 			for _, address := range group.Members {
 				existing, found := residentGroupByKey[address]
 				if found {
-					return nil, fmt.Errorf("same address is part of two different groups", "address", address, "existing.Name", existing.Name, "duplicate.Name", group.Name)
+					return nil, fmt.Errorf("same address is part of two different groups: address=%s existing.Name=%s duplicate.Name=%s", address, existing.Name, group.Name)
 				}
 				residentGroupByKey[address] = privacyGroupToPrivateStateMetadata(group)
 			}

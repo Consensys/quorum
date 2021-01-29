@@ -35,46 +35,46 @@ func (handler *ExtensionHandler) SupportMultitenancy(b bool) {
 func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
 	extraMetaDataUpdated := false
 	for _, txLog := range txLogs {
-		if logContainsExtensionTopic(txLog) {
-			//this is a direct state share
-			address, hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
-			if err != nil {
+		if !logContainsExtensionTopic(txLog) {
+			continue
+		}
+		//this is a direct state share
+		address, hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
+		if err != nil {
+			continue
+		}
+
+		// check if state exists for the extension address. If yes then skip
+		// processing
+		if privateState.GetCode(address) != nil {
+			if extraMetaDataUpdated {
 				continue
 			}
-
-			// check if state exists for the extension address. If yes then skip
-			// processing
-			if privateState.GetCode(address) != nil {
-				if extraMetaDataUpdated {
-					continue
-				}
-				// check the privacy flag of the contract. if its other than
-				// 0 then need to update the privacy metadata for the contract
-				//TODO: validate the old and new parties to ensure that all old parties are there
-				setPrivacyMetadata(privateState, address, hash)
-				if handler.isMultitenant {
-					setManagedParties(handler.ptm, privateState, address, hash)
-				}
-				extraMetaDataUpdated = true
-			} else {
-				managedParties, accounts, privacyMetaData, found := handler.FetchStateData(txLog.Address, hash, uuid, psi)
-				if !found {
-					continue
-				}
-				if !handler.isMultitenant {
-					managedParties = nil
-				}
-				if !validateAccountsExist([]common.Address{address}, accounts) {
-					log.Error("Account mismatch", "expected", address, "found", accounts)
-					continue
-				}
-				snapshotId := privateState.Snapshot()
-
-				if success := setState(privateState, accounts, privacyMetaData, managedParties); !success {
-					privateState.RevertToSnapshot(snapshotId)
-				}
+			// check the privacy flag of the contract. if its other than
+			// 0 then need to update the privacy metadata for the contract
+			//TODO: validate the old and new parties to ensure that all old parties are there
+			setPrivacyMetadata(privateState, address, hash)
+			if handler.isMultitenant {
+				setManagedParties(handler.ptm, privateState, address, hash)
 			}
+			extraMetaDataUpdated = true
+		} else {
+			managedParties, accounts, privacyMetaData, found := handler.FetchStateData(txLog.Address, hash, uuid, psi)
+			if !found {
+				continue
+			}
+			if !handler.isMultitenant {
+				managedParties = nil
+			}
+			if !validateAccountsExist([]common.Address{address}, accounts) {
+				log.Error("Account mismatch", "expected", address, "found", accounts)
+				continue
+			}
+			snapshotId := privateState.Snapshot()
 
+			if success := setState(privateState, accounts, privacyMetaData, managedParties); !success {
+				privateState.RevertToSnapshot(snapshotId)
+			}
 		}
 	}
 }
@@ -132,12 +132,15 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, 
 		return false
 	}
 
-	if isSender {
-		senderPublicKey, _, encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
-		if err != nil {
-			log.Debug("Extension: payload not found", "err", err)
-			return false
-		}
+	if !isSender {
+		return false
+	}
+
+	senderPublicKey, _, encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
+	if err != nil {
+		log.Debug("Extension: payload not found", "err", err)
+		return false
+	}
 
 		//check the given PSI is same as PSI of sender key
 		senderPsm, err := core.PSIS.ResolveForManagedParty(senderPublicKey)
@@ -152,20 +155,19 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, 
 			return false
 		}
 
-		var payload common.DecryptRequest
-		if err := json.Unmarshal(encryptedPayload, &payload); err != nil {
-			log.Debug("Extension: payload unmarshal failed", "err", err)
-		}
-
-		contractDetails, _, err := handler.ptm.DecryptPayload(payload)
-		if err != nil {
-			log.Debug("Extension: payload decrypt failed", "err", err)
-		}
-
-		if !bytes.Equal(contractDetails, address.Bytes()) {
-			log.Error("Extension: wrong address in retrieved UUID")
-			return false
-		}
+	var payload common.DecryptRequest
+	if err := json.Unmarshal(encryptedPayload, &payload); err != nil {
+		log.Debug("Extension: payload unmarshal failed", "err", err)
 	}
-	return isSender
+
+	contractDetails, _, err := handler.ptm.DecryptPayload(payload)
+	if err != nil {
+		log.Debug("Extension: payload decrypt failed", "err", err)
+	}
+
+	if !bytes.Equal(contractDetails, address.Bytes()) {
+		log.Error("Extension: wrong address in retrieved UUID")
+		return false
+	}
+	return true
 }

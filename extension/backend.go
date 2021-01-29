@@ -219,9 +219,7 @@ func (service *PrivacyService) watchForCancelledContracts() error {
 				return
 			}
 		}
-
 	}()
-
 	return nil
 }
 
@@ -425,9 +423,6 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 
 // returns the participant list for a given private contract
 func (service *PrivacyService) GetAllParticipants(blockHash common.Hash, address common.Address, psi string) ([]string, error) {
-	//privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address, psi)
-	s := address.String()
-	log.Info(s)
 	privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address, psi)
 	if err != nil {
 		return nil, err
