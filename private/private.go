@@ -1,23 +1,17 @@
 package private
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	http2 "github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
-	"github.com/tv42/httpunix"
 )
 
 var (
@@ -50,21 +44,21 @@ type PrivateTransactionManager interface {
 }
 
 // This loads any config specified via the legacy environment variable
-func GetLegacyEnvironmentConfig() (engine.Config, error) {
+func GetLegacyEnvironmentConfig() (http2.Config, error) {
 	return FromEnvironmentOrNil("PRIVATE_CONFIG")
 }
 
-func FromEnvironmentOrNil(name string) (engine.Config, error) {
+func FromEnvironmentOrNil(name string) (http2.Config, error) {
 	cfgPath := os.Getenv(name)
-	cfg, err := engine.FetchConfigOrIgnore(cfgPath)
+	cfg, err := http2.FetchConfigOrIgnore(cfgPath)
 	if err != nil {
-		return engine.Config{}, err
+		return http2.Config{}, err
 	}
 
 	return cfg, nil
 }
 
-func InitialiseConnection(cfg engine.Config) error {
+func InitialiseConnection(cfg http2.Config) error {
 	var err error
 	P, err = NewPrivateTxManager(cfg)
 	return err
@@ -74,14 +68,14 @@ func IsQuorumPrivacyEnabled() bool {
 	return isPrivacyEnabled
 }
 
-func NewPrivateTxManager(cfg engine.Config) (PrivateTransactionManager, error) {
+func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {
 
-	if cfg.ConnectionType == engine.NoConnection {
+	if cfg.ConnectionType == http2.NoConnection {
 		log.Info("Running with private transaction manager disabled - quorum private transactions will not be supported")
 		return &notinuse.PrivateTransactionManager{}, nil
 	}
 
-	client, err := createClient(cfg)
+	client, err := http2.CreateClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create connection to private tx manager due to: %s", err)
 	}
@@ -93,137 +87,6 @@ func NewPrivateTxManager(cfg engine.Config) (PrivateTransactionManager, error) {
 
 	isPrivacyEnabled = true
 	return ptm, nil
-}
-
-func createClient(cfg engine.Config) (*engine.Client, error) {
-	var client *engine.Client
-	if engine.IsSocketConfigured(cfg) {
-
-		log.Info("Connecting to private tx manager using IPC socket")
-		client = &engine.Client{
-			HttpClient: &http.Client{
-				Transport: unixTransport(cfg),
-			},
-			BaseURL: "http+unix://c",
-		}
-
-	} else {
-
-		transport := httpTransport(cfg)
-		if cfg.TlsMode == engine.TlsOff {
-			log.Info("Connecting to private tx manager using HTTP")
-		} else {
-			log.Info("Connecting to private tx manager using HTTPS")
-			err := setHttpTransportToUseTLS(cfg, transport)
-			if err != nil {
-				return nil, fmt.Errorf("unable to create http.client to private tx manager due to: %s", err)
-			}
-		}
-
-		client = &engine.Client{
-			HttpClient: &http.Client{
-				Timeout:   time.Duration(cfg.Timeout) * time.Second,
-				Transport: transport,
-			},
-			BaseURL: cfg.HttpUrl,
-		}
-
-	}
-
-	return client, nil
-}
-
-func unixTransport(cfg engine.Config) *httpunix.Transport {
-	// Note that clientTimeout doesn't work when using httpunix.Transport, so we set ResponseHeaderTimeout instead
-	t := &httpunix.Transport{
-		DialTimeout:           time.Duration(cfg.DialTimeout) * time.Second,
-		RequestTimeout:        5 * time.Second,
-		ResponseHeaderTimeout: time.Duration(cfg.Timeout) * time.Second,
-	}
-	t.RegisterLocation("c", filepath.Join(cfg.WorkDir, cfg.Socket))
-	return t
-}
-
-func httpTransport(cfg engine.Config) *http.Transport {
-	t := &http.Transport{
-		IdleConnTimeout: time.Duration(cfg.HttpIdleConnTimeout) * time.Second,
-		WriteBufferSize: cfg.HttpWriteBufferSize,
-		ReadBufferSize:  cfg.HttpReadBufferSize,
-	}
-	return t
-}
-
-func setHttpTransportToUseTLS(cfg engine.Config, transport *http.Transport) error {
-	rootCAPool, err := loadRootCaCerts(cfg.TlsRootCA)
-	if err != nil {
-		return err
-	}
-
-	transport.TLSClientConfig = &tls.Config{
-		RootCAs:            rootCAPool,
-		InsecureSkipVerify: cfg.TlsInsecureSkipVerify,
-		// Load clients key-pair. This will be sent to server
-		GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
-			c, err := tls.LoadX509KeyPair(cfg.TlsClientCert, cfg.TlsClientKey)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load client key pair from '%v', '%v': %v", cfg.TlsClientCert, cfg.TlsClientKey, err)
-			}
-			return &c, nil
-		},
-	}
-	transport.IdleConnTimeout = time.Duration(cfg.HttpIdleConnTimeout) * time.Second
-
-	return nil
-}
-
-// Load Root CA certificate(s).
-// Path can be a single certificate file, or a comma separated list containing a combination of
-// certificate files or directories containing certificate files.
-func loadRootCaCerts(rootCAPath string) (*x509.CertPool, error) {
-	rootCAPool, err := x509.SystemCertPool()
-	if err != nil {
-		rootCAPool = x509.NewCertPool()
-	}
-	if len(rootCAPath) == 0 {
-		return rootCAPool, nil
-	}
-
-	list := strings.Split(rootCAPath, ",")
-	for _, thisFileOrDirEntry := range list {
-		info, err := os.Lstat(thisFileOrDirEntry)
-		if err != nil {
-			return nil, fmt.Errorf("unable to check whether RootCA entry '%v' is a file or directory, due to: %s", thisFileOrDirEntry, err)
-		}
-
-		if info.Mode()&os.ModeDir != 0 {
-			fileList, err := ioutil.ReadDir(thisFileOrDirEntry)
-			if err != nil {
-				return nil, fmt.Errorf("unable to read contents of RootCA directory '%v', due to: %s", thisFileOrDirEntry, err)
-			}
-
-			for _, fileinfo := range fileList {
-				if err := loadRootCAFromFile(thisFileOrDirEntry+"/"+fileinfo.Name(), rootCAPool); err != nil {
-					return nil, err
-				}
-			}
-		} else if err := loadRootCAFromFile(thisFileOrDirEntry, rootCAPool); err != nil {
-			return nil, err
-		}
-	}
-
-	return rootCAPool, nil
-}
-
-func loadRootCAFromFile(file string, roots *x509.CertPool) error {
-	log.Debug("loading RootCA certificate for connection to private transaction manager", "file", file)
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return fmt.Errorf("unable to read contents of RootCA certificate file '%v', due to: %s", file, err)
-	}
-	if !roots.AppendCertsFromPEM(data) {
-		return fmt.Errorf("failed to add TlsRootCA certificate to pool, check that '%v' contains a valid RootCA certificate", file)
-	}
-	return nil
 }
 
 // First call /upcheck to make sure the private tx manager is up

@@ -26,6 +26,7 @@ import (
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/log"
@@ -270,11 +271,11 @@ func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 }
 
 // Get private transaction manager configuration
-func QuorumSetupPrivacyConfiguration(ctx *cli.Context) (engine.Config, error) {
+func QuorumSetupPrivacyConfiguration(ctx *cli.Context) (http.Config, error) {
 	// get default configuration
 	cfg, err := private.GetLegacyEnvironmentConfig()
 	if err != nil {
-		return engine.Config{}, err
+		return http.Config{}, err
 	}
 
 	// override the config with command line parameters

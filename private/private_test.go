@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/private/engine"
+	http2 "github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func TestFromEnvironmentOrNil_whenNoConfig(t *testing.T) {
 	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
 
 	assert.NoError(t, err, "unexpected error")
-	assert.Equal(t, cfg.ConnectionType, engine.NoConnection, "expected no instance to be set")
+	assert.Equal(t, cfg.ConnectionType, http2.NoConnection, "expected no instance to be set")
 }
 
 func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T) {
