@@ -134,11 +134,11 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 				service.psiContracts["private"][foundLog.Address] = &newContractExtension
 				for _, mp := range managedParties {
-					psi, _ := core.PSIS.ResolveForManagedParty(mp)
-					if service.psiContracts[psi] == nil {
-						service.psiContracts[psi] = make(map[common.Address]*ExtensionContract)
+					psm, _ := core.PSIS.ResolveForManagedParty(mp)
+					if service.psiContracts[psm.ID] == nil {
+						service.psiContracts[psm.ID] = make(map[common.Address]*ExtensionContract)
 					}
-					service.psiContracts[psi][foundLog.Address] = &newContractExtension
+					service.psiContracts[psm.ID][foundLog.Address] = &newContractExtension
 				}
 
 				if err := service.dataHandler.Save(service.psiContracts); err != nil {
@@ -285,7 +285,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
 
 					//TODO(peter): handle err
-					privateFromPsi, _ := core.PSIS.ResolveForManagedParty(privateFrom)
+					privateFromPsm, _ := core.PSIS.ResolveForManagedParty(privateFrom)
 
 					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
 					if err != nil {
@@ -300,7 +300,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 					log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
-					entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, privateFromPsi)
+					entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, privateFromPsm.ID)
 					if err != nil {
 						log.Error("[state] service.stateFetcher.GetAddressStateFromBlock", "block", l.BlockHash.Hex(), "contract", contractToExtend.Hex(), "error", err)
 						return
@@ -311,13 +311,13 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					// PSV & PP changes
 					// send the new transaction with state dump to all participants
 					extraMetaData := engine.ExtraMetadata{PrivacyFlag: engine.PrivacyFlagStandardPrivate}
-					privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, privateFromPsi)
+					privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, privateFromPsm.ID)
 					if err != nil {
 						log.Error("[privacyMetaData] fetch err", "err", err)
 					} else {
 						extraMetaData.PrivacyFlag = privacyMetaData.PrivacyFlag
 						if privacyMetaData.PrivacyFlag == engine.PrivacyFlagStateValidation {
-							storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, privateFromPsi)
+							storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, privateFromPsm.ID)
 							if err != nil {
 								log.Error("[storageRoot] fetch err", "err", err)
 							}

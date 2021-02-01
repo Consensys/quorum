@@ -47,5 +47,5 @@ type Processor interface {
 	// Process processes the state changes according to the Ethereum rules by running
 	// the transaction messages using the statedb and applying any rewards to both
 	// the processor (coinbase) and any included uncles.
-	Process(block *types.Block, statedb *state.StateDB, mtService *MTStateService, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error)
+	Process(block *types.Block, statedb *state.StateDB, mtService *PrivateStateService, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error)
 }

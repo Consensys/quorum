@@ -411,6 +411,9 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		utils.Fatalf("raft consensus does not support --exitwhensynced")
 	}
 
+	// TODO decide how MPS is enabled and add the necessary validation
+	quorumInitPSIS()
+
 	// Start up the node itself
 	utils.StartNode(stack)
 

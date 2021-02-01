@@ -29,8 +29,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -49,6 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 var (
@@ -216,8 +215,8 @@ type BlockChain struct {
 	terminateInsert func(common.Hash, uint64) bool             // Testing hook used to terminate ancient receipt chain insertion.
 	setPrivateState func([]*types.Log, *state.StateDB, string) // Function to check extension and set private state
 
-	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
-	isMultitenant     bool           // if this blockchain supports multitenancy
+	psServiceCache state.Database
+	isMultitenant  bool // if this blockchain supports multitenancy
 }
 
 // function pointer for updating private state
@@ -248,23 +247,23 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:       chainConfig,
-		cacheConfig:       cacheConfig,
-		db:                db,
-		triegc:            prque.New(nil),
-		stateCache:        state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
-		quit:              make(chan struct{}),
-		shouldPreserve:    shouldPreserve,
-		bodyCache:         bodyCache,
-		bodyRLPCache:      bodyRLPCache,
-		receiptsCache:     receiptsCache,
-		blockCache:        blockCache,
-		txLookupCache:     txLookupCache,
-		futureBlocks:      futureBlocks,
-		engine:            engine,
-		vmConfig:          vmConfig,
-		badBlocks:         badBlocks,
-		privateStateCache: state.NewDatabase(db),
+		chainConfig:    chainConfig,
+		cacheConfig:    cacheConfig,
+		db:             db,
+		triegc:         prque.New(nil),
+		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		quit:           make(chan struct{}),
+		shouldPreserve: shouldPreserve,
+		bodyCache:      bodyCache,
+		bodyRLPCache:   bodyRLPCache,
+		receiptsCache:  receiptsCache,
+		blockCache:     blockCache,
+		txLookupCache:  txLookupCache,
+		futureBlocks:   futureBlocks,
+		engine:         engine,
+		vmConfig:       vmConfig,
+		badBlocks:      badBlocks,
+		psServiceCache: state.NewDatabase(db),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -442,8 +441,8 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Quorum
-	if mtService, err := NewMTStateService(bc, currentBlock.Root()); err != nil {
-		if _, err := mtService.GetOverallPrivateState(); err != nil {
+	if psService, err := NewPrivateStateService(bc, currentBlock.Root()); err != nil {
+		if _, err := psService.GetEmptyState(); err != nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
 			return bc.Reset()
 		}
@@ -676,7 +675,7 @@ func (bc *BlockChain) Processor() Processor {
 }
 
 // State returns a new mutable state based on the current HEAD block.
-func (bc *BlockChain) State() (*state.StateDB, *MTStateService, error) {
+func (bc *BlockChain) State() (*state.StateDB, *PrivateStateService, error) {
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
@@ -685,12 +684,12 @@ func (bc *BlockChain) StatePSI(psi string) (*state.StateDB, *state.StateDB, erro
 }
 
 func (bc *BlockChain) StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error) {
-	publicStateDb, mtService, err := bc.StateAt(bc.CurrentBlock().Root())
+	publicStateDb, psService, err := bc.StateAt(root)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	privateStateDb, privateStateDbErr := mtService.GetPrivateState(psi)
+	privateStateDb, privateStateDbErr := psService.GetPrivateState(psi)
 	if privateStateDbErr != nil {
 		return nil, nil, privateStateDbErr
 	}
@@ -699,18 +698,18 @@ func (bc *BlockChain) StateAtPSI(root common.Hash, psi string) (*state.StateDB, 
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *MTStateService, error) {
+func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *PrivateStateService, error) {
 	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
 	if publicStateDbErr != nil {
 		return nil, nil, publicStateDbErr
 	}
 
-	mtService, mtServiceErr := NewMTStateService(bc, root)
-	if mtServiceErr != nil {
-		return nil, nil, mtServiceErr
+	psService, psServiceErr := NewPrivateStateService(bc, root)
+	if psServiceErr != nil {
+		return nil, nil, psServiceErr
 	}
 
-	return publicStateDb, mtService, nil
+	return publicStateDb, psService, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
@@ -1507,13 +1506,13 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, mtService *MTStateService, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, psService *PrivateStateService, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
-	// TODO - decide if worker code will be updated to handle multiple private states
-	// if it will - then we need to pass in the MTStateService
-	return bc.writeBlockWithState(block, receipts, logs, state, privateState, mtService, emitHeadEvent)
+	//worker code needs to handle multiple private states
+	//if the miner in istanbul, need to be able to write all the private states because doesn't do it in insertchain
+	return bc.writeBlockWithState(block, receipts, logs, state, psService, emitHeadEvent)
 }
 
 // QUORUM
@@ -1546,7 +1545,7 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
-func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, mtService *MTStateService, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, psService *PrivateStateService, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -1558,8 +1557,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
-	if mtService != nil {
-		err = mtService.CommitAndWrite(block)
+	if psService != nil {
+		err = psService.CommitAndWrite(block)
 		if err != nil {
 			return NonStatTy, err
 		}
@@ -1763,7 +1762,7 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
 		publicReceipt.MTVersions = make(map[string]*types.Receipt)
-		publicReceipt.MTVersions["private"] = receipt
+		publicReceipt.MTVersions[EmptyPrivateStateMetadata.ID] = receipt
 		for psi, mtReceipt := range receipt.MTVersions {
 			publicReceipt.MTVersions[psi] = mtReceipt
 		}
@@ -1964,7 +1963,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		// Quorum
 		// initialize mtStateService
-		mtService, err := NewMTStateService(bc, parent.Root)
+		psService, err := NewPrivateStateService(bc, parent.Root)
 		if err != nil {
 			return it.index, err
 		}
@@ -1976,7 +1975,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
-				//due to mtservice changes, for now only do prefetch on the public state
+				//due to psService changes, for now only do prefetch on the public state
 				//we do have an option to also do it on overall privateState but need a function in mtService to return the overall private stateCache
 				//this reverts the prefetch definition to the original go-ethereum definition (only takes in publicState)
 				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, interrupt *uint32) {
@@ -1992,7 +1991,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Process block using the parent state as reference point
 		substart := time.Now()
 
-		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, mtService, bc.vmConfig)
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, psService, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)

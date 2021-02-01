@@ -157,7 +157,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	statedb, mtService, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
@@ -285,7 +285,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-				privateState, _ := mtService.GetPrivateState(psi)
+				privateState, _ := mtService.GetPrivateState(psm.ID)
 				select {
 				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
@@ -471,8 +471,8 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		reexec = *config.Reexec
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
-	privateStateDb, _ := mtService.GetPrivateState(psi)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -573,8 +573,8 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		reexec = *config.Reexec
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
-	privateStateDb, _ := mtService.GetPrivateState(psi)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +670,7 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // computeStateDB retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *core.MTStateService, error) {
+func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *core.PrivateStateService, error) {
 	// If we have the state fully available, use that
 	statedb, mtService, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
@@ -853,8 +853,8 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 		return nil, vm.Context{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
-	privateStateDb, err := mtService.GetPrivateState(psi)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, err := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}

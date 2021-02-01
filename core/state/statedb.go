@@ -63,6 +63,8 @@ func (n *proofList) Delete(key []byte) error {
 // * Contracts
 // * Accounts
 type StateDB struct {
+	emptyStateDB *StateDB
+
 	db   Database
 	trie Trie
 
@@ -171,6 +173,11 @@ func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Da
 	return state, privateState, nil
 }
 
+// see the PrivateStateService for details about the necessity of the emptyStateDB
+func (self *StateDB) SetEmptyState(empty *StateDB) {
+	self.emptyStateDB = empty
+}
+
 // setError remembers the first non-nil error it is called with.
 func (s *StateDB) setError(err error) {
 	if s.dbErr == nil {
@@ -269,14 +276,26 @@ func (s *StateDB) SubRefund(gas uint64) {
 // Exist reports whether the given account address exists in the state.
 // Notably this also returns true for suicided accounts.
 func (s *StateDB) Exist(addr common.Address) bool {
-	return s.getStateObject(addr) != nil
+	if s.getStateObject(addr) != nil {
+		return true
+	}
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.Exist(addr)
+	}
+	return false
 }
 
 // Empty returns whether the state object is either non-existent
 // or empty according to the EIP161 specification (balance = nonce = code = 0)
 func (s *StateDB) Empty(addr common.Address) bool {
 	so := s.getStateObject(addr)
-	return so == nil || so.empty()
+	if so != nil {
+		return so.empty()
+	}
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.Empty(addr)
+	}
+	return true
 }
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
@@ -292,6 +311,9 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Nonce()
+	}
+	if self.emptyStateDB != nil {
+		return self.emptyStateDB.GetNonce(addr)
 	}
 
 	return 0

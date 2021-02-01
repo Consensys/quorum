@@ -66,6 +66,7 @@ func setup() {
 	mux.HandleFunc("/send", MockSendAPIHandlerFunc)
 	mux.HandleFunc("/transaction/", MockReceiveAPIHandlerFunc)
 	mux.HandleFunc("/sendsignedtx", MockSendSignedTxAPIHandlerFunc)
+	mux.HandleFunc("/residentGroups", MockGroupsAPIHandlerFunc)
 
 	testServer = httptest.NewServer(mux)
 
@@ -73,6 +74,37 @@ func setup() {
 		HttpClient: &http.Client{},
 		BaseURL:    testServer.URL,
 	}, []byte("2.0.0"))
+}
+
+func MockGroupsAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	var data []byte
+	data, _ = json.Marshal([]engine.PrivacyGroup{
+		{
+			Type:           "RESIDENT",
+			Name:           "RG1",
+			PrivacyGroupId: "RG1",
+			Description:    "Resident Group 1",
+			From:           "",
+			Members:        []string{"AAA", "BBB"},
+		},
+		{
+			Type:           "LEGACY",
+			Name:           "LEGACY1",
+			PrivacyGroupId: "LEGACY1",
+			Description:    "Legacy Group 1",
+			From:           "",
+			Members:        []string{"LEG1", "LEG2"},
+		},
+		{
+			Type:           "PANTHEON",
+			Name:           "P1",
+			PrivacyGroupId: "P1",
+			Description:    "Pantheon Group 1",
+			From:           "",
+			Members:        []string{"P1", "P2"},
+		},
+	})
+	response.Write(data)
 }
 
 func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
@@ -170,6 +202,33 @@ func verifyRequestHeaderMultiTenancy(h http.Header, t *testing.T) {
 	if h.Get("Accept") != "application/vnd.tessera-2.1+json" {
 		t.Errorf("expected Accept header is application/vnd.tessera-2.1+json")
 	}
+}
+
+func TestSend_groups(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	groups, err := testObject.Groups()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	assert.Len(groups, 3, "There should be three groups")
+
+	assert.Equal(groups[0].Name, "RG1")
+	assert.Equal(groups[0].PrivacyGroupId, "RG1")
+	assert.Equal(groups[0].Type, "RESIDENT")
+	assert.Exactly(groups[0].Members, []string{"AAA", "BBB"})
+
+	assert.Equal(groups[1].Name, "LEGACY1")
+	assert.Equal(groups[1].PrivacyGroupId, "LEGACY1")
+	assert.Equal(groups[1].Type, "LEGACY")
+	assert.Exactly(groups[1].Members, []string{"LEG1", "LEG2"})
+
+	assert.Equal(groups[2].Name, "P1")
+	assert.Equal(groups[2].PrivacyGroupId, "P1")
+	assert.Equal(groups[2].Type, "PANTHEON")
+	assert.Exactly(groups[2].Members, []string{"P1", "P2"})
+
 }
 
 func TestSend_whenTypical(t *testing.T) {

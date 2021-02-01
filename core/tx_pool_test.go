@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/quorum/core"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -50,7 +49,7 @@ func init() {
 
 type testBlockChain struct {
 	statedb       *state.StateDB
-	mtService     *core.MTStateService
+	mtService     *PrivateStateService
 	gasLimit      uint64
 	chainHeadFeed *event.Feed
 }
@@ -65,7 +64,7 @@ func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block
 	return bc.CurrentBlock()
 }
 
-func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, *core.MTStateService, error) {
+func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, *PrivateStateService, error) {
 	return bc.statedb, bc.mtService, nil
 }
 
@@ -180,7 +179,7 @@ type testChain struct {
 // testChain.State() is used multiple times to reset the pending state.
 // when simulate is true it will create a state that indicates
 // that tx0 and tx1 are included in the chain.
-func (c *testChain) State() (*state.StateDB, *MTStateService, error) {
+func (c *testChain) State() (*state.StateDB, *PrivateStateService, error) {
 	// delay "state change" by one. The tx pool fetches the
 	// state multiple times and by delaying it a bit we simulate
 	// a state change between those fetches.

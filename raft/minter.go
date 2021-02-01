@@ -268,7 +268,7 @@ func (minter *minter) createWork() *work {
 		Time:       uint64(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAtPSI(parent.Root(), "private")
+	publicState, privateState, err := minter.chain.StateAtPSI(parent.Root(), core.EmptyPrivateStateMetadata.ID)
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
@@ -409,7 +409,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	var author *common.Address
 	var vmConf vm.Config
 	txnStart := time.Now()
-	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf)
+	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, true)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)

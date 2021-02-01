@@ -20,9 +20,9 @@ type ChainAccessor interface {
 	multitenancy.ContextAware
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
-	StateAt(root common.Hash) (*state.StateDB, *core.MTStateService, error)
+	StateAt(root common.Hash) (*state.StateDB, *core.PrivateStateService, error)
 	StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error)
-	State() (*state.StateDB, *core.MTStateService, error)
+	State() (*state.StateDB, *core.PrivateStateService, error)
 	CurrentBlock() *types.Block
 }
 

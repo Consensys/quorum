@@ -551,6 +551,20 @@ func (m Message) IsPrivate() bool {
 	return m.isPrivate
 }
 
+func (m Message) CloneWithEmptyData() Message {
+	return Message{
+		to:         m.to,
+		from:       m.from,
+		nonce:      m.nonce,
+		amount:     m.amount,
+		gasLimit:   m.gasLimit,
+		gasPrice:   m.gasPrice,
+		data:       common.EncryptedPayloadHash{}.Bytes(),
+		checkNonce: m.checkNonce,
+		isPrivate:  m.isPrivate,
+	}
+}
+
 func (tx *Transaction) IsPrivate() bool {
 	if tx.data.V == nil {
 		return false

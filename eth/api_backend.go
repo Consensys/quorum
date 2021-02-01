@@ -151,7 +151,7 @@ func (b *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		// Quorum
@@ -161,10 +161,10 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 			if header == nil || err != nil {
 				return nil, nil, err
 			}
-			publicState, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+			publicState, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 			return EthAPIState{publicState, privateState}, header, err
 		}
-		block, publicState, privateState := b.eth.miner.Pending(psi)
+		block, publicState, privateState := b.eth.miner.Pending(psm.ID)
 		return EthAPIState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
@@ -175,7 +175,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+	stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 	return EthAPIState{stateDb, privateState}, header, err
 
 }
@@ -195,8 +195,8 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		if blockNrOrHash.RequireCanonical && b.eth.blockchain.GetCanonicalHash(header.Number.Uint64()) != hash {
 			return nil, nil, errors.New("hash is not currently canonical")
 		}
-		psi, _ := core.PSIS.ResolveForUserContext(ctx)
-		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+		psm, _ := core.PSIS.ResolveForUserContext(ctx)
+		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 		return EthAPIState{stateDb, privateState}, header, err
 
 	}
@@ -205,7 +205,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	receipts := b.eth.blockchain.GetReceiptsByHash(hash)
-	psi, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	for i := 0; i < len(receipts); i++ {
 		psiReceipts[i] = receipts[i]
 		if receipts[i].MTVersions != nil {
-			mtReceipt, found := receipts[i].MTVersions[psi]
+			mtReceipt, found := receipts[i].MTVersions[psm.ID]
 			if found {
 				psiReceipts[i] = mtReceipt
 			}

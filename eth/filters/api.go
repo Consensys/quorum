@@ -247,11 +247,11 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc
 		rpcSub      = notifier.CreateSubscription()
 		matchedLogs = make(chan []*types.Log)
 	)
-	psi, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	crit.PSI = psi
+	crit.PSI = psm.ID
 
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), matchedLogs)
 	if err != nil {
@@ -298,11 +298,11 @@ type FilterCriteria ethereum.FilterQuery
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) (rpc.ID, error) {
 	logs := make(chan []*types.Log)
-	psi, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
 	if err != nil {
 		return rpc.ID(""), err
 	}
-	crit.PSI = psi
+	crit.PSI = psm.ID
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
 	if err != nil {
 		return rpc.ID(""), err
@@ -337,14 +337,14 @@ func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) 
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
-	psi, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var filter *Filter
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics, psi)
+		filter = NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics, psm.ID)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		begin := rpc.LatestBlockNumber.Int64()
@@ -356,7 +356,7 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 			end = crit.ToBlock.Int64()
 		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics, psi)
+		filter = NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics, psm.ID)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)
@@ -392,7 +392,7 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
-	psi, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +407,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	var filter *Filter
 	if f.crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics, psi)
+		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics, psm.ID)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		begin := rpc.LatestBlockNumber.Int64()
@@ -419,7 +419,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 			end = f.crit.ToBlock.Int64()
 		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics, psi)
+		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics, psm.ID)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)

@@ -625,7 +625,11 @@ func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
 
 // ChainId returns the chainID value for transaction replay protection.
 func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
-	return core.PSIS.ResolveForUserContext(ctx)
+	psm, err := core.PSIS.ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	return psm.ID, nil
 }
 
 // BlockNumber returns the block number of the chain head.
@@ -1775,6 +1779,15 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	//Quorum
 	if args.PrivateTxType == "" {
 		args.PrivateTxType = "restricted"
+	}
+	if args.IsPrivate() {
+		if len(args.PrivateFrom) == 0 {
+			psm, err := core.PSIS.ResolveForUserContext(ctx)
+			if err != nil {
+				return err
+			}
+			args.PrivateFrom = psm.Addresses[0]
+		}
 	}
 	//End-Quorum
 	return nil

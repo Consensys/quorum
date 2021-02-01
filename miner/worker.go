@@ -96,7 +96,7 @@ type environment struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	mtService *core.MTStateService
+	mtService *core.PrivateStateService
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -108,7 +108,7 @@ type task struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	mtService *core.MTStateService
+	mtService *core.PrivateStateService
 }
 
 const (
@@ -709,7 +709,7 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
 		publicReceipt.MTVersions = make(map[string]*types.Receipt)
-		publicReceipt.MTVersions["private"] = receipt
+		publicReceipt.MTVersions[core.EmptyPrivateStateMetadata.ID] = receipt
 		for psi, mtReceipt := range receipt.MTVersions {
 			publicReceipt.MTVersions[psi] = mtReceipt
 		}
@@ -809,13 +809,13 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
-	privateState, _ := w.current.mtService.GetOverallPrivateState()
+	privateState, _ := w.current.mtService.GetEmptyState()
 	privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 	privateSnap := privateState.Snapshot()
 
 	txnStart := time.Now()
 	mtPublicStateDb := w.current.state.Copy()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), true)
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		privateState.RevertToSnapshot(privateSnap)
@@ -831,15 +831,10 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		if len(managedParties) > 0 {
 			privateReceipt.MTVersions = make(map[string]*types.Receipt)
 		}
-		for _, log := range privateReceipt.Logs {
-			log.PSI = "private"
-		}
-		allLogs = append(allLogs, privateReceipt.Logs...)
-
 		if w.current.mtService != nil {
 			for _, managedParty := range managedParties {
-				psi, _ := core.PSIS.ResolveForManagedParty(managedParty)
-				mtPrivateState, err := w.current.mtService.GetPrivateState(psi)
+				psm, _ := core.PSIS.ResolveForManagedParty(managedParty)
+				mtPrivateState, err := w.current.mtService.GetPrivateState(psm.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -847,22 +842,21 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 				publicStateDBCopy := mtPublicStateDb.Copy()
 				publicStateDBCopy.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 				// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-				_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+				_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), false)
 				if err != nil {
 					return nil, err
 				}
 				// set the PSI for each log (so that the filter system knows for what private state they are)
 				for _, log := range mtPrivateReceipt.Logs {
-					log.PSI = psi
+					log.PSI = psm.ID
 				}
-				privateReceipt.MTVersions[psi] = mtPrivateReceipt
+				privateReceipt.MTVersions[psm.ID] = mtPrivateReceipt
 				allLogs = append(allLogs, mtPrivateReceipt.Logs...)
-				w.chain.CheckAndSetPrivateState(allLogs, privateState, psi)
+				w.chain.CheckAndSetPrivateState(allLogs, privateState, psm.ID)
 			}
 		}
 
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(allLogs, privateState, "private")
 	}
 	return allLogs, nil
 }

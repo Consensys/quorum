@@ -47,6 +47,10 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 	if t.features.HasFeature(engine.MultiTenancy) {
 		apiVersion = "vnd.tessera-2.1+"
 	}
+	// TODO - figure out the API version for residentGroups
+	if t.features.HasFeature(engine.MultiplePrivateStates) && path == "/residentGroups" {
+		apiVersion = ""
+	}
 	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request, apiVersion)
 	if err != nil {
 		return -1, fmt.Errorf("unable to build json request for (method:%s,path:%s). Cause: %v", method, path, err)
@@ -419,6 +423,14 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 	split := strings.Split(string(out), ",")
 
 	return split, nil
+}
+
+func (t *tesseraPrivateTxManager) Groups() ([]engine.PrivacyGroup, error) {
+	response := make([]engine.PrivacyGroup, 0)
+	if _, err := t.submitJSON("GET", "/residentGroups", nil, &response); err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (t *tesseraPrivateTxManager) Name() string {

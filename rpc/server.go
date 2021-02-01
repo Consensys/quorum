@@ -155,11 +155,16 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 
 	// TODO - find a way to validate that the user has access to the PSI (and get it from the token rather than the HTTP header)
 	// for now it allows for easy testing :)
-	if psi := r.Header.Get("PSI"); psi != "" {
-		securityContext = context.WithValue(securityContext, "PSI", psi)
-	} else {
-		securityContext = context.WithValue(securityContext, "PSI", "private")
+
+	// try to extract the PSI from the URL
+	psi := r.URL.Query().Get("PSI")
+	if len(psi) == 0 {
+		psi = r.Header.Get("PSI")
 	}
+	if len(psi) == 0 {
+		psi = "private"
+	}
+	securityContext = context.WithValue(securityContext, "PSI", psi)
 
 	if isAuthEnabled, err := s.authenticationManager.IsEnabled(context.Background()); err != nil {
 		// this indicates a failure in the plugin. We don't want any subsequent request unchecked

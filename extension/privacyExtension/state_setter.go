@@ -140,13 +140,13 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, 
 		}
 
 		//check the given PSI is same as PSI of sender key
-		senderPsi, err := core.PSIS.ResolveForManagedParty(senderPublicKey)
+		senderPsm, err := core.PSIS.ResolveForManagedParty(senderPublicKey)
 		if err != nil {
 			log.Debug("Extension: unable to determine sender public key PSI", "err", err)
 			return false
 		}
 
-		if psi != "private" && senderPsi != psi {
+		if psi != "private" && senderPsm.ID != psi {
 			// sender was another tenant on this node
 			//not an error case, so no need to log an error
 			return false

@@ -70,12 +70,12 @@ func (s *PublicEthereumAPI) StorageRoot(ctx context.Context, addr common.Address
 		err       error
 	)
 
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
-		pub, priv, err = s.e.blockchain.StatePSI(psi)
+		pub, priv, err = s.e.blockchain.StatePSI(psm.ID)
 	} else {
 		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
-			pub, priv, err = s.e.blockchain.StateAtPSI(ch.Root, psi)
+			pub, priv, err = s.e.blockchain.StateAtPSI(ch.Root, psm.ID)
 		} else {
 			return common.Hash{}, fmt.Errorf("invalid block number")
 		}
@@ -351,12 +351,12 @@ func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Addre
 //Taken from DumpBlock, as it was reused in DumpAddress.
 //Contains modifications from the original to return the private state db, as well as public.
 func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
 		// the miner and operate on those
-		_, publicState, privateState := api.eth.miner.Pending(psi)
+		_, publicState, privateState := api.eth.miner.Pending(psm.ID)
 		return publicState, privateState, nil
 	}
 
@@ -369,7 +369,7 @@ func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, block
 	if block == nil {
 		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
 	}
-	publicState, privateState, err := api.eth.BlockChain().StateAtPSI(block.Root(), psi)
+	publicState, privateState, err := api.eth.BlockChain().StateAtPSI(block.Root(), psm.ID)
 	return publicState, privateState, err
 }
 

@@ -26,6 +26,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/psis"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -249,6 +251,18 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	quorumValidateConsensus(ethereum, isRaft)
 
 	quorumValidatePrivacyEnhancements(ethereum)
+}
+
+func quorumInitPSIS() {
+	if private.P.HasFeature(engine.MultiplePrivateStates) {
+		var err error
+		core.PSIS, err = psis.NewTesseraPrivacyGroupPSIS()
+		if err != nil {
+			utils.Fatalf("Unable to initialize the private state identifier service (PSIS): %v", err)
+		}
+	} else {
+		core.PSIS = &core.PrivatePSISImpl{}
+	}
 }
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
