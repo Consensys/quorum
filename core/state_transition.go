@@ -306,7 +306,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	// Quorum - Privacy Enhancements
 	// perform privacy enhancements checks
 	if pmh.mustVerify() {
-		exitEarly := false
+		var exitEarly bool
 		exitEarly, err = pmh.verify(vmerr)
 		if exitEarly {
 			return nil, 0, true, err
