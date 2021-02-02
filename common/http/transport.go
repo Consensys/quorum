@@ -36,16 +36,20 @@ func newTLSConfig(cfg Config) (*tls.Config, error) {
 		return nil, err
 	}
 
-	return &tls.Config{
-		RootCAs:            rootCAPool,
-		InsecureSkipVerify: cfg.TlsInsecureSkipVerify,
-		// Load clients key-pair. This will be sent to server
-		GetClientCertificate: func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
+	var getClientCertFunc func(*tls.CertificateRequestInfo) (*tls.Certificate, error) = nil
+	if len(cfg.TlsClientCert) != 0 && len(cfg.TlsClientKey) != 0 {
+		getClientCertFunc = func(info *tls.CertificateRequestInfo) (certificate *tls.Certificate, e error) {
 			c, err := tls.LoadX509KeyPair(cfg.TlsClientCert, cfg.TlsClientKey)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load client key pair from '%v', '%v': %v", cfg.TlsClientCert, cfg.TlsClientKey, err)
 			}
 			return &c, nil
-		},
+		}
+	}
+
+	return &tls.Config{
+		RootCAs:              rootCAPool,
+		InsecureSkipVerify:   cfg.TlsInsecureSkipVerify,
+		GetClientCertificate: getClientCertFunc,
 	}, nil
 }

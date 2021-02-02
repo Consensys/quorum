@@ -136,8 +136,8 @@ func (cfg *Config) Validate() error {
 			if !strings.Contains(strings.ToLower(cfg.HttpUrl), "https") {
 				return fmt.Errorf("connection is configured with TLS but HTTPS url is not specified")
 			}
-			if len(cfg.TlsClientCert) == 0 || len(cfg.TlsClientKey) == 0 {
-				return fmt.Errorf("missing details for HTTP connection with TLS, configuration must specify: clientCert and clientKey")
+			if (len(cfg.TlsClientCert) == 0 && len(cfg.TlsClientKey) != 0) || (len(cfg.TlsClientCert) != 0 && len(cfg.TlsClientKey) == 0) {
+				return fmt.Errorf("invalid details for HTTP connection with TLS, configuration must specify both clientCert and clientKey, or neither one")
 			}
 		default:
 			return fmt.Errorf("invalid value for TLS mode in config file, must be either OFF or STRICT")

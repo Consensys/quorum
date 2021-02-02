@@ -64,6 +64,18 @@ httpUrl = "https:localhost:9101"
 tlsMode = "STRICT"
 tlsRootCA = "mydir/rootca.cert.pem"
 `
+var invalidHttpTlsConfigFileOnlyClientCert = `
+httpUrl = "https:localhost:9101"
+tlsMode = "STRICT"
+tlsRootCA = "mydir/rootca.cert.pem"
+tlsClientCert = "mydir/client.cert.pem"
+`
+var invalidHttpTlsConfigFileOnlyClientKey = `
+httpUrl = "https:localhost:9101"
+tlsMode = "STRICT"
+tlsRootCA = "mydir/rootca.cert.pem"
+tlsClientKey = "mydir/client.key.pem"
+`
 var httpTlsConfigFileWithHTTPOnly = `
 httpUrl = "http:localhost:9101"
 tlsMode = "strict"
@@ -249,8 +261,38 @@ func TestHTTPTlsMissingClientCerts(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestHTTPTlsMissingOnlyClientKey(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "invalidHttpTlsConfigFileOnlyClientCert.toml")
+	if err := ioutil.WriteFile(configFile, []byte(invalidHttpTlsConfigFileOnlyClientCert), 0600); err != nil {
+		t.Fatalf("Failed to create config file for unit test, error: %v", err)
+	}
+	defer os.Remove(configFile)
+
+	cfg, err := FetchConfig(configFile)
+	assert.NoError(t, err)
+
+	err = cfg.Validate()
 	if assert.Error(t, err) {
-		assert.Contains(t, err.Error(), "missing details for HTTP connection with TLS, configuration must specify: clientCert and clientKey")
+		assert.Contains(t, err.Error(), "invalid details for HTTP connection with TLS, configuration must specify both clientCert and clientKey, or neither one")
+	}
+}
+
+func TestHTTPTlsMissingOnlyClientCert(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "invalidHttpTlsConfigFileOnlyClientKey.toml")
+	if err := ioutil.WriteFile(configFile, []byte(invalidHttpTlsConfigFileOnlyClientKey), 0600); err != nil {
+		t.Fatalf("Failed to create config file for unit test, error: %v", err)
+	}
+	defer os.Remove(configFile)
+
+	cfg, err := FetchConfig(configFile)
+	assert.NoError(t, err)
+
+	err = cfg.Validate()
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "invalid details for HTTP connection with TLS, configuration must specify both clientCert and clientKey, or neither one")
 	}
 }
 
