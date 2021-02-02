@@ -267,7 +267,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 		setNonce(1).
 		setTo(c1Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored})
 	//since state validation need ACHashes, MerkleRoot and PrivacyFlag
 	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -684,7 +684,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	log.Trace("stuff", "c2code", stuff[:])
 
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -731,7 +731,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 		setTo(c2Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
 	// use the correctly calculated MR so that it can't be a source of false positives
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{

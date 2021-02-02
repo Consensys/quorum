@@ -17,8 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	"github.com/ethereum/go-ethereum/permission/v1"
-	"github.com/ethereum/go-ethereum/permission/v2"
+	v1 "github.com/ethereum/go-ethereum/permission/v1"
+	v2 "github.com/ethereum/go-ethereum/permission/v2"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 

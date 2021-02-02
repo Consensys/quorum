@@ -98,7 +98,6 @@ type stateObject struct {
 	// during the "update" phase of the state transition.
 	dirtyCode bool // true if the code was updated
 	suicided  bool
-	touched   bool
 	deleted   bool
 	// Quorum
 	// flag to track changes in AccountExtraData
@@ -166,7 +165,6 @@ func (s *stateObject) touch() {
 		// flattened journals.
 		s.db.journal.dirty(s.address)
 	}
-	s.touched = true
 }
 
 func (s *stateObject) getTrie(db Database) Trie {

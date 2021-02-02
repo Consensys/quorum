@@ -87,10 +87,10 @@ type PrivateMessage interface {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation, isEIP155 bool, isEIP2028 bool) (uint64, error) {
+func IntrinsicGas(data []byte, contractCreation, isHomestead bool, isEIP2028 bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
-	if contractCreation && isEIP155 {
+	if contractCreation && isHomestead {
 		gas = params.TxGasContractCreation
 	} else {
 		gas = params.TxGas
@@ -306,7 +306,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	// Quorum - Privacy Enhancements
 	// perform privacy enhancements checks
 	if pmh.mustVerify() {
-		var exitEarly = false
+		var exitEarly bool
 		exitEarly, err = pmh.verify(vmerr)
 		if exitEarly {
 			return nil, 0, true, err

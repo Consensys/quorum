@@ -46,7 +46,7 @@ func TestSetDefaults(t *testing.T) {
 
 	SetNetworkBootUpCompleted()
 	SetQIP714BlockReached()
-	networkAdminRole, orgAdminRole, defaultAccess = GetDefaults()
+	_, _, defaultAccess = GetDefaults()
 	assert.True(defaultAccess == ReadOnly, fmt.Sprintf("Expected network admin role %v, got %v", ReadOnly, defaultAccess))
 }
 
