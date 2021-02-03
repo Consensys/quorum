@@ -51,8 +51,11 @@ type Database interface {
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
 
-	// Privacy metadata linker
-	PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker
+	// Quorum
+	//
+	// accountExtraDataLinker maintains mapping between root hash of the state trie
+	// and root hash of state.AccountExtraData trie.
+	AccountExtraDataLinker() rawdb.AccountExtraDataLinker
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
@@ -113,23 +116,24 @@ func NewDatabase(db ethdb.Database) Database {
 func NewDatabaseWithCache(db ethdb.Database, cache int) Database {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &cachingDB{
-		db: trie.NewDatabaseWithCache(db, cache),
-		// Quorum - Privacy Enhancements
-		privacyMetadataLinker: rawdb.NewPrivacyMetadataLinker(db),
-		codeSizeCache:         csc,
+		db:                     trie.NewDatabaseWithCache(db, cache),
+		accountExtraDataLinker: rawdb.NewAccountExtraDataLinker(db),
+		codeSizeCache:          csc,
 	}
 }
 
 type cachingDB struct {
 	db *trie.Database
-	// Quorum:  Privacy enhacements introducing privacyMetadataLinker which maintains mapping between private state root and privacy metadata root. As this struct is the backing store for state, this gives the reference to the linker when needed.
-	privacyMetadataLinker rawdb.PrivacyMetadataLinker
-	codeSizeCache         *lru.Cache
+	// Quorum
+	//
+	// accountExtraDataLinker maintains mapping between state root and state.AccountExtraData root.
+	// As this struct is the backing store for state, this gives the reference to the linker when needed.
+	accountExtraDataLinker rawdb.AccountExtraDataLinker
+	codeSizeCache          *lru.Cache
 }
 
-// Quorum - Privacy Enhancements
-func (db *cachingDB) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
-	return db.privacyMetadataLinker
+func (db *cachingDB) AccountExtraDataLinker() rawdb.AccountExtraDataLinker {
+	return db.accountExtraDataLinker
 }
 
 // OpenTrie opens the main account trie at a specific root hash.

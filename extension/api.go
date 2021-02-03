@@ -1,6 +1,7 @@
 package extension
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/permission/core"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -102,9 +105,43 @@ func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Addres
 	return false
 }
 
+func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
+	apiHelper := api.privacyService.apiBackendHelper
+	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
+		if len(txa.PrivateFrom) == 0 {
+			return errors.New("You must specify 'privateFrom' when running in a multitenant node")
+		}
+		// check whether the user has access to txa.PrivateFrom and the txa.From eth account
+		attributes := multitenancy.FullAccessContractSecurityAttributes(txa.From, txa.PrivateFrom)
+		chainAccessor := api.privacyService.stateFetcher.chainAccessor
+		currentBlock := chainAccessor.CurrentBlock().Number().Int64()
+		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
+		if err != nil {
+			return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
+		}
+
+		managedParties, err := extraDataReader.GetManagedParties(address)
+		if err != nil {
+			return err
+		}
+		attributes = append(attributes,
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Parties(managedParties).Build(),
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Parties(managedParties).Build())
+
+		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes...); !authorized {
+			return multitenancy.ErrNotAuthorized
+		}
+	}
+	return nil
+}
+
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
-func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
+	err := api.doMultiTenantChecks(ctx, addressToVoteOn, txa)
+	if err != nil {
+		return "", err
+	}
 	// check if the extension has been completed. if yes
 	// no acceptance required
 	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From)
@@ -175,8 +212,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 // - the contract address we want to extend
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
-func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) (string, error) {
-
+func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) (string, error) {
 	// check if the contract to be extended is already under extension
 	// if yes throw an error
 	if api.checkIfContractUnderExtension(toExtend) {
@@ -191,6 +227,11 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	// check if a public contract is being extended
 	if !api.checkIfPrivateStateExists(toExtend) {
 		return "", errors.New("extending a non-existent private contract!!! not allowed")
+	}
+
+	err := api.doMultiTenantChecks(ctx, toExtend, txa)
+	if err != nil {
+		return "", err
 	}
 
 	// check if recipient address is 0x0
@@ -258,7 +299,12 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 // CancelExtension allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
-func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
+	err := api.doMultiTenantChecks(ctx, extensionContract, txa)
+	if err != nil {
+		return "", err
+	}
+
 	status, err := api.checkIfExtensionComplete(extensionContract, txa.From)
 	if err != nil {
 		return "", err
@@ -309,8 +355,23 @@ func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address
 }
 
 // Returns the extension status from management contract
-func (api *PrivateExtensionAPI) GetExtensionStatus(extensionContract common.Address) (string, error) {
-
+func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
+	apiHelper := api.privacyService.apiBackendHelper
+	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
+		currentBlock := apiHelper.CurrentBlock().Number().Int64()
+		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
+		if err != nil {
+			return "", fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
+		}
+		managedParties, err := extraDataReader.GetManagedParties(extensionContract)
+		if err != nil {
+			return "", err
+		}
+		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken,
+			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build()); !authorized {
+			return "", multitenancy.ErrNotAuthorized
+		}
+	}
 	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{})
 	if err != nil {
 		return "", err

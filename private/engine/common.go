@@ -21,8 +21,13 @@ type ExtraMetadata struct {
 	ACHashes common.EncryptedPayloadHashes
 	// Root Hash of a Merkle Trie containing all affected contract account in state objects
 	ACMerkleRoot common.Hash
-	//Privacy flag for contract: standardPrivate, partyProtection, psv
+	// Privacy flag for contract: standardPrivate, partyProtection, psv
 	PrivacyFlag PrivacyFlagType
+	// Contract participants that are managed by the corresponding Tessera.
+	// Being used in Multi Tenancy
+	ManagedParties []string
+	// the sender of the transaction
+	Sender string
 }
 
 type Client struct {
@@ -82,6 +87,7 @@ type PrivateTransactionManagerFeature uint64
 const (
 	None                PrivateTransactionManagerFeature = iota                                          // 0
 	PrivacyEnhancements PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
+	MultiTenancy        PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 2
 )
 
 type FeatureSet struct {

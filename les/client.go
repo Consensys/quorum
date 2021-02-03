@@ -39,11 +39,11 @@ import (
 	"github.com/ethereum/go-ethereum/les/checkpointoracle"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -68,7 +68,16 @@ type LightEthereum struct {
 	accountManager *accounts.Manager
 	netRPCService  *ethapi.PublicNetAPI
 
-	securityPlugin *plugin.SecurityPluginTemplate // Quorum: to dispose security plugin being used
+	// Quorum - Multitenancy
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *LightEthereum) SetContractAuthorizationManager(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
@@ -114,9 +123,13 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
+	newChainFunc := light.NewLightChain
+	if config.EnableMultitenancy {
+		newChainFunc = light.NewMultitenantLightChain
+	}
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with
 	// indexers already set but not started yet
-	if leth.blockchain, err = light.NewLightChain(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
+	if leth.blockchain, err = newChainFunc(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
 		return nil, err
 	}
 	leth.chainReader = leth.blockchain
@@ -152,15 +165,6 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 		gpoParams.Default = config.Miner.GasPrice
 	}
 	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
-
-	// Set Security plugin in eth
-	var pluginManager *plugin.PluginManager
-	if err := ctx.Service(&pluginManager); err == nil {
-		sp := new(plugin.SecurityPluginTemplate)
-		if err := pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err == nil {
-			leth.securityPlugin = sp
-		}
-	}
 
 	return leth, nil
 }
