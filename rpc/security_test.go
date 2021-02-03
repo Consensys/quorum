@@ -138,7 +138,7 @@ func TestSecureCall_whenTokenExpired(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(-1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 		}},
 	})
@@ -152,7 +152,7 @@ func TestSecureCall_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 			Authorities: []*proto.GrantedAuthority{
 				{
@@ -172,7 +172,7 @@ func TestSecureCall_whenAccessDenied(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 			Authorities: []*proto.GrantedAuthority{
 				{
@@ -192,7 +192,7 @@ func TestSecureCall_whenMethodInJSONMessageIsNotSupported(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 		}},
 	})

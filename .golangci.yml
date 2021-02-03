@@ -32,6 +32,10 @@ linters-settings:
     min-occurrences: 6 # minimum number of occurrences
 
 issues:
+  # Quorum - Disabling check for "S1039: unnecessary use of fmt.Sprintf (gosimple)" until we upgrade to geth 1.9.20 and have the lint fixes that also were applied in go-ethereum, as it was creating many necessary changes in geth codebase
+  exclude:
+    - S1039
+  # End Quorum
   exclude-rules:
     - path: crypto/blake2b/
       linters:

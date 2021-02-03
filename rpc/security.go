@@ -21,7 +21,7 @@ const (
 	CtxCredentialsProvider = securityContextKey("CREDENTIALS_PROVIDER") // key to save reference to rpc.HttpCredentialsProviderFunc
 	// keys used to save values in request context
 	ctxAuthenticationError   = securityContextKey("AUTHENTICATION_ERROR")   // key to save error during authentication before processing the request body
-	ctxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
+	CtxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
 )
 
 type securityContextConfigurer interface {
@@ -89,7 +89,7 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) error {
 	if err, hasError := secCtx.Value(ctxAuthenticationError).(error); hasError {
 		return err
 	}
-	if authToken, isPreauthenticated := secCtx.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken); isPreauthenticated {
+	if authToken, isPreauthenticated := secCtx.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken); isPreauthenticated {
 		if err := verifyExpiration(authToken); err != nil {
 			return err
 		}

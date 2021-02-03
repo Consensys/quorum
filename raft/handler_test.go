@@ -13,7 +13,6 @@ import (
 	"unsafe"
 
 	etcdRaft "github.com/coreos/etcd/raft"
-
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/core"

@@ -21,7 +21,7 @@ func generateUuid(contractAddress common.Address, privateFrom string, privateFor
 		return "", err
 	}
 
-	hash, err := ptm.Send(payloadHash, privateFrom, privateFor, &engine.ExtraMetadata{})
+	_, _, hash, err := ptm.Send(payloadHash, privateFrom, privateFor, &engine.ExtraMetadata{})
 	if err != nil {
 		return "", err
 	}

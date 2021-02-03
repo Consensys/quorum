@@ -110,7 +110,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'status',
 			call: 'clique_status',
-			params: 0
+			params: 2,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 	],
 	properties: [
@@ -1055,6 +1056,19 @@ web3._extend({
 			call: 'istanbul_getSignersFromBlockByHash',
 			params: 1
 		}),
+		new web3._extend.Method({
+			name: 'status',
+			call: 'istanbul_status',
+			params: 2,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'isValidator',
+			call: 'istanbul_isValidator',
+			params: 1,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+
 	],
 	properties:
 	[

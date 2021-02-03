@@ -17,9 +17,12 @@
 package runtime
 
 import (
+	"context"
 	"math/big"
 	"strings"
 	"testing"
+
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -240,6 +243,10 @@ func (d *dummyChain) GetHeader(h common.Hash, n uint64) *types.Header {
 	//parentHash := common.Hash{byte(n - 1)}
 	//fmt.Printf("GetHeader(%x, %d) => header with parent %x\n", h, n, parentHash)
 	return fakeHeader(n, parentHash)
+}
+
+func (d *dummyChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, false
 }
 
 // TestBlockhash tests the blockhash operation. It's a bit special, since it internally

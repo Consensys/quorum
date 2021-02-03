@@ -115,10 +115,10 @@ type (
 		account            *common.Address
 		prevcode, prevhash []byte
 	}
-	// Quorum - Privacy Enhancements - changes to privacy metadata
-	privacyMetadataChange struct {
+	// Quorum - changes to AccountExtraData
+	accountExtraDataChange struct {
 		account *common.Address
-		prev    *PrivacyMetadata
+		prev    *AccountExtraData
 	}
 	// Changes to other state values.
 	refundChange struct {
@@ -197,12 +197,12 @@ func (ch codeChange) dirtied() *common.Address {
 	return ch.account
 }
 
-// Quorum - Privacy Enhancements
-func (ch privacyMetadataChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setStatePrivacyMetadata(ch.prev)
+// Quorum
+func (ch accountExtraDataChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setAccountExtraData(ch.prev)
 }
 
-func (ch privacyMetadataChange) dirtied() *common.Address {
+func (ch accountExtraDataChange) dirtied() *common.Address {
 	return ch.account
 }
 
