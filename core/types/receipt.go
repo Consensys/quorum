@@ -399,12 +399,20 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 		}
 
 		//this is a private tx
+		// add the PSI version of the receipt to all the relevant PSI arrays
 		for psi, privateReceipt := range receipt.MTVersions {
 			//does it exist
 			if _, ok := allReceipts[psi]; !ok {
 				allReceipts[psi] = append(make([]*Receipt, 0), allPublic...)
 			}
 			allReceipts[psi] = append(allReceipts[psi], privateReceipt)
+		}
+		// add the empty receipt to all the currently tracked PSIs
+		emptyReceipt := receipt.MTVersions["empty"]
+		for psi := range allReceipts {
+			if len(allReceipts[psi]) < i+1 {
+				allReceipts[psi] = append(allReceipts[psi], emptyReceipt)
+			}
 		}
 
 		allPublic = append(allPublic, receipt)
