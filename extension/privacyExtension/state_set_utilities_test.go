@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,7 +91,7 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 	storage, _ := statedb.GetStorageRoot(address)
 
 	// we don't save PrivacyMetadata if it's standardprivate
-	privacyMetaData, err := statedb.ReadPrivacyMetadata(address)
+	privacyMetaData, err := statedb.GetManagedParties(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 	assert.Nil(t, privacyMetaData)
 
@@ -145,7 +145,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 
 	// call setPrivacyMetaData
 	arbitraryBytes1 := []byte{10}
-	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
+	hash = common.BytesToEncryptedPayloadHash(arbitraryBytes1)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
 	// we don't save PrivacyMetadata if it's standardprivate
@@ -179,9 +179,9 @@ func Test_setState_WithManagedParties(t *testing.T) {
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	presetManagedParties := []string{"mp1", "mp2"}
-	statedb.WriteManagedParties(address, presetManagedParties)
+	statedb.SetManagedParties(address, presetManagedParties)
 
-	mp, err := statedb.ReadManagedParties(address)
+	mp, err := statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.EqualValues(t, presetManagedParties, mp)
 
@@ -191,7 +191,7 @@ func Test_setState_WithManagedParties(t *testing.T) {
 	success := setState(statedb, accounts, &state.PrivacyMetadata{}, extraManagedParties)
 	assert.True(t, success)
 
-	mp, err = statedb.ReadManagedParties(address)
+	mp, err = statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.EqualValues(t, []string{"mp1", "mp2", "mp3"}, mp)
 }
@@ -231,9 +231,9 @@ func Test_setManagedParties(t *testing.T) {
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	presetManagedParties := []string{"mp1", "mp2"}
-	statedb.WriteManagedParties(address, presetManagedParties)
+	statedb.SetManagedParties(address, presetManagedParties)
 
-	mp, err := statedb.ReadManagedParties(address)
+	mp, err := statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.EqualValues(t, presetManagedParties, mp)
 
@@ -245,7 +245,7 @@ func Test_setManagedParties(t *testing.T) {
 	ptmHash := common.EncryptedPayloadHash{86}.ToBase64()
 	setManagedParties(mpm, statedb, address, ptmHash)
 
-	mp, err = statedb.ReadManagedParties(address)
+	mp, err = statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.Len(t, mp, 3)
 	assert.Contains(t, mp, "mp1")
@@ -258,9 +258,9 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	presetManagedParties := []string{"mp1", "mp2"}
-	statedb.WriteManagedParties(address, presetManagedParties)
+	statedb.SetManagedParties(address, presetManagedParties)
 
-	mp, err := statedb.ReadManagedParties(address)
+	mp, err := statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.EqualValues(t, presetManagedParties, mp)
 
@@ -272,7 +272,7 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 	ptmHash := common.EncryptedPayloadHash{86}.Hex() //should be base64, so hex will fail
 	setManagedParties(mpm, statedb, address, ptmHash)
 
-	mp, err = statedb.ReadManagedParties(address)
+	mp, err = statedb.GetManagedParties(address)
 	assert.Nil(t, err)
 	assert.EqualValues(t, presetManagedParties, mp)
 }

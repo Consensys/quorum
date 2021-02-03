@@ -27,10 +27,8 @@ import (
 )
 
 var (
-	privateRootPrefix           = []byte("P")
 	mtPrivateRootPrefix         = []byte("MTP")
 	privateBloomPrefix          = []byte("Pb")
-	mtPrivateBloomPrefix        = []byte("MTPb")
 	quorumEIP155ActivatedPrefix = []byte("quorum155active")
 	// Quorum
 	// we introduce a generic approach to store extra data for an account. PrivacyMetadata is wrapped.

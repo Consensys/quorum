@@ -853,6 +853,9 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 		return nil, vm.Context{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	if err != nil {
+		return nil, vm.Context{}, nil, nil, err
+	}
 	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	privateStateDb, err := mtService.GetPrivateState(psm.ID)
 	if err != nil {

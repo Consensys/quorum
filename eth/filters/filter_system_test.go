@@ -311,7 +311,7 @@ func TestLogFilterCreation(t *testing.T) {
 	)
 
 	for i, test := range testCases {
-		_, err := api.NewFilter(test.crit)
+		_, err := api.NewFilter(context.Background(), test.crit)
 		if test.success && err != nil {
 			t.Errorf("expected filter creation for case %d to success, got %v", i, err)
 		}
@@ -341,7 +341,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	}
 
 	for i, test := range testCases {
-		if _, err := api.NewFilter(test); err == nil {
+		if _, err := api.NewFilter(context.Background(), test); err == nil {
 			t.Errorf("Expected NewFilter for case #%d to fail", i)
 		}
 	}
@@ -434,7 +434,7 @@ func TestLogFilter(t *testing.T) {
 
 	// create all filters
 	for i := range testCases {
-		testCases[i].id, _ = api.NewFilter(testCases[i].crit)
+		testCases[i].id, _ = api.NewFilter(context.Background(), testCases[i].crit)
 	}
 
 	// raise events

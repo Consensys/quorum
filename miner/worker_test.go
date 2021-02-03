@@ -238,8 +238,8 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	w.start()
 
 	for i := 0; i < 5; i++ {
-		b.txPool.AddLocal(b.newRandomTx(true))
-		b.txPool.AddLocal(b.newRandomTx(false))
+		b.txPool.AddLocal(b.newRandomTx(true, false))
+		b.txPool.AddLocal(b.newRandomTx(false, false))
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 
@@ -606,9 +606,8 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 
 	b.txPool.AddLocal(tx)
 
-	select {
-	case <-newBlock:
-	}
+	<-newBlock
+
 	select {
 	case logs := <-logsChan:
 		assert.Len(t, logs, 3)

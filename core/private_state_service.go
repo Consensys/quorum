@@ -47,7 +47,7 @@ func (mt *PrivateStateService) GetManagedStateRoots() []string {
 	myMap := mt.managedStates
 	keys := make([]string, 0, len(myMap))
 
-	for k, _ := range myMap {
+	for k := range myMap {
 		keys = append(keys, k)
 	}
 	return keys

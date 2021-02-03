@@ -312,8 +312,8 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	if stateObject != nil {
 		return stateObject.Nonce()
 	}
-	if self.emptyStateDB != nil {
-		return self.emptyStateDB.GetNonce(addr)
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.GetNonce(addr)
 	}
 
 	return 0

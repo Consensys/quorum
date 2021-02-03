@@ -131,6 +131,11 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 				data := common.BytesToEncryptedPayloadHash(tx.Data())
 				_, managedParties, _, _, err := service.ptm.Receive(data)
+				if err != nil {
+					log.Error("Error receiving private payload", "error", err)
+					service.mu.Unlock()
+					continue
+				}
 
 				service.psiContracts["private"][foundLog.Address] = &newContractExtension
 				for _, mp := range managedParties {

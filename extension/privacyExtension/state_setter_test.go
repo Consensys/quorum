@@ -2,11 +2,12 @@ package privacyExtension
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestExtensionHandler_CheckExtensionAndSetPrivateState_NoLogs(t *testing.T) {
@@ -24,12 +25,12 @@ func TestExtensionHandler_CheckExtensionAndSetPrivateState_NoLogs(t *testing.T) 
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
-	beforeManagedParties, _ := dbBefore.ReadManagedParties(address)
-	afterManagedParties, _ := statedb.ReadManagedParties(address)
+	beforeManagedParties, _ := dbBefore.GetManagedParties(address)
+	afterManagedParties, _ := statedb.GetManagedParties(address)
 	assert.Equal(t, beforeManagedParties, afterManagedParties)
 
-	beforePrivacyMetadata, _ := dbBefore.ReadPrivacyMetadata(address)
-	afterPrivacyMetadata, _ := statedb.ReadPrivacyMetadata(address)
+	beforePrivacyMetadata, _ := dbBefore.GetPrivacyMetadata(address)
+	afterPrivacyMetadata, _ := statedb.GetPrivacyMetadata(address)
 	assert.Equal(t, beforePrivacyMetadata, afterPrivacyMetadata)
 }
 
@@ -62,12 +63,12 @@ func TestExtensionHandler_CheckExtensionAndSetPrivateState_LogsAreNotExtensionLo
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
-	beforeManagedParties, _ := dbBefore.ReadManagedParties(address)
-	afterManagedParties, _ := statedb.ReadManagedParties(address)
+	beforeManagedParties, _ := dbBefore.GetManagedParties(address)
+	afterManagedParties, _ := statedb.GetManagedParties(address)
 	assert.Equal(t, beforeManagedParties, afterManagedParties)
 
-	beforePrivacyMetadata, _ := dbBefore.ReadPrivacyMetadata(address)
-	afterPrivacyMetadata, _ := statedb.ReadPrivacyMetadata(address)
+	beforePrivacyMetadata, _ := dbBefore.GetPrivacyMetadata(address)
+	afterPrivacyMetadata, _ := statedb.GetPrivacyMetadata(address)
 	assert.Equal(t, beforePrivacyMetadata, afterPrivacyMetadata)
 }
 
@@ -88,7 +89,7 @@ func TestExtensionHandler_UuidIsOwn_IsSenderIsFalse(t *testing.T) {
 	}
 	handler := NewExtensionHandler(ptm)
 
-	uuid := "0xabcd"
+	const uuid = "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	isOwn := handler.UuidIsOwn(address, uuid, "private")

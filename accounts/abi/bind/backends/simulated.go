@@ -169,7 +169,7 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetCode(contract), nil
 }
 
@@ -182,7 +182,7 @@ func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetBalance(contract), nil
 }
 
@@ -195,7 +195,7 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 	if err != nil {
 		return 0, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetNonce(contract), nil
 }
 
@@ -208,7 +208,7 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	val := statedb.GetState(contract, key)
 	return val[:], nil
 }

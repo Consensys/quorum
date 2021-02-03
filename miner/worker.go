@@ -779,18 +779,69 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
+func (w *worker) revertToPrivateStateSnapshots(snapshots map[string]int) {
+	for psi, snapshot := range snapshots {
+		mtPrivateState, err := w.current.mtService.GetPrivateState(psi)
+		if err == nil {
+			mtPrivateState.RevertToSnapshot(snapshot)
+		}
+	}
+}
+
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
+	txnStart := time.Now()
+
+	MTVersions := make(map[string]*types.Receipt)
+	privateLogs := make([]*types.Log, 0)
+	privateStateSnaphots := make(map[string]int)
+
+	if tx.IsPrivate() {
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		// it may happen that two of the managed parties belong to the same private state
+		var appliedOnPrivateState = make(map[string]string)
+		for _, managedParty := range managedParties {
+			psm, _ := core.PSIS.ResolveForManagedParty(managedParty)
+			// if we already handled this private state skip it
+			if _, found := appliedOnPrivateState[psm.ID]; found {
+				continue
+			}
+			mtPrivateState, err := w.current.mtService.GetPrivateState(psm.ID)
+			if err != nil {
+				w.revertToPrivateStateSnapshots(privateStateSnaphots)
+				return nil, err
+			}
+			privateStateSnaphots[psm.ID] = mtPrivateState.Snapshot()
+			mtPrivateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+			publicStateDBCopy := w.current.state.Copy()
+			publicStateDBCopy.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+			// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
+			_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), false)
+			if err != nil {
+				w.revertToPrivateStateSnapshots(privateStateSnaphots)
+				return nil, err
+			}
+			// set the PSI for each log (so that the filter system knows for what private state they are)
+			for _, log := range mtPrivateReceipt.Logs {
+				log.PSI = psm.ID
+			}
+			MTVersions[psm.ID] = mtPrivateReceipt
+
+			privateLogs = append(privateLogs, mtPrivateReceipt.Logs...)
+
+			w.chain.CheckAndSetPrivateState(mtPrivateReceipt.Logs, mtPrivateState, psm.ID)
+
+			appliedOnPrivateState[psm.ID] = "applied"
+		}
+	}
+
 	privateState, _ := w.current.mtService.GetEmptyState()
 	privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-	privateSnap := privateState.Snapshot()
-
-	txnStart := time.Now()
-	mtPublicStateDb := w.current.state.Copy()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), true)
+	privateStateSnaphots[core.EmptyPrivateStateMetadata.ID] = privateState.Snapshot()
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), true)
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
-		privateState.RevertToSnapshot(privateSnap)
+		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
 	w.current.txs = append(w.current.txs, tx)
@@ -798,37 +849,13 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	log.EmitCheckpoint(log.TxCompleted, "tx", tx.Hash().Hex(), "time", time.Since(txnStart))
 
 	allLogs := receipt.Logs
-	if privateReceipt != nil {
-		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
-		if len(managedParties) > 0 {
-			privateReceipt.MTVersions = make(map[string]*types.Receipt)
-		}
-		if w.current.mtService != nil {
-			for _, managedParty := range managedParties {
-				psm, _ := core.PSIS.ResolveForManagedParty(managedParty)
-				mtPrivateState, err := w.current.mtService.GetPrivateState(psm.ID)
-				if err != nil {
-					return nil, err
-				}
-				mtPrivateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-				publicStateDBCopy := mtPublicStateDb.Copy()
-				publicStateDBCopy.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-				// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-				_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), false)
-				if err != nil {
-					return nil, err
-				}
-				// set the PSI for each log (so that the filter system knows for what private state they are)
-				for _, log := range mtPrivateReceipt.Logs {
-					log.PSI = psm.ID
-				}
-				privateReceipt.MTVersions[psm.ID] = mtPrivateReceipt
-				allLogs = append(allLogs, mtPrivateReceipt.Logs...)
-				w.chain.CheckAndSetPrivateState(allLogs, privateState, psm.ID)
-			}
-		}
 
+	if privateReceipt != nil {
+		if len(MTVersions) > 0 {
+			privateReceipt.MTVersions = MTVersions
+		}
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
+		allLogs = append(allLogs, privateLogs...)
 	}
 	return allLogs, nil
 }

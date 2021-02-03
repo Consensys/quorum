@@ -661,15 +661,16 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 	}
 	parentHeader := api.blockchain.GetHeaderByHash(header.ParentHash)
 	var root common.Hash
-	var statedb, pvtst *state.StateDB
+	var statedb *state.StateDB
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, pvtst, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, _, err = api.blockchain.StateAtPSI(root, "private")
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
 	} else {
+		var pvtst *state.StateDB
 		root = parentHeader.Root
 		statedb, pvtst, err = api.blockchain.StateAtPSI(root, "private")
 		if err != nil {
@@ -771,15 +772,16 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 	}
 	parentHeader := api.blockchain.GetHeaderByHash(header.ParentHash)
 	var root common.Hash
-	var statedb, pvtstdb *state.StateDB
+	var statedb *state.StateDB
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, pvtstdb, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, _, err = api.blockchain.StateAtPSI(root, "private")
 		if err != nil {
 			return StorageRangeResult{}, err
 		}
 	} else {
+		var pvtstdb *state.StateDB
 		root = parentHeader.Root
 		statedb, pvtstdb, err = api.blockchain.StateAtPSI(root, "private")
 		if err != nil {
