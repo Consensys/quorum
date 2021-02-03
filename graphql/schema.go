@@ -119,6 +119,9 @@ const schema string = `
 		isPrivate: Boolean
 		# PrivateInputData is the actual payload of Quorum private transaction
 		privateInputData: Bytes
+        r: BigInt!
+        s: BigInt!
+        v: BigInt!
     }
 
     # BlockFilterCriteria encapsulates log filter criteria for a filter applied

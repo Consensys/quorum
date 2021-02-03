@@ -128,12 +128,12 @@ func (e wsHandshakeError) Error() string {
 	return s
 }
 
-// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
-// that is listening on the given endpoint.
+// DialWebsocketWithDialer creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint using the provided dialer.
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+func DialWebsocketWithDialer(ctx context.Context, endpoint, origin string, dialer websocket.Dialer) (*Client, error) {
 	return DialWebsocketWithCustomTLS(ctx, endpoint, origin, nil)
 }
 
@@ -146,18 +146,20 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
 func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tlsConfig *tls.Config) (*Client, error) {
-	endpoint, header, err := wsClientHeaders(endpoint, origin)
-	if err != nil {
-		return nil, err
-	}
 	dialer := websocket.Dialer{
 		ReadBufferSize:  wsReadBuffer,
 		WriteBufferSize: wsWriteBuffer,
 		WriteBufferPool: wsBufferPool,
 	}
+
+	endpoint, header, err := wsClientHeaders(endpoint, origin)
+	if err != nil {
+		return nil, err
+	}
 	if tlsConfig != nil {
 		dialer.TLSClientConfig = tlsConfig
 	}
+
 	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
 		if hasCredProviderFunc {
@@ -178,6 +180,20 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tl
 		}
 		return newWebsocketCodec(conn), nil
 	})
+}
+
+// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint.
+//
+// The context is used for the initial connection establishment. It does not
+// affect subsequent interactions with the client.
+func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+	dialer := websocket.Dialer{
+		ReadBufferSize:  wsReadBuffer,
+		WriteBufferSize: wsWriteBuffer,
+		WriteBufferPool: wsBufferPool,
+	}
+	return DialWebsocketWithDialer(ctx, endpoint, origin, dialer)
 }
 
 func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {

@@ -6,6 +6,8 @@ run:
   # default is true. Enables skipping of directories:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   skip-dirs-use-default: true
+  skip-files:
+    - core/genesis_alloc.go
 
 linters:
   disable-all: true
@@ -30,6 +32,10 @@ linters-settings:
     min-occurrences: 6 # minimum number of occurrences
 
 issues:
+  # Quorum - Disabling check for "S1039: unnecessary use of fmt.Sprintf (gosimple)" until we upgrade to geth 1.9.20 and have the lint fixes that also were applied in go-ethereum, as it was creating many necessary changes in geth codebase
+  exclude:
+    - S1039
+  # End Quorum
   exclude-rules:
     - path: crypto/blake2b/
       linters:
@@ -43,3 +49,6 @@ issues:
     - path: core/vm/instructions_test.go
       linters:
         - goconst
+    - path: cmd/faucet/
+      linters:
+        - deadcode

@@ -26,9 +26,30 @@ import (
 	"github.com/ethereum/go-ethereum/plugin/security"
 )
 
+// checkModuleAvailability check that all names given in modules are actually
+// available API services.
+func checkModuleAvailability(modules []string, apis []API) (bad, available []string) {
+	availableSet := make(map[string]struct{})
+	for _, api := range apis {
+		if _, ok := availableSet[api.Namespace]; !ok {
+			availableSet[api.Namespace] = struct{}{}
+			available = append(available, api.Namespace)
+		}
+	}
+	for _, name := range modules {
+		if _, ok := availableSet[name]; !ok {
+			bad = append(bad, name)
+		}
+	}
+	return bad, available
+}
+
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
 // Quorum: tlsConfigSource and authManager are introduced to secure the HTTP endpoint
 func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts, tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager) (net.Listener, *Server, bool, error) {
+	if bad, available := checkModuleAvailability(modules, apis); len(bad) > 0 {
+		log.Error("Unavailable modules in HTTP API list", "unavailable", bad, "available", available)
+	}
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
@@ -88,7 +109,9 @@ func startListener(endpoint string, tlsConfigSource security.TLSConfigurationSou
 // StartWSEndpoint starts a websocket endpoint
 // Quorum: tlsConfigSource and authManager are introduced to secure the WS endpoint
 func StartWSEndpoint(endpoint string, apis []API, modules []string, wsOrigins []string, exposeAll bool, tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager) (net.Listener, *Server, bool, error) {
-
+	if bad, available := checkModuleAvailability(modules, apis); len(bad) > 0 {
+		log.Error("Unavailable modules in WS API list", "unavailable", bad, "available", available)
+	}
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {

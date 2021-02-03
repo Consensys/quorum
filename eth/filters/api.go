@@ -66,9 +66,8 @@ type PublicFilterAPI struct {
 func NewPublicFilterAPI(backend Backend, lightMode bool) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
-		mux:     backend.EventMux(),
 		chainDb: backend.ChainDb(),
-		events:  NewEventSystem(backend.EventMux(), backend, lightMode),
+		events:  NewEventSystem(backend, lightMode),
 		filters: make(map[rpc.ID]*filter),
 	}
 	go api.timeoutLoop()
@@ -437,7 +436,7 @@ func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (in
 			hashes := f.hashes
 			f.hashes = nil
 			return returnHashes(hashes), nil
-		case LogsSubscription:
+		case LogsSubscription, MinedAndPendingLogsSubscription:
 			logs := f.logs
 			f.logs = nil
 			authLogs, err := api.filterUnAuthorized(ctx, logs)
