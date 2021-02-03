@@ -9,7 +9,7 @@ import (
 func TestPrivacyFlag_whenTypical(t *testing.T) {
 	assert := assert.New(t)
 
-	flag := PrivacyFlagType(PrivacyFlagPartyProtection | PrivacyFlagStateValidation)
+	flag := PrivacyFlagPartyProtection | PrivacyFlagStateValidation
 
 	assert.True(flag.Has(PrivacyFlagStateValidation))
 }

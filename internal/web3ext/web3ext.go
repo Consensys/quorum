@@ -79,7 +79,7 @@ web3._extend({
 			name: 'getSnapshot',
 			call: 'clique_getSnapshot',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.utils.fromDecimal]
 		}),
 		new web3._extend.Method({
 			name: 'getSnapshotAtHash',
@@ -90,7 +90,7 @@ web3._extend({
 			name: 'getSigners',
 			call: 'clique_getSigners',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.utils.fromDecimal]
 		}),
 		new web3._extend.Method({
 			name: 'getSignersAtHash',
@@ -472,6 +472,11 @@ web3._extend({
 			call: 'debug_getModifiedAccountsByHash',
 			params: 2,
 			inputFormatter:[null, null],
+		}),
+		new web3._extend.Method({
+			name: 'freezeClient',
+			call: 'debug_freezeClient',
+			params: 1,
 		}),
 	],
 	properties: []

@@ -48,7 +48,7 @@ type httpConn struct {
 	client    *http.Client
 	req       *http.Request
 	closeOnce sync.Once
-	closed    chan interface{}
+	closeCh   chan interface{}
 
 	// Quorum
 	// To return value being populated in Authorization request header
@@ -56,25 +56,25 @@ type httpConn struct {
 }
 
 // httpConn is treated specially by Client.
-func (hc *httpConn) Write(context.Context, interface{}) error {
-	panic("Write called on httpConn")
+func (hc *httpConn) writeJSON(context.Context, interface{}) error {
+	panic("writeJSON called on httpConn")
 }
 
-func (hc *httpConn) RemoteAddr() string {
+func (hc *httpConn) remoteAddr() string {
 	return hc.req.URL.String()
 }
 
-func (hc *httpConn) Read() ([]*jsonrpcMessage, bool, error) {
-	<-hc.closed
+func (hc *httpConn) readBatch() ([]*jsonrpcMessage, bool, error) {
+	<-hc.closeCh
 	return nil, false, io.EOF
 }
 
-func (hc *httpConn) Close() {
-	hc.closeOnce.Do(func() { close(hc.closed) })
+func (hc *httpConn) close() {
+	hc.closeOnce.Do(func() { close(hc.closeCh) })
 }
 
-func (hc *httpConn) Closed() <-chan interface{} {
-	return hc.closed
+func (hc *httpConn) closed() <-chan interface{} {
+	return hc.closeCh
 }
 
 func (hc *httpConn) Configure(_ securityContext) {
@@ -130,7 +130,7 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 
 	initctx := context.Background()
 	return newClient(initctx, func(context.Context) (ServerCodec, error) {
-		return &httpConn{client: client, req: req, closed: make(chan interface{})}, nil
+		return &httpConn{client: client, req: req, closeCh: make(chan interface{})}, nil
 	})
 }
 
@@ -219,7 +219,7 @@ type httpServerConn struct {
 func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 	body := io.LimitReader(r.Body, maxRequestContentLength)
 	conn := &httpServerConn{Reader: body, Writer: w, r: r}
-	return NewJSONCodec(conn)
+	return NewCodec(conn)
 }
 
 // Close does nothing and always returns nil.
@@ -293,7 +293,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("content-type", contentType)
 	codec := newHTTPServerConn(r, w)
-	defer codec.Close()
+	defer codec.close()
 	s.authenticateHttpRequest(r, codec)
 	s.serveSingleRequest(ctx, codec)
 }
