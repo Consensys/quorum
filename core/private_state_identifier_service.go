@@ -20,6 +20,24 @@ type PrivateStateMetadata struct {
 	Addresses   []string
 }
 
+func (self *PrivateStateMetadata) HasAddress(address string) bool {
+	for _, addr := range self.Addresses {
+		if addr == address {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *PrivateStateMetadata) HasAnyAddress(addresses []string) bool {
+	for _, addr := range addresses {
+		if self.HasAddress(addr) {
+			return true
+		}
+	}
+	return false
+}
+
 var EmptyPrivateStateMetadata = PrivateStateMetadata{
 	ID:          "empty",
 	Name:        "empty",
