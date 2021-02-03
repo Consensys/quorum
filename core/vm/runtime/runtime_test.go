@@ -18,10 +18,11 @@ package runtime
 
 import (
 	"context"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"math/big"
 	"strings"
 	"testing"
+
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
