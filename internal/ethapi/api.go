@@ -2585,10 +2585,11 @@ func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, arg
 }
 
 // GetQuorumPayload returns the contents of a private transaction
-func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error) {
-	if !private.IsQuorumPrivacyEnabled() {
+func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex string) (string, error) {
+	if private.P == nil {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
+	psm, _ := core.PSIS.ResolveForUserContext(ctx)
 	if len(digestHex) < 3 {
 		return "", fmt.Errorf("Invalid digest hex")
 	}
@@ -2602,9 +2603,12 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	_, _, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	_, managedParties, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
+	}
+	if !psm.HasAnyAddress(managedParties) {
+		return "0x", nil
 	}
 	return fmt.Sprintf("0x%x", data), nil
 }
