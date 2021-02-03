@@ -17,6 +17,8 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -102,19 +104,40 @@ func (c *core) handleEvents() {
 					err = c.handleQBFTMsg(ev.Code, ev.Payload)
 				} else {
 					err = c.handleMsg(ev.Payload)
+					if err != nil {
+						err = c.handleQBFTMsg(commitMsgCode, ev.Payload)
+					}
 				}
 				if err == nil {
 					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
 			case backlogEvent:
 				// No need to check signature for internal messages
-				if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
-					p, err := ev.msg.Payload()
-					if err != nil {
-						c.logger.Warn("Get message payload failed", "err", err)
-						continue
+				switch ev.msg.(type) {
+				case *message:
+					msg := ev.msg.(*message)
+					if err := c.handleCheckedMsg(msg, ev.src); err == nil {
+						p, err := msg.Payload()
+						if err != nil {
+							c.logger.Warn("Get message payload failed", "err", err)
+							continue
+						}
+						c.backend.Gossip(c.valSet, msg.Code, p)
+					} else {
+						c.logger.Warn("QBFT: BACKLOG ERROR", "err", err)
 					}
-					c.backend.Gossip(c.valSet, ev.msg.Code, p)
+				case QBFTMessage:
+					m := ev.msg.(QBFTMessage)
+					if err := c.handleDecodedQBFTMsg(m); err == nil {
+						p, err := rlp.EncodeToBytes(m)
+						if err != nil {
+							c.logger.Error("QBFT: Error encoding backlog message", "err", err)
+							continue
+						}
+						c.backend.Gossip(c.valSet, m.Code(), p)
+					} else {
+						c.logger.Warn("QBFT: BACKLOG ERROR", "err", err)
+					}
 				}
 			}
 		case _, ok := <-c.timeoutSub.Chan():
@@ -140,9 +163,32 @@ func (c *core) sendEvent(ev interface{}) {
 }
 
 func (c *core) handleQBFTMsg(code uint64, payload []byte) error {
-	switch code {
+	//logger := c.logger.New()
+
+	log.Warn("handleQBFTMsg", "code", code, "m", payload)
+
+	m, err := DecodeQBFTMessage(code, payload)
+	if err != nil {
+		return err
+	}
+
+	return c.handleDecodedQBFTMsg(m)
+}
+
+func (c *core) handleDecodedQBFTMsg(m QBFTMessage) error {
+	// Store the message if it's a future message
+	testBacklog := func(err error) error {
+		if err == errFutureMessage {
+			c.storeQBFTBacklog(m)
+		}
+		return err
+	}
+
+	switch m.Code() {
 	case commitMsgCode:
-		c.handleCommitMsg(payload)
+		return testBacklog(c.handleCommitMsg(m.(*CommitMsg)))
+	default:
+		panic("QBFT: No matching")
 	}
 	return nil
 }

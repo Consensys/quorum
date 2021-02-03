@@ -17,6 +17,8 @@
 package core
 
 import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math"
 	"math/big"
 	"reflect"
@@ -233,22 +235,15 @@ OUTER:
 		}
 
 		// verify COMMIT messages
-		decodedMsg := new(message)
-		err := decodedMsg.FromPayload(v0.sentMsgs[0], nil)
+		var commit CommitMsg
+		err := rlp.DecodeBytes(v0.sentMsgs[0], &commit)
 		if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
+			t.Error("error decoding commit message", err)
 		}
-
-		if decodedMsg.Code != msgCommit {
-			t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, msgCommit)
-		}
-		var m *Subject
-		err = decodedMsg.Decode(&m)
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
-		}
-		if !reflect.DeepEqual(m.View, expectedSubject.View) || m.Digest.Hex() != expectedSubject.Digest.Hex() {
-			t.Errorf("subject mismatch: have %v, want %v", m, expectedSubject)
+		fmt.Println(commit.View(), expectedSubject.View)
+		fmt.Println(commit.Digest.Hex(), expectedSubject.Digest.Hex())
+		if !reflect.DeepEqual(commit.View(), *expectedSubject.View) || commit.Digest.Hex() != expectedSubject.Digest.Hex() {
+			t.Error("subject mismatch")
 		}
 	}
 }

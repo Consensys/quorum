@@ -159,7 +159,13 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-			go p.Send(istanbulMsg, payload)
+
+			var outboundCode uint64 = istanbulMsg
+			if code == 0x14 {
+				outboundCode = code
+			}
+
+			go p.Send(outboundCode, payload)
 		}
 	}
 	return nil
@@ -184,7 +190,7 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	// update block's header
 	block = block.WithSeal(h)
 
-	sb.logger.Info("Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
+	sb.logger.Info("QBFT: Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
 	// - otherwise, we try to insert the block.

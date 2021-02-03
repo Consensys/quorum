@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 
@@ -12,10 +13,10 @@ import (
 
 // QBFT message codes
 const (
-	preprepareMsgCode  = 0x81
-	prepareMsgCode     = 0x82
-	commitMsgCode      = 0x83
-	roundChangeMsgCode = 0x84
+	preprepareMsgCode  = 0x12
+	prepareMsgCode     = 0x13
+	commitMsgCode      = 0x14
+	roundChangeMsgCode = 0x15
 )
 
 func MessageCodes() map[uint64]struct{} {
@@ -29,8 +30,10 @@ func MessageCodes() map[uint64]struct{} {
 
 // Common interface for QBFT Messages
 type QBFTMessage interface {
-	GetView() *View
+	Code() uint64
 	Source() common.Address
+	View() View
+	SignedPayload() SignedPayload
 }
 
 // The RLP-encoded payload of a message and its respective signature.
@@ -48,20 +51,38 @@ func SignPayload(payload []byte, privateKey *ecdsa.PrivateKey) (*SignedPayload, 
 }
 
 // QBFT Messages
-type CommitMsg struct {
-	View
-	Digest     common.Hash
-	CommitSeal []byte
-	source     common.Address
-	SignedPayload
+type CommonMsg struct {
+	code uint64
+	source common.Address
+	Sequence *big.Int
+	Round *big.Int
+	EncodedPayload []byte
+	Signature []byte
 }
 
-func (m *CommitMsg) Source() common.Address {
+func (m *CommonMsg) Code() uint64 {
+	return m.code
+}
+
+func (m *CommonMsg) Source() common.Address {
 	return m.source
 }
 
-func (m *CommitMsg) GetView() *View {
-	return &m.View
+func (m *CommonMsg) View() View {
+	return View{Sequence: m.Sequence, Round: m.Round}
+}
+
+func (m *CommonMsg) SignedPayload() SignedPayload {
+	return SignedPayload{EncodedPayload: m.EncodedPayload, Signature: m.Signature}
+}
+
+type CommitMsg struct {
+	CommonMsg
+	//View
+	Digest     common.Hash
+	CommitSeal []byte
+//	source     common.Address
+//	SignedPayload
 }
 
 func (m *CommitMsg) EncodedPayload() ([]byte, error) {
@@ -87,26 +108,42 @@ func (m *CommitMsg) decodePayload(stream *rlp.Stream) error {
 
 func (m *CommitMsg) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
-		[]interface{}{m.Sequence, m.Round, m.Digest},
-		m.Signature})
+			[]interface{}{m.Sequence, m.Round, m.Digest, m.CommitSeal},
+			m.Signature})
 }
 
 func (m *CommitMsg) DecodeRLP(stream *rlp.Stream) error {
-	var err error
-
-	if _, err = stream.List(); err != nil {
+	var message struct {
+		Payload struct {
+			Sequence   *big.Int
+			Round      *big.Int
+			Digest     common.Hash
+			CommitSeal []byte
+		}
+		Signature []byte
+	}
+	if err := stream.Decode(&message); err != nil {
 		return err
 	}
-
-	m.decodePayload(stream)
-
-	if m.Signature, err = stream.Bytes(); err != nil {
-		return err
-	}
-
-	if err = stream.ListEnd(); err != nil {
-		return err
-	}
-
+	m.Sequence = message.Payload.Sequence
+	m.Round = message.Payload.Round
+	m.Digest = message.Payload.Digest
+	m.CommitSeal = message.Payload.CommitSeal
+	m.Signature = message.Signature
 	return nil
+}
+
+// RLP
+func DecodeQBFTMessage(code uint64, data []byte) (QBFTMessage, error){
+	switch code {
+	case commitMsgCode:
+		var commit CommitMsg
+		if err := rlp.DecodeBytes(data, &commit); err != nil {
+			log.Error("QBFT: Error decoding message", "code", code)
+			return nil, errFailedDecodeCommit
+		}
+		commit.code = commitMsgCode
+		return &commit, nil
+	}
+	return nil, errInvalidMessage
 }

@@ -63,12 +63,8 @@ func (ms *qbftMsgSet) View() *View {
 func (ms *qbftMsgSet) Add(msg QBFTMessage) error {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
-
-	if err := ms.verify(msg); err != nil {
-		return err
-	}
-
-	return ms.addVerifiedMessage(msg)
+	ms.messages[msg.Source()] = msg
+	return nil
 }
 
 func (ms *qbftMsgSet) Values() (result []QBFTMessage) {
@@ -95,22 +91,6 @@ func (ms *qbftMsgSet) Get(addr common.Address) QBFTMessage {
 }
 
 // ----------------------------------------------------------------------------
-
-func (ms *qbftMsgSet) verify(msg QBFTMessage) error {
-	// verify if the message comes from one of the validators
-	if _, v := ms.valSet.GetByAddress(msg.Source()); v == nil {
-		return istanbul.ErrUnauthorizedAddress
-	}
-
-	// TODO: check view number and sequence number
-
-	return nil
-}
-
-func (ms *qbftMsgSet) addVerifiedMessage(msg QBFTMessage) error {
-	ms.messages[msg.Source()] = msg
-	return nil
-}
 
 func (ms *qbftMsgSet) String() string {
 	ms.messagesMu.Lock()

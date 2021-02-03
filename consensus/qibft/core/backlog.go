@@ -88,6 +88,30 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 	return nil
 }
 
+func (c *core) storeQBFTBacklog(msg QBFTMessage) {
+	src := msg.Source()
+	logger := c.logger.New("from", src, "state", c.state)
+
+	if src == c.Address() {
+		logger.Warn("Backlog from self")
+		return
+	}
+
+	logger.Trace("Store future message")
+
+	c.backlogsMu.Lock()
+	defer c.backlogsMu.Unlock()
+
+	logger.Debug("Retrieving backlog queue", "for", src, "backlogs_size", len(c.backlogs))
+	backlog := c.backlogs[src]
+	if backlog == nil {
+		backlog = prque.New()
+	}
+	view := msg.View()
+	backlog.Push(msg, toPriority(msg.Code(), &view))
+	c.backlogs[src] = backlog
+}
+
 func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -152,51 +176,62 @@ func (c *core) processBacklog() {
 		//   2. The first message in queue is a future message
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
-			msg := m.(*message)
-			var view *View
-			switch msg.Code {
-			case msgPreprepare:
-				var m *Preprepare
-				err := msg.Decode(&m)
-				if err == nil {
-					view = m.View
+
+			var code uint64
+			var view View
+			var event backlogEvent
+
+			switch m.(type) {
+			// New QBFTMessage processing
+			case QBFTMessage:
+				msg := m.(QBFTMessage)
+				code = msg.Code()
+				view = msg.View()
+				event.msg = msg
+			// old message processing
+			case *message:
+				msg := m.(*message)
+				code = msg.Code
+				switch code {
+				case msgPreprepare:
+					var m *Preprepare
+					err := msg.Decode(&m)
+					if err == nil {
+						view = *m.View
+					}
+				case msgRoundChange:
+					var rc *RoundChangeMessage
+					err := msg.Decode(&rc)
+					if err == nil {
+						view = *rc.View
+					}
+					// for msgPrepare and msgCommit cases
+				default:
+					var sub *Subject
+					err := msg.Decode(&sub)
+					if err == nil {
+						view = *sub.View
+					}
 				}
-			case msgRoundChange:
-				var rc *RoundChangeMessage
-				err := msg.Decode(&rc)
-				if err == nil {
-					view = rc.View
-				}
-				// for msgPrepare and msgCommit cases
-			default:
-				var sub *Subject
-				err := msg.Decode(&sub)
-				if err == nil {
-					view = sub.View
-				}
+				event.msg = msg
 			}
-			if view == nil {
-				logger.Debug("Nil view", "msg", msg)
-				continue
-			}
+
 			// Push back if it's a future message
-			err := c.checkMessage(msg.Code, view)
+			err := c.checkMessage(code, &view)
 			if err != nil {
 				if err == errFutureMessage {
-					logger.Trace("Stop processing backlog", "msg", msg)
-					backlog.Push(msg, prio)
+					logger.Trace("Stop processing backlog", "msg", m)
+					backlog.Push(m, prio)
 					isFuture = true
 					break
 				}
-				logger.Trace("Skip the backlog event", "msg", msg, "err", err)
+				logger.Trace("Skip the backlog event", "msg", m, "err", err)
 				continue
 			}
-			logger.Trace("Post backlog event", "msg", msg)
+			logger.Trace("Post backlog event", "msg", m)
 
-			go c.sendEvent(backlogEvent{
-				src: src,
-				msg: msg,
-			})
+			event.src = src
+			go c.sendEvent(event)
 		}
 	}
 }

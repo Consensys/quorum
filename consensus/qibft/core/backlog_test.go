@@ -406,8 +406,9 @@ func testProcessBacklog(t *testing.T, msg *message, vset istanbul.ValidatorSet) 
 		if !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
-		if e.msg.Code != msg.Code {
-			t.Errorf("message code mismatch: have %v, want %v", e.msg.Code, msg.Code)
+		code := e.msg.(*message).Code
+		if code != msg.Code {
+			t.Errorf("message code mismatch: have %v, want %v", code, msg.Code)
 		}
 		// success
 	case <-timeout.C:

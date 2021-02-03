@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -31,6 +32,8 @@ func (c *core) sendPrepare() {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
+
+	logger.Info("QBFT: sendPrepare", "m", sub)
 	c.broadcast(&message{
 		Code: msgPrepare,
 		Msg:  encodedSubject,
@@ -44,6 +47,8 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 	if err != nil {
 		return errFailedDecodePrepare
 	}
+
+	log.Info("QBFT: handlePrepare", "m", prepare)
 
 	if err := c.checkMessage(msgPrepare, prepare.View); err != nil {
 		return err

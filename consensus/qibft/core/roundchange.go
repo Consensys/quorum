@@ -71,6 +71,7 @@ func (c *core) sendRoundChange(round *big.Int) {
 		}
 	}
 
+	logger.Info("QBFT: sendRoundChange", "m", rc)
 	c.broadcast(&message{
 		Code:          msgRoundChange,
 		Msg:           payload,
@@ -88,6 +89,8 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return errFailedDecodeRoundChange
 	}
+
+	logger.Info("QBFT: handleRoundChange", "m", rc)
 
 	// Decode Prepare messages and Prepared block that piggyback Round Change message
 	var piggybackMsgs *PiggybackMessages

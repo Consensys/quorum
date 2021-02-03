@@ -27,7 +27,7 @@ import (
 
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
-	c.broadcastCommit(sub)
+	c.broadcastCommitMsg(sub)
 }
 
 func (c *core) sendCommitForOldBlock(view *View, digest common.Hash) {
@@ -35,7 +35,7 @@ func (c *core) sendCommitForOldBlock(view *View, digest common.Hash) {
 		View:   view,
 		Digest: digest,
 	}
-	c.broadcastCommit(sub)
+	c.broadcastCommitMsg(sub)
 }
 
 func (c *core) broadcastCommit(sub *Subject) {
@@ -46,52 +46,108 @@ func (c *core) broadcastCommit(sub *Subject) {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
+
+	logger.Info("QBFT: sendCommit", "m", sub)
 	c.broadcast(&message{
 		Code: msgCommit,
 		Msg:  encodedSubject,
 	})
 }
 
-func (c *core) handleCommitMsg(message []byte) error {
-	var commit CommitMsg
+func (c *core) broadcastCommitMsg(sub *Subject) {
 	var err error
 
-	// 1. RLP decode
-	if err = rlp.DecodeBytes(message, &commit); err != nil { // TODO: implement the DecodeRLP method
-		return errFailedDecodeCommit
+	logger := c.logger.New("state", c.state)
+
+	commitMsg := &CommitMsg{
+		CommonMsg:  CommonMsg{
+			code:           commitMsgCode,
+			source: c.address,
+			Sequence:       sub.View.Sequence,
+			Round:          sub.View.Round,
+		},
+		Digest:     sub.Digest,
 	}
 
-	// 2. Verify signature
+	// Add Commit Seal
+	seal := PrepareCommittedSeal(sub.Digest)
+	commitMsg.CommitSeal, err = c.backend.Sign(seal)
+	if err != nil {
+		logger.Error("QBFT: Failed to create commit seal", "msg", commitMsg, "err", err)
+		return
+	}
+
+	// Sign Message
+	encodedPayload, err := commitMsg.EncodedPayload()
+	if err != nil {
+		logger.Error("QBFT: Failed to encode payload of commit message", "msg", commitMsg, "err", err)
+		return
+	}
+	commitMsg.Signature, err = c.backend.Sign(encodedPayload)
+	if err != nil {
+		logger.Error("QBFT: Failed to sign commit message", "msg", commitMsg, "err", err)
+		return
+	}
+
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&commitMsg)
+	if err != nil {
+		logger.Error("QBFT: Failed to encode commit message", "msg", commitMsg, "err", err)
+		return
+	}
+
+	logger.Info("QBFT: broadcastCommitMsg", "m", sub, "payload", payload)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, commitMsgCode, payload); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", commitMsg, "err", err)
+		return
+	}
+}
+
+func (c *core) handleCommitMsg(commit *CommitMsg) error {
+	logger := c.logger.New("state", c.state)
+
+	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
+
+	// Verify signature
+	var err error
 	var payload []byte
 	if payload, err = commit.EncodedPayload(); err != nil {
+		logger.Error("QBFT: Error encoding payload", "err", err)
 		return errInvalidMessage
 	}
 
 	var source common.Address
-	if source, err = c.checkValidatorSignature(payload, commit.Signature); err != nil {
+	if source, err = c.validateFn(payload, commit.Signature); err != nil {
+		logger.Error("QBFT: Error checking signature", "err", err)
 		return errInvalidSigner
 	}
 	commit.source = source
 
-	// 3. Check view and state
-	if err := c.checkMessage(msgCommit, &commit.View); err != nil {
+	// Check view and state
+	view := commit.View()
+	if err := c.checkMessage(msgCommit, &view); err != nil {
+		logger.Error("QBFT: Failed to check message", "err", err)
 		return err
 	}
 
-	// 4. Check digest
+	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
+		logger.Error("QBFT: Failed to check digest")
 		return errInvalidMessage
 	}
 
-	// 5. Add to received msgs
-	if err := c.current.QBFTCommits.Add(&commit); err != nil {
-		c.logger.Error("Failed to save commit message", "msg", commit, "err", err)
+	// Add to received msgs
+	if err := c.current.QBFTCommits.Add(commit); err != nil {
+		c.logger.Error("QBFT: Failed to save commit message", "msg", commit, "err", err)
 		return err
 	}
 
-	// 6. Check threshold and decide
-	if c.current.Commits.Size() >= c.QuorumSize() {
-		c.commit()
+	logger.Info("QBFT: commit threshold", "commits", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
+	// Check threshold and decide
+	if c.current.QBFTCommits.Size() >= c.QuorumSize() {
+		logger.Info("QBFT: Reached commit threshold")
+		c.commitQBFT()
 	}
 
 	return nil

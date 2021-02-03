@@ -57,6 +57,7 @@ func (c *core) sendPreprepare(request *Request) {
 		} else {
 			piggybackMsgPayload = nil
 		}
+		logger.Info("QBFT: sendPreprepare", "m", curView)
 		c.broadcast(&message{
 			Code:          msgPreprepare,
 			Msg:           preprepare,
@@ -74,15 +75,17 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	var preprepare *Preprepare
 	err := msg.Decode(&preprepare)
 	if err != nil {
-		logger.Debug("Failed to decode preprepare message", "err", err)
+		logger.Debug("QBFT: Failed to decode preprepare message", "err", err)
 		return errFailedDecodePreprepare
 	}
+
+	logger.Info("QBFT: handlePreprepare", "m", preprepare)
 
 	// Decode messages that piggyback Preprepare message
 	var piggyBackMsgs *PiggybackMessages
 	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
 		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggyBackMsgs); err != nil {
-			logger.Error("Failed to decode messages that piggyback Preprepare messages", "err", err)
+			logger.Error("QBFT: Failed to decode messages that piggyback Preprepare messages", "err", err)
 			return errFailedDecodePiggybackMsgs
 		}
 	}

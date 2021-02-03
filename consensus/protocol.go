@@ -21,7 +21,7 @@ var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
 		Versions: []uint{Istanbul99, Istanbul64},
-		Lengths:  map[uint]uint64{Istanbul99: 18, Istanbul64: 18},
+		Lengths:  map[uint]uint64{Istanbul99: 22, Istanbul64: 18},
 	}
 
 	CliqueProtocol = Protocol{
