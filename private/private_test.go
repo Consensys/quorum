@@ -45,8 +45,9 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithConstellation(t *testing.T)
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
 	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
-	p, err := NewPrivateTxManager(cfg)
+	assert.NoError(t, err, "unexpected error")
 
+	p, err := NewPrivateTxManager(cfg)
 	assert.NoError(t, err, "unexpected error")
 	if !constellation.Is(p) {
 		t.Errorf("expected Constellation to be used but found %v", reflect.TypeOf(p))
@@ -69,8 +70,9 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithTessera(t *testing.T) {
 	}()
 	os.Setenv("ARBITRARY_CONFIG_ENV", socketFile)
 	cfg, err := FromEnvironmentOrNil("ARBITRARY_CONFIG_ENV")
-	p, err := NewPrivateTxManager(cfg)
+	assert.NoError(t, err, "unexpected error")
 
+	p, err := NewPrivateTxManager(cfg)
 	assert.NoError(t, err, "unexpected error")
 	if !tessera.Is(p) {
 		t.Errorf("expected Tessera to be used but found %v", reflect.TypeOf(p))
