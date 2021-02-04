@@ -27,7 +27,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
-	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -173,10 +172,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
-	}
-
-	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
-		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
