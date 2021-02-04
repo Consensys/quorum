@@ -31,7 +31,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 )
 
-var incompleteNodeURL = regexp.MustCompile("(?i)^(?:enode://)?([0-9a-f]+)$")
+var (
+	incompleteNodeURL = regexp.MustCompile("(?i)^(?:enode://)?([0-9a-f]+)$")
+	lookupIPFunc      = net.LookupIP
+)
 
 // MustParseV4 parses a node URL. It panics if the URL is not valid.
 func MustParseV4(rawurl string) *Node {
@@ -56,7 +59,7 @@ func MustParseV4(rawurl string) *Node {
 //
 // For complete nodes, the node ID is encoded in the username portion
 // of the URL, separated from the host by an @ sign. The hostname can
-// be given as an IP address or a DNS domain name.
+// only be given as an IP address, DNS domain names are not allowed.
 // The port in the host name section is the TCP listening port. If the
 // TCP and UDP (discovery) ports differ, the UDP port is specified as
 // query parameter "discport".
@@ -153,7 +156,6 @@ func parseComplete(rawurl string) (*Node, error) {
 	if id, err = parsePubkey(u.User.String()); err != nil {
 		return nil, fmt.Errorf("invalid public key (%v)", err)
 	}
-	// move qv up to here
 	qv := u.Query()
 	// Parse the IP address.
 	ips, err := net.LookupIP(u.Hostname())
@@ -174,6 +176,7 @@ func parseComplete(rawurl string) (*Node, error) {
 		return nil, errors.New("invalid port")
 	}
 	udpPort = tcpPort
+
 	if qv.Get("discport") != "" {
 		udpPort, err = strconv.ParseUint(qv.Get("discport"), 10, 16)
 		if err != nil {

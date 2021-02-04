@@ -445,27 +445,6 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 }
 
-// Copy and set private
-func copyTransaction(tx *types.Transaction) *types.Transaction {
-	var privateTx *types.Transaction
-	if tx.To() == nil {
-		privateTx = types.NewContractCreation(tx.Nonce(),
-			tx.Value(),
-			tx.Gas(),
-			tx.GasPrice(),
-			tx.Data())
-	} else {
-		privateTx = types.NewTransaction(tx.Nonce(),
-			*tx.To(),
-			tx.Value(),
-			tx.Gas(),
-			tx.GasPrice(),
-			tx.Data())
-	}
-	privateTx.SetPrivate()
-	return privateTx
-}
-
 type StubBackend struct {
 	getEVMCalled                    bool
 	mockAccountExtraDataStateGetter *vm.MockAccountExtraDataStateGetter
@@ -647,6 +626,10 @@ func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent
 
 func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 	return params.QuorumTestChainConfig
+}
+
+func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
 }
 
 type StubMinimalApiState struct {

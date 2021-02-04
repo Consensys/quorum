@@ -279,12 +279,12 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 				Transport: http.DefaultTransport,
 			}
 			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
-			client, err = rpc.DialHTTPWithClient(endpoint, customHttpClient)
+			client, _ = rpc.DialHTTPWithClient(endpoint, customHttpClient)
 		case "wss":
-			client, err = rpc.DialWebsocketWithCustomTLS(dialCtx, endpoint, "", tlsConfig)
+			client, _ = rpc.DialWebsocketWithCustomTLS(dialCtx, endpoint, "", tlsConfig)
 		default:
 			log.Warn("unsupported scheme for custom TLS which is only for HTTPS/WSS", "scheme", u.Scheme)
-			client, err = rpc.DialContext(dialCtx, endpoint)
+			client, _ = rpc.DialContext(dialCtx, endpoint)
 		}
 	} else {
 		client, err = rpc.DialContext(dialCtx, endpoint)

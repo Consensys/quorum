@@ -12,6 +12,7 @@ import (
 	"time"
 	"unsafe"
 
+	etcdRaft "github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/core"
@@ -59,7 +60,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			for i := 0; i < count; i++ {
-				if raftNodes[i].raftProtocolManager.role == minterRole {
+				if raftNodes[i].raftProtocolManager.role == etcdRaft.StateLeader {
 					return
 				}
 			}
@@ -154,9 +155,9 @@ func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg
 		EventMux: new(event.TypeMux),
 	}
 	// config is private field so we need some workaround to set the value
-	configField := reflect.ValueOf(ctx).Elem().FieldByName("config")
+	configField := reflect.ValueOf(ctx).Elem().FieldByName("Config")
 	configField = reflect.NewAt(configField.Type(), unsafe.Pointer(configField.UnsafeAddr())).Elem()
-	configField.Set(reflect.ValueOf(cfg))
+	configField.Set(reflect.ValueOf(*cfg))
 	return
 }
 

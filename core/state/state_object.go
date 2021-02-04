@@ -98,7 +98,6 @@ type stateObject struct {
 	// during the "update" phase of the state transition.
 	dirtyCode bool // true if the code was updated
 	suicided  bool
-	touched   bool
 	deleted   bool
 	// Quorum
 	// flag to track changes in AccountExtraData
@@ -166,7 +165,6 @@ func (s *stateObject) touch() {
 		// flattened journals.
 		s.db.journal.dirty(s.address)
 	}
-	s.touched = true
 }
 
 func (s *stateObject) getTrie(db Database) Trie {
@@ -290,10 +288,13 @@ func (s *stateObject) finalise() {
 }
 
 // updateTrie writes cached storage modifications into the object's storage trie.
+// It will return nil if the trie has not been loaded and no changes have been made
 func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
 	s.finalise()
-
+	if len(s.pendingStorage) == 0 {
+		return s.trie
+	}
 	// Track the amount of time wasted on updating the storge trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageUpdates += time.Since(start) }(time.Now())
@@ -323,8 +324,10 @@ func (s *stateObject) updateTrie(db Database) Trie {
 
 // UpdateRoot sets the trie root to the current root hash of
 func (s *stateObject) updateRoot(db Database) {
-	s.updateTrie(db)
-
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return
+	}
 	// Track the amount of time wasted on hashing the storge trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageHashes += time.Since(start) }(time.Now())
@@ -335,7 +338,10 @@ func (s *stateObject) updateRoot(db Database) {
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
 func (s *stateObject) CommitTrie(db Database) error {
-	s.updateTrie(db)
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return nil
+	}
 	if s.dbErr != nil {
 		return s.dbErr
 	}

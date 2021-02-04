@@ -19,6 +19,8 @@ jobs:
       os: linux
       dist: xenial
       go: 1.11.x
+      env:
+        - GO111MODULE=on
       script:
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
@@ -27,6 +29,8 @@ jobs:
       os: linux
       dist: xenial
       go: 1.12.x
+      env:
+        - GO111MODULE=on
       script:
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
@@ -42,6 +46,7 @@ jobs:
 
     - stage: build
       os: osx
+      osx_image: xcode11.3
       go: 1.13.x
       script:
         - echo "Increase the maximum number of open file descriptors on macOS"
@@ -170,7 +175,7 @@ jobs:
       git:
         submodules: false # avoid cloning ethereum/tests
       before_install:
-        - curl https://dl.google.com/go/go1.13.linux-amd64.tar.gz | tar -xz
+        - curl https://dl.google.com/go/go1.13.8.linux-amd64.tar.gz | tar -xz
         - export PATH=`pwd`/go/bin:$PATH
         - export GOROOT=`pwd`/go
         - export GOPATH=$HOME/go

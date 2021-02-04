@@ -93,7 +93,9 @@ func TestConsoleWelcome(t *testing.T) {
 	geth.SetTemplateFunc("gover", runtime.Version)
 	geth.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	geth.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
-	geth.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
+	geth.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
 	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
@@ -133,11 +135,14 @@ func TestIPCAttachWelcome(t *testing.T) {
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--etherbase", coinbase, "--shh", "--ipcpath", ipc)
 
+	defer func() {
+		geth.Interrupt()
+		geth.ExpectExit()
+	}()
+
 	waitForEndpoint(t, ipc, 3*time.Second)
 	testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
 
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
@@ -155,9 +160,6 @@ func TestHTTPAttachWelcome(t *testing.T) {
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func TestWSAttachWelcome(t *testing.T) {
@@ -175,9 +177,6 @@ func TestWSAttachWelcome(t *testing.T) {
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
@@ -193,7 +192,9 @@ func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
 	attach.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	attach.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
 	attach.SetTemplateFunc("etherbase", func() string { return geth.Etherbase })
-	attach.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
+	attach.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
 	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin") })
 	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
