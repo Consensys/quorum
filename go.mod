@@ -2,7 +2,10 @@ module github.com/ethereum/go-ethereum
 
 go 1.15
 
+// Quorum - Replace Go modules that use modifications done by us
 replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487
+replace github.com/coreos/etcd => github.com/ConsenSys/etcd v3.3.13-quorum+incompatible
+// End Quorum
 
 require (
 	github.com/Azure/azure-pipeline-go v0.2.2 // indirect
