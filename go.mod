@@ -6,7 +6,7 @@ go 1.15
 
 replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487
 
-replace github.com/coreos/etcd => github.com/ConsenSys/etcd v3.3.13-quorum+incompatible
+replace github.com/coreos/etcd => github.com/ConsenSys/etcd v3.3.20-quorum+incompatible
 
 // End Quorum
 
