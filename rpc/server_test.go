@@ -53,6 +53,9 @@ func TestServerRegisterName(t *testing.T) {
 	}
 
 	wantCallbacks := 8
+	// Quorum - Add extra callback for the function added by us EchoCtxId
+	wantCallbacks += 1
+	// End Quorum
 	if len(svc.callbacks) != wantCallbacks {
 		t.Errorf("Expected %d callbacks for service 'service', got %d", wantCallbacks, len(svc.callbacks))
 	}
