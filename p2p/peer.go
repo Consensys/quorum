@@ -169,6 +169,14 @@ func (p *Peer) Disconnect(reason DiscReason) {
 	case p.disc <- reason:
 	case <-p.closed:
 	}
+
+	// Quorum
+	// if a quorum eth service subprotocol is waiting on EthPeerRegistered, notify the peer that it was not registered.
+	select {
+	case p.EthPeerRegistered <- false:
+	default:
+	}
+	// Quorum
 }
 
 // String implements fmt.Stringer.

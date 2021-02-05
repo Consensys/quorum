@@ -19,7 +19,8 @@ import (
 
 var (
 	// errEthPeerNil is returned when no eth peer is found to be associated with a p2p peer.
-	errEthPeerNil = errors.New("eth peer was nil")
+	errEthPeerNil           = errors.New("eth peer was nil")
+	errEthPeerNotRegistered = errors.New("eth peer was not registered")
 )
 
 // quorum consensus Protocol variables are optionally set in addition to the "eth" protocol variables (eth/protocol.go).
@@ -54,10 +55,14 @@ func (pm *ProtocolManager) makeQuorumConsensusProtocol(ProtoName string, version
 			* 7. messages to other to other peers listening to the subprotocol can be sent using the
 			*    (eth)peer.ConsensusSend() which will write to the protoRW.
 			 */
-			p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
 			// wait for the "eth" protocol to create and register the peer
-			<-p.EthPeerRegistered
+			if isEthPeerRegistered := <-p.EthPeerRegistered; !isEthPeerRegistered {
+				// the p2p peer was disconnected
+				return errEthPeerNotRegistered
+			}
+
 			// the ethpeer should be registered, try to retrieve it and start the consensus handler.
+			p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
 			ethPeer := pm.peers.Peer(p2pPeerId)
 			if ethPeer != nil {
 				p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", ethPeer.id, "ProtoName", ProtoName)
