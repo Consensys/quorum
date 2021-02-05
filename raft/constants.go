@@ -1,10 +1,17 @@
 package raft
 
+import (
+	etcdRaft "github.com/coreos/etcd/raft"
+)
+
 const (
 	//protocolName           = "raft"
 	//protocolVersion uint64 = 0x01
 
 	//raftMsg = 0x00
+
+	minterRole = etcdRaft.LEADER
+	//verifierRole = etcdRaft.NOT_LEADER
 
 	// Raft's ticker interval
 	tickerMS = 100
