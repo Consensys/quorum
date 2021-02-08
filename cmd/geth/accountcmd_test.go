@@ -177,25 +177,6 @@ Password: {{.InputLine "foobar"}}
 	}
 }
 
-func TestGethDoesntStartWithoutPrivateTransactionManagerVariableSet(t *testing.T) {
-	defer SetResetPrivateConfig("")()
-
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGeth(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
-
-	expectedText := "the PRIVATE_CONFIG environment variable must be specified for Quorum"
-
-	// changed to expect regexp because fatalf writes the message to stdout/stderr
-	geth.ExpectRegexp(expectedText)
-
-	result := strings.TrimSpace(geth.StderrText())
-	if !strings.Contains(result, expectedText) {
-		geth.Fatalf("bad stderr text. want '%s', got '%s'", expectedText, result)
-	}
-}
-
 func TestGethDoesntStartWithoutConfiguredConsensus(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 

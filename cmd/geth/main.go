@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
@@ -46,6 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -169,6 +171,18 @@ var (
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
+		utils.QuorumPTMUnixSocketFlag,
+		utils.QuorumPTMUrlFlag,
+		utils.QuorumPTMTimeoutFlag,
+		utils.QuorumPTMDialTimeoutFlag,
+		utils.QuorumPTMHttpIdleTimeoutFlag,
+		utils.QuorumPTMHttpWriteBufferSizeFlag,
+		utils.QuorumPTMHttpReadBufferSizeFlag,
+		utils.QuorumPTMTlsModeFlag,
+		utils.QuorumPTMTlsRootCaFlag,
+		utils.QuorumPTMTlsClientCertFlag,
+		utils.QuorumPTMTlsClientKeyFlag,
+		utils.QuorumPTMTlsInsecureSkipVerify,
 		// End-Quorum
 	}
 
@@ -258,13 +272,37 @@ func init() {
 	app.Flags = append(app.Flags, metricsFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
-		return debug.Setup(ctx)
+		if err := debug.Setup(ctx); err != nil {
+			return err
+		}
+
+		if err := quorumInitialisePrivacy(ctx); err != nil {
+			return err
+		}
+
+		return nil
 	}
 	app.After = func(ctx *cli.Context) error {
 		debug.Exit()
 		console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
 }
 
 func main() {
@@ -343,10 +381,6 @@ func geth(ctx *cli.Context) error {
 func startNode(ctx *cli.Context, stack *node.Node) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
-
-	if !quorumValidatePrivateTransactionManager() {
-		utils.Fatalf("the PRIVATE_CONFIG environment variable must be specified for Quorum")
-	}
 
 	// raft mode does not support --exitwhensynced
 	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {

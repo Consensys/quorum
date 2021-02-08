@@ -2430,7 +2430,7 @@ func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, arg
 
 // GetQuorumPayload returns the contents of a private transaction
 func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error) {
-	if private.P == nil {
+	if !private.IsQuorumPrivacyEnabled() {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
 	if len(digestHex) < 3 {
