@@ -2,6 +2,7 @@ package tessera
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -14,17 +15,17 @@ const apiVersion1 = "1.0"
 func RetrieveTesseraAPIVersion(client *engine.Client) string {
 	res, err := client.Get("/version/api")
 	if err != nil {
-		log.Error("Error invoking the tessera /version/api API: %v.", err)
+		log.Error("Error invoking the tessera /version/api API:", "err", err)
 		return apiVersion1
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		log.Error("Invalid status code returned by the tessera /version/api API: %d.", res.StatusCode)
+		log.Error(fmt.Sprintf("Invalid status code returned by the tessera /version/api API: %d.", res.StatusCode))
 		return apiVersion1
 	}
 	var versions []string
 	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
-		log.Error("Unable to deserialize the tessera response for /version/api API: %v.", err)
+		log.Error("Unable to deserialize the tessera response for /version/api API:", "err", err)
 		return apiVersion1
 	}
 	if len(versions) == 0 {
@@ -41,7 +42,7 @@ func RetrieveTesseraAPIVersion(client *engine.Client) string {
 		}
 		parsedVer, err := parseVersion([]byte(ver))
 		if err != nil {
-			log.Error("Unable to parse version returned by the tessera /version/api API: %s. Skipping value.", ver)
+			log.Error(fmt.Sprintf("Unable to parse version returned by the tessera /version/api API: %s. Skipping value.", ver))
 			continue
 		}
 		if compareVersions(parsedVer, latestParsedVersion) > 0 {
@@ -49,6 +50,6 @@ func RetrieveTesseraAPIVersion(client *engine.Client) string {
 			latestParsedVersion = parsedVer
 		}
 	}
-	log.Info("Tessera API version: %s", latestVersion)
+	log.Info(fmt.Sprintf("Tessera API version: %s", latestVersion))
 	return latestVersion
 }

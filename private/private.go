@@ -3,25 +3,22 @@ package private
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	http2 "github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
-	"github.com/tv42/httpunix"
 )
 
 var (
 	// global variable to be accessed by other packages
 	// singleton gateway to interact with private transaction manager
-	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+	P                PrivateTransactionManager
+	isPrivacyEnabled = false
 )
 
 type Identifiable interface {
@@ -46,53 +43,50 @@ type PrivateTransactionManager interface {
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 }
 
-func FromEnvironmentOrNil(name string) PrivateTransactionManager {
+// This loads any config specified via the legacy environment variable
+func GetLegacyEnvironmentConfig() (http2.Config, error) {
+	return FromEnvironmentOrNil("PRIVATE_CONFIG")
+}
+
+func FromEnvironmentOrNil(name string) (http2.Config, error) {
 	cfgPath := os.Getenv(name)
-	if cfgPath == "" {
-		return nil
+	cfg, err := http2.FetchConfigOrIgnore(cfgPath)
+	if err != nil {
+		return http2.Config{}, err
 	}
-	if strings.EqualFold(cfgPath, "ignore") {
-		return &notinuse.PrivateTransactionManager{}
-	}
-	return MustNewPrivateTxManager(cfgPath)
+
+	return cfg, nil
 }
 
-func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
-	ptm, err := NewPrivateTxManager(cfgPath)
-	if err != nil {
-		panic(err)
-	}
-	return ptm
+func InitialiseConnection(cfg http2.Config) error {
+	var err error
+	P, err = NewPrivateTxManager(cfg)
+	return err
 }
 
-func NewPrivateTxManager(cfgPath string) (PrivateTransactionManager, error) {
-	cfg, err := engine.LoadConfig(cfgPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read %s due to %s", cfgPath, err)
+func IsQuorumPrivacyEnabled() bool {
+	return isPrivacyEnabled
+}
+
+func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {
+
+	if cfg.ConnectionType == http2.NoConnection {
+		log.Info("Running with private transaction manager disabled - quorum private transactions will not be supported")
+		return &notinuse.PrivateTransactionManager{}, nil
 	}
 
-	client := &engine.Client{
-		HttpClient: &http.Client{
-			Transport: unixTransport(cfg),
-		},
-		BaseURL: "http+unix://c",
+	client, err := http2.CreateClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create connection to private tx manager due to: %s", err)
 	}
 
 	ptm, err := selectPrivateTxManager(client)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to private tx manager using %s due to %s", cfgPath, err)
+		return nil, fmt.Errorf("unable to connect to private tx manager due to: %s", err)
 	}
-	return ptm, nil
-}
 
-func unixTransport(cfg engine.Config) *httpunix.Transport {
-	t := &httpunix.Transport{
-		DialTimeout:           time.Duration(cfg.DialTimeout) * time.Second,
-		RequestTimeout:        time.Duration(cfg.RequestTimeout) * time.Second,
-		ResponseHeaderTimeout: time.Duration(cfg.ResponseHeaderTimeout) * time.Second,
-	}
-	t.RegisterLocation("c", filepath.Join(cfg.WorkDir, cfg.Socket))
-	return t
+	isPrivacyEnabled = true
+	return ptm, nil
 }
 
 // First call /upcheck to make sure the private tx manager is up
@@ -116,7 +110,7 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 	}
 	var privateTxManager PrivateTransactionManager
 	defer func() {
-		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", version)
+		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", string(version))
 	}()
 	if res.StatusCode != 200 {
 		// Constellation doesn't have /version endpoint

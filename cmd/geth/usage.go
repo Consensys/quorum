@@ -275,6 +275,23 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
+		Name: "QUORUM PRIVATE TRANSACTION MANAGER",
+		Flags: []cli.Flag{
+			utils.QuorumPTMUnixSocketFlag,
+			utils.QuorumPTMUrlFlag,
+			utils.QuorumPTMTimeoutFlag,
+			utils.QuorumPTMDialTimeoutFlag,
+			utils.QuorumPTMHttpIdleTimeoutFlag,
+			utils.QuorumPTMHttpWriteBufferSizeFlag,
+			utils.QuorumPTMHttpReadBufferSizeFlag,
+			utils.QuorumPTMTlsModeFlag,
+			utils.QuorumPTMTlsRootCaFlag,
+			utils.QuorumPTMTlsClientCertFlag,
+			utils.QuorumPTMTlsClientKeyFlag,
+			utils.QuorumPTMTlsInsecureSkipVerify,
+		},
+	},
+	{
 		Name: quorumAccountFlagGroup,
 		Flags: []cli.Flag{
 			utils.AccountPluginNewAccountConfigFlag,
