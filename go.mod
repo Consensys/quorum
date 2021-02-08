@@ -6,7 +6,7 @@ go 1.15
 
 replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487
 
-replace github.com/coreos/etcd => github.com/ConsenSys/etcd v3.3.20-quorum+incompatible
+replace github.com/coreos/etcd => github.com/Consensys/etcd v3.3.13-quorum197+incompatible
 
 // End Quorum
 
@@ -60,6 +60,7 @@ require (
 	github.com/jpmorganchase/quorum-security-plugin-sdk-go v0.0.0-20200714173835-22a319bb78ce
 	github.com/julienschmidt/httprouter v1.1.1-0.20170430222011-975b5c4c7c21
 	github.com/karalabe/usb v0.0.0-20190919080040-51dc0efba356
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-isatty v0.0.10
@@ -82,7 +83,6 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
-	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
