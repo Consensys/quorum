@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/url"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	psiCore "github.com/ethereum/go-ethereum/core"
@@ -39,27 +37,17 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts(ctx context.Context) []
 	api.privacyService.mu.Lock()
 	defer api.privacyService.mu.Unlock()
 
-	if authToken, ok := api.privacyService.apiBackendHelper.SupportsMultitenancy(ctx); ok {
-		var ownedkeys []string
-		for _, granted := range authToken.GetAuthorities() {
-			pi, _ := url.Parse(granted.GetRaw())
-			for a, b := range pi.Query() {
-				if a == "from.tm" {
-					ownedkeys = append(ownedkeys, b...)
-				}
-			}
+	if _, ok := api.privacyService.apiBackendHelper.SupportsMultitenancy(ctx); ok {
+		psi, err := psiCore.PSIS.ResolveForUserContext(ctx)
+		if err != nil {
+			return nil
 		}
 
-		if len(ownedkeys) != 0 {
-			extracted := make([]ExtensionContract, 0)
-			for _, key := range ownedkeys {
-				psm, _ := psiCore.PSIS.ResolveForManagedParty(key)
-				for _, contract := range api.privacyService.psiContracts[psm.ID] {
-					extracted = append(extracted, *contract)
-				}
-			}
-			return extracted
+		extracted := make([]ExtensionContract, 0)
+		for _, contract := range api.privacyService.psiContracts[psi.ID] {
+			extracted = append(extracted, *contract)
 		}
+		return extracted
 	}
 
 	extracted := make([]ExtensionContract, 0)
