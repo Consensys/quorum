@@ -1152,6 +1152,7 @@ func TestTransactionAllowedTxSize(t *testing.T) {
 	//   - signature == 65 bytes
 	// All those fields are summed up to at most 213 bytes.
 	baseSize := uint64(213)
+	txMaxSize := params.QuorumTestChainConfig.TransactionSizeLimit * 1024
 	dataSize := txMaxSize - baseSize
 
 	// Try adding a transaction with maximal allowed size
