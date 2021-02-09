@@ -19,11 +19,13 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +41,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
@@ -47,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/extension"
 	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
@@ -60,10 +66,15 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/permission/core/types"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -528,6 +539,27 @@ var (
 		Name:  "nocompaction",
 		Usage: "Disables db compaction after import",
 	}
+	// RPC Client Settings
+	RPCClientToken = cli.StringFlag{
+		Name:  "rpcclitoken",
+		Usage: "RPC Client access token",
+	}
+	RPCClientTLSCert = cli.StringFlag{
+		Name:  "rpcclitls.cert",
+		Usage: "Server's TLS certificate PEM file on connection by client",
+	}
+	RPCClientTLSCaCert = cli.StringFlag{
+		Name:  "rpcclitls.cacert",
+		Usage: "CA certificate PEM file for provided server's TLS certificate on connection by client",
+	}
+	RPCClientTLSCipherSuites = cli.StringFlag{
+		Name:  "rpcclitls.ciphersuites",
+		Usage: "Customize supported cipher suites when using TLS connection. Value is a comma-separated cipher suite string",
+	}
+	RPCClientTLSInsecureSkipVerify = cli.BoolFlag{
+		Name:  "rpcclitls.insecureskipverify",
+		Usage: "Disable verification of server's TLS certificate on connection by client",
+	}
 	// RPC settings
 	IPCDisabledFlag = cli.BoolFlag{
 		Name:  "ipcdisable",
@@ -772,6 +804,149 @@ var (
 		Name:  "vm.evm",
 		Usage: "External EVM configuration (default = built-in interpreter)",
 		Value: "",
+	}
+
+	// Quorum - added configurable call timeout for execution of calls
+	EVMCallTimeOutFlag = cli.IntFlag{
+		Name:  "vm.calltimeout",
+		Usage: "Timeout duration in seconds for message call execution without creating a transaction. Value 0 means no timeout.",
+		Value: 5,
+	}
+
+	// Quorum
+	// immutability threshold which can be passed as a parameter at geth start
+	QuorumImmutabilityThreshold = cli.IntFlag{
+		Name:  "immutabilitythreshold",
+		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
+		Value: 3162240,
+	}
+	// Raft flags
+	RaftModeFlag = cli.BoolFlag{
+		Name:  "raft",
+		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
+	}
+	RaftBlockTimeFlag = cli.IntFlag{
+		Name:  "raftblocktime",
+		Usage: "Amount of time between raft block creations in milliseconds",
+		Value: 50,
+	}
+	RaftJoinExistingFlag = cli.IntFlag{
+		Name:  "raftjoinexisting",
+		Usage: "The raft ID to assume when joining an pre-existing cluster",
+		Value: 0,
+	}
+
+	EmitCheckpointsFlag = cli.BoolFlag{
+		Name:  "emitcheckpoints",
+		Usage: "If enabled, emit specially formatted logging checkpoints",
+	}
+	RaftPortFlag = cli.IntFlag{
+		Name:  "raftport",
+		Usage: "The port to bind for the raft transport",
+		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name:  "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
+	}
+
+	// Permission
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "permissioned",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
+	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "allowedfutureblocktime",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
+	}
+	// Plugins settings
+	PluginSettingsFlag = cli.StringFlag{
+		Name:  "plugins",
+		Usage: "The URI of configuration which describes plugins being used. E.g.: file:///opt/geth/plugins.json",
+	}
+	PluginLocalVerifyFlag = cli.BoolFlag{
+		Name:  "plugins.localverify",
+		Usage: "If enabled, verify plugin integrity from local file system. This requires plugin signature file and PGP public key file to be available",
+	}
+	PluginPublicKeyFlag = cli.StringFlag{
+		Name:  "plugins.publickey",
+		Usage: fmt.Sprintf("The URI of PGP public key for local plugin verification. E.g.: file:///opt/geth/pubkey.pgp.asc. This flag is only valid if --%s is set (default = file:///<pluginBaseDir>/%s)", PluginLocalVerifyFlag.Name, plugin.DefaultPublicKeyFile),
+	}
+	PluginSkipVerifyFlag = cli.BoolFlag{
+		Name:  "plugins.skipverify",
+		Usage: "If enabled, plugin integrity is NOT verified",
+	}
+	// account plugin flags
+	AccountPluginNewAccountConfigFlag = cli.StringFlag{
+		Name:  "plugins.account.config",
+		Usage: "Value will be passed to an account plugin if being used.  See the account plugin implementation's documentation for further details",
+	}
+	// Istanbul settings
+	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "istanbul.requesttimeout",
+		Usage: "Timeout for each Istanbul round in milliseconds",
+		Value: eth.DefaultConfig.Istanbul.RequestTimeout,
+	}
+	IstanbulBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "istanbul.blockperiod",
+		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
+	}
+	// Multitenancy setting
+	MultitenancyFlag = cli.BoolFlag{
+		Name:  "multitenancy",
+		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
+	}
+
+	// Quorum Private Transaction Manager connection options
+	QuorumPTMUnixSocketFlag = DirectoryFlag{
+		Name:  "ptm.socket",
+		Usage: "Path to the ipc file when using unix domain socket for the private transaction manager connection",
+	}
+	QuorumPTMUrlFlag = cli.StringFlag{
+		Name:  "ptm.url",
+		Usage: "URL when using http connection to private transaction manager",
+	}
+	QuorumPTMTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.timeout",
+		Usage: "Timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMDialTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.dialtimeout",
+		Usage: "Dial timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMHttpIdleTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.http.idletimeout",
+		Usage: "Idle timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+	}
+	QuorumPTMHttpWriteBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.writebuffersize",
+		Usage: "Size of the write buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+	}
+	QuorumPTMHttpReadBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.readbuffersize",
+		Usage: "Size of the read buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+	}
+	QuorumPTMTlsModeFlag = cli.StringFlag{
+		Name:  "ptm.tls.mode",
+		Usage: `If "off" then TLS disabled (default). If "strict" then will use TLS for http connection to private transaction manager`,
+	}
+	QuorumPTMTlsRootCaFlag = DirectoryFlag{
+		Name:  "ptm.tls.rootca",
+		Usage: "Path to file containing root CA certificate for TLS connection to private transaction manager (defaults to host's certificates)",
+	}
+	QuorumPTMTlsClientCertFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientcert",
+		Usage: "Path to file containing client certificate (or chain of certs) for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsClientKeyFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientkey",
+		Usage: "Path to file containing client's private key for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsInsecureSkipVerify = cli.BoolFlag{
+		Name:  "ptm.tls.insecureskipverify",
+		Usage: "Disable verification of server's TLS certificate on connection to private transaction manager",
 	}
 )
 
@@ -1221,6 +1396,12 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(InsecureUnlockAllowedFlag.Name) {
 		cfg.InsecureUnlockAllowed = ctx.GlobalBool(InsecureUnlockAllowedFlag.Name)
 	}
+
+	// Quorum
+	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
+		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
+	}
+
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -1264,6 +1445,51 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalBool(GoerliFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	}
+	if err := SetPlugins(ctx, cfg); err != nil {
+		Fatalf(err.Error())
+	}
+}
+
+// Quorum
+//
+// Read plugin settings from --plugins flag. Overwrite settings defined in --config if any
+func SetPlugins(ctx *cli.Context, cfg *node.Config) error {
+	if ctx.GlobalIsSet(PluginSettingsFlag.Name) {
+		// validate flag combination
+		if ctx.GlobalBool(PluginSkipVerifyFlag.Name) && ctx.GlobalBool(PluginLocalVerifyFlag.Name) {
+			return fmt.Errorf("only --%s or --%s must be set", PluginSkipVerifyFlag.Name, PluginLocalVerifyFlag.Name)
+		}
+		if !ctx.GlobalBool(PluginLocalVerifyFlag.Name) && ctx.GlobalIsSet(PluginPublicKeyFlag.Name) {
+			return fmt.Errorf("--%s is required for setting --%s", PluginLocalVerifyFlag.Name, PluginPublicKeyFlag.Name)
+		}
+		pluginSettingsURL, err := url.Parse(ctx.GlobalString(PluginSettingsFlag.Name))
+		if err != nil {
+			return fmt.Errorf("plugins: Invalid URL for --%s due to %s", PluginSettingsFlag.Name, err)
+		}
+		var pluginSettings plugin.Settings
+		r, err := urlReader(pluginSettingsURL)
+		if err != nil {
+			return fmt.Errorf("plugins: unable to create reader due to %s", err)
+		}
+		defer func() {
+			_ = r.Close()
+		}()
+		if err := json.NewDecoder(r).Decode(&pluginSettings); err != nil {
+			return fmt.Errorf("plugins: unable to parse settings due to %s", err)
+		}
+		pluginSettings.SetDefaults()
+		cfg.Plugins = &pluginSettings
+	}
+	return nil
+}
+
+func urlReader(u *url.URL) (io.ReadCloser, error) {
+	s := u.Scheme
+	switch s {
+	case "file":
+		return os.Open(filepath.Join(u.Host, u.Path))
+	}
+	return nil, fmt.Errorf("unsupported scheme %s", s)
 }
 
 func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
@@ -1376,6 +1602,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
 		cfg.Noverify = ctx.Bool(MinerNoVerfiyFlag.Name)
 	}
+	if ctx.GlobalIsSet(AllowedFutureBlockTimeFlag.Name) {
+		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
+	}
 }
 
 func setWhitelist(ctx *cli.Context, cfg *eth.Config) {
@@ -1399,6 +1628,27 @@ func setWhitelist(ctx *cli.Context, cfg *eth.Config) {
 		}
 		cfg.Whitelist[number] = hash
 	}
+}
+
+// Quorum
+func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
+	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
+	}
+	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
+	}
+}
+
+func setRaft(ctx *cli.Context, cfg *eth.Config) {
+	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
+}
+
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
+	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
+	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+	setIstanbul(ctx, cfg)
+	setRaft(ctx, cfg)
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1474,6 +1724,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setWhitelist(ctx, cfg)
 	setLes(ctx, cfg)
 
+	// Quorum
+	setQuorumConfig(ctx, cfg)
+
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1535,6 +1788,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 			cfg.DiscoveryURLs = splitAndTrim(urls)
 		}
 	}
+
+	// set immutability threshold in config
+	params.SetQuorumImmutabilityThreshold(ctx.GlobalInt(QuorumImmutabilityThreshold.Name))
 
 	// Override any default configs for hard coded networks.
 	switch {
@@ -1599,7 +1855,9 @@ func setDNSDiscoveryDefaults(cfg *eth.Config, url string) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config) {
+func RegisterEthService(stack *node.Node, cfg *eth.Config) chan *eth.Ethereum {
+	// Quorum: raft service listens to this channel to get Ethereum backend
+	nodeChan := make(chan *eth.Ethereum, 1)
 	var err error
 	if cfg.SyncMode == downloader.LightSync {
 		err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
@@ -1612,12 +1870,15 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) {
 				ls, _ := les.NewLesServer(fullNode, cfg)
 				fullNode.AddLesServer(ls)
 			}
+			nodeChan <- fullNode
 			return fullNode, err
 		})
 	}
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
+
+	return nodeChan
 }
 
 // RegisterShhService configures Whisper and adds it to the given node.
@@ -1664,6 +1925,102 @@ func RegisterGraphQLService(stack *node.Node, endpoint string, cors, vhosts []st
 		return nil, errors.New("no Ethereum service")
 	}); err != nil {
 		Fatalf("Failed to register the GraphQL service: %v", err)
+	}
+}
+
+// Quorum
+//
+// Register plugin manager as a service in geth
+func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, localVerify bool, publicKey string) {
+	if err := cfg.ResolvePluginBaseDir(); err != nil {
+		Fatalf("plugins: unable to resolve plugin base dir due to %s", err)
+	}
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		return plugin.NewPluginManager(cfg.UserIdent, cfg.Plugins, skipVerify, localVerify, publicKey)
+	}); err != nil {
+		Fatalf("plugins: Failed to register the Plugins service: %v", err)
+	}
+}
+
+// Configure smart-contract-based permissioning service
+func RegisterPermissionService(stack *node.Node, useDns bool) {
+	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
+		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
+		if err != nil {
+			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
+		}
+		// start the permissions management service
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
+		}
+		return pc, nil
+	}); err != nil {
+		Fatalf("Failed to register the permission service: %v", err)
+	}
+	log.Info("permission service registered")
+}
+
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
+	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
+	datadir := ctx.GlobalString(DataDirFlag.Name)
+	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
+	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
+	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
+
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		privkey := nodeCfg.NodeKey()
+		strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
+		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+		peers := nodeCfg.StaticNodes()
+
+		var myId uint16
+		var joinExisting bool
+
+		if joinExistingId > 0 {
+			myId = uint16(joinExistingId)
+			joinExisting = true
+		} else if len(peers) == 0 {
+			Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+		} else {
+			peerIds := make([]string, len(peers))
+
+			for peerIdx, peer := range peers {
+				if !peer.HasRaftPort() {
+					Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
+				}
+
+				peerId := peer.ID().String()
+				peerIds[peerIdx] = peerId
+				if peerId == strId {
+					myId = uint16(peerIdx) + 1
+				}
+			}
+
+			if myId == 0 {
+				Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+			}
+		}
+
+		ethereum := <-ethChan
+		ethChan <- ethereum
+		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
+	}); err != nil {
+		Fatalf("Failed to register the Raft service: %v", err)
+	}
+	log.Info("raft service registered")
+}
+
+func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {
+	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
+		factory, err := extension.NewServicesFactory(stack, private.P, <-ethChan)
+		if err != nil {
+			return nil, err
+		}
+		return factory.BackendService(), nil
+	}
+	if err := stack.Register(registerFunc); err != nil {
+		Fatalf("Failed to register the Extension service: %v", err)
 	}
 }
 
@@ -1738,16 +2095,41 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 }
 
 // MakeChain creates a chain manager from set command line flags.
-func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chainDb ethdb.Database) {
-	var err error
+func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.BlockChain, chainDb ethdb.Database) {
+	var (
+		config *params.ChainConfig
+		err    error
+	)
 	chainDb = MakeChainDatabase(ctx, stack)
-	config, _, err := core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
-	if err != nil {
-		Fatalf("%v", err)
+
+	if useExist {
+		stored := rawdb.ReadCanonicalHash(chainDb, 0)
+		if (stored == common.Hash{}) {
+			Fatalf("No existing genesis")
+		}
+		config = rawdb.ReadChainConfig(chainDb, stored)
+	} else {
+		config, _, err = core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
+		if err != nil {
+			Fatalf("%v", err)
+		}
 	}
+
 	var engine consensus.Engine
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
+	} else if config.Istanbul != nil {
+		// for IBFT
+		istanbulConfig := istanbul.DefaultConfig
+		if config.Istanbul.Epoch != 0 {
+			istanbulConfig.Epoch = config.Istanbul.Epoch
+		}
+		istanbulConfig.ProposerPolicy = istanbul.ProposerPolicy(config.Istanbul.ProposerPolicy)
+		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
+		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IsQuorum {
+		// for Raft
+		engine = ethash.NewFullFaker()
 	} else {
 		engine = ethash.NewFaker()
 		if !ctx.GlobalBool(FakePoWFlag.Name) {

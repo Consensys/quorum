@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -279,6 +280,13 @@ func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *b
 	if !found {
 		return nil, ErrLocked
 	}
+
+	// start quorum specific
+	if tx.IsPrivate() {
+		log.Info("Private transaction signing with QuorumPrivateTxSigner")
+		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, unlockedKey.PrivateKey)
+	} // End quorum specific
+
 	// Depending on the presence of the chain ID, sign with EIP155 or homestead
 	if chainID != nil {
 		return types.SignTx(tx, types.NewEIP155Signer(chainID), unlockedKey.PrivateKey)
@@ -307,6 +315,9 @@ func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, 
 	}
 	defer zeroKey(key.PrivateKey)
 
+	if tx.IsPrivate() {
+		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key.PrivateKey)
+	}
 	// Depending on the presence of the chain ID, sign with EIP155 or homestead
 	if chainID != nil {
 		return types.SignTx(tx, types.NewEIP155Signer(chainID), key.PrivateKey)

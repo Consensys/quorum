@@ -18,7 +18,6 @@ package vm
 
 import "errors"
 
-// List execution errors
 var (
 	ErrOutOfGas                 = errors.New("out of gas")
 	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
@@ -26,5 +25,7 @@ var (
 	ErrTraceLimitReached        = errors.New("the number of logs reached the specified limit")
 	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
 	ErrContractAddressCollision = errors.New("contract address collision")
-	ErrNoCompatibleInterpreter  = errors.New("no compatible interpreter")
+
+	ErrReadOnlyValueTransfer   = errors.New("VM in read-only mode. Value transfer prohibited.")
+	ErrNoCompatibleInterpreter = errors.New("no compatible interpreter")
 )

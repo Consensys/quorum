@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -33,6 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -59,14 +62,18 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
+	isHttps       bool
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	httpListener  net.Listener // HTTP RPC listener socket to server API requests
 	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
+	isWss      bool
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+
+	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -186,11 +193,14 @@ func (n *Node) Start() error {
 	if n.serverConfig.NodeDatabase == "" {
 		n.serverConfig.NodeDatabase = n.config.NodeDB()
 	}
+	n.serverConfig.EnableNodePermission = n.config.EnableNodePermission
+	n.serverConfig.DataDir = n.config.DataDir
 	running := &p2p.Server{Config: n.serverConfig}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
+	var kinds []reflect.Type
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
@@ -212,6 +222,8 @@ func (n *Node) Start() error {
 			return &DuplicateServiceError{Kind: kind}
 		}
 		services[kind] = service
+		// to keep track of order in which services are constructed
+		kinds = append(kinds, kind)
 	}
 	// Gather the protocols and start the freshly assembled P2P server
 	for _, service := range services {
@@ -222,7 +234,9 @@ func (n *Node) Start() error {
 	}
 	// Start each of the services
 	var started []reflect.Type
-	for kind, service := range services {
+	// start services in the same order that they are constructed
+	for _, kind := range kinds {
+		service := services[kind]
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(running); err != nil {
 			for _, kind := range started {
@@ -234,6 +248,12 @@ func (n *Node) Start() error {
 		}
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
+	}
+	// Retrieve PluginManager service if configured
+	if pm, hasPluginManager := services[reflect.TypeOf(&plugin.PluginManager{})]; hasPluginManager {
+		n.pluginManager = pm.(*plugin.PluginManager)
+	} else {
+		n.pluginManager = plugin.NewEmptyPluginManager()
 	}
 	// Lastly, start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
@@ -322,7 +342,7 @@ func (n *Node) startInProc(apis []rpc.API) error {
 		n.log.Debug("InProc registered", "namespace", api.Namespace)
 	}
 	n.inprocHandler = handler
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
@@ -362,15 +382,51 @@ func (n *Node) stopIPC() {
 	}
 }
 
+func (n *Node) httpScheme() string {
+	if n.isHttps {
+		return "https"
+	}
+	return "http"
+}
+
+func (n *Node) wsScheme() string {
+	if n.isWss {
+		return "wss"
+	}
+	return "ws"
+}
+
+func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
+			return
+		}
+		if tlsConfigSource, err = sp.TLSConfigurationSource(); err != nil {
+			return
+		}
+		if authManager, err = sp.AuthenticationManager(); err != nil {
+			return
+		}
+	} else {
+		log.Info("Security Plugin is not enabled")
+	}
+	return
+}
+
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts, wsOrigins []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
 		return nil
 	}
+	tlsConfigSource, authManager, err := n.getSecuritySupports()
+	if err != nil {
+		return err
+	}
 	// register apis and create handler stack
-	srv := rpc.NewServer()
-	err := RegisterApisFromWhitelist(apis, modules, srv, false)
+	srv := rpc.NewProtectedServer(authManager)
+	err = RegisterApisFromWhitelist(apis, modules, srv, false)
 	if err != nil {
 		return err
 	}
@@ -379,10 +435,11 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if n.httpEndpoint == n.wsEndpoint {
 		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
-	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
+	listener, isTlsEnabled, err := StartHTTPEndpoint(endpoint, timeouts, handler, tlsConfigSource)
 	if err != nil {
 		return err
 	}
+	n.isHttps = isTlsEnabled
 	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%v/", listener.Addr()),
 		"cors", strings.Join(cors, ","),
 		"vhosts", strings.Join(vhosts, ","))
@@ -417,17 +474,21 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	if endpoint == "" {
 		return nil
 	}
-
-	srv := rpc.NewServer()
+	tlsConfigSource, authManager, err := n.getSecuritySupports()
+	if err != nil {
+		return err
+	}
+	srv := rpc.NewProtectedServer(authManager)
 	handler := srv.WebsocketHandler(wsOrigins)
-	err := RegisterApisFromWhitelist(apis, modules, srv, exposeAll)
+	err = RegisterApisFromWhitelist(apis, modules, srv, exposeAll)
 	if err != nil {
 		return err
 	}
-	listener, err := startWSEndpoint(endpoint, handler)
+	listener, isTlsEnabled, err := startWSEndpoint(endpoint, handler, tlsConfigSource)
 	if err != nil {
 		return err
 	}
+	n.isWss = isTlsEnabled
 	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
 	// All listeners booted successfully
 	n.wsEndpoint = endpoint
@@ -443,7 +504,7 @@ func (n *Node) stopWS() {
 		n.wsListener.Close()
 		n.wsListener = nil
 
-		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
+		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("%s://%s", n.wsScheme(), n.wsEndpoint))
 	}
 	if n.wsHandler != nil {
 		n.wsHandler.Stop()
@@ -581,6 +642,20 @@ func (n *Node) Service(service interface{}) error {
 	return ErrServiceUnknown
 }
 
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
+}
+
 // DataDir retrieves the current datadir used by the protocol stack.
 // Deprecated: No files should be stored in this directory, use InstanceDir instead.
 func (n *Node) DataDir() string {
@@ -710,4 +785,14 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 		}
 	}
 	return nil
+}
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) PluginManager() *plugin.PluginManager {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return n.pluginManager
 }

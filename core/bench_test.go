@@ -94,6 +94,7 @@ func genValueTx(nbytes int) func(int, *BlockGen) {
 var (
 	ringKeys  = make([]*ecdsa.PrivateKey, 1000)
 	ringAddrs = make([]common.Address, len(ringKeys))
+	// bigTxGas  = new(big.Int).SetUint64(params.TxGas)
 )
 
 func init() {

@@ -28,6 +28,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -68,7 +73,59 @@ func newTestProtocolManager(mode downloader.SyncMode, blocks int, generator func
 	if _, err := blockchain.InsertChain(chain); err != nil {
 		panic(err)
 	}
-	pm, err := NewProtocolManager(gspec.Config, nil, mode, DefaultConfig.NetworkId, evmux, &testTxPool{added: newtx, pool: make(map[common.Hash]*types.Transaction)}, engine, blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(gspec.Config, nil, mode, DefaultConfig.NetworkId, evmux, &testTxPool{added: newtx, pool: make(map[common.Hash]*types.Transaction)}, engine, blockchain, db, 1, nil, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	pm.Start(1000)
+	return pm, db, nil
+}
+
+// newTestProtocolManagerConsensus creates a new protocol manager for testing purposes,
+// that uses the specified consensus mechanism.
+func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.CliqueConfig, istanbulConfig *params.IstanbulConfig, raftMode bool) (*ProtocolManager, ethdb.Database, error) {
+
+	config := params.QuorumTestChainConfig
+	config.Clique = cliqueConfig
+	config.Istanbul = istanbulConfig
+
+	var (
+		blocks                  = 0
+		evmux                   = new(event.TypeMux)
+		engine consensus.Engine = ethash.NewFaker()
+		db                      = rawdb.NewMemoryDatabase()
+		gspec                   = &core.Genesis{
+			Config: params.TestChainConfig,
+			Alloc:  core.GenesisAlloc{testBank: {Balance: big.NewInt(1000000)}},
+		}
+		genesis       = gspec.MustCommit(db)
+		blockchain, _ = core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil)
+	)
+	chain, _ := core.GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, blocks, nil)
+	if _, err := blockchain.InsertChain(chain); err != nil {
+		panic(err)
+	}
+
+	switch consensusAlgo {
+	case "raft":
+		engine = ethash.NewFaker() //raft doesn't use engine, but just mirroring what runtime code does
+
+	case "istanbul":
+		var istanbul istanbul.Config
+		config.Istanbul.Epoch = istanbulConfig.Epoch
+		config.Istanbul.ProposerPolicy = istanbulConfig.ProposerPolicy
+
+		nodeKey, _ := crypto.GenerateKey()
+		engine = istanbulBackend.New(&istanbul, nodeKey, db)
+
+	case "clique":
+		engine = clique.New(config.Clique, db)
+
+	default:
+		engine = ethash.NewFaker()
+	}
+
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, &testTxPool{added: nil}, engine, blockchain, db, 1, nil, raftMode)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -131,6 +131,12 @@ func (api *ExternalSigner) Accounts() []accounts.Account {
 func (api *ExternalSigner) Contains(account accounts.Account) bool {
 	api.cacheMu.RLock()
 	defer api.cacheMu.RUnlock()
+	if api.cache == nil {
+		// If we haven't already fetched the accounts, it's time to do so now
+		api.cacheMu.RUnlock()
+		api.Accounts()
+		api.cacheMu.RLock()
+	}
 	for _, a := range api.cache {
 		if a.Address == account.Address && (account.URL == (accounts.URL{}) || account.URL == api.URL()) {
 			return true
@@ -169,15 +175,20 @@ func (api *ExternalSigner) SignData(account accounts.Account, mimeType string, d
 }
 
 func (api *ExternalSigner) SignText(account accounts.Account, text []byte) ([]byte, error) {
-	var res hexutil.Bytes
+	var signature hexutil.Bytes
 	var signAddress = common.NewMixedcaseAddress(account.Address)
-	if err := api.client.Call(&res, "account_signData",
+	if err := api.client.Call(&signature, "account_signData",
 		accounts.MimetypeTextPlain,
 		&signAddress, // Need to use the pointer here, because of how MarshalJSON is defined
 		hexutil.Encode(text)); err != nil {
 		return nil, err
 	}
-	return res, nil
+	if signature[64] == 27 || signature[64] == 28 {
+		// If clef is used as a backend, it may already have transformed
+		// the signature to ethereum-type signature.
+		signature[64] -= 27 // Transform V from Ethereum-legacy to 0/1
+	}
+	return signature, nil
 }
 
 func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
@@ -189,13 +200,14 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 		to = &t
 	}
 	args := &core.SendTxArgs{
-		Data:     &data,
-		Nonce:    hexutil.Uint64(tx.Nonce()),
-		Value:    hexutil.Big(*tx.Value()),
-		Gas:      hexutil.Uint64(tx.Gas()),
-		GasPrice: hexutil.Big(*tx.GasPrice()),
-		To:       to,
-		From:     common.NewMixedcaseAddress(account.Address),
+		Data:      &data,
+		Nonce:     hexutil.Uint64(tx.Nonce()),
+		Value:     hexutil.Big(*tx.Value()),
+		Gas:       hexutil.Uint64(tx.Gas()),
+		GasPrice:  hexutil.Big(*tx.GasPrice()),
+		To:        to,
+		From:      common.NewMixedcaseAddress(account.Address),
+		IsPrivate: tx.IsPrivate(),
 	}
 	if err := api.client.Call(&res, "account_signTransaction", args); err != nil {
 		return nil, err

@@ -41,6 +41,7 @@ import (
 	lpc "github.com/ethereum/go-ethereum/les/lespay/client"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -70,6 +71,17 @@ type LightEthereum struct {
 	engine         consensus.Engine
 	accountManager *accounts.Manager
 	netRPCService  *ethapi.PublicNetAPI
+
+	// Quorum - Multitenancy
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *LightEthereum) SetContractAuthorizationManager(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
@@ -102,7 +114,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 		eventMux:       ctx.EventMux,
 		reqDist:        newRequestDistributor(peers, &mclock.System{}),
 		accountManager: ctx.AccountManager,
-		engine:         eth.CreateConsensusEngine(ctx, chainConfig, &config.Ethash, nil, false, chainDb),
+		engine:         eth.CreateConsensusEngine(ctx, chainConfig, config, nil, false, chainDb),
 		bloomRequests:  make(chan chan *bloombits.Retrieval),
 		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 		serverPool:     newServerPool(chainDb, config.UltraLightServers),
@@ -121,9 +133,13 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
+	newChainFunc := light.NewLightChain
+	if config.EnableMultitenancy {
+		newChainFunc = light.NewMultitenantLightChain
+	}
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with
 	// indexers already set but not started yet
-	if leth.blockchain, err = light.NewLightChain(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
+	if leth.blockchain, err = newChainFunc(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
 		return nil, err
 	}
 	leth.chainReader = leth.blockchain

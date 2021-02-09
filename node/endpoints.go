@@ -17,6 +17,10 @@
 package node
 
 import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"net"
 	"net/http"
 	"time"
@@ -26,14 +30,15 @@ import (
 )
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint.
-func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.Handler) (net.Listener, error) {
+func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (net.Listener, bool, error) {
 	// start the HTTP listener
 	var (
-		listener net.Listener
-		err      error
+		listener     net.Listener
+		err          error
+		isTlsEnabled bool
 	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, err
+	if isTlsEnabled, listener, err = startListener(endpoint, tlsConfigSource); err != nil {
+		return nil, isTlsEnabled, err
 	}
 	// make sure timeout values are meaningful
 	CheckTimeouts(&timeouts)
@@ -43,24 +48,29 @@ func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.
 		ReadTimeout:  timeouts.ReadTimeout,
 		WriteTimeout: timeouts.WriteTimeout,
 		IdleTimeout:  timeouts.IdleTimeout,
+
+		// Ensure to Disable HTTP/2
+		// this configuration and customized tls.Config is to follow: https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 	go httpSrv.Serve(listener)
-	return listener, err
+	return listener, isTlsEnabled, err
 }
 
 // startWSEndpoint starts a websocket endpoint.
-func startWSEndpoint(endpoint string, handler http.Handler) (net.Listener, error) {
+func startWSEndpoint(endpoint string, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (net.Listener, bool, error) {
 	// start the HTTP listener
 	var (
-		listener net.Listener
-		err      error
+		listener     net.Listener
+		err          error
+		isTlsEnabled bool
 	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, err
+	if isTlsEnabled, listener, err = startListener(endpoint, tlsConfigSource); err != nil {
+		return nil, isTlsEnabled, err
 	}
 	wsSrv := &http.Server{Handler: handler}
 	go wsSrv.Serve(listener)
-	return listener, err
+	return listener, isTlsEnabled, err
 }
 
 // checkModuleAvailability checks that all names given in modules are actually
@@ -80,6 +90,34 @@ func checkModuleAvailability(modules []string, apis []rpc.API) (bad, available [
 		}
 	}
 	return bad, available
+}
+
+// Quorum
+// Produce net.Listener instance with TLS support if tlsConfigSource provides the config
+func startListener(endpoint string, tlsConfigSource security.TLSConfigurationSource) (bool, net.Listener, error) {
+	var tlsConfig *tls.Config
+	var err error
+	var listener net.Listener
+	isTlsEnabled := true
+	if tlsConfigSource != nil {
+		if tlsConfig, err = tlsConfigSource.Get(context.Background()); err != nil {
+			isTlsEnabled = false
+		}
+	} else {
+		isTlsEnabled = false
+		err = fmt.Errorf("no TLSConfigurationSource found")
+	}
+	if isTlsEnabled {
+		if listener, err = tls.Listen("tcp", endpoint, tlsConfig); err != nil {
+			return isTlsEnabled, nil, err
+		}
+	} else {
+		log.Info("Security: TLS not enabled", "endpoint", endpoint, "reason", err)
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return isTlsEnabled, nil, err
+		}
+	}
+	return isTlsEnabled, listener, nil
 }
 
 // CheckTimeouts ensures that timeout values are meaningful

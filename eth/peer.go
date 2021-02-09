@@ -25,6 +25,7 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -329,6 +330,12 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 	p.knownTxs.Add(hash)
 }
 
+// Send writes an RLP-encoded message with the given code.
+// data should encode as an RLP list.
+func (p *peer) Send(msgcode uint64, data interface{}) error {
+	return p2p.Send(p.rw, msgcode, data)
+}
+
 // SendTransactions64 sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
 //
@@ -560,17 +567,19 @@ func (p *peer) RequestTxs(hashes []common.Hash) error {
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter) error {
+func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter, protocolName string) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
 	var (
-		status63 statusData63 // safe to read after two values have been received from errc
-		status   statusData   // safe to read after two values have been received from errc
+		status63    statusData63 // safe to read after two values have been received from errc
+		status      statusData   // safe to read after two values have been received from errc
+		istanbulOld = protocolName == "istanbul" && p.version == consensus.Istanbul64
+		istanbulNew = protocolName == "istanbul" && p.version == consensus.Istanbul99
 	)
 	go func() {
 		switch {
-		case p.version == eth63:
+		case p.version == eth63 || istanbulOld:
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData63{
 				ProtocolVersion: uint32(p.version),
 				NetworkId:       network,
@@ -578,7 +587,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 				CurrentBlock:    head,
 				GenesisBlock:    genesis,
 			})
-		case p.version >= eth64:
+		case p.version >= eth64 || istanbulNew:
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 				ProtocolVersion: uint32(p.version),
 				NetworkID:       network,
@@ -593,9 +602,9 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	}()
 	go func() {
 		switch {
-		case p.version == eth63:
+		case p.version == eth63 || istanbulOld:
 			errc <- p.readStatusLegacy(network, &status63, genesis)
-		case p.version >= eth64:
+		case p.version >= eth64 || istanbulNew:
 			errc <- p.readStatus(network, &status, genesis, forkFilter)
 		default:
 			panic(fmt.Sprintf("unsupported eth protocol version: %d", p.version))
@@ -614,9 +623,9 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 		}
 	}
 	switch {
-	case p.version == eth63:
+	case p.version == eth63 || istanbulOld:
 		p.td, p.head = status63.TD, status63.CurrentBlock
-	case p.version >= eth64:
+	case p.version >= eth64 || istanbulNew:
 		p.td, p.head = status.TD, status.Head
 	default:
 		panic(fmt.Sprintf("unsupported eth protocol version: %d", p.version))
@@ -739,6 +748,18 @@ func (ps *peerSet) Unregister(id string) error {
 	p.close()
 
 	return nil
+}
+
+// Peers returns all registered peers
+func (ps *peerSet) Peers() map[string]*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	set := make(map[string]*peer)
+	for id, p := range ps.peers {
+		set[id] = p
+	}
+	return set
 }
 
 // Peer retrieves the registered peer with the given id.

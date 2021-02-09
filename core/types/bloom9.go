@@ -63,6 +63,15 @@ func (b *Bloom) Add(d *big.Int) {
 	b.SetBytes(bin.Bytes())
 }
 
+// Quorum
+// OrBloom executes an Or operation on the bloom
+func (b *Bloom) OrBloom(bl []byte) {
+	bin := new(big.Int).SetBytes(b[:])
+	input := new(big.Int).SetBytes(bl[:])
+	bin.Or(bin, input)
+	b.SetBytes(bin.Bytes())
+}
+
 // Big converts b to a big integer.
 func (b Bloom) Big() *big.Int {
 	return new(big.Int).SetBytes(b[:])

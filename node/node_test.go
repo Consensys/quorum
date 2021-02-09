@@ -18,6 +18,7 @@ package node
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/plugin"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -635,6 +636,7 @@ func TestWebsocketHTTPOnSamePort_HTTPRequest(t *testing.T) {
 func startHTTP(t *testing.T) *Node {
 	conf := &Config{HTTPPort: 7453, WSPort: 7453}
 	node, err := New(conf)
+	node.pluginManager = plugin.NewEmptyPluginManager()
 	if err != nil {
 		t.Error("could not create a new node ", err)
 	}

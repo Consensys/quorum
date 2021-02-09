@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -346,7 +347,11 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 	if err != nil {
 		return nil, err
 	}
-	return returnLogs(logs), err
+	authLogs, err := api.filterUnAuthorized(ctx, logs)
+	if err != nil {
+		return nil, err
+	}
+	return returnLogs(authLogs), err
 }
 
 // UninstallFilter removes the filter with the given filter id.
@@ -401,7 +406,11 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if err != nil {
 		return nil, err
 	}
-	return returnLogs(logs), nil
+	authLogs, err := api.filterUnAuthorized(ctx, logs)
+	if err != nil {
+		return nil, err
+	}
+	return returnLogs(authLogs), nil
 }
 
 // GetFilterChanges returns the logs for the filter with the given id since
@@ -411,7 +420,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 // (pending)Log filters return []Log.
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
-func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
+func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
 
@@ -431,7 +440,11 @@ func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 		case LogsSubscription, MinedAndPendingLogsSubscription:
 			logs := f.logs
 			f.logs = nil
-			return returnLogs(logs), nil
+			authLogs, err := api.filterUnAuthorized(ctx, logs)
+			if err != nil {
+				return nil, err
+			}
+			return returnLogs(authLogs), nil
 		}
 	}
 
@@ -573,4 +586,33 @@ func decodeTopic(s string) (common.Hash, error) {
 		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for topic", len(b), common.HashLength)
 	}
 	return common.BytesToHash(b), err
+}
+
+// Quorum
+// Perform authorization check for each logs based on the contract addresses
+func (api *PublicFilterAPI) filterUnAuthorized(ctx context.Context, logs []*types.Log) ([]*types.Log, error) {
+	if len(logs) == 0 {
+		return logs, nil
+	}
+	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
+		filteredLogs := make([]*types.Log, 0)
+		for _, l := range logs {
+			extraDataReader, err := api.backend.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
+			if err != nil {
+				return nil, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
+			}
+			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
+			managedParties, err := extraDataReader.GetManagedParties(l.Address)
+			if errors.Is(err, common.ErrNotPrivateContract) {
+				attrBuilder.Public()
+			} else if err != nil {
+				return nil, fmt.Errorf("contract %s not found in the index due to %s", l.Address.Hex(), err.Error())
+			}
+			if ok, _ := api.backend.IsAuthorized(ctx, authToken, attrBuilder.Parties(managedParties).Build()); ok {
+				filteredLogs = append(filteredLogs, l)
+			}
+		}
+		return filteredLogs, nil
+	}
+	return logs, nil
 }
