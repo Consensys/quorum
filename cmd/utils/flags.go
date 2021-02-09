@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
+	http2 "github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -911,22 +912,27 @@ var (
 	QuorumPTMTimeoutFlag = cli.UintFlag{
 		Name:  "ptm.timeout",
 		Usage: "Timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.Timeout,
 	}
 	QuorumPTMDialTimeoutFlag = cli.UintFlag{
 		Name:  "ptm.dialtimeout",
 		Usage: "Dial timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.DialTimeout,
 	}
 	QuorumPTMHttpIdleTimeoutFlag = cli.UintFlag{
 		Name:  "ptm.http.idletimeout",
 		Usage: "Idle timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.HttpIdleConnTimeout,
 	}
 	QuorumPTMHttpWriteBufferSizeFlag = cli.IntFlag{
 		Name:  "ptm.http.writebuffersize",
 		Usage: "Size of the write buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+		Value: 0,
 	}
 	QuorumPTMHttpReadBufferSizeFlag = cli.IntFlag{
 		Name:  "ptm.http.readbuffersize",
 		Usage: "Size of the read buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+		Value: 0,
 	}
 	QuorumPTMTlsModeFlag = cli.StringFlag{
 		Name:  "ptm.tls.mode",
