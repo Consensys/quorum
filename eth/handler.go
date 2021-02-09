@@ -119,8 +119,8 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 		whitelist:  whitelist,
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
-		raftMode:    raftMode,
-		engine:      engine,
+		raftMode:   raftMode,
+		engine:     engine,
 	}
 
 	// Quorum

@@ -18,13 +18,14 @@ package node
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/plugin"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/plugin"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
