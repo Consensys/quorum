@@ -715,10 +715,14 @@ func newPeerSet() *peerSet {
 	}
 }
 
+// Quorum protoName is needed to check if the peer is running eth protocol or a legacy quorum
+// consensus protocol, e.g. istanbul/99 which would not support p.announceTransactions() / NewPooledTransactionHashesMsg
+// Quorum
+
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer) error {
+func (ps *peerSet) Register(p *peer, protoName string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -732,7 +736,9 @@ func (ps *peerSet) Register(p *peer) error {
 
 	go p.broadcastBlocks()
 	go p.broadcastTransactions()
-	if p.version >= eth65 {
+	// Quorum passes in and checks the protoName to see if it is "eth"
+	// as it could also be a legacy protocol, e.g. "istanbul/99", protocolName is always set to "eth" for the eth service.
+	if p.version >= eth65 && protoName == protocolName {
 		go p.announceTransactions()
 	}
 
