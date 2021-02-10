@@ -67,6 +67,7 @@ jobs:
           docker build -t quorumengineering/quorum:pr .
           docker save quorumengineering/quorum:pr > quorum-pr.tar
           tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
+
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
         uses: actions/upload-artifact@v1
@@ -85,6 +86,7 @@ jobs:
         # for PR, only selective tests are run.
         # More comprehensive suites are scheduled to run in master
         tag:
+          - '(basic && !extension) || networks/typical::raftmps'
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
     runs-on: ubuntu-18.04
@@ -98,14 +100,37 @@ jobs:
         run: |
           tar xfvz docker-image/quorum-pr.tar.gz
           docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
           echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      # START: remove the below once PR is ready
+      - name: Login to GitHub Packages Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: quorumbot
+          password: ${{ secrets.QUORUMBOT_PAT }}
+      - name: 'Load AccTests and Tessera Docker Images'
+        run: |
+          tessera_docker_image="docker.pkg.github.com/consensysquorum/tessera/tessera:resident-groups"
+          acctests_docker_image="docker.pkg.github.com/consensysquorum/quorum-acceptance-tests/acctests:dev-multitenant-mps"
+          docker pull $tessera_docker_image
+          echo "TF_VAR_tessera_docker_image={ name = \"$tessera_docker_image\", local = true }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_enhancements={ block = 0, enabled = false }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+
+          docker pull $acctests_docker_image
+          # replacing the acctests image to run
+          docker tag $acctests_docker_image quorumengineering/acctests:latest
+      # END
       - name: 'Run acceptance tests'
         run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
           docker run --rm \
             --network host \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
-            -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:pr", local = true }' \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
             quorumengineering/acctests:latest test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
