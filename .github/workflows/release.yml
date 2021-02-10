@@ -47,7 +47,7 @@ jobs:
           echo "::set-output name=key::$(go env GOOS)_$(go env GOARCH)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
       - name: 'Check out project files'
-        uses: actions/checkout@574281d
+        uses: actions/checkout@v2
         with:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}
@@ -133,7 +133,7 @@ jobs:
           echo "| Filename | SHA256 Hash |" >> $file
           echo "|:---------|:------------|" >> $file
           curl -q -s -u ${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_API_KEY}} "https://api.bintray.com/packages/$package/versions/$current_version/files" \
-          	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/$repo/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
+          	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/'"$repo"'/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
           	>> $file
           content=$(cat $file)
           # escape newline
