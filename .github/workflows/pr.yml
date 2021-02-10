@@ -87,6 +87,8 @@ jobs:
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - 'basic-rpc-security || networks/plugins::raft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
