@@ -310,7 +310,19 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 }
 
 // handleCall processes method calls.
+// Quorum:
+//   This is where server handle the call requests hence we enforce authorization check
+//   before the actual processing of the call. It also populates context with preauthenticated
+//   token so the responsible RPC method can leverage if needed (e.g: in multi tenancy)
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
+	if r, ok := h.conn.(securityContextResolver); ok {
+		if err := secureCall(r, msg); err != nil {
+			return securityErrorMessage(msg, err)
+		}
+		secCtx := r.Resolve()
+		h.log.Debug("Enrich call context with token from security context")
+		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
+	}
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)
 	}
@@ -380,7 +392,11 @@ func (h *handler) handleSubscribe(cp *callProc, msg *jsonrpcMessage) *jsonrpcMes
 
 // runMethod runs the Go callback for an RPC method.
 func (h *handler) runMethod(ctx context.Context, msg *jsonrpcMessage, callb *callback, args []reflect.Value) *jsonrpcMessage {
-	result, err := callb.call(ctx, msg.Method, args)
+	//Quorum
+	//Pass the request ID to the method as part of the context, in case the method needs it later
+	contextWithId := context.WithValue(ctx, "id", &msg.ID)
+	//End-Quorum
+	result, err := callb.call(contextWithId, msg.Method, args)
 	if err != nil {
 		return msg.errorResponse(err)
 	}

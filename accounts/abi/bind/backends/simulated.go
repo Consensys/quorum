@@ -36,12 +36,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // This nil assignment ensures compile time that SimulatedBackend implements bind.ContractBackend.
@@ -88,6 +91,20 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 	return backend
 }
 
+// Quorum
+//
+// Create a simulated backend based on existing Ethereum service
+func NewSimulatedBackendFrom(ethereum *eth.Ethereum) *SimulatedBackend {
+	backend := &SimulatedBackend{
+		database:   ethereum.ChainDb(),
+		blockchain: ethereum.BlockChain(),
+		config:     ethereum.BlockChain().Config(),
+		events:     filters.NewEventSystem(&filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
+	}
+	backend.rollback()
+	return backend
+}
+
 // NewSimulatedBackend creates a new binding backend using a simulated blockchain
 // for testing purposes.
 func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
@@ -122,7 +139,7 @@ func (b *SimulatedBackend) Rollback() {
 
 func (b *SimulatedBackend) rollback() {
 	blocks, _ := core.GenerateChain(b.config, b.blockchain.CurrentBlock(), ethash.NewFaker(), b.database, 1, func(int, *core.BlockGen) {})
-	statedb, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)
@@ -131,13 +148,15 @@ func (b *SimulatedBackend) rollback() {
 // stateByBlockNumber retrieves a state by a given blocknumber.
 func (b *SimulatedBackend) stateByBlockNumber(ctx context.Context, blockNumber *big.Int) (*state.StateDB, error) {
 	if blockNumber == nil || blockNumber.Cmp(b.blockchain.CurrentBlock().Number()) == 0 {
-		return b.blockchain.State()
+		statedb, _, err := b.blockchain.State()
+		return statedb, err
 	}
 	block, err := b.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	return b.blockchain.StateAt(block.Hash())
+	statedb, _, err := b.blockchain.StateAt(block.Hash())
+	return statedb, err
 }
 
 // CodeAt returns the code associated with a certain account in the blockchain.
@@ -149,7 +168,7 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	if err != nil {
 		return nil, err
 	}
-
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetCode(contract), nil
 }
 
@@ -162,7 +181,7 @@ func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetBalance(contract), nil
 }
 
@@ -175,7 +194,7 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 	if err != nil {
 		return 0, err
 	}
-
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetNonce(contract), nil
 }
 
@@ -188,7 +207,7 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-
+	statedb, _, _ = b.blockchain.State()
 	val := statedb.GetState(contract, key)
 	return val[:], nil
 }
@@ -346,11 +365,11 @@ func (b *SimulatedBackend) CallContract(ctx context.Context, call ethereum.CallM
 	if blockNumber != nil && blockNumber.Cmp(b.blockchain.CurrentBlock().Number()) != 0 {
 		return nil, errBlockNumberUnsupported
 	}
-	state, err := b.blockchain.State()
+	state, _, err := b.blockchain.State()
 	if err != nil {
 		return nil, err
 	}
-	res, err := b.callContract(ctx, call, b.blockchain.CurrentBlock(), state)
+	res, err := b.callContract(ctx, call, b.blockchain.CurrentBlock(), state, state)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +382,7 @@ func (b *SimulatedBackend) PendingCallContract(ctx context.Context, call ethereu
 	defer b.mu.Unlock()
 	defer b.pendingState.RevertToSnapshot(b.pendingState.Snapshot())
 
-	res, err := b.callContract(ctx, call, b.pendingBlock, b.pendingState)
+	res, err := b.callContract(ctx, call, b.pendingBlock, b.pendingState, b.pendingState)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +449,7 @@ func (b *SimulatedBackend) EstimateGas(ctx context.Context, call ethereum.CallMs
 		call.Gas = gas
 
 		snapshot := b.pendingState.Snapshot()
-		res, err := b.callContract(ctx, call, b.pendingBlock, b.pendingState)
+		res, err := b.callContract(ctx, call, b.pendingBlock, b.pendingState, b.pendingState)
 		b.pendingState.RevertToSnapshot(snapshot)
 
 		if err != nil {
@@ -486,7 +505,7 @@ func (b *SimulatedBackend) EstimateGas(ctx context.Context, call ethereum.CallMs
 
 // callContract implements common code between normal and pending contract calls.
 // state is modified during execution, make sure to copy it if necessary.
-func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallMsg, block *types.Block, statedb *state.StateDB) (*core.ExecutionResult, error) {
+func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallMsg, block *types.Block, statedb *state.StateDB, privateState *state.StateDB) (*core.ExecutionResult, error) {
 	// Ensure message is initialized properly.
 	if call.GasPrice == nil {
 		call.GasPrice = big.NewInt(1)
@@ -506,7 +525,7 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 	evmContext := core.NewEVMContext(msg, block.Header(), b.blockchain, nil)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, b.config, vm.Config{})
+	vmenv := vm.NewEVM(evmContext, statedb, privateState, b.config, vm.Config{})
 	gaspool := new(core.GasPool).AddGas(math.MaxUint64)
 
 	return core.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
@@ -514,7 +533,7 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 
 // SendTransaction updates the pending block to include the given transaction.
 // It panics if the transaction is invalid.
-func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transaction, args bind.PrivateTxArgs) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -533,11 +552,16 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 		}
 		block.AddTxWithChain(b.blockchain, tx)
 	})
-	statedb, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)
 	return nil
+}
+
+// PreparePrivateTransaction dummy implementation
+func (b *SimulatedBackend) PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, nil
 }
 
 // FilterLogs executes a log filter operation, blocking during execution and
@@ -646,7 +670,7 @@ func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 		}
 		block.OffsetTime(int64(adjustment.Seconds()))
 	})
-	statedb, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)
@@ -741,6 +765,18 @@ func (fb *filterBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event
 func (fb *filterBackend) BloomStatus() (uint64, uint64) { return 4096, 0 }
 
 func (fb *filterBackend) ServiceFilter(ctx context.Context, ms *bloombits.MatcherSession) {
+	panic("not supported")
+}
+
+func (fb *filterBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	panic("not supported")
+}
+
+func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+	panic("not supported")
+}
+
+func (fb *filterBackend) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	panic("not supported")
 }
 

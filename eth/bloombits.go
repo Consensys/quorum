@@ -115,10 +115,14 @@ func (b *BloomIndexer) Reset(ctx context.Context, section uint64, lastSectionHea
 	return err
 }
 
-// Process implements core.ChainIndexerBackend, adding a new header's bloom into
-// the index.
+// Process implements core.ChainIndexerBackend, executes an Or operation on header.bloom and private bloom
+// (header.bloom | private bloom) and adds to index
 func (b *BloomIndexer) Process(ctx context.Context, header *types.Header) error {
-	b.gen.AddBloom(uint(header.Number.Uint64()-b.section*b.size), header.Bloom)
+	publicBloom := header.Bloom
+	privateBloom := rawdb.GetPrivateBlockBloom(b.db, header.Number.Uint64())
+	publicBloom.OrBloom(privateBloom.Bytes())
+
+	b.gen.AddBloom(uint(header.Number.Uint64()-b.section*b.size), publicBloom)
 	b.head = header.Hash()
 	return nil
 }

@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/plugin"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -635,6 +637,7 @@ func TestWebsocketHTTPOnSamePort_HTTPRequest(t *testing.T) {
 func startHTTP(t *testing.T) *Node {
 	conf := &Config{HTTPPort: 7453, WSPort: 7453}
 	node, err := New(conf)
+	node.pluginManager = plugin.NewEmptyPluginManager()
 	if err != nil {
 		t.Error("could not create a new node ", err)
 	}

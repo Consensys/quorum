@@ -7,8 +7,10 @@ For general questions please use [discord](https://discord.gg/nthXNEv) or the Et
 #### System information
 
 Geth version: `geth version`
+
 OS & Version: Windows/Linux/OSX
-Commit hash : (if `develop`)
+
+Branch, Commit Hash or Release: `git status`
 
 #### Expected behaviour
 

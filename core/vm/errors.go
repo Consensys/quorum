@@ -34,6 +34,9 @@ var (
 	ErrWriteProtection          = errors.New("write protection")
 	ErrReturnDataOutOfBounds    = errors.New("return data out of bounds")
 	ErrGasUintOverflow          = errors.New("gas uint64 overflow")
+
+	ErrReadOnlyValueTransfer   = errors.New("VM in read-only mode. Value transfer prohibited.")
+	ErrNoCompatibleInterpreter = errors.New("no compatible interpreter")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

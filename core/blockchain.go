@@ -18,6 +18,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +29,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -190,9 +194,25 @@ type BlockChain struct {
 	processor  Processor  // Block transaction processor interface
 	vmConfig   vm.Config
 
-	badBlocks       *lru.Cache                     // Bad block cache
-	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
-	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
+	badBlocks       *lru.Cache                         // Bad block cache
+	shouldPreserve  func(*types.Block) bool            // Function used to determine whether should preserve the given block.
+	terminateInsert func(common.Hash, uint64) bool     // Testing hook used to terminate ancient receipt chain insertion.
+	setPrivateState func([]*types.Log, *state.StateDB) // Function to check extension and set private state
+
+	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
+	isMultitenant     bool           // if this blockchain supports multitenancy
+}
+
+// function pointer for updating private state
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)) {
+	bc.setPrivateState = ps
+}
+
+// function to update the private state as a part contract state extension
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
+	if bc.setPrivateState != nil {
+		bc.setPrivateState(txLogs, privateState)
+	}
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -217,22 +237,23 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
-		quit:           make(chan struct{}),
-		shouldPreserve: shouldPreserve,
-		bodyCache:      bodyCache,
-		bodyRLPCache:   bodyRLPCache,
-		receiptsCache:  receiptsCache,
-		blockCache:     blockCache,
-		txLookupCache:  txLookupCache,
-		futureBlocks:   futureBlocks,
-		engine:         engine,
-		vmConfig:       vmConfig,
-		badBlocks:      badBlocks,
+		chainConfig:       chainConfig,
+		cacheConfig:       cacheConfig,
+		db:                db,
+		triegc:            prque.New(nil),
+		stateCache:        state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
+		quit:              make(chan struct{}),
+		shouldPreserve:    shouldPreserve,
+		bodyCache:         bodyCache,
+		bodyRLPCache:      bodyRLPCache,
+		receiptsCache:     receiptsCache,
+		blockCache:        blockCache,
+		txLookupCache:     txLookupCache,
+		futureBlocks:      futureBlocks,
+		engine:            engine,
+		vmConfig:          vmConfig,
+		badBlocks:         badBlocks,
+		privateStateCache: state.NewDatabase(db),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -332,6 +353,15 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	return bc, nil
 }
 
+func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
+	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit)
+	if err != nil {
+		return nil, err
+	}
+	bc.isMultitenant = true
+	return bc, err
+}
+
 func (bc *BlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
 }
@@ -381,6 +411,14 @@ func (bc *BlockChain) loadLastState() error {
 		}
 		rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
 	}
+
+	// Quorum
+	if _, err := state.New(rawdb.GetPrivateStateRoot(bc.db, currentBlock.Root()), bc.privateStateCache, nil); err != nil {
+		log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+		return bc.Reset()
+	}
+	// /Quorum
+
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
 	headBlockGauge.Update(int64(currentBlock.NumberU64()))
@@ -530,7 +568,14 @@ func (bc *BlockChain) FastSyncCommitHead(hash common.Hash) error {
 
 // GasLimit returns the gas limit of the current HEAD block.
 func (bc *BlockChain) GasLimit() uint64 {
-	return bc.CurrentBlock().GasLimit()
+	bc.chainmu.RLock()
+	defer bc.chainmu.RUnlock()
+
+	if bc.Config().IsQuorum {
+		return math.MaxBig256.Uint64() // HACK(joel) a very large number
+	} else {
+		return bc.CurrentBlock().GasLimit()
+	}
 }
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
@@ -565,18 +610,27 @@ func (bc *BlockChain) Processor() Processor {
 }
 
 // State returns a new mutable state based on the current HEAD block.
-func (bc *BlockChain) State() (*state.StateDB, error) {
+func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, error) {
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, bc.stateCache, bc.snaps)
+func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error) {
+	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
+	if publicStateDbErr != nil {
+		return nil, nil, publicStateDbErr
+	}
+	privateStateDb, privateStateDbErr := state.New(rawdb.GetPrivateStateRoot(bc.db, root), bc.privateStateCache, nil)
+	if privateStateDbErr != nil {
+		return nil, nil, privateStateDbErr
+	}
+
+	return publicStateDb, privateStateDb, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
-func (bc *BlockChain) StateCache() state.Database {
-	return bc.stateCache
+func (bc *BlockChain) StateCache() (state.Database, state.Database) {
+	return bc.stateCache, bc.privateStateCache
 }
 
 // Reset purges the entire blockchain, restoring it to its genesis state.
@@ -1392,16 +1446,44 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
-	return bc.writeBlockWithState(block, receipts, logs, state, emitHeadEvent)
+	return bc.writeBlockWithState(block, receipts, logs, state, privateState, emitHeadEvent)
 }
+
+// QUORUM
+// checks if the consensus engine is Rfat
+func (bc *BlockChain) isRaft() bool {
+	return bc.chainConfig.IsQuorum && bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil
+}
+
+// function specifically added for Raft consensus. This is called from mintNewBlock
+// to commit public and private state using bc.chainmu lock
+// added to avoid concurrent map errors in high stress conditions
+func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, privateState *state.StateDB) error {
+	// check if consensus is not Raft
+	if !bc.isRaft() {
+		return errors.New("error function can be called only for Raft consensus")
+	}
+
+	bc.chainmu.Lock()
+	defer bc.chainmu.Unlock()
+	if _, err := state.Commit(deleteEmptyObjects); err != nil {
+		return fmt.Errorf("error committing public state: %v", err)
+	}
+	if _, err := privateState.Commit(deleteEmptyObjects); err != nil {
+		return fmt.Errorf("error committing private state: %v", err)
+	}
+	return nil
+}
+
+// END QUORUM
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
-func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -1411,6 +1493,23 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, consensus.ErrUnknownAncestor
 	}
 	// Make sure no inconsistent state is leaked during insertion
+	// Quorum
+	// Write private state changes to database
+	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+	if err != nil {
+		return NonStatTy, err
+	}
+	if err := rawdb.WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
+		log.Error("Failed writing private state root", "err", err)
+		return NonStatTy, err
+	}
+	// Explicit commit for privateStateTriedb
+	privateTriedb := bc.privateStateCache.TrieDB()
+	if err := privateTriedb.Commit(privateRoot, false); err != nil {
+		return NonStatTy, err
+	}
+	// /Quorum
+
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
@@ -1429,6 +1528,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	// Commit all cached state changes into underlying memory database.
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
+
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1439,6 +1539,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := triedb.Commit(root, false); err != nil {
 			return NonStatTy, err
 		}
+
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
@@ -1594,6 +1695,27 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return n, err
 }
 
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
+func mergeReceipts(pub, priv types.Receipts) types.Receipts {
+	m := make(map[common.Hash]*types.Receipt)
+	for _, receipt := range pub {
+		m[receipt.TxHash] = receipt
+	}
+	for _, receipt := range priv {
+		m[receipt.TxHash] = receipt
+	}
+
+	ret := make(types.Receipts, 0, len(pub))
+	for _, pubReceipt := range pub {
+		ret = append(ret, m[pubReceipt.TxHash])
+	}
+
+	return ret
+}
+
 // insertChain is the internal implementation of InsertChain, which assumes that
 // 1) chains are contiguous, and 2) The chain mutex is held.
 //
@@ -1605,6 +1727,12 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, error) {
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
+		log.Debug("Premature abort during blocks processing")
+		// QUORUM
+		if bc.isRaft() {
+			// Only returns an error for raft mode
+			return 0, ErrAbortBlocksProcessing
+		}
 		return 0, nil
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
@@ -1710,6 +1838,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// If the chain is terminating, stop processing blocks
 		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
+			// QUORUM
+			if bc.isRaft() {
+				// Only returns an error for raft mode
+				return it.index, ErrAbortBlocksProcessing
+			}
+			// END QUORUM
 			break
 		}
 		// If the header is a banned one, straight out abort
@@ -1762,29 +1896,41 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if parent == nil {
 			parent = bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
 		}
+		// alias state.New because we introduce a variable named state on the next line
+		stateNew := state.New
+
 		statedb, err := state.New(parent.Root, bc.stateCache, bc.snaps)
 		if err != nil {
 			return it.index, err
 		}
+		// Quorum
+		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root)
+		privateState, err := stateNew(privateStateRoot, bc.privateStateCache, nil)
+		if err != nil {
+			return it.index, err
+		}
+		// /Quorum
+
 		// If we have a followup block, run that against the current state to pre-cache
 		// transactions and probabilistically some of the account/storage trie nodes.
 		var followupInterrupt uint32
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
-				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, interrupt *uint32) {
-					bc.prefetcher.Prefetch(followup, throwaway, bc.vmConfig, &followupInterrupt)
+				privatest, _ := stateNew(privateStateRoot, bc.privateStateCache, nil)
+				go func(start time.Time, followup *types.Block, throwaway, privatest *state.StateDB, interrupt *uint32) {
+					bc.prefetcher.Prefetch(followup, throwaway, privatest, bc.vmConfig, &followupInterrupt)
 
 					blockPrefetchExecuteTimer.Update(time.Since(start))
 					if atomic.LoadUint32(interrupt) == 1 {
 						blockPrefetchInterruptMeter.Mark(1)
 					}
-				}(time.Now(), followup, throwaway, &followupInterrupt)
+				}(time.Now(), followup, throwaway, privatest, &followupInterrupt)
 			}
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
-		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, privateState, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
@@ -1811,8 +1957,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, err
 		}
-		proctime := time.Since(start)
 
+		allReceipts := mergeReceipts(receipts, privateReceipts)
+		proctime := time.Since(start)
 		// Update the metrics touched during block validation
 		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them
 		storageHashTimer.Update(statedb.StorageHashes) // Storage hashes are complete, we can mark them
@@ -1821,12 +1968,14 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Write the block to the chain and get the status.
 		substart = time.Now()
-		status, err := bc.writeBlockWithState(block, receipts, logs, statedb, false)
+		status, err := bc.writeBlockWithState(block, allReceipts, logs, statedb, privateState, false)
 		atomic.StoreUint32(&followupInterrupt, 1)
 		if err != nil {
 			return it.index, err
 		}
-
+		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
+			return it.index, err
+		}
 		// Update the metrics touched during block commit
 		accountCommitTimer.Update(statedb.AccountCommits)   // Account commits are complete, we can mark them
 		storageCommitTimer.Update(statedb.StorageCommits)   // Storage commits are complete, we can mark them
@@ -2281,6 +2430,11 @@ func (bc *BlockChain) BadBlocks() []*types.Block {
 	return blocks
 }
 
+// HasBadBlock returns whether the block with the hash is a bad block. dep: Istanbul
+func (bc *BlockChain) HasBadBlock(hash common.Hash) bool {
+	return bc.badBlocks.Contains(hash)
+}
+
 // addBadBlock adds a bad block to the bad-block LRU cache
 func (bc *BlockChain) addBadBlock(block *types.Block) {
 	bc.badBlocks.Add(block.Hash(), block)
@@ -2450,4 +2604,8 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 // block processing has started while false means it has stopped.
 func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
+}
+
+func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, bc.isMultitenant
 }

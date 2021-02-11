@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"path/filepath"
 	"reflect"
 
@@ -83,6 +84,11 @@ func (ctx *ServiceContext) Service(service interface{}) error {
 		return nil
 	}
 	return ErrServiceUnknown
+}
+
+// NodeKey returns node key from config
+func (ctx *ServiceContext) NodeKey() *ecdsa.PrivateKey {
+	return ctx.Config.NodeKey()
 }
 
 // ExtRPCEnabled returns the indicator whether node enables the external

@@ -20,17 +20,16 @@ package graphql
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -47,9 +46,9 @@ type Account struct {
 }
 
 // getState fetches the StateDB object for an account.
-func (a *Account) getState(ctx context.Context) (*state.StateDB, error) {
-	state, _, err := a.backend.StateAndHeaderByNumberOrHash(ctx, a.blockNrOrHash)
-	return state, err
+func (a *Account) getState(ctx context.Context) (vm.MinimalApiState, error) {
+	stat, _, err := a.backend.StateAndHeaderByNumberOrHash(ctx, a.blockNrOrHash)
+	return stat, err
 }
 
 func (a *Account) Address(ctx context.Context) (common.Address, error) {
@@ -313,6 +312,35 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	}
 	return &ret, nil
 }
+
+// Quorum
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	if tx.IsPrivate() {
+		_, _, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if err != nil || tx == nil {
+			return &hexutil.Bytes{}, err
+		}
+		ret := hexutil.Bytes(privateInputData)
+		return &ret, nil
+	}
+	return &hexutil.Bytes{}, nil
+}
+
+// END QUORUM
 
 func (t *Transaction) R(ctx context.Context) (hexutil.Big, error) {
 	tx, err := t.resolve(ctx)
@@ -803,7 +831,9 @@ func (b *Block) Call(ctx context.Context, args struct {
 			return nil, err
 		}
 	}
-	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, 5*time.Second, b.backend.RPCGasCap())
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +902,9 @@ func (p *Pending) Call(ctx context.Context, args struct {
 	Data ethapi.CallArgs
 }) (*CallResult, error) {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, 5*time.Second, p.backend.RPCGasCap())
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -986,7 +1018,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", nil, true)
 	return hash, err
 }
 

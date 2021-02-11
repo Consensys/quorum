@@ -17,6 +17,7 @@
 package console
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,7 +39,8 @@ import (
 )
 
 var (
-	passwordRegexp = regexp.MustCompile(`personal.[nus]`)
+	// u: unlock, s: signXX, sendXX, n: newAccount, i: importXX
+	passwordRegexp = regexp.MustCompile(`personal.[nusi]`)
 	onlyWhitespace = regexp.MustCompile(`^\s*$`)
 	exit           = regexp.MustCompile(`^\s*exit\s*;*\s*$`)
 )
@@ -194,6 +196,10 @@ func (c *Console) initExtensions() error {
 		if api == "web3" {
 			continue
 		}
+		//quorum
+		// the @ symbol results in errors that prevent the extension from being added to the web3 object
+		api = strings.Replace(api, "plugin@", "plugin_", 1)
+		//!quorum
 		aliases[api] = struct{}{}
 		if file, ok := web3ext.Modules[api]; ok {
 			if err = c.jsre.Compile(api+".js", file); err != nil {
@@ -299,8 +305,26 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 func (c *Console) Welcome() {
 	message := "Welcome to the Geth JavaScript console!\n\n"
 
-	// Print some generic Geth metadata
-	if res, err := c.jsre.Run(`
+	// Quorum: Block timestamp for Raft is in nanoseconds, so convert accordingly
+	consensus := c.getConsensus()
+	if consensus == "raft" {
+		// Print some generic Geth metadata
+		if res, err := c.jsre.Run(`
+		var message = "instance: " + web3.version.node + "\n";
+		try {
+			message += "coinbase: " + eth.coinbase + "\n";
+		} catch (err) {}
+		message += "at block: " + eth.blockNumber + " (" + new Date(eth.getBlock(eth.blockNumber).timestamp / 1000000) + ")\n";
+		try {
+			message += " datadir: " + admin.datadir + "\n";
+		} catch (err) {}
+		message
+	`); err == nil {
+			message += res.String()
+		}
+	} else {
+		// Print some generic Geth metadata
+		if res, err := c.jsre.Run(`
 		var message = "instance: " + web3.version.node + "\n";
 		try {
 			message += "coinbase: " + eth.coinbase + "\n";
@@ -311,7 +335,8 @@ func (c *Console) Welcome() {
 		} catch (err) {}
 		message
 	`); err == nil {
-		message += res.String()
+			message += res.String()
+		}
 	}
 	// List all the supported modules for the user to call
 	if apis, err := c.client.SupportedModules(); err == nil {
@@ -323,6 +348,30 @@ func (c *Console) Welcome() {
 		message += " modules: " + strings.Join(modules, " ") + "\n"
 	}
 	fmt.Fprintln(c.printer, message)
+}
+
+// Get the consensus mechanism that is in use
+func (c *Console) getConsensus() string {
+
+	var nodeInfo struct {
+		Protocols struct {
+			Eth struct { // only partial of eth/handler.go#NodeInfo
+				Consensus string
+			}
+			Istanbul struct { // a bit different from others
+				Consensus string
+			}
+		}
+	}
+
+	if err := c.client.CallContext(context.Background(), &nodeInfo, "admin_nodeInfo"); err != nil {
+		_, _ = fmt.Fprintf(c.printer, "WARNING: call to admin.getNodeInfo() failed, unable to determine consensus mechanism\n")
+		return "unknown"
+	}
+	if nodeInfo.Protocols.Istanbul.Consensus != "" {
+		return nodeInfo.Protocols.Istanbul.Consensus
+	}
+	return nodeInfo.Protocols.Eth.Consensus
 }
 
 // Evaluate executes code and pretty prints the result to the specified output

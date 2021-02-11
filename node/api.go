@@ -264,6 +264,12 @@ type PublicAdminAPI struct {
 	node *Node // Node interfaced by this API
 }
 
+// Quorum: an extended nodeInfo to include plugin details for current node
+type QuorumNodeInfo struct {
+	*p2p.NodeInfo
+	Plugins interface{} `json:"plugins"`
+}
+
 // NewPublicAdminAPI creates a new API definition for the public admin methods
 // of the node itself.
 func NewPublicAdminAPI(node *Node) *PublicAdminAPI {
@@ -282,12 +288,15 @@ func (api *PublicAdminAPI) Peers() ([]*p2p.PeerInfo, error) {
 
 // NodeInfo retrieves all the information we know about the host node at the
 // protocol granularity.
-func (api *PublicAdminAPI) NodeInfo() (*p2p.NodeInfo, error) {
+func (api *PublicAdminAPI) NodeInfo() (*QuorumNodeInfo, error) {
 	server := api.node.Server()
 	if server == nil {
 		return nil, ErrNodeStopped
 	}
-	return server.NodeInfo(), nil
+	return &QuorumNodeInfo{
+		NodeInfo: server.NodeInfo(),
+		Plugins:  api.node.PluginManager().PluginsInfo(),
+	}, nil
 }
 
 // Datadir retrieves the current data directory the node is using.

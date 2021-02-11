@@ -19,9 +19,14 @@ package params
 import "math/big"
 
 const (
-	GasLimitBoundDivisor uint64 = 1024    // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit          uint64 = 5000    // Minimum the gas limit may ever be.
-	GenesisGasLimit      uint64 = 4712388 // Gas limit of the Genesis block.
+	// these are original values from upstream Geth, used in ethash consensus
+	OriginalMinGasLimit          uint64 = 5000 // The bound divisor of the gas limit, used in update calculations.
+	OriginalGasLimitBoundDivisor uint64 = 1024 // Minimum the gas limit may ever be.
+
+	// modified values for Quorum
+	GasLimitBoundDivisor uint64 = 4096      // The bound divisor of the gas limit, used in update calculations.
+	MinGasLimit          uint64 = 700000000 // Minimum the gas limit may ever be.
+	GenesisGasLimit      uint64 = 800000000 // Gas limit of the Genesis block.
 
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.
 	ExpByteGas            uint64 = 10    // Times ceil(log256(exponent)) for the EXP instruction.
@@ -130,6 +135,10 @@ const (
 	Bn256PairingBaseGasIstanbul      uint64 = 45000  // Base price for an elliptic curve pairing check
 	Bn256PairingPerPointGasByzantium uint64 = 80000  // Byzantium per-point price for an elliptic curve pairing check
 	Bn256PairingPerPointGasIstanbul  uint64 = 34000  // Per-point price for an elliptic curve pairing check
+
+	QuorumMaximumExtraDataSize uint64 = 65 // Maximum size extra data may be after Genesis.
+	// Quorum - payload for a transaction, the size of the buffer to 128kb to match the maximum allowed in chain config
+	QuorumMaxPayloadBufferSize uint64 = 128
 )
 
 var (
@@ -138,3 +147,11 @@ var (
 	MinimumDifficulty      = big.NewInt(131072) // The minimum that the difficulty may ever be.
 	DurationLimit          = big.NewInt(13)     // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
 )
+
+func GetMaximumExtraDataSize(isQuorum bool) uint64 {
+	if isQuorum {
+		return QuorumMaximumExtraDataSize
+	} else {
+		return MaximumExtraDataSize
+	}
+}
