@@ -394,11 +394,7 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 	}
 
 	// Quorum notify other subprotocols that the eth peer is ready, and has been added to the peerset.
-	select {
-	case p.EthPeerRegistered <- true:
-	default:
-		p.Log().Debug("no subprotocol waiting on EthPeerRegistered", "protoName", protoName)
-	}
+	p.EthPeerRegistered <- struct{}{}
 	// Quorum
 
 	// Handle incoming messages until the connection is torn down

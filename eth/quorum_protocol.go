@@ -55,23 +55,23 @@ func (pm *ProtocolManager) makeQuorumConsensusProtocol(ProtoName string, version
 			* 7. messages to other to other peers listening to the subprotocol can be sent using the
 			*    (eth)peer.ConsensusSend() which will write to the protoRW.
 			 */
-			// wait for the "eth" protocol to create and register the peer
-			if isEthPeerRegistered := <-p.EthPeerRegistered; !isEthPeerRegistered {
-				// the p2p peer was disconnected
+			// wait for the "eth" protocol to create and register the peer (added to peerset)
+			select {
+			case <-p.EthPeerRegistered:
+				// the ethpeer should be registered, try to retrieve it and start the consensus handler.
+				p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
+				ethPeer := pm.peers.Peer(p2pPeerId)
+				if ethPeer != nil {
+					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", ethPeer.id, "ProtoName", ProtoName)
+					// add the rw protocol for the quorum subprotocol to the eth peer.
+					ethPeer.addConsensusProtoRW(rw)
+					return pm.handleConsensusLoop(p, rw)
+				}
+				p.Log().Error("consensus subprotocol retrieved nil eth peer from peerset", "ethPeer.id", ethPeer)
+				return errEthPeerNil
+			case <-p.EthPeerDisconnected:
 				return errEthPeerNotRegistered
 			}
-
-			// the ethpeer should be registered, try to retrieve it and start the consensus handler.
-			p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
-			ethPeer := pm.peers.Peer(p2pPeerId)
-			if ethPeer != nil {
-				p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", ethPeer.id, "ProtoName", ProtoName)
-				// add the rw protocol for the quorum subprotocol to the eth peer.
-				ethPeer.addConsensusProtoRW(rw)
-				return pm.handleConsensusLoop(p, rw)
-			}
-			p.Log().Error("consensus subprotocol retrieved nil eth peer from peerset", "ethPeer.id", ethPeer)
-			return errEthPeerNil
 		},
 		NodeInfo: func() interface{} {
 			return pm.NodeInfo()
@@ -129,7 +129,7 @@ func (pm *ProtocolManager) handleConsensusMsg(p *p2p.Peer, msg p2p.Msg) (bool, e
 	return false, nil
 }
 
-// makeLegacyProtocol is basically a copy of the eth makeProtocol, but for legacy subprtocols, e.g. "istanbul/99" "istabnul/64"
+// makeLegacyProtocol is basically a copy of the eth makeProtocol, but for legacy subprotocols, e.g. "istanbul/99" "istabnul/64"
 // If support legacy subprotocols is removed, remove this and associated code as well.
 // If quorum is using a legacy protocol then the "eth" subprotocol should not be available.
 func (pm *ProtocolManager) makeLegacyProtocol(protoName string, version uint, length uint64) p2p.Protocol {
@@ -189,8 +189,9 @@ func (s *Ethereum) quorumConsensusProtocols() []p2p.Protocol {
 
 // istanbul/64, istanbul/99, clique/63, clique/64 all override the "eth" subprotocol.
 func isLegacyProtocol(name string, version uint) bool {
-	legacyProtocols := map[string][]uint{"istanbul": {64, 99}, "clique": {63, 64}}
-	for lpName, lpVersions := range legacyProtocols {
+	// protocols that override "eth" subprotocol and run only the quorum subprotocol.
+	quorumLegacyProtocols := map[string][]uint{"istanbul": {64, 99}, "clique": {63, 64}}
+	for lpName, lpVersions := range quorumLegacyProtocols {
 		if lpName == name {
 			for _, v := range lpVersions {
 				if v == version {

@@ -211,7 +211,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		dbVer = fmt.Sprintf("%d", *bcVersion)
 	}
 	log.Info("Initialising Ethereum protocol", "name", protocolName, "versions", ProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
-	log.Info("Initialising Quorum consensus protocol", "name", quorumConsensusProtocolName, "versions", quorumConsensusProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	if chainConfig.IsQuorum {
+		log.Info("Initialising Quorum consensus protocol", "name", quorumConsensusProtocolName, "versions", quorumConsensusProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	}
 
 	if !config.SkipBcVersionCheck {
 		if bcVersion != nil && *bcVersion > core.BlockChainVersion {

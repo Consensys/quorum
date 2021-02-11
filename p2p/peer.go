@@ -118,7 +118,8 @@ type Peer struct {
 	events *event.Feed
 
 	// Quorum
-	EthPeerRegistered chan bool
+	EthPeerRegistered   chan struct{}
+	EthPeerDisconnected chan struct{}
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -173,7 +174,7 @@ func (p *Peer) Disconnect(reason DiscReason) {
 	// Quorum
 	// if a quorum eth service subprotocol is waiting on EthPeerRegistered, notify the peer that it was not registered.
 	select {
-	case p.EthPeerRegistered <- false:
+	case p.EthPeerDisconnected <- struct{}{}:
 	default:
 	}
 	// Quorum
@@ -201,7 +202,8 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
 		// Quorum
-		EthPeerRegistered: make(chan bool),
+		EthPeerRegistered:   make(chan struct{}, 1),
+		EthPeerDisconnected: make(chan struct{}, 1),
 	}
 	return p
 }
