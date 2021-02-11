@@ -19,6 +19,7 @@ package rpc
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
@@ -46,11 +47,20 @@ func (s *Server) ServeListener(l net.Listener) error {
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
 func DialIPC(ctx context.Context, endpoint string) (*Client, error) {
-	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
+	client, err := newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
 		conn, err := newIPCConnection(ctx, endpoint)
 		if err != nil {
 			return nil, err
 		}
-		return NewCodec(conn), err
+		return NewCodec(conn), nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	psi := os.Getenv("PSI")
+	if len(psi) > 0 {
+		client.idgen = randomIDGeneratorWithPSI(psi)
+		client.idPSIPrefix = "PSI(" + psi + ")"
+	}
+	return client, nil
 }

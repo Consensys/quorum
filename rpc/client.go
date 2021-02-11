@@ -78,7 +78,8 @@ type Client struct {
 	isHTTP   bool
 	services *serviceRegistry
 
-	idCounter uint32
+	idCounter   uint32
+	idPSIPrefix string
 
 	// This function, if non-nil, is called when the connection is lost.
 	reconnectFunc reconnectFunc
@@ -235,7 +236,13 @@ func (c *Client) RegisterName(name string, receiver interface{}) error {
 
 func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
-	return strconv.AppendUint(nil, uint64(id), 10)
+	idBytes := strconv.AppendUint(nil, uint64(id), 10)
+	if len(c.idPSIPrefix) > 0 {
+		idBytes = append([]byte(c.idPSIPrefix), idBytes...)
+		idBytes = append(idBytes, []byte("\"")...)
+		idBytes = append([]byte("\""), idBytes...)
+	}
+	return idBytes
 }
 
 // SupportedModules calls the rpc_modules method, retrieving the list of

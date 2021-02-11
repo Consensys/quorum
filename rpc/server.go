@@ -156,10 +156,10 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	// TODO - find a way to validate that the user has access to the PSI (and get it from the token rather than the HTTP header)
 	// for now it allows for easy testing :)
 
-	// try to extract the PSI from the URL
-	psi := r.URL.Query().Get("PSI")
+	// try to extract the PSI from the HTTP Header then the URL
+	psi := r.Header.Get("PSI")
 	if len(psi) == 0 {
-		psi = r.Header.Get("PSI")
+		psi = r.URL.Query().Get("PSI")
 	}
 	if len(psi) == 0 {
 		psi = "private"
