@@ -60,7 +60,7 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 	orgInfo, err := OrgInfoMap.GetOrg(NETWORKADMIN)
 	assert.True(err == nil, "errors encountered")
 
-	assert.False(orgInfo == nil, fmt.Sprintf("Expected org details, got nil"))
+	assert.False(orgInfo == nil, "Expected org details, got nil")
 	assert.True(orgInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id %v, got %v", NETWORKADMIN, orgInfo.OrgId))
 
 	// update org status to suspended
@@ -94,9 +94,9 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 	// add a node into the cache and validate
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
 	nodeInfo, err := NodeInfoMap.GetNodeByUrl(NODE1)
-	assert.True(err == nil, fmt.Sprintf("got errors in node fetch"))
+	assert.True(err == nil, "got errors in node fetch")
 
-	assert.False(nodeInfo == nil, fmt.Sprintf("Expected node details, got nil"))
+	assert.False(nodeInfo == nil, "Expected node details, got nil")
 	assert.True(nodeInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, nodeInfo.OrgId))
 	assert.True(nodeInfo.Url == NODE1, fmt.Sprintf("Expected node id %v, got %v", NODE1, nodeInfo.Url))
 
@@ -108,7 +108,7 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 	// check node details update by updating node status
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeDeactivated)
 	nodeInfo, err = NodeInfoMap.GetNodeByUrl(NODE2)
-	assert.True(err == nil, fmt.Sprintf("got errors in node fetch"))
+	assert.True(err == nil, "got errors in node fetch")
 
 	assert.True(nodeInfo.Status == NodeDeactivated, fmt.Sprintf("Expected node status %v, got %v", NodeDeactivated, nodeInfo.Status))
 }
@@ -122,7 +122,7 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
 	roleInfo, err := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
 	assert.True(err == nil, "errors encountered")
-	assert.False(roleInfo == nil, fmt.Sprintf("Expected role details, got nil"))
+	assert.False(roleInfo == nil, "Expected role details, got nil")
 	assert.True(roleInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, roleInfo.OrgId))
 	assert.True(roleInfo.RoleId == NETWORKADMIN, fmt.Sprintf("Expected node id %v, got %v", NETWORKADMIN, roleInfo.RoleId))
 
@@ -149,7 +149,7 @@ func TestAcctCache_UpsertAccount(t *testing.T) {
 	acctInfo, err := AcctInfoMap.GetAccount(Acct1)
 	assert.True(err == nil)
 
-	assert.False(acctInfo == nil, fmt.Sprintf("Expected account details, got nil"))
+	assert.False(acctInfo == nil, "Expected account details, got nil")
 	assert.True(acctInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for the account to be %v, got %v", NETWORKADMIN, acctInfo.OrgId))
 	assert.True(acctInfo.AcctId == Acct1, fmt.Sprintf("Expected account id %x, got %x", Acct1, acctInfo.AcctId))
 
