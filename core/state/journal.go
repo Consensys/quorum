@@ -116,7 +116,11 @@ type (
 		account            *common.Address
 		prevcode, prevhash []byte
 	}
-
+	// Quorum - changes to AccountExtraData
+	accountExtraDataChange struct {
+		account *common.Address
+		prev    *AccountExtraData
+	}
 	// Changes to other state values.
 	refundChange struct {
 		prev uint64
@@ -196,6 +200,17 @@ func (ch codeChange) revert(s *StateDB) {
 func (ch codeChange) dirtied() *common.Address {
 	return ch.account
 }
+
+// Quorum
+func (ch accountExtraDataChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setAccountExtraData(ch.prev)
+}
+
+func (ch accountExtraDataChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// End Quorum - Privacy Enhancements
 
 func (ch storageChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setState(ch.key, ch.prevalue)

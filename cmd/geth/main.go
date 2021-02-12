@@ -29,17 +29,23 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -153,6 +159,37 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		// Quorum
+		utils.QuorumImmutabilityThreshold,
+		utils.EnableNodePermissionFlag,
+		utils.RaftModeFlag,
+		utils.RaftBlockTimeFlag,
+		utils.RaftJoinExistingFlag,
+		utils.RaftPortFlag,
+		utils.RaftDNSEnabledFlag,
+		utils.EmitCheckpointsFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.PluginSettingsFlag,
+		utils.PluginSkipVerifyFlag,
+		utils.PluginLocalVerifyFlag,
+		utils.PluginPublicKeyFlag,
+		utils.AllowedFutureBlockTimeFlag,
+		utils.EVMCallTimeOutFlag,
+		utils.MultitenancyFlag,
+		utils.QuorumPTMUnixSocketFlag,
+		utils.QuorumPTMUrlFlag,
+		utils.QuorumPTMTimeoutFlag,
+		utils.QuorumPTMDialTimeoutFlag,
+		utils.QuorumPTMHttpIdleTimeoutFlag,
+		utils.QuorumPTMHttpWriteBufferSizeFlag,
+		utils.QuorumPTMHttpReadBufferSizeFlag,
+		utils.QuorumPTMTlsModeFlag,
+		utils.QuorumPTMTlsRootCaFlag,
+		utils.QuorumPTMTlsClientCertFlag,
+		utils.QuorumPTMTlsClientKeyFlag,
+		utils.QuorumPTMTlsInsecureSkipVerify,
+		// End-Quorum
 	}
 
 	rpcFlags = []cli.Flag{
@@ -254,13 +291,37 @@ func init() {
 	app.Flags = append(app.Flags, metricsFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
-		return debug.Setup(ctx)
+		if err := debug.Setup(ctx); err != nil {
+			return err
+		}
+
+		if err := quorumInitialisePrivacy(ctx); err != nil {
+			return err
+		}
+
+		return nil
 	}
 	app.After = func(ctx *cli.Context) error {
 		debug.Exit()
 		prompt.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
 }
 
 func main() {
@@ -344,9 +405,11 @@ func geth(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 	prepare(ctx)
+
 	node := makeFullNode(ctx)
 	defer node.Close()
 	startNode(ctx, node)
+
 	node.Wait()
 	return nil
 }
@@ -354,11 +417,27 @@ func geth(ctx *cli.Context) error {
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
+// Quorum
+// - Enrich eth/les service with ContractAuthorizationProvider for multitenancy support if prequisites are met
 func startNode(ctx *cli.Context, stack *node.Node) {
+	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
+
+	// raft mode does not support --exitwhensynced
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		utils.Fatalf("raft consensus does not support --exitwhensynced")
+	}
 
 	// Start up the node itself
 	utils.StartNode(stack)
+
+	// Now that the plugin manager has been started we register the account plugin with the corresponding account backend.  All other account management is disabled when using External Signer
+	if !ctx.IsSet(utils.ExternalSignerFlag.Name) && stack.PluginManager().IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := stack.AccountManager().Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := stack.PluginManager().AddAccountPluginToBackend(b); err != nil {
+			log.Error("failed to setup account plugin", "err", err)
+		}
+	}
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)
@@ -374,6 +453,11 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 	ethClient := ethclient.NewClient(rpcClient)
 
+	var ethService *eth.Ethereum
+	if err := stack.Service(&ethService); err != nil {
+		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+	}
+	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
 	// Set contract backend for ethereum service if local node
 	// is serving LES requests.
 	if ctx.GlobalInt(utils.LegacyLightServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
@@ -391,6 +475,17 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
 		}
 		lesService.SetContractBackend(ethClient)
+		setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
+	}
+
+	// Set ContractAuthorizationProvider if multitenancy flag is on AND plugin security is configured
+	if ctx.GlobalBool(utils.MultitenancyFlag.Name) {
+		if stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
+			log.Info("Node supports multitenancy")
+			setContractAuthzProviderFunc(&multitenancy.DefaultContractAuthorizationProvider{})
+		} else {
+			utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
+		}
 	}
 
 	go func() {
@@ -450,6 +545,22 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}()
 	}
 
+	// Quorum
+	//
+	// checking if permissions is enabled and staring the permissions service
+	if stack.Config().EnableNodePermission {
+		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
+		if stack.IsPermissionEnabled() {
+			var permissionService *permission.PermissionCtrl
+			if err := stack.Service(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}
+		}
+	}
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -477,6 +588,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
+
+	// checks quorum features that depend on the ethereum service
+	quorumValidateEthService(stack, ctx.GlobalBool(utils.RaftModeFlag.Name))
 }
 
 // unlockAccounts unlocks any account specifically requested.
