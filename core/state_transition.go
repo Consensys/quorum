@@ -17,6 +17,8 @@
 package core
 
 import (
+	"errors"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"math"
 	"math/big"
 	"strings"
@@ -274,15 +276,24 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		if err != nil || !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
-
 		if err != nil {
-			return nil, err
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        nil,
+				ReturnData: nil,
+			}, err
 		}
 
 		pmh.hasPrivatePayload = data != nil
 
-		if ok, err := pmh.prepare(); !ok {
-			return nil, err
+		// TODO: ricardolyn
+		vmErr, consensusErr := pmh.prepare()
+		if consensusErr != nil || vmErr != nil {
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        vmErr,
+				ReturnData: nil,
+			}, consensusErr
 		}
 	} else {
 		data = st.data
@@ -333,10 +344,26 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		if len(data) == 0 && isPrivate {
 			st.refundGas()
 			st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-			return nil, nil
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        nil,
+				ReturnData: nil,
+			}, nil
 		}
 
 		ret, leftoverGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
+	}
+	if vmerr != nil {
+		log.Info("VM returned with error", "err", vmerr)
+		// The only possible consensus-error would be if there wasn't
+		// sufficient balance to make the transfer happen. The first
+		// balance transfer may never fail.
+		if vmerr == vm.ErrInsufficientBalance {
+			return nil, vmerr
+		}
+		if errors.Is(vmerr, multitenancy.ErrNotAuthorized) {
+			return nil, vmerr
+		}
 	}
 
 	// Quorum - Privacy Enhancements
@@ -345,7 +372,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		var exitEarly bool
 		exitEarly, err = pmh.verify(vmerr)
 		if exitEarly {
-			return nil, err
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        ErrPrivateContractInteractionVerificationFailed,
+				ReturnData: nil,
+			}, err
 		}
 	}
 	// End Quorum - Privacy Enhancements
@@ -366,7 +397,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedPartiesInTx)
 						st.evm.RevertToSnapshot(snapshot)
 						// TODO - see whether we can find a way to store this error and make it available via customizations to getTransactionReceipt
-						return nil, nil
+						return &ExecutionResult{
+							UsedGas:    0,
+							Err:        ErrContractManagedPartiesCheckFailed,
+							ReturnData: nil,
+						}, nil
 					}
 				}
 			}

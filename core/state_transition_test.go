@@ -207,7 +207,7 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancements
 	assert.Error(err, "EVM execution")
 	assert.True(result.Failed(), "Transaction receipt status")
 	// check that there is no privacy metadata for the newly created contract
-	assert.Len(evm.CreatedContracts(), 0, "no contracts createad")
+	assert.Len(evm.CreatedContracts(), 0, "no contracts created")
 	mockPM.Verify(assert)
 }
 
