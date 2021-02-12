@@ -281,7 +281,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 				UsedGas:    0,
 				Err:        nil,
 				ReturnData: nil,
-			}, err
+			}, nil
 		}
 
 		pmh.hasPrivatePayload = data != nil
