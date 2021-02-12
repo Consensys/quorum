@@ -55,7 +55,7 @@ func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 	go httpSrv.Serve(listener)
-	return httpSrv, listener.Addr(),isTlsEnabled, err
+	return httpSrv, listener.Addr(), isTlsEnabled, err
 }
 
 // startWSEndpoint starts a websocket endpoint.

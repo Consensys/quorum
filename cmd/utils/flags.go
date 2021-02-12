@@ -2121,11 +2121,11 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 }
 
 // MakeChain creates a chain manager from set command line flags.
-func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool,useExist bool) (chain *core.BlockChain, chainDb ethdb.Database) {
-		var (
-			config *params.ChainConfig
-			err    error
-		)
+func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool) (chain *core.BlockChain, chainDb ethdb.Database) {
+	var (
+		config *params.ChainConfig
+		err    error
+	)
 	chainDb = MakeChainDatabase(ctx, stack)
 
 	if useExist {

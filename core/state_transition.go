@@ -18,10 +18,11 @@ package core
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"math"
 	"math/big"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/multitenancy"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"

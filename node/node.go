@@ -64,14 +64,14 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
-	isHttps       bool
+	isHttps          bool
 	httpEndpoint     string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist    []string     // HTTP RPC modules to allow through this endpoint
 	httpListenerAddr net.Addr     // Address of HTTP RPC listener socket serving API requests
 	httpServer       *http.Server // HTTP RPC HTTP server
 	httpHandler      *rpc.Server  // HTTP RPC request handler to process the API requests
 
-	isWss      bool
+	isWss          bool
 	wsEndpoint     string       // WebSocket endpoint (interface + port) to listen at (empty = WebSocket disabled)
 	wsListenerAddr net.Addr     // Address of WebSocket RPC listener socket serving API requests
 	wsHTTPServer   *http.Server // WebSocket RPC HTTP server

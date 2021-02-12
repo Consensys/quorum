@@ -17,8 +17,8 @@
 package vm
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
