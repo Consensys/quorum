@@ -24,9 +24,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethereum/go-ethereum/plugin/security"
-
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 

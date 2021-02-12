@@ -597,15 +597,10 @@ func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error) {
-	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
-	if publicStateDbErr != nil {
-		return nil, nil, publicStateDbErr
+	publicStateDb, privateStateDb, err := state.NewDual(root, bc.stateCache, bc.snaps, bc.db, bc.privateStateCache, nil)
+	if err != nil {
+		return nil, nil, err
 	}
-	privateStateDb, privateStateDbErr := state.New(rawdb.GetPrivateStateRoot(bc.db, root), bc.privateStateCache, nil)
-	if privateStateDbErr != nil {
-		return nil, nil, privateStateDbErr
-	}
-
 	return publicStateDb, privateStateDb, nil
 }
 
