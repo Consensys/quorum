@@ -60,8 +60,8 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(ctx context.Contex
 }
 
 // checks if the voter has already voted on the contract.
-func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address) bool {
-	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address, psi string) bool {
+	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	voted, _ := caller.CheckIfVoted(&opts)
@@ -69,8 +69,8 @@ func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.A
 }
 
 // checks if the contract extension is completed
-func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) (bool, error) {
-	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address, psi string) (bool, error) {
+	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	status, err := caller.CheckIfExtensionFinished(&opts)
@@ -81,8 +81,8 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 }
 
 // returns the contract being extended for the given management contract
-func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address) (common.Address, error) {
-	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi string) (common.Address, error) {
+	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	return caller.ContractToExtend(&opts)
@@ -116,9 +116,12 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	if err != nil {
 		return "", err
 	}
+
+	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
+
 	// check if the extension has been completed. if yes
 	// no acceptance required
-	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From)
+	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From, psm.ID)
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +134,6 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", errors.New("account cannot accept extension")
 	}
 
-	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
 	// get all participants for the contract being extended
 	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn, psm.ID)
 	if err == nil {
@@ -143,7 +145,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", err
 	}
 
-	voterList, err := api.privacyService.managementContractFacade.GetAllVoters(addressToVoteOn)
+	voterList, err := api.privacyService.managementContract(psm.ID).GetAllVoters(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}
@@ -151,7 +153,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", errNotAcceptor
 	}
 
-	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From) {
+	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From, psm.ID) {
 		return "", errors.New("already voted")
 	}
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
@@ -160,7 +162,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	}
 
 	//Find the extension contract in order to interact with it
-	extender, err := api.privacyService.managementContractFacade.Transactor(addressToVoteOn)
+	extender, err := api.privacyService.managementContract(psm.ID).Transactor(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}
@@ -259,7 +261,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	}
 
 	//Deploy the contract
-	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey)
+	tx, err := api.privacyService.managementContract(psm.ID).Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey)
 	if err != nil {
 		return "", err
 	}
@@ -277,7 +279,10 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", err
 	}
 
-	status, err := api.checkIfExtensionComplete(extensionContract, txa.From)
+	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
+	// get all participants for the contract being extended
+
+	status, err := api.checkIfExtensionComplete(extensionContract, txa.From, psm.ID)
 	if err != nil {
 		return "", err
 	}
@@ -285,8 +290,6 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
 
-	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
-	// get all participants for the contract being extended
 	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), extensionContract, psm.ID)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
@@ -297,7 +300,7 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", err
 	}
 
-	caller, err := api.privacyService.managementContractFacade.Caller(extensionContract)
+	caller, err := api.privacyService.managementContract(psm.ID).Caller(extensionContract)
 	if err != nil {
 		return "", err
 	}
@@ -309,7 +312,7 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", errNotCreator
 	}
 
-	extender, err := api.privacyService.managementContractFacade.Transactor(extensionContract)
+	extender, err := api.privacyService.managementContract(psm.ID).Transactor(extensionContract)
 	if err != nil {
 		return "", err
 	}
@@ -324,7 +327,8 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{})
+	psm, _ := psiCore.PSIS.ResolveForUserContext(ctx)
+	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{}, psm.ID)
 	if err != nil {
 		return "", err
 	}

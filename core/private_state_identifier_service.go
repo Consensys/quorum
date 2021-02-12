@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 type PrivateStateType uint64
@@ -49,6 +50,7 @@ var EmptyPrivateStateMetadata = PrivateStateMetadata{
 type PrivateStateIdentifierService interface {
 	ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error)
 	ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error)
+	Groups() []engine.PrivacyGroup
 }
 
 type PrivatePSISImpl struct {
@@ -64,6 +66,19 @@ func (t *PrivatePSISImpl) ResolveForUserContext(ctx context.Context) (*PrivateSt
 		psi = "private"
 	}
 	return &PrivateStateMetadata{ID: psi, Type: Resident}, nil
+}
+
+func (t *PrivatePSISImpl) Groups() []engine.PrivacyGroup {
+	return []engine.PrivacyGroup{
+		{
+			Type:           "Resident",
+			Name:           "private",
+			PrivacyGroupId: "private",
+			Description:    "private",
+			From:           "",
+			Members:        []string{},
+		},
+	}
 }
 
 var PSIS PrivateStateIdentifierService

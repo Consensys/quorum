@@ -26,18 +26,17 @@ import (
 )
 
 type PrivacyService struct {
-	ptm                      private.PrivateTransactionManager
-	stateFetcher             *StateFetcher
-	accountManager           *accounts.Manager
-	dataHandler              DataHandler
-	managementContractFacade ManagementContractFacade
-	extClient                Client
-	stopFeed                 event.Feed
-	apiBackendHelper         APIBackendHelper
+	ptm              private.PrivateTransactionManager
+	stateFetcher     *StateFetcher
+	accountManager   *accounts.Manager
+	dataHandler      DataHandler
+	stopFeed         event.Feed
+	apiBackendHelper APIBackendHelper
 
 	mu           sync.Mutex
 	psiContracts map[string]map[common.Address]*ExtensionContract
 
+	node *node.Node
 	rpcClient *rpc.Client
 }
 
@@ -53,6 +52,18 @@ var (
 
 // to signal all watches when service is stopped
 type stopEvent struct {
+}
+
+func (service *PrivacyService) client(psi string) Client {
+	rpcClient, _ := service.node.AttachWithPSI(psi)
+	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
+	return NewInProcessClient(client)
+}
+
+func (service *PrivacyService) managementContract(psi string) ManagementContractFacade {
+	rpcClient, _ := service.node.AttachWithPSI(psi)
+	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
+	return NewManagementContractFacade(client)
 }
 
 func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subscription) {
@@ -75,6 +86,7 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 		accountManager:   manager,
 		apiBackendHelper: apiBackendHelper,
 		rpcClient:        rpcClient,
+		node: stack,
 	}
 
 	var err error
@@ -96,7 +108,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 	cb := func(foundLog types.Log) {
 		service.mu.Lock()
 
-		tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
+		tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
 		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
@@ -158,7 +170,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 			}
 
 			//Find the extension contract in order to interact with it
-			caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
+			caller, _ := service.managementContract(psi).Caller(newContractExtension.ManagementContractAddress)
 			contractCreator, _ := caller.Creator(nil)
 
 			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
@@ -175,8 +187,8 @@ func (service *PrivacyService) watchForNewContracts() error {
 	return handler.createSub(newExtensionQuery, cb)
 }
 
-func (service *PrivacyService) watchForCancelledContracts() error {
-	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
+func (service *PrivacyService) watchForCancelledContracts(psi string) error {
+	handler := NewSubscriptionHandler(service.node, psi, service.ptm, service)
 
 	cb := func(l types.Log) {
 		service.mu.Lock()
@@ -195,8 +207,8 @@ func (service *PrivacyService) watchForCancelledContracts() error {
 	return handler.createSub(finishedExtensionQuery, cb)
 }
 
-func (service *PrivacyService) watchForCompletionEvents() error {
-	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
+func (service *PrivacyService) watchForCompletionEvents(psi string) error {
+	handler := NewSubscriptionHandler(service.node, psi, service.ptm, service)
 
 	cb := func(l types.Log) {
 		log.Debug("Extension: Received a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
@@ -212,7 +224,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 		}
 
 		//Find the extension contract in order to interact with it
-		caller, err := service.managementContractFacade.Caller(l.Address)
+		caller, err := service.managementContract(psi).Caller(l.Address)
 		if err != nil {
 			log.Error("service.managementContractFacade.Caller", "address", l.Address.Hex(), "error", err)
 			return
@@ -292,7 +304,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 		}
 		hashofStateDataBase64 := hashOfStateData.ToBase64()
 
-		transactor, err := service.managementContractFacade.Transactor(l.Address)
+		transactor, err := service.managementContract(psi).Transactor(l.Address)
 		if err != nil {
 			log.Error("service.managementContractFacade.Transactor", "address", l.Address.Hex(), "error", err)
 			return
@@ -331,13 +343,16 @@ func (service *PrivacyService) Start() error {
 	service.managementContractFacade = NewManagementContractFacade(client)
 	service.extClient = NewInProcessClient(client)
 
-	for _, f := range []func() error{
-		service.watchForNewContracts,       // watch for new extension contract creation event
-		service.watchForCancelledContracts, // watch for extension contract cancellation event
-		service.watchForCompletionEvents,   // watch for extension contract voting complete event
-	} {
-		if err := f(); err != nil {
-			return err
+	
+	for _, group := range core.PSIS.Groups() {
+		for _, f := range []func() error{
+			service.watchForNewContracts,       // watch for new extension contract creation event
+			service.watchForCancelledContracts, // watch for extension contract cancellation event
+			service.watchForCompletionEvents,   // watch for extension contract voting complete event
+		} {
+			if err := f(group.Name); err != nil {
+				return err
+			}
 		}
 	}
 
