@@ -66,10 +66,6 @@ type Transaction struct {
 	privacyMetadata *PrivacyMetadata
 }
 
-type PrivacyMetadata struct {
-	PrivacyFlag engine.PrivacyFlagType
-}
-
 type txdata struct {
 	AccountNonce uint64          `json:"nonce"    gencodec:"required"`
 	Price        *big.Int        `json:"gasPrice" gencodec:"required"`
