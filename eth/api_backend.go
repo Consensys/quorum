@@ -38,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -248,9 +247,6 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 	vmError := func() error { return nil }
 
 	evmCtx := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
-	if _, ok := b.SupportsMultitenancy(ctx); ok {
-		evmCtx = core.NewMultitenancyAwareEVMContext(ctx, evmCtx)
-	}
 
 	// Set the private state to public state if contract address is not present in the private state
 	to := common.Address{}
@@ -424,15 +420,6 @@ func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.Pre
 func (b *EthAPIBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
-}
-
-func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
-	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
-	if err != nil {
-		log.Error("failed to perform authorization check", "err", err, "granted", string(authToken.RawToken), "ask", attributes)
-		return false, err
-	}
-	return auth, nil
 }
 
 // used by Quorum

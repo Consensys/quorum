@@ -468,7 +468,7 @@ func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.
 	return sb.mockAccountExtraDataStateGetter, nil
 }
 
-func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.PrivateStateSecurityAttribute) (bool, error) {
 	panic("implement me")
 }
 

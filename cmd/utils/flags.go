@@ -1409,7 +1409,9 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
 		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 	}
-
+	if ctx.GlobalIsSet(MultitenancyFlag.Name) {
+		cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+	}
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {

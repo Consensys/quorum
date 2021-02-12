@@ -10,9 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	psiCore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/permission/core"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -38,23 +36,16 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts(ctx context.Context) []
 	api.privacyService.mu.Lock()
 	defer api.privacyService.mu.Unlock()
 
-	if _, ok := api.privacyService.apiBackendHelper.SupportsMultitenancy(ctx); ok {
-		psi, err := psiCore.PSIS.ResolveForUserContext(ctx)
-		if err != nil {
-			return nil
-		}
-
-		extracted := make([]ExtensionContract, 0)
-		for _, contract := range api.privacyService.psiContracts[psi.ID] {
-			extracted = append(extracted, *contract)
-		}
-		return extracted
+	psi, err := psiCore.PSIS.ResolveForUserContext(ctx)
+	if err != nil {
+		return nil
 	}
 
 	extracted := make([]ExtensionContract, 0)
-	for _, contract := range api.privacyService.psiContracts["private"] {
+	for _, contract := range api.privacyService.psiContracts[psi.ID] {
 		extracted = append(extracted, *contract)
 	}
+
 	return extracted
 }
 
@@ -114,32 +105,7 @@ func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi string, toExtend c
 }
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
-	apiHelper := api.privacyService.apiBackendHelper
-	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
-		if len(txa.PrivateFrom) == 0 {
-			return errors.New("You must specify 'privateFrom' when running in a multitenant node")
-		}
-		// check whether the user has access to txa.PrivateFrom and the txa.From eth account
-		attributes := multitenancy.FullAccessContractSecurityAttributes(txa.From, txa.PrivateFrom)
-		chainAccessor := api.privacyService.stateFetcher.chainAccessor
-		currentBlock := chainAccessor.CurrentBlock().Number().Int64()
-		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
-		if err != nil {
-			return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
-		}
-
-		managedParties, err := extraDataReader.GetManagedParties(address)
-		if err != nil {
-			return err
-		}
-		attributes = append(attributes,
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Write().Parties(managedParties).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(txa.From).Private().Read().Parties(managedParties).Build())
-
-		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken, attributes...); !authorized {
-			return multitenancy.ErrNotAuthorized
-		}
-	}
+	// TODO need to revise the logic
 	return nil
 }
 
@@ -358,22 +324,6 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	apiHelper := api.privacyService.apiBackendHelper
-	if authToken, ok := apiHelper.SupportsMultitenancy(ctx); ok {
-		currentBlock := apiHelper.CurrentBlock().Number().Int64()
-		extraDataReader, err := apiHelper.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
-		if err != nil {
-			return "", fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
-		}
-		managedParties, err := extraDataReader.GetManagedParties(extensionContract)
-		if err != nil {
-			return "", err
-		}
-		if authorized, _ := apiHelper.IsAuthorized(ctx, authToken,
-			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build()); !authorized {
-			return "", multitenancy.ErrNotAuthorized
-		}
-	}
 	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{})
 	if err != nil {
 		return "", err

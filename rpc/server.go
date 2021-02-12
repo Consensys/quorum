@@ -52,6 +52,7 @@ type Server struct {
 	// Quorum
 	// The implementation would authenticate the token coming from a request
 	authenticationManager security.AuthenticationManager
+	isMultitenant         bool
 }
 
 // Quorum
@@ -66,7 +67,10 @@ func NewProtectedServer(authManager security.AuthenticationManager) *Server {
 
 // NewServer creates a new server instance with no registered handlers.
 func NewServer() *Server {
-	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1, authenticationManager: security.NewDisabledAuthenticationManager()}
+	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1,
+		authenticationManager: security.NewDisabledAuthenticationManager(),
+		isMultitenant:         false,
+	}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server}
@@ -152,26 +156,18 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	defer func() {
 		cfg.Configure(securityContext)
 	}()
-
-	// TODO - find a way to validate that the user has access to the PSI (and get it from the token rather than the HTTP header)
-	// for now it allows for easy testing :)
-
-	// try to extract the PSI from the HTTP Header then the URL
-	psi := r.Header.Get("PSI")
-	if len(psi) == 0 {
-		psi = r.URL.Query().Get("PSI")
+	userProvidedPSI, found := extractPSI(r)
+	if found {
+		securityContext = context.WithValue(securityContext, ctxRequestPrivateStateIdentifier, userProvidedPSI)
 	}
-	if len(psi) == 0 {
-		psi = "private"
-	}
-	securityContext = context.WithValue(securityContext, "PSI", psi)
-
+	securityContext = context.WithValue(securityContext, ctxIsMultitenant, s.isMultitenant)
 	if isAuthEnabled, err := s.authenticationManager.IsEnabled(context.Background()); err != nil {
 		// this indicates a failure in the plugin. We don't want any subsequent request unchecked
 		log.Error("failure when checking if authentication manager is enabled", "err", err)
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
 		return
 	} else if !isAuthEnabled {
+		securityContext = context.WithValue(securityContext, ctxPrivateStateIdentifier, userProvidedPSI)
 		return
 	}
 	if token, hasToken := extractToken(r); hasToken {
@@ -183,6 +179,10 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	} else {
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})
 	}
+}
+
+func (s *Server) SupportsMultitenancy(b bool) {
+	s.isMultitenant = b
 }
 
 // RPCService gives meta information about the server.

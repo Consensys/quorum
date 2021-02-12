@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/light"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
@@ -316,13 +315,3 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
 }
-
-func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
-	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
-	if err != nil {
-		return false, err
-	}
-	return auth, nil
-}
-
-// End Quorum

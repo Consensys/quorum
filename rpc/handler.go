@@ -322,21 +322,20 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 //   token so the responsible RPC method can leverage if needed (e.g: in multi tenancy)
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
 	if r, ok := h.conn.(securityContextResolver); ok {
-		if err := secureCall(r, msg); err != nil {
+		secCtx, err := secureCall(r, msg)
+		if err != nil {
 			return securityErrorMessage(msg, err)
 		}
-		secCtx := r.Resolve()
-		h.log.Debug("Enrich call context with token from security context")
+		h.log.Debug("Enrich call context with values from security context")
 		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
-		// add the PSI from the security context
-		cp.ctx = context.WithValue(cp.ctx, "PSI", secCtx.Value("PSI"))
+		cp.ctx = context.WithValue(cp.ctx, ctxPrivateStateIdentifier, secCtx.Value(ctxPrivateStateIdentifier))
 	}
 	// try to extract the PSI from the request ID if it is not already there in the context
-	if cp.ctx.Value("PSI") == nil && strings.HasPrefix(string(msg.ID), "\"PSI(") {
+	if cp.ctx.Value(ctxPrivateStateIdentifier) == nil && strings.HasPrefix(string(msg.ID), "\"PSI(") {
 		split := strings.Split(string(msg.ID), ")")
 		if len(split) > 1 {
 			psi := split[0][5:]
-			cp.ctx = context.WithValue(cp.ctx, "PSI", psi)
+			cp.ctx = context.WithValue(cp.ctx, ctxPrivateStateIdentifier, psi)
 		}
 	}
 	if msg.isSubscribe() {
