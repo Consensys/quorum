@@ -42,6 +42,10 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context)
 	return psm, nil
 }
 
+func (t *TesseraPrivacyGroupPSISImpl) Groups() []engine.PrivacyGroup {
+	return t.groups
+}
+
 func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 	groups, err := private.P.Groups()
 	if err != nil {
