@@ -58,7 +58,6 @@ import (
 )
 
 const (
-	defaultGasPrice = params.GWei
 	//Hex-encoded 64 byte array of "17" values
 	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
@@ -842,6 +841,42 @@ type CallArgs struct {
 	Data     *hexutil.Bytes  `json:"data"`
 }
 
+// ToMessage converts CallArgs to the Message type used by the core evm
+func (args *CallArgs) ToMessage(globalGasCap *big.Int) types.Message {
+	// Set sender address or use zero address if none specified.
+	var addr common.Address
+	if args.From != nil {
+		addr = *args.From
+	}
+
+	// Set default gas & gas price if none were set
+	gas := uint64(math.MaxUint64 / 2)
+	if args.Gas != nil {
+		gas = uint64(*args.Gas)
+	}
+	if globalGasCap != nil && globalGasCap.Uint64() < gas {
+		log.Warn("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
+		gas = globalGasCap.Uint64()
+	}
+	gasPrice := new(big.Int)
+	if args.GasPrice != nil {
+		gasPrice = args.GasPrice.ToInt()
+	}
+
+	value := new(big.Int)
+	if args.Value != nil {
+		value = args.Value.ToInt()
+	}
+
+	var data []byte
+	if args.Data != nil {
+		data = []byte(*args.Data)
+	}
+
+	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
+	return msg
+}
+
 // account indicates the overriding fields of account during the execution of
 // a message call.
 // Note, state and stateDiff can't be specified at the same time. If state is
@@ -865,12 +900,6 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, 0, false, err
-	}
-
-	// Set sender address or use zero address if none specified.
-	var addr common.Address
-	if args.From != nil {
-		addr = *args.From
 	}
 
 	// Override the fields of specified contracts before execution.
@@ -901,36 +930,6 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 			}
 		}
 	}
-	// Set default gas & gas price if none were set
-	gas := uint64(math.MaxUint64 / 2)
-	if args.Gas != nil {
-		gas = uint64(*args.Gas)
-	}
-	if globalGasCap != nil && globalGasCap.Uint64() < gas {
-		log.Warn("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
-		gas = globalGasCap.Uint64()
-	}
-	gasPrice := new(big.Int).SetUint64(defaultGasPrice)
-	// Set Quorum default gas price
-	if b.ChainConfig().IsQuorum {
-		gasPrice = new(big.Int).SetUint64(0)
-	}
-	if args.GasPrice != nil {
-		gasPrice = args.GasPrice.ToInt()
-	}
-
-	value := new(big.Int)
-	if args.Value != nil {
-		value = args.Value.ToInt()
-	}
-
-	var data []byte
-	if args.Data != nil {
-		data = []byte(*args.Data)
-	}
-
-	// Create new call message
-	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
 
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
@@ -944,13 +943,15 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
+	msg := args.ToMessage(globalGasCap)
+
 	enrichedCtx := ctx
 	// create callbacks to support runtime multitenancy checks during the run
 	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
 		var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
 			var readSecAttr *multitenancy.ContractSecurityAttribute
-			if len(data) == 0 { // public READ
-				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).ToEOA(*msg.To()).Public().Read().Build()
+			if len(msg.Data()) == 0 { // public READ
+				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).ToEOA(*msg.To()).Public().Read().Build()
 			} else {
 				currentBlock := b.CurrentBlock().Number().Int64()
 				extraDataReader, err := b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
@@ -964,7 +965,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 				} else if err != nil {
 					return false, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 				}
-				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(addr).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
+				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
 			}
 			authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
 			log.Trace("Authorized Message Call", "read", authorizedRead, "address", contractAddress.Hex(), "securityAttribute", readSecAttr)

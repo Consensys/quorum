@@ -992,8 +992,8 @@ type config struct {
 func newConfig() *config {
 	pubDatabase := rawdb.NewMemoryDatabase()
 	privDatabase := rawdb.NewMemoryDatabase()
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(pubDatabase))
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(privDatabase))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(pubDatabase), nil)
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(privDatabase), nil)
 	return &config{
 		privateState: privateState,
 		publicState:  publicState,
@@ -1265,8 +1265,8 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	expectedGasPool := new(GasPool).AddGas(177988) // only intrinsic gas is deducted
 
 	db := rawdb.NewMemoryDatabase()
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	msg := privateCallMsg{
 		callmsg: callmsg{
 			addr:     common.Address{2},

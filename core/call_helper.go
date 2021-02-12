@@ -81,11 +81,11 @@ func MakeCallHelper() *callHelper {
 	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
-	publicState, err := state.New(common.Hash{}, db)
+	publicState, err := state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}
-	privateState, err := state.New(common.Hash{}, db)
+	privateState, err := state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}

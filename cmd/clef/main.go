@@ -192,6 +192,21 @@ The setpw command stores a password for a given address (keyfile).
 		Description: `
 The delpw command removes a password for a given address (keyfile).
 `}
+	newAccountCommand = cli.Command{
+		Action:    utils.MigrateFlags(newAccount),
+		Name:      "newaccount",
+		Usage:     "Create a new account",
+		ArgsUsage: "",
+		Flags: []cli.Flag{
+			logLevelFlag,
+			keystoreFlag,
+			utils.LightKDFFlag,
+		},
+		Description: `
+The newaccount command creates a new keystore-backed account. It is a convenience-method
+which can be used in lieu of an external UI.`,
+	}
+
 	gendocCommand = cli.Command{
 		Action: GenDoc,
 		Name:   "gendoc",
@@ -238,7 +253,12 @@ func init() {
 		// </Quorum>
 	}
 	app.Action = signer
-	app.Commands = []cli.Command{initCommand, attestCommand, setCredentialCommand, delCredentialCommand, gendocCommand}
+	app.Commands = []cli.Command{initCommand,
+		attestCommand,
+		setCredentialCommand,
+		delCredentialCommand,
+		newAccountCommand,
+		gendocCommand}
 	cli.CommandHelpTemplate = utils.OriginCommandHelpTemplate
 }
 
@@ -398,6 +418,34 @@ func removeCredential(ctx *cli.Context) error {
 	return nil
 }
 
+func newAccount(c *cli.Context) error {
+	if err := initialize(c); err != nil {
+		return err
+	}
+	// The newaccount is meant for users using the CLI, since 'real' external
+	// UIs can use the UI-api instead. So we'll just use the native CLI UI here.
+	var (
+		ui                        = core.NewCommandlineUI()
+		pwStorage storage.Storage = &storage.NoStorage{}
+		ksLoc                     = c.GlobalString(keystoreFlag.Name)
+		lightKdf                  = c.GlobalBool(utils.LightKDFFlag.Name)
+	)
+	log.Info("Starting clef", "keystore", ksLoc, "light-kdf", lightKdf)
+	am, _, err := startClefAccountManagerWithPlugins(c, ksLoc, true, lightKdf, "")
+	if err != nil {
+		return err
+	}
+	// This gives is us access to the external API
+	apiImpl := core.NewSignerAPI(am, 0, true, ui, nil, false, pwStorage)
+	// This gives us access to the internal API
+	internalApi := core.NewUIServerAPI(apiImpl)
+	addr, err := internalApi.New(context.Background())
+	if err == nil {
+		fmt.Printf("Generated account %v\n", addr.String())
+	}
+	return err
+}
+
 func initialize(c *cli.Context) error {
 	// Set up the logger to print everything
 	logOutput := os.Stdout
@@ -473,7 +521,6 @@ func signer(c *cli.Context) error {
 		api       core.ExternalAPI
 		pwStorage storage.Storage = &storage.NoStorage{}
 	)
-
 	configDir := c.GlobalString(configdirFlag.Name)
 	if stretchedKey, err := readMasterKey(c, ui); err != nil {
 		log.Warn("Failed to open master, rules disabled", "err", err)
@@ -525,48 +572,10 @@ func signer(c *cli.Context) error {
 	log.Info("Starting signer", "chainid", chainId, "keystore", ksLoc,
 		"light-kdf", lightKdf, "advanced", advanced)
 
-	// <Quorum> start the plugin manager
-	var (
-		pm         *plugin.PluginManager
-		pluginConf *plugin.Settings
-	)
-	if c.IsSet(utils.PluginSettingsFlag.Name) {
-		log.Info("Using plugins")
-		pm, pluginConf, err = startPluginManager(c)
-		if err != nil {
-			utils.Fatalf(err.Error())
-		}
-
-		// setup goroutine to stop plugin manager when clef stops
-		go func() {
-			sigc := make(chan os.Signal, 1)
-			signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
-			defer signal.Stop(sigc)
-			<-sigc
-			log.Info("Got interrupt, shutting down...")
-			go pm.Stop()
-			for i := 10; i > 0; i-- {
-				<-sigc
-				if i > 1 {
-					log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
-				}
-			}
-			debug.Exit() // ensure trace and CPU profile data is flushed.
-			debug.LoudPanic("boom")
-		}()
+	am, pm, err := startClefAccountManagerWithPlugins(c, ksLoc, nousb, lightKdf, scpath)
+	if err != nil {
+		return err
 	}
-	// </Quorum>
-
-	am := core.StartClefAccountManager(ksLoc, nousb, lightKdf, pluginConf, scpath)
-
-	// <Quorum> setup the pluggable accounts backend with the plugin
-	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
-		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
-		if err := pm.AddAccountPluginToBackend(b); err != nil {
-			return err
-		}
-	}
-	// </Quorum>
 
 	apiImpl := core.NewSignerAPI(am, chainId, nousb, ui, db, advanced, pwStorage)
 
@@ -605,18 +614,25 @@ func signer(c *cli.Context) error {
 		vhosts := splitAndTrim(c.GlobalString(utils.RPCVirtualHostsFlag.Name))
 		cors := splitAndTrim(c.GlobalString(utils.RPCCORSDomainFlag.Name))
 
+		srv := rpc.NewServer()
+		err := node.RegisterApisFromWhitelist(rpcAPI, []string{"account"}, srv, false)
+		if err != nil {
+			utils.Fatalf("Could not register API: %w", err)
+		}
+		handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
+
 		// start http server
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
-		listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"account", "plugin@account"}, cors, vhosts, rpc.DefaultHTTPTimeouts, nil, nil)
+		listener, _, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler, nil)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}
-		extapiURL = fmt.Sprintf("http://%s", httpEndpoint)
+		extapiURL = fmt.Sprintf("http://%v/", listener.Addr())
 		log.Info("HTTP endpoint opened", "url", extapiURL)
 
 		defer func() {
 			listener.Close()
-			log.Info("HTTP endpoint closed", "url", httpEndpoint)
+			log.Info("HTTP endpoint closed", "url", extapiURL)
 		}()
 	}
 	if !c.GlobalBool(utils.IPCDisabledFlag.Name) {
@@ -1167,4 +1183,54 @@ These data types are defined in the channel between clef and the UI`)
 	for _, elem := range output {
 		fmt.Println(elem)
 	}
+}
+
+// Quorum
+// startClefAccountManagerWithPlugins - wrapped function to create a CLEF account manager with Plugin Support
+func startClefAccountManagerWithPlugins(c *cli.Context, ksLocation string, nousb, lightKDF bool, scpath string) (*accounts.Manager, *plugin.PluginManager, error) {
+	var err error
+	// <Quorum> start the plugin manager
+	var (
+		pm         *plugin.PluginManager
+		pluginConf *plugin.Settings
+	)
+	if c.IsSet(utils.PluginSettingsFlag.Name) {
+		log.Info("Using plugins")
+		pm, pluginConf, err = startPluginManager(c)
+		if err != nil {
+			utils.Fatalf(err.Error())
+		}
+
+		// setup goroutine to stop plugin manager when clef stops
+		go func() {
+			sigc := make(chan os.Signal, 1)
+			signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+			defer signal.Stop(sigc)
+			<-sigc
+			log.Info("Got interrupt, shutting down...")
+			go pm.Stop()
+			for i := 10; i > 0; i-- {
+				<-sigc
+				if i > 1 {
+					log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
+				}
+			}
+			debug.Exit() // ensure trace and CPU profile data is flushed.
+			debug.LoudPanic("boom")
+		}()
+	}
+	// </Quorum>
+
+	am := core.StartClefAccountManager(ksLocation, nousb, lightKDF, pluginConf, scpath)
+
+	// <Quorum> setup the pluggable accounts backend with the plugin
+	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := pm.AddAccountPluginToBackend(b); err != nil {
+			return nil, nil, err
+		}
+	}
+	// </Quorum>
+
+	return am, pm, nil
 }

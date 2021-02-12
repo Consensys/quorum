@@ -240,8 +240,8 @@ func newConfig() *extendedConfig {
 	setDefaults(cfg)
 	cfg.Debug = true
 	database := rawdb.NewMemoryDatabase()
-	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(database))
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(database))
+	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(database), nil)
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(database), nil)
 
 	cfg.ChainConfig.IsQuorum = true
 	cfg.ChainConfig.ByzantiumBlock = big.NewInt(0)

@@ -141,15 +141,7 @@ func (pm *ProtocolManager) makeLegacyProtocol(protoName string, version uint, le
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := pm.newPeer(int(version), p, rw, pm.txpool.Get)
 			peer.addConsensusProtoRW(rw)
-			select {
-			case pm.newPeerCh <- peer:
-				pm.wg.Add(1)
-				defer pm.wg.Done()
-				// only need the protocol name for the handshake, so pass it in instead of global variable.
-				return pm.handle(peer, protoName)
-			case <-pm.quitSync:
-				return p2p.DiscQuitting
-			}
+			return pm.runPeer(peer, protoName)
 		},
 		NodeInfo: func() interface{} {
 			return pm.NodeInfo()

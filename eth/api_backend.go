@@ -25,7 +25,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -222,8 +221,6 @@ func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
 
 func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	statedb := state.(EthAPIState)
-	from := statedb.state.GetOrNewStateObject(msg.From())
-	from.SetBalance(math.MaxBig256)
 	vmError := func() error { return nil }
 
 	evmCtx := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
