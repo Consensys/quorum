@@ -287,7 +287,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 		pmh.hasPrivatePayload = data != nil
 
-		// TODO: ricardolyn
 		vmErr, consensusErr := pmh.prepare()
 		if consensusErr != nil || vmErr != nil {
 			return &ExecutionResult{
