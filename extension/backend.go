@@ -91,269 +91,221 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 }
 
 func (service *PrivacyService) watchForNewContracts() error {
-	incomingLogs, subscription, err := service.extClient.SubscribeToLogs(newExtensionQuery)
+	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
 
-	if err != nil {
-		return err
-	}
+	cb := func(foundLog types.Log) {
+		service.mu.Lock()
 
-	go func() {
-		stopChan, stopSubscription := service.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case err := <-subscription.Err():
-				log.Error("Contract extension watcher subscription error", "error", err)
-				break
+		tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
+		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
-			case foundLog := <-incomingLogs:
-				service.mu.Lock()
+		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
+		if err != nil {
+			log.Error("Error unpacking extension creation log", "error", err)
+			log.Debug("Errored log", foundLog)
+			service.mu.Unlock()
+			return
+		}
 
-				tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
-				from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
+		newContractExtension := ExtensionContract{
+			ContractExtended:          newExtensionEvent.ToExtend,
+			Initiator:                 from,
+			Recipient:                 newExtensionEvent.RecipientAddress,
+			RecipientPtmKey:           newExtensionEvent.RecipientPTMKey,
+			ManagementContractAddress: foundLog.Address,
+			CreationData:              tx.Data(),
+		}
 
-				newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
-				if err != nil {
-					log.Error("Error unpacking extension creation log", "error", err)
-					log.Debug("Errored log", foundLog)
-					service.mu.Unlock()
-					continue
-				}
+		data := common.BytesToEncryptedPayloadHash(tx.Data())
+		_, managedParties, _, _, err := service.ptm.Receive(data)
+		if err != nil {
+			log.Error("Error receiving private payload", "error", err)
+			service.mu.Unlock()
+			return
+		}
 
-				newContractExtension := ExtensionContract{
-					ContractExtended:          newExtensionEvent.ToExtend,
-					Initiator:                 from,
-					Recipient:                 newExtensionEvent.RecipientAddress,
-					RecipientPtmKey:           newExtensionEvent.RecipientPTMKey,
-					ManagementContractAddress: foundLog.Address,
-					CreationData:              tx.Data(),
-				}
+		service.psiContracts["private"][foundLog.Address] = &newContractExtension
+		for _, mp := range managedParties {
+			psm, _ := core.PSIS.ResolveForManagedParty(mp)
+			if service.psiContracts[psm.ID] == nil {
+				service.psiContracts[psm.ID] = make(map[common.Address]*ExtensionContract)
+			}
+			service.psiContracts[psm.ID][foundLog.Address] = &newContractExtension
+		}
 
-				data := common.BytesToEncryptedPayloadHash(tx.Data())
-				_, managedParties, _, _, err := service.ptm.Receive(data)
-				if err != nil {
-					log.Error("Error receiving private payload", "error", err)
-					service.mu.Unlock()
-					continue
-				}
+		if err := service.dataHandler.Save(service.psiContracts); err != nil {
+			log.Error("Error writing extension data to file", "error", err)
+			service.mu.Unlock()
+			return
+		}
+		service.mu.Unlock()
 
-				service.psiContracts["private"][foundLog.Address] = &newContractExtension
-				for _, mp := range managedParties {
-					psm, _ := core.PSIS.ResolveForManagedParty(mp)
-					if service.psiContracts[psm.ID] == nil {
-						service.psiContracts[psm.ID] = make(map[common.Address]*ExtensionContract)
-					}
-					service.psiContracts[psm.ID][foundLog.Address] = &newContractExtension
-				}
+		// if party is sender then complete self voting
 
-				if err := service.dataHandler.Save(service.psiContracts); err != nil {
-					log.Error("Error writing extension data to file", "error", err)
-					service.mu.Unlock()
-					continue
-				}
-				service.mu.Unlock()
+		isSender, _ := service.ptm.IsSender(data)
 
-				// if party is sender then complete self voting
-
-				isSender, _ := service.ptm.IsSender(data)
-
-				if isSender {
-					fetchedParties, err := service.ptm.GetParticipants(data)
-					if err != nil || len(fetchedParties) == 0 {
-						log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
-						continue
-					}
-
-					privateFrom, _, _, _, err := service.ptm.Receive(data)
-					if err != nil || len(privateFrom) == 0 {
-						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
-						continue
-					}
-
-					//Find the extension contract in order to interact with it
-					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
-					contractCreator, _ := caller.Creator(nil)
-
-					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
-
-					extensionAPI := NewPrivateExtensionAPI(service)
-					_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
-
-					if err != nil {
-						log.Error("Extension: initiator vote on management contract failed", "error", err)
-					}
-				}
-
-			case <-stopChan:
+		if isSender {
+			fetchedParties, err := service.ptm.GetParticipants(data)
+			if err != nil || len(fetchedParties) == 0 {
+				log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
 				return
 			}
-		}
-	}()
 
-	return nil
+			privateFrom, _, _, _, err := service.ptm.Receive(data)
+			if err != nil || len(privateFrom) == 0 {
+				log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+				return
+			}
+
+			//Find the extension contract in order to interact with it
+			caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
+			contractCreator, _ := caller.Creator(nil)
+
+			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
+
+			extensionAPI := NewPrivateExtensionAPI(service)
+			_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
+
+			if err != nil {
+				log.Error("Extension: initiator vote on management contract failed", "error", err)
+			}
+		}
+	}
+
+	return handler.createSub(newExtensionQuery, cb)
 }
 
 func (service *PrivacyService) watchForCancelledContracts() error {
-	incomingLogs, subscription, err := service.extClient.SubscribeToLogs(finishedExtensionQuery)
+	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
 
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		stopChan, stopSubscription := service.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case err := <-subscription.Err():
-				log.Error("Contract cancellation extension watcher subscription error", "error", err)
-				return
-			case l := <-incomingLogs:
-				service.mu.Lock()
-				if _, ok := service.psiContracts["private"][l.Address]; ok {
-					//Don't bother looking up the parties, just search all the PSIs for it
-					for _, contracts := range service.psiContracts {
-						delete(contracts, l.Address)
-					}
-					if err := service.dataHandler.Save(service.psiContracts); err != nil {
-						log.Error("Failed to store list of contracts being extended", "error", err)
-					}
-				}
-				service.mu.Unlock()
-			case <-stopChan:
-				return
+	cb := func(l types.Log) {
+		service.mu.Lock()
+		if _, ok := service.psiContracts["private"][l.Address]; ok {
+			//Don't bother looking up the parties, just search all the PSIs for it
+			for _, contracts := range service.psiContracts {
+				delete(contracts, l.Address)
+			}
+			if err := service.dataHandler.Save(service.psiContracts); err != nil {
+				log.Error("Failed to store list of contracts being extended", "error", err)
 			}
 		}
-	}()
-	return nil
+		service.mu.Unlock()
+	}
+
+	return handler.createSub(finishedExtensionQuery, cb)
 }
 
 func (service *PrivacyService) watchForCompletionEvents() error {
-	incomingLogs, _, err := service.extClient.SubscribeToLogs(canPerformStateShareQuery)
+	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
 
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		stopChan, stopSubscription := service.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case l := <-incomingLogs:
-				log.Debug("Extension: Received a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
-				service.mu.Lock()
-				func() {
-					defer func() {
-						service.mu.Unlock()
-					}()
-					extensionEntry, ok := service.psiContracts["private"][l.Address]
-					if !ok {
-						// we didn't have this management contract, so ignore it
-						log.Debug("Extension: this node doesn't participate in the contract extender", "address", l.Address.Hex())
-						return
-					}
-
-					//Find the extension contract in order to interact with it
-					caller, err := service.managementContractFacade.Caller(l.Address)
-					if err != nil {
-						log.Error("service.managementContractFacade.Caller", "address", l.Address.Hex(), "error", err)
-						return
-					}
-					contractCreator, err := caller.Creator(nil)
-					if err != nil {
-						log.Error("[contract] caller.Creator", "error", err)
-						return
-					}
-					log.Debug("Extension: check if this node has the account that created the contract extender", "account", contractCreator)
-					if _, err := service.accountManager.Find(accounts.Account{Address: contractCreator}); err != nil {
-						log.Warn("Account used to sign extension contract no longer available", "account", contractCreator.Hex())
-						return
-					}
-
-					// fetch all the participants and send
-					payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
-					fetchedParties, err := service.ptm.GetParticipants(payload)
-					if err != nil || len(fetchedParties) == 0 {
-						log.Error("Extension: Unable to fetch all parties for extension management contract", "error", err)
-						return
-					}
-					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
-
-					privateFrom, _, _, _, err := service.ptm.Receive(payload)
-					if err != nil || len(privateFrom) == 0 {
-						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
-						return
-					}
-					log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
-
-					//TODO(peter): handle err
-					privateFromPsm, _ := core.PSIS.ResolveForManagedParty(privateFrom)
-
-					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
-					if err != nil {
-						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
-						return
-					}
-
-					//we found the account, so we can send
-					contractToExtend, err := caller.ContractToExtend(nil)
-					if err != nil {
-						log.Error("[contract] caller.ContractToExtend", "error", err)
-						return
-					}
-					log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
-					entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, privateFromPsm.ID)
-					if err != nil {
-						log.Error("[state] service.stateFetcher.GetAddressStateFromBlock", "block", l.BlockHash.Hex(), "contract", contractToExtend.Hex(), "error", err)
-						return
-					}
-
-					log.Debug("Extension: send the state dump to the new recipient", "recipients", fetchedParties)
-
-					// PSV & PP changes
-					// send the new transaction with state dump to all participants
-					extraMetaData := engine.ExtraMetadata{PrivacyFlag: engine.PrivacyFlagStandardPrivate}
-					privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, privateFromPsm.ID)
-					if err != nil {
-						log.Error("[privacyMetaData] fetch err", "err", err)
-					} else {
-						extraMetaData.PrivacyFlag = privacyMetaData.PrivacyFlag
-						if privacyMetaData.PrivacyFlag == engine.PrivacyFlagStateValidation {
-							storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, privateFromPsm.ID)
-							if err != nil {
-								log.Error("[storageRoot] fetch err", "err", err)
-							}
-							extraMetaData.ACMerkleRoot = storageRoot
-						}
-					}
-					_, _, hashOfStateData, err := service.ptm.Send(entireStateData, privateFrom, fetchedParties, &extraMetaData)
-
-					if err != nil {
-						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)
-						return
-					}
-					hashofStateDataBase64 := hashOfStateData.ToBase64()
-
-					transactor, err := service.managementContractFacade.Transactor(l.Address)
-					if err != nil {
-						log.Error("service.managementContractFacade.Transactor", "address", l.Address.Hex(), "error", err)
-						return
-					}
-					log.Debug("Extension: store the encrypted payload hash of dump state", "contract", l.Address.Hex())
-					if tx, err := transactor.SetSharedStateHash(txArgs, hashofStateDataBase64); err != nil {
-						log.Error("[contract] transactor.SetSharedStateHash", "error", err, "hashOfStateInBase64", hashofStateDataBase64)
-					} else {
-						log.Debug("Extension: transaction carrying shared state", "txhash", tx.Hash(), "private", tx.IsPrivate())
-					}
-				}()
-			case <-stopChan:
-				return
-			}
+	cb := func(l types.Log) {
+		log.Debug("Extension: Received a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
+		service.mu.Lock()
+		defer func() {
+			service.mu.Unlock()
+		}()
+		extensionEntry, ok := service.psiContracts["private"][l.Address]
+		if !ok {
+			// we didn't have this management contract, so ignore it
+			log.Debug("Extension: this node doesn't participate in the contract extender", "address", l.Address.Hex())
+			return
 		}
 
-	}()
-	return nil
+		//Find the extension contract in order to interact with it
+		caller, err := service.managementContractFacade.Caller(l.Address)
+		if err != nil {
+			log.Error("service.managementContractFacade.Caller", "address", l.Address.Hex(), "error", err)
+			return
+		}
+		contractCreator, err := caller.Creator(nil)
+		if err != nil {
+			log.Error("[contract] caller.Creator", "error", err)
+			return
+		}
+		log.Debug("Extension: check if this node has the account that created the contract extender", "account", contractCreator)
+		if _, err := service.accountManager.Find(accounts.Account{Address: contractCreator}); err != nil {
+			log.Warn("Account used to sign extension contract no longer available", "account", contractCreator.Hex())
+			return
+		}
+
+		// fetch all the participants and send
+		payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
+		fetchedParties, err := service.ptm.GetParticipants(payload)
+		if err != nil || len(fetchedParties) == 0 {
+			log.Error("Extension: Unable to fetch all parties for extension management contract", "error", err)
+			return
+		}
+		log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
+
+		privateFrom, _, _, _, err := service.ptm.Receive(payload)
+		if err != nil || len(privateFrom) == 0 {
+			log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+			return
+		}
+		log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
+
+		//TODO(peter): handle err
+		privateFromPsm, _ := core.PSIS.ResolveForManagedParty(privateFrom)
+
+		txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
+		if err != nil {
+			log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
+			return
+		}
+
+		//we found the account, so we can send
+		contractToExtend, err := caller.ContractToExtend(nil)
+		if err != nil {
+			log.Error("[contract] caller.ContractToExtend", "error", err)
+			return
+		}
+		log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
+		entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, privateFromPsm.ID)
+		if err != nil {
+			log.Error("[state] service.stateFetcher.GetAddressStateFromBlock", "block", l.BlockHash.Hex(), "contract", contractToExtend.Hex(), "error", err)
+			return
+		}
+
+		log.Debug("Extension: send the state dump to the new recipient", "recipients", fetchedParties)
+
+		// PSV & PP changes
+		// send the new transaction with state dump to all participants
+		extraMetaData := engine.ExtraMetadata{PrivacyFlag: engine.PrivacyFlagStandardPrivate}
+		privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, privateFromPsm.ID)
+		if err != nil {
+			log.Error("[privacyMetaData] fetch err", "err", err)
+		} else {
+			extraMetaData.PrivacyFlag = privacyMetaData.PrivacyFlag
+			if privacyMetaData.PrivacyFlag == engine.PrivacyFlagStateValidation {
+				storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, privateFromPsm.ID)
+				if err != nil {
+					log.Error("[storageRoot] fetch err", "err", err)
+				}
+				extraMetaData.ACMerkleRoot = storageRoot
+			}
+		}
+		_, _, hashOfStateData, err := service.ptm.Send(entireStateData, privateFrom, fetchedParties, &extraMetaData)
+
+		if err != nil {
+			log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)
+			return
+		}
+		hashofStateDataBase64 := hashOfStateData.ToBase64()
+
+		transactor, err := service.managementContractFacade.Transactor(l.Address)
+		if err != nil {
+			log.Error("service.managementContractFacade.Transactor", "address", l.Address.Hex(), "error", err)
+			return
+		}
+		log.Debug("Extension: store the encrypted payload hash of dump state", "contract", l.Address.Hex())
+		if tx, err := transactor.SetSharedStateHash(txArgs, hashofStateDataBase64); err != nil {
+			log.Error("[contract] transactor.SetSharedStateHash", "error", err, "hashOfStateInBase64", hashofStateDataBase64)
+		} else {
+			log.Debug("Extension: transaction carrying shared state", "txhash", tx.Hash(), "private", tx.IsPrivate())
+		}
+	}
+
+	return handler.createSub(canPerformStateShareQuery, cb)
 }
 
 // utility methods

@@ -496,6 +496,17 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
 }
 
+// Attach creates an RPC client attached to an in-process API handler.
+func (n *Node) AttachWithPSI(psi string) (*rpc.Client, error) {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	if n.server == nil {
+		return nil, ErrNodeStopped
+	}
+	return rpc.DialInProcWithPSI(n.inprocHandler, psi), nil
+}
+
 // RPCHandler returns the in-process RPC request handler.
 func (n *Node) RPCHandler() (*rpc.Server, error) {
 	n.lock.Lock()
