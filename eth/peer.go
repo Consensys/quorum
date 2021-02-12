@@ -108,6 +108,8 @@ type peer struct {
 	getPooledTx func(common.Hash) *types.Transaction // Callback used to retrieve transaction from txpool
 
 	term chan struct{} // Termination channel to stop the broadcaster
+
+	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, getPooledTx func(hash common.Hash) *types.Transaction) *peer {
@@ -330,6 +332,7 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 	p.knownTxs.Add(hash)
 }
 
+// Quorum: this was added with the origin "istanbul" implementation.
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
 func (p *peer) Send(msgcode uint64, data interface{}) error {
@@ -712,10 +715,14 @@ func newPeerSet() *peerSet {
 	}
 }
 
+// Quorum protoName is needed to check if the peer is running eth protocol or a legacy quorum
+// consensus protocol, e.g. istanbul/99 which would not support p.announceTransactions() / NewPooledTransactionHashesMsg
+// Quorum
+
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer) error {
+func (ps *peerSet) Register(p *peer, protoName string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -729,7 +736,9 @@ func (ps *peerSet) Register(p *peer) error {
 
 	go p.broadcastBlocks()
 	go p.broadcastTransactions()
-	if p.version >= eth65 {
+	// Quorum passes in and checks the protoName to see if it is "eth"
+	// as it could also be a legacy protocol, e.g. "istanbul/99", protocolName is always set to "eth" for the eth service.
+	if p.version >= eth65 && protoName == protocolName {
 		go p.announceTransactions()
 	}
 	return nil
