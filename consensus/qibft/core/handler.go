@@ -102,7 +102,7 @@ func (c *core) handleEvents() {
 					c.logger.Error("QBFT: Invalid message code on MessageEvent", "code", ev.Code)
 					continue
 				}
-				c.logger.Warn("QBFT: MessageEvent", "code", ev.Code)
+				//c.logger.Warn("QBFT: MessageEvent", "code", ev.Code)
 				if err := c.handleEncodedMsg(ev.Code, ev.Payload); err != nil {
 					continue
 				}
@@ -143,7 +143,7 @@ func (c *core) sendEvent(ev interface{}) {
 }
 
 func (c *core) handleEncodedMsg(code uint64, data []byte) error {
-	c.logger.Info("QBFT: handleEncodedMsg", "code", code)
+	//c.logger.Info("QBFT: handleEncodedMsg", "code", code)
 	// Decode data into a QBFTMessage
 	m, err := DecodeMessage(code, data)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 
 func (c *core) handleDecodedMessage(m QBFTMessage) error {
 	view := m.View()
-	c.logger.Info("QBFT: handleDecodedMessage", "code", m.Code(), "view", view)
+	//c.logger.Info("QBFT: handleDecodedMessage", "code", m.Code(), "view", view)
 
 	if err := c.checkMessage(m.Code(), &view); err != nil {
 		// Store in the backlog it it's a future message
@@ -185,7 +185,7 @@ func (c *core) handleDecodedMessage(m QBFTMessage) error {
 func (c *core) deliverMessage(m QBFTMessage) error {
 	var err error
 
-	c.logger.Info("QBFT: deliverMessage", "code", m.Code())
+	//c.logger.Info("QBFT: deliverMessage", "code", m.Code())
 
 	switch m.Code() {
 	case preprepareMsgCode:

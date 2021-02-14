@@ -129,6 +129,7 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
+/*
 func (c *core) commit() {
 	c.setState(StateCommitted)
 
@@ -145,7 +146,7 @@ func (c *core) commit() {
 			return
 		}
 	}
-}
+}*/
 
 func (c *core) commitQBFT() {
 	c.setState(StateCommitted)
@@ -153,12 +154,11 @@ func (c *core) commitQBFT() {
 	proposal := c.current.Proposal()
 	if proposal != nil {
 		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
-		for i, v := range c.current.QBFTCommits.Values() {
+		for i, msg := range c.current.QBFTCommits.Values() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			commitMsg := v.(*CommitMsg)
+			commitMsg := msg.(*CommitMsg)
 			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
-
 
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
 			log.Error("QBFT: Error committing", "err", err)
@@ -316,6 +316,7 @@ func (c *core) QuorumSize() int {
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
 	buf.Write(hash.Bytes())
-	buf.Write([]byte{byte(commitMsgCode)})
+	var msgCommit uint64 = 2 // Legacy commit code for backwards compatibility
+	buf.Write([]byte{byte(msgCommit)})
 	return buf.Bytes()
 }

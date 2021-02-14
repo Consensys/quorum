@@ -1489,10 +1489,20 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
+	//log.Warn("QBFT: CALLING INSERT CHAIN CHAIN CHAIN", "len", len(chain))
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
+		//log.Warn("QBFT: BUT CHAIN IS EMPTY :(")
 		return 0, nil
 	}
+
+
+	/*
+	for i := 0; i < len(chain); i++ {
+		log.Warn("QBFT: CHAIN BLOCK", "#", chain[i].Number())
+	}
+	*/
+
 
 	bc.blockProcFeed.Send(true)
 	defer bc.blockProcFeed.Send(false)
@@ -1504,10 +1514,11 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
 		block = chain[i]
+		//log.Warn("QBFT: BLOCK", "#", block.Number())
 		prev = chain[i-1]
 		if block.NumberU64() != prev.NumberU64()+1 || block.ParentHash() != prev.Hash() {
 			// Chain broke ancestry, log a message (programming error) and skip insertion
-			log.Error("Non contiguous block insert", "number", block.Number(), "hash", block.Hash(),
+			log.Error("QBFT: Non contiguous block insert", "number", block.Number(), "hash", block.Hash(),
 				"parent", block.ParentHash(), "prevnumber", prev.Number(), "prevhash", prev.Hash())
 
 			return 0, fmt.Errorf("non contiguous insert: item %d is #%d [%x…], item %d is #%d [%x…] (parent [%x…])", i-1, prev.NumberU64(),
@@ -1555,6 +1566,8 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []interface{}, []*types.Log, error) {
+	//log.Warn("QBFT: insertChain INTERNAL")
+
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 		log.Debug("Premature abort during blocks processing")
@@ -1585,13 +1598,16 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		headers[i] = block.Header()
 		seals[i] = verifySeals
 	}
+	//log.Warn("QBFT: insertChain INTERNAL 1")
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
 	defer close(abort)
+	//log.Warn("QBFT: insertChain INTERNAL 2")
 
 	// Peek the error for the first block to decide the directing import logic
 	it := newInsertIterator(chain, results, bc.validator)
 
 	block, err := it.next()
+	//log.Warn("QBFT: insertChain INTERNAL 3", "err", err)
 
 	// Left-trim all the known blocks
 	if err == ErrKnownBlock {
@@ -1662,6 +1678,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		bc.reportBlock(block, nil, err)
 		return it.index, events, coalescedLogs, err
 	}
+
+	//log.Warn("QBFT: insertChain INTERNAL 4")
 	// No validation errors for the first block (or chain prefix skipped)
 	for ; block != nil && err == nil || err == ErrKnownBlock; block, err = it.next() {
 		// If the chain is terminating, stop processing blocks
