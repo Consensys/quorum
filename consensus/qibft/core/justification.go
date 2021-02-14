@@ -115,3 +115,23 @@ func hasMatchingRoundChangeAndPrepares(roundChangeMessage *RoundChangeMessage, p
 	}
 	return true
 }
+
+func hasMatchingRoundChangeAndPreparesFORQBFT(roundChange *RoundChangeMsg, prepareMessages *messageSet, quorumSize int) bool {
+	if prepareMessages.Size() < quorumSize {
+		return false
+	}
+
+	for _, msg := range prepareMessages.messages {
+		var prepare *Subject
+		if err := msg.Decode(&prepare); err != nil {
+			return false
+		}
+		if prepare.Digest != roundChange.PreparedValue.Hash() {
+			return false
+		}
+		if prepare.View.Round.Cmp(roundChange.PreparedRound) != 0 {
+			return false
+		}
+	}
+	return true
+}

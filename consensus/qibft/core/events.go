@@ -22,7 +22,7 @@ import (
 
 type backlogEvent struct {
 	src istanbul.Validator
-	msg interface{}
+	msg QBFTMessage
 }
 
 type timeoutEvent struct{}

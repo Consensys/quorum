@@ -96,6 +96,7 @@ type core struct {
 	roundChangeTimer *time.Timer
 
 	PreparedRoundPrepares *messageSet
+	QBFTPreparedPrepares *qbftMsgSet
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
@@ -107,57 +108,6 @@ type core struct {
 	sequenceMeter metrics.Meter
 	// the timer to record consensus duration (from accepting a preprepare to final committed stage)
 	consensusTimer metrics.Timer
-}
-
-func (c *core) finalizeMessage(msg *message) ([]byte, error) {
-	var err error
-	// Add sender address
-	msg.Address = c.Address()
-
-	// Add proof of consensus
-	msg.CommittedSeal = []byte{}
-	// Assign the CommittedSeal if it's a COMMIT message and proposal is not nil
-	if msg.Code == msgCommit && c.current.Proposal() != nil {
-		seal := PrepareCommittedSeal(c.current.Proposal().Hash())
-		msg.CommittedSeal, err = c.backend.Sign(seal)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Sign message
-	data, err := msg.PayloadNoSig()
-	if err != nil {
-		return nil, err
-	}
-	msg.Signature, err = c.backend.Sign(data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to payload
-	payload, err := msg.Payload()
-	if err != nil {
-		return nil, err
-	}
-
-	return payload, nil
-}
-
-func (c *core) broadcast(msg *message) {
-	logger := c.logger.New("state", c.state)
-
-	payload, err := c.finalizeMessage(msg)
-	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "err", err)
-		return
-	}
-
-	// Broadcast payload
-	if err = c.backend.Broadcast(c.valSet, msg.Code, payload); err != nil {
-		logger.Error("Failed to broadcast message", "msg", msg, "err", err)
-		return
-	}
 }
 
 func (c *core) currentView() *View {
@@ -191,7 +141,7 @@ func (c *core) commit() {
 		}
 
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
-			c.sendNextRoundChange()
+			c.broadcastNextRoundChange()
 			return
 		}
 	}
@@ -209,8 +159,10 @@ func (c *core) commitQBFT() {
 			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
 
+
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
-			c.sendNextRoundChange()
+			log.Error("QBFT: Error committing", "err", err)
+			c.broadcastNextRoundChange()
 			return
 		}
 	}
@@ -341,6 +293,7 @@ func (c *core) newRoundChangeTimer() {
 	if round > 0 {
 		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
 	}
+	c.logger.Info("QBFT: New Round Timer", "timeout", timeout)
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})
@@ -363,6 +316,6 @@ func (c *core) QuorumSize() int {
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
 	buf.Write(hash.Bytes())
-	buf.Write([]byte{byte(msgCommit)})
+	buf.Write([]byte{byte(commitMsgCode)})
 	return buf.Bytes()
 }

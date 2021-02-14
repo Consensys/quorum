@@ -25,13 +25,14 @@ import (
 )
 
 // newRoundState creates a new roundState instance with the given view and validatorSet
-func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *Preprepare, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
+func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *PreprepareMsg, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
 	return &roundState{
 		round:          view.Round,
 		sequence:       view.Sequence,
 		Preprepare:     preprepare,
 		Prepares:       newMessageSet(validatorSet),
 		Commits:        newMessageSet(validatorSet),
+		QBFTPrepares:   newQBFTMsgSet(validatorSet),
 		QBFTCommits:    newQBFTMsgSet(validatorSet),
 		mu:             new(sync.RWMutex),
 		pendingRequest: pendingRequest,
@@ -44,10 +45,11 @@ func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *P
 type roundState struct {
 	round      *big.Int
 	sequence   *big.Int
-	Preprepare *Preprepare
+	Preprepare *PreprepareMsg
 	Prepares   *messageSet
 	Commits    *messageSet
 
+	QBFTPrepares *qbftMsgSet
 	QBFTCommits *qbftMsgSet
 
 	pendingRequest *Request
@@ -78,7 +80,7 @@ func (s *roundState) Subject() *Subject {
 	}
 }
 
-func (s *roundState) SetPreprepare(preprepare *Preprepare) {
+func (s *roundState) SetPreprepare(preprepare *PreprepareMsg) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

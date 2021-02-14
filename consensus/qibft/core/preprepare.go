@@ -17,108 +17,84 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func (c *core) sendPreprepare(request *Request) {
+func (c *core) sendPreprepareMsg(request *Request) {
 	logger := c.logger.New("state", c.state)
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
-		preprepare, err := Encode(&Preprepare{
-			View:     curView,
-			Proposal: request.Proposal,
-		})
+		preprepareMsg := &PreprepareMsg{
+			CommonMsg:     CommonMsg{
+				code:           preprepareMsgCode,
+				source:         c.address,
+				Sequence:       curView.Sequence,
+				Round:          curView.Round,
+				EncodedPayload: nil,
+				signature:      nil,
+			},
+			Proposal:      request.Proposal.(*types.Block),
+			Justification: nil,
+		}
+
+		// Sign payload
+		encodedPayload, err := preprepareMsg.EncodePayload()
 		if err != nil {
-			logger.Error("Failed to encode", "view", curView)
+			logger.Error("QBFT: Failed to encode payload of pre-prepare message", "msg", preprepareMsg, "err", err)
 			return
 		}
-		// Encode RoundChange messages that piggyback Preprepare message
-		var piggybackMsgPayload []byte
-		rcMsgs := request.RCMessages
-		prepareMsgs := request.PrepareMessages
-		if rcMsgs != nil || prepareMsgs != nil {
-			if rcMsgs == nil {
-				rcMsgs = newMessageSet(c.valSet)
-			}
-			if prepareMsgs == nil {
-				prepareMsgs = newMessageSet(c.valSet)
-			}
-			piggybackMsgPayload, err = Encode(&PiggybackMessages{RCMessages: rcMsgs, PreparedMessages: prepareMsgs, Proposal: nil})
-			if err != nil {
-				logger.Error("Failed to encode Piggyback messages accompanying Preprepare", "err", err)
-				return
-			}
-		} else {
-			piggybackMsgPayload = nil
+		preprepareMsg.signature, err = c.backend.Sign(encodedPayload)
+		if err != nil {
+			logger.Error("QBFT: Failed to sign pre-prepare message", "msg", preprepareMsg, "err", err)
+			return
 		}
-		logger.Info("QBFT: sendPreprepare", "m", curView)
-		c.broadcast(&message{
-			Code:          msgPreprepare,
-			Msg:           preprepare,
-			PiggybackMsgs: piggybackMsgPayload,
-		})
+
+		// Justification
+		// TODO
+
+		// RLP-encode message
+		payload, err := rlp.EncodeToBytes(&preprepareMsg)
+		if err != nil {
+			logger.Error("QBFT: Failed to encode pre-prepare message", "msg", preprepareMsg, "err", err)
+			return
+		}
+
+		logger.Info("QBFT: sendPreprepareMsg", "view", preprepareMsg.View())
+		// Broadcast RLP-encoded message
+		if err = c.backend.Broadcast(c.valSet, preprepareMsgCode, payload); err != nil {
+			logger.Error("QBFT: Failed to broadcast message", "msg", preprepareMsg, "err", err)
+			return
+		}
+
 		// Set the preprepareSent to the current round
 		c.current.preprepareSent = curView.Round
 	}
 }
 
-func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
+func (c *core) handlePreprepareMsg(preprepare *PreprepareMsg) error {
+	logger := c.logger.New("state", c.state)
 
-	// Decode PRE-PREPARE
-	var preprepare *Preprepare
-	err := msg.Decode(&preprepare)
-	if err != nil {
-		logger.Debug("QBFT: Failed to decode preprepare message", "err", err)
-		return errFailedDecodePreprepare
-	}
-
-	logger.Info("QBFT: handlePreprepare", "m", preprepare)
-
-	// Decode messages that piggyback Preprepare message
-	var piggyBackMsgs *PiggybackMessages
-	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
-		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggyBackMsgs); err != nil {
-			logger.Error("QBFT: Failed to decode messages that piggyback Preprepare messages", "err", err)
-			return errFailedDecodePiggybackMsgs
-		}
-	}
-
-	// Ensure we have the same view with the PRE-PREPARE message
-	// If it is old message, see if we need to broadcast COMMIT
-	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
-		if err == errOldMessage {
-			// Get validator set for the given proposal
-			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
-			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
-			// Broadcast COMMIT if it is an existing block
-			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
-			// 2. The given block must exist
-			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
-				return nil
-			}
-		}
-		return err
-	}
+	c.logger.Info("QBFT: handlePreprepareMsg", "view", preprepare.View())
 
 	// Check if the message comes from current proposer
-	if !c.valSet.IsProposer(src.Address()) {
+	logger.Warn("QBFT who's proposer?", "source", preprepare.source, "proposer", c.valSet.GetProposer().Address())
+	if !c.valSet.IsProposer(preprepare.source) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return errNotFromProposer
 	}
 
-	if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, piggyBackMsgs.RCMessages, piggyBackMsgs.PreparedMessages, c.QuorumSize()) {
-		logger.Error("Unable to justify PRE-PREPARE message")
-		return errInvalidPreparedBlock
-	}
+	// TODO: Justification
+	/*
+		if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, piggyBackMsgs.RCMessages, piggyBackMsgs.PreparedMessages, c.QuorumSize()) {
+			logger.Error("Unable to justify PRE-PREPARE message")
+			return errInvalidPreparedBlock
+		}*/
 
 	// Verify the proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
@@ -127,9 +103,10 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
 			c.stopFuturePreprepareTimer()
 			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
+				_, validator := c.valSet.GetByAddress(preprepare.source)
 				c.sendEvent(backlogEvent{
-					src: src,
-					msg: msg,
+					src: validator,
+					msg: preprepare,
 				})
 			})
 		}
@@ -139,15 +116,11 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
 		c.newRoundChangeTimer()
-		c.acceptPreprepare(preprepare)
+		c.consensusTimestamp = time.Now()
+		c.current.SetPreprepare(preprepare)
 		c.setState(StatePreprepared)
-		c.sendPrepare()
+		c.broadcastPrepare()
 	}
 
 	return nil
-}
-
-func (c *core) acceptPreprepare(preprepare *Preprepare) {
-	c.consensusTimestamp = time.Now()
-	c.current.SetPreprepare(preprepare)
 }

@@ -38,17 +38,32 @@ func TestRoundChangeSet(t *testing.T) {
 		PreparedRound:       big.NewInt(1),
 		PreparedBlockDigest: newTestProposal().Hash(),
 	}
-	m, _ := Encode(r)
+	//m, _ := Encode(r)
 
 	// Test Add()
 	// Add message from all validators
 	for i, v := range vset.List() {
-		msg := &message{
+		roundChange := RoundChangeMsg{
+			CommonMsg:            CommonMsg{
+				code:           roundChangeMsgCode,
+				source:         v.Address(),
+				Sequence:       big.NewInt(1),
+				Round:          big.NewInt(1),
+				EncodedPayload: nil,
+				Signature:      nil,
+			},
+			PreparedRound:        big.NewInt(1),
+			PreparedValue:        newTestProposal(),
+			Justification:        nil,
+			EncodedSignedPayload: nil,
+		}
+		
+		/*msg := &message{
 			Code:    msgRoundChange,
 			Msg:     m,
 			Address: v.Address(),
-		}
-		rc.Add(view.Round, msg, r.PreparedRound, newTestProposal(), newMessageSet(vset), vset.Size())
+		}*/
+		rc.Add(view.Round, &roundChange, r.PreparedRound, newTestProposal(), newMessageSet(vset), vset.Size())
 		if rc.roundChanges[view.Round.Uint64()].Size() != i+1 {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), i+1)
 		}
@@ -56,12 +71,21 @@ func TestRoundChangeSet(t *testing.T) {
 
 	// Add message again from all validators, but the size should be the same
 	for _, v := range vset.List() {
-		msg := &message{
-			Code:    msgRoundChange,
-			Msg:     m,
-			Address: v.Address(),
+		roundChange := RoundChangeMsg{
+			CommonMsg:            CommonMsg{
+				code:           roundChangeMsgCode,
+				source:         v.Address(),
+				Sequence:       big.NewInt(1),
+				Round:          big.NewInt(1),
+				EncodedPayload: nil,
+				Signature:      nil,
+			},
+			PreparedRound:        big.NewInt(1),
+			PreparedValue:        newTestProposal(),
+			Justification:        nil,
+			EncodedSignedPayload: nil,
 		}
-		rc.Add(view.Round, msg, r.PreparedRound, newTestProposal(), newMessageSet(vset), vset.Size())
+		rc.Add(view.Round, &roundChange, r.PreparedRound, newTestProposal(), newMessageSet(vset), vset.Size())
 		if rc.roundChanges[view.Round.Uint64()].Size() != vset.Size() {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
 		}
@@ -155,26 +179,55 @@ func getRoundChangeSetForPositveTests() *roundChangeSet {
 	rcs := newRoundChangeSet(vset)
 	rcs.NewRound(big.NewInt(2))
 
-	encodedRCMsg1, _ := Encode(&RoundChangeMessage{
+	/*encodedRCMsg1, _ := Encode(&RoundChangeMessage{
 		View:                view,
 		PreparedRound:       big.NewInt(1),
 		PreparedBlockDigest: proposal.Hash(),
-	})
+	})*/
 
-	msg1 := &message{
-		Code:    msgRoundChange,
-		Msg:     encodedRCMsg1,
-		Address: vset.GetByIndex(0).Address(),
+	msg1 := &RoundChangeMsg{
+		CommonMsg:            CommonMsg{
+			code:           roundChangeMsgCode,
+			source:         vset.GetByIndex(0).Address(),
+			Sequence:       big.NewInt(1),
+			Round:          big.NewInt(1),
+			EncodedPayload: nil,
+			Signature:      nil,
+		},
+		PreparedRound:        big.NewInt(1),
+		PreparedValue:        newTestProposal(),
+		Justification:        nil,
+		EncodedSignedPayload: nil,
 	}
-	msg2 := &message{
-		Code:    msgRoundChange,
-		Msg:     encodedRCMsg1,
-		Address: vset.GetByIndex(1).Address(),
+
+	msg2 := &RoundChangeMsg{
+		CommonMsg:            CommonMsg{
+			code:           roundChangeMsgCode,
+			source:         vset.GetByIndex(1).Address(),
+			Sequence:       big.NewInt(1),
+			Round:          big.NewInt(1),
+			EncodedPayload: nil,
+			Signature:      nil,
+		},
+		PreparedRound:        big.NewInt(1),
+		PreparedValue:        newTestProposal(),
+		Justification:        nil,
+		EncodedSignedPayload: nil,
 	}
-	msg3 := &message{
-		Code:    msgRoundChange,
-		Msg:     encodedRCMsg1,
-		Address: vset.GetByIndex(2).Address(),
+
+	msg3 := &RoundChangeMsg{
+		CommonMsg:            CommonMsg{
+			code:           roundChangeMsgCode,
+			source:         vset.GetByIndex(2).Address(),
+			Sequence:       big.NewInt(1),
+			Round:          big.NewInt(1),
+			EncodedPayload: nil,
+			Signature:      nil,
+		},
+		PreparedRound:        big.NewInt(1),
+		PreparedValue:        newTestProposal(),
+		Justification:        nil,
+		EncodedSignedPayload: nil,
 	}
 
 	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, newMessageSet(rcs.validatorSet), vset.Size())

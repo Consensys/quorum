@@ -80,12 +80,6 @@ func (s State) Cmp(y State) int {
 	return 0
 }
 
-const (
-	msgPreprepare uint64 = iota
-	msgPrepare
-	msgCommit
-	msgRoundChange
-)
 
 type message struct {
 	Code          uint64
@@ -145,14 +139,15 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 			return err
 		}
 		// Verify Signature of piggyback messages
-		if err = decodeAndVerifyPiggybackMsgs(m.PiggybackMsgs, validateFn); err != nil {
+		/*if err = decodeAndVerifyPiggybackMsgs(m.PiggybackMsgs, validateFn); err != nil {
 			return err
-		}
+		}*/
 
 	}
 	return nil
 }
 
+/*
 // decodeAndVerifyPiggybackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare and Round Change messages
 func decodeAndVerifyPiggybackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
 	// First decode piggyback messages and then verify individual Prepare and Round Change messages
@@ -175,7 +170,7 @@ func decodeAndVerifyPiggybackMsgs(piggybackMsgsPayload []byte, validateFn func([
 	}
 
 	return nil
-}
+}*/
 
 // verifySignature verifies the signature of the given message
 func verifySignature(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
@@ -238,7 +233,7 @@ func Encode(val interface{}) ([]byte, error) {
 // Request is used to construct a Preprepare message
 type Request struct {
 	Proposal        istanbul.Proposal
-	RCMessages      *messageSet
+	RCMessages      *qbftMsgSet
 	PrepareMessages *messageSet
 }
 
@@ -371,7 +366,7 @@ func (r *RoundChangeMessage) DecodeRLP(s *rlp.Stream) error {
 }
 
 type PiggybackMessages struct {
-	RCMessages       *messageSet
+	RCMessages       *qbftMsgSet
 	PreparedMessages *messageSet
 	Proposal         istanbul.Proposal
 }
@@ -382,7 +377,7 @@ func (p *PiggybackMessages) EncodeRLP(w io.Writer) error {
 
 func (p *PiggybackMessages) DecodeRLP(s *rlp.Stream) error {
 	var piggybackMsgs struct {
-		RCMessages       *messageSet
+		RCMessages       *qbftMsgSet
 		PreparedMessages *messageSet
 		Proposal         *types.Block
 	}

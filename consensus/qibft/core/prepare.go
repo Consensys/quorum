@@ -17,95 +17,82 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/log"
-	"reflect"
-
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func (c *core) sendPrepare() {
+func (c *core) broadcastPrepare() {
+	var err error
+
 	logger := c.logger.New("state", c.state)
 
 	sub := c.current.Subject()
-	encodedSubject, err := Encode(sub)
+	prepareMsg := &PrepareMsg{
+		CommonMsg:  CommonMsg{
+			code:           prepareMsgCode,
+			source: c.address,
+			Sequence:       sub.View.Sequence,
+			Round:          sub.View.Round,
+		},
+		Digest:     sub.Digest,
+	}
+
+	// Sign Message
+	encodedPayload, err := prepareMsg.EncodePayload()
 	if err != nil {
-		logger.Error("Failed to encode", "subject", sub)
+		logger.Error("QBFT: Failed to encode payload of prepare message", "msg", prepareMsg, "err", err)
+		return
+	}
+	prepareMsg.signature, err = c.backend.Sign(encodedPayload)
+	if err != nil {
+		logger.Error("QBFT: Failed to sign commit message", "msg", prepareMsg, "err", err)
 		return
 	}
 
-	logger.Info("QBFT: sendPrepare", "m", sub)
-	c.broadcast(&message{
-		Code: msgPrepare,
-		Msg:  encodedSubject,
-	})
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&prepareMsg)
+	if err != nil {
+		logger.Error("QBFT: Failed to encode commit message", "msg", prepareMsg, "err", err)
+		return
+	}
+
+	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", payload)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, prepareMsgCode, payload); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", prepareMsg, "err", err)
+		return
+	}
 }
 
-func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
-	// Decode PREPARE message
-	var prepare *Subject
-	err := msg.Decode(&prepare)
-	if err != nil {
-		return errFailedDecodePrepare
-	}
+func (c *core) handlePrepare(prepare *PrepareMsg) error {
+	logger := c.logger.New("state", c.state)
 
-	log.Info("QBFT: handlePrepare", "m", prepare)
+	logger.Info("QBFT: handlePrepare", "msg", &prepare)
 
-	if err := c.checkMessage(msgPrepare, prepare.View); err != nil {
-		return err
-	}
-
-	// Check if a preprepare message has been received corresponding to the prepare digest. If not, then return a errInvalidMessage error so that the message can be ignored
+	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
-		c.logger.Error("prepare digest does not match proposal hash", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
+		logger.Error("QBFT: Failed to check digest")
 		return errInvalidMessage
 	}
 
-	// If it is locked, it can only process on the locked block.
-	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
-	if err := c.verifyPrepare(prepare, src); err != nil {
+	// Add to received msgs
+	if err := c.current.QBFTPrepares.Add(prepare); err != nil {
+		c.logger.Error("QBFT: Failed to save prepare message", "msg", prepare, "err", err)
 		return err
 	}
 
-	c.acceptPrepare(msg, src)
-
 	// Change to Prepared state if we've received enough PREPARE messages
 	// and we are in earlier state before Prepared state.
-	if (c.current.Prepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
+	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round
-		c.PreparedRoundPrepares = c.current.Prepares
+		c.QBFTPreparedPrepares = c.current.QBFTPrepares
 		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {
 			c.current.preparedBlock = c.current.Proposal()
 		}
 
 		c.setState(StatePrepared)
-		c.sendCommit()
-	}
-
-	return nil
-}
-
-// verifyPrepare verifies if the received PREPARE message is equivalent to our subject
-func (c *core) verifyPrepare(prepare *Subject, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-
-	sub := c.current.Subject()
-	if !reflect.DeepEqual(prepare.View, sub.View) || prepare.Digest.Hex() != sub.Digest.Hex() {
-		logger.Warn("Inconsistent subjects between PREPARE and proposal", "expected", sub, "got", prepare)
-		return errInconsistentSubject
-	}
-
-	return nil
-}
-
-func (c *core) acceptPrepare(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-
-	// Add the PREPARE message to current round state
-	if err := c.current.Prepares.Add(msg); err != nil {
-		logger.Error("Failed to add PREPARE message to round state", "msg", msg, "err", err)
-		return err
+		c.broadcastCommit()
 	}
 
 	return nil

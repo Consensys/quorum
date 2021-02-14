@@ -161,7 +161,7 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			var outboundCode uint64 = istanbulMsg
-			if code == 0x14 {
+			if code >= 0x12 || code <= 0x15 {
 				outboundCode = code
 			}
 
@@ -330,6 +330,7 @@ func (sb *backend) Close() error {
 
 // IsQIBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQIBFTConsensus() bool {
+	return true
 	// If qibftBlock is not defined in genesis, then use legacy ibft
 	if sb.config.QibftBlock == nil {
 		return false
