@@ -45,16 +45,19 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	}
 
 	rcMsg := &RoundChangeMsg{
-		CommonMsg:            CommonMsg{
-			code:           roundChangeMsgCode,
-			source:         c.address,
-			Sequence:       c.current.Sequence(),
-			Round:          round,
-			EncodedPayload: nil,
-			signature:      nil,
+		SignedRoundChangePayload: SignedRoundChangePayload{
+			CommonPayload: CommonPayload{
+				code:      roundChangeMsgCode,
+				source:    c.Address(),
+				Sequence:  c.current.Sequence(),
+				Round:     round,
+				signature: nil,
+			},
+			PreparedRound: nil,
+			PreparedValue: nil,
 		},
 	}
-	
+
 	// Fill in prepared round and prepared value
 	if c.current.preparedRound != nil && c.current.preparedBlock != nil {
 		rcMsg.PreparedRound = c.current.preparedRound
@@ -74,8 +77,10 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	}
 
 	// Add justification
-	// TODO
-	rcMsg.Justification = nil
+	if c.QBFTPreparedPrepares != nil {
+		rcMsg.Justification = c.QBFTPreparedPrepares
+		logger.Info("QBFT: On RoundChange", "justification", rcMsg.Justification)
+	}
 
 	// RLP-encode message
 	data, err := rlp.EncodeToBytes(rcMsg)
@@ -103,10 +108,14 @@ func (c *core) handleRoundChange(roundChange *RoundChangeMsg) error {
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	if view.Round.Cmp(currentRound) >= 0 {
-		// TODO: Fill in prepareMessages and pr/pb
-		var prepareMessages *messageSet
+		var prepareMessages []*SignedPreparePayload = nil
 		var pr *big.Int = nil
 		var pb *types.Block = nil
+		if roundChange.PreparedRound != nil && roundChange.PreparedValue != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
+			prepareMessages = roundChange.Justification
+			pr = roundChange.PreparedRound
+			pb = roundChange.PreparedValue
+		}
 		err := c.roundChangeSet.Add(view.Round, roundChange, pr, pb, prepareMessages, c.QuorumSize())
 		if err != nil {
 			logger.Warn("Failed to add round change message", "msg", roundChange, "err", err)
@@ -131,12 +140,17 @@ func (c *core) handleRoundChange(roundChange *RoundChangeMsg) error {
 		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
 		prepareMessages := c.roundChangeSet.prepareMessages[currentRound.Uint64()]
 
-		// TODO: Justification
-		/*
-		if !justify(proposal, roundChangeMessages, prepareMessages, c.QuorumSize()) {
+		// Justification
+		rcSignedPayloads := make([]*SignedRoundChangePayload, 0)
+		for _, m := range roundChangeMessages.Values() {
+			rcMsg := m.(*RoundChangeMsg)
+			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
+		}
+
+		if !justify(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()) {
 			return nil
 		}
-		*/
+
 		log.Info("QBFT: handleRoundChange - broadcasting pre-prepare")
 		r := &Request{
 			Proposal:        proposal,
@@ -159,7 +173,7 @@ func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
 		validatorSet:         valSet,
 		roundChanges:         make(map[uint64]*qbftMsgSet),
-		prepareMessages:      make(map[uint64]*messageSet),
+		prepareMessages:      make(map[uint64][]*SignedPreparePayload),
 		highestPreparedRound: make(map[uint64]*big.Int),
 		highestPreparedBlock: make(map[uint64]istanbul.Proposal),
 		mu:                   new(sync.Mutex),
@@ -169,7 +183,7 @@ func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 type roundChangeSet struct {
 	validatorSet         istanbul.ValidatorSet
 	roundChanges         map[uint64]*qbftMsgSet
-	prepareMessages      map[uint64]*messageSet
+	prepareMessages      map[uint64][]*SignedPreparePayload
 	highestPreparedRound map[uint64]*big.Int
 	highestPreparedBlock map[uint64]istanbul.Proposal
 	mu                   *sync.Mutex
@@ -180,11 +194,11 @@ func (rcs *roundChangeSet) NewRound(r *big.Int) {
 	defer rcs.mu.Unlock()
 	round := r.Uint64()
 	rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
-	rcs.prepareMessages[round] = newMessageSet(rcs.validatorSet)
+	rcs.prepareMessages[round] = make([]*SignedPreparePayload, 0)
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages *messageSet, quorumSize int) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*SignedPreparePayload, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 

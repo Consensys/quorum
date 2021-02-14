@@ -42,41 +42,40 @@ type QBFTMessage interface {
 }
 
 // QBFT Messages
-type CommonMsg struct {
+type CommonPayload struct {
 	code uint64
 	source common.Address
 	Sequence *big.Int
 	Round *big.Int
-	EncodedPayload []byte
 	signature []byte
 }
 
-func (m *CommonMsg) Code() uint64 {
+func (m *CommonPayload) Code() uint64 {
 	return m.code
 }
 
-func (m *CommonMsg) Source() common.Address {
+func (m *CommonPayload) Source() common.Address {
 	return m.source
 }
 
-func (m *CommonMsg) SetSource(address common.Address) {
+func (m *CommonPayload) SetSource(address common.Address) {
 	m.source = address
 }
 
-func (m *CommonMsg) View() View {
+func (m *CommonPayload) View() View {
 	return View{Sequence: m.Sequence, Round: m.Round}
 }
 
-func (m *CommonMsg) Signature() []byte {
+func (m *CommonPayload) Signature() []byte {
 	return m.signature
 }
 
-func (m *CommonMsg) SetSignature(signature []byte) {
+func (m *CommonPayload) SetSignature(signature []byte) {
 	m.signature = signature
 }
 
 type CommitMsg struct {
-	CommonMsg
+	CommonPayload
 	Digest     common.Hash
 	CommitSeal []byte
 }
@@ -135,7 +134,7 @@ func DecodeMessage(code uint64, data []byte) (QBFTMessage, error){
 	case preprepareMsgCode:
 		var preprepare PreprepareMsg
 		if err := rlp.DecodeBytes(data, &preprepare); err != nil {
-			return nil, errFailedDecodePreprepare
+			return nil, err
 		}
 		preprepare.code = preprepareMsgCode
 		return &preprepare, nil
@@ -167,12 +166,27 @@ func DecodeMessage(code uint64, data []byte) (QBFTMessage, error){
 
 // ROUND-CHANGE
 type RoundChangeMsg struct {
-	CommonMsg
-	PreparedRound *big.Int
-	PreparedValue istanbul.Proposal
-	Justification []byte
+	SignedRoundChangePayload
+	Justification []*SignedPreparePayload
 }
+/*
+type roundChangeMessage struct {
+	signedRoundChangePayload
+	justification []*SignedPreparePayload
+}*/
 
+type SignedRoundChangePayload struct {
+	CommonPayload
+	PreparedRound *big.Int
+	PreparedValue *types.Block
+}
+/*
+type roundChangePayload struct {
+	*View
+	preparedRound *big.Int
+	preparedValue *types.Block
+}
+*/
 func (m *RoundChangeMsg) EncodePayload() ([]byte, error) {
 	var prepared = []interface{}{}
 	if m.PreparedRound != nil && m.PreparedValue != nil {
@@ -190,6 +204,7 @@ func (m *RoundChangeMsg) EncodeRLP(w io.Writer) error {
 	if m.PreparedRound != nil && m.PreparedValue != nil {
 		prepared = []interface{}{m.PreparedRound, m.PreparedValue.Hash()}
 	}
+
 	return rlp.Encode(
 		w,
 		[]interface{}{
@@ -320,9 +335,10 @@ func (m *RoundChangeMsg) DecodeRLP(stream *rlp.Stream) error {
 
 
 type PreprepareMsg struct {
-	CommonMsg
+	CommonPayload
 	Proposal istanbul.Proposal
-	Justification []byte
+	JustificationRoundChanges []*SignedRoundChangePayload
+	JustificationPrepares []*SignedPreparePayload
 }
 
 func (m *PreprepareMsg) EncodePayload() ([]byte, error) {
@@ -331,12 +347,47 @@ func (m *PreprepareMsg) EncodePayload() ([]byte, error) {
 }
 
 func (m *PreprepareMsg) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{
-		[]interface{}{m.Sequence, m.Round, m.Proposal},
-		m.signature,
-	})
+	return rlp.Encode(
+		w,
+		[]interface{}{
+			[]interface{}{
+				[]interface{}{m.Sequence, m.Round, m.Proposal},
+				m.signature,
+			},
+			[]interface{}{
+				m.JustificationRoundChanges,
+				m.JustificationPrepares,
+			},
+		})
 }
 
+func (m *PreprepareMsg) DecodeRLP(stream *rlp.Stream) error {
+	var message struct {
+		SignedPayload struct {
+			Payload struct {
+				Sequence *big.Int
+				Round *big.Int
+				Proposal *types.Block
+			}
+			Signature []byte
+		}
+		Justification struct {
+			RoundChanges []*SignedRoundChangePayload
+			Prepares []*SignedPreparePayload
+		}
+	}
+	if err := stream.Decode(&message); err != nil {
+		return err
+	}
+	m.Sequence = message.SignedPayload.Payload.Sequence
+	m.Round = message.SignedPayload.Payload.Round
+	m.Proposal = message.SignedPayload.Payload.Proposal
+	m.signature = message.SignedPayload.Signature
+	m.JustificationPrepares = message.Justification.Prepares
+	m.JustificationRoundChanges = message.Justification.RoundChanges
+	return nil
+}
+/*
 func (m *PreprepareMsg) DecodeRLP(stream *rlp.Stream) error {
 	if _, err := stream.List(); err != nil {
 		log.Error("QBFT: Error List()", "err", err)
@@ -348,7 +399,6 @@ func (m *PreprepareMsg) DecodeRLP(stream *rlp.Stream) error {
 		log.Error("QBFT: Error Raw()", "err", err)
 		return err
 	}
-	//m.EncodePayload = encodedPayload
 
 	signature, err := stream.Bytes()
 	if err != nil {
@@ -373,18 +423,82 @@ func (m *PreprepareMsg) DecodeRLP(stream *rlp.Stream) error {
 	m.Proposal = payload.Proposal
 
 	return stream.ListEnd()
+}*/
+
+type PrepareMsgOld struct {
+	CommonPayload
+	Digest     common.Hash
 }
 
 type PrepareMsg struct {
-	CommonMsg
-	Digest     common.Hash
+	SignedPreparePayload
 }
 
 func (m *PrepareMsg) EncodePayload() ([]byte, error) {
 	return rlp.EncodeToBytes([]interface{}{m.Sequence, m.Round, m.Digest})
 }
 
-func (m *PrepareMsg) decodePayload(stream *rlp.Stream) error {
+/*
+func (m *PrepareMsg) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, m.SignedPreparePayload)
+}
+
+func (m *PrepareMsg) DecodeRLP(stream *rlp.Stream) error {
+	m.code = prepareMsgCode
+	return stream.Decode(m.SignedPreparePayload)
+}
+*/
+type SignedPreparePayload struct {
+	CommonPayload
+	Digest common.Hash
+}
+
+func (signedPayload *SignedPreparePayload) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(
+		w,
+		[]interface{}{
+			[]interface{}{
+				signedPayload.Sequence,
+				signedPayload.Round,
+				signedPayload.Digest},
+			signedPayload.signature,
+		})
+}
+
+func (signedPayload *SignedPreparePayload) DecodeRLP(stream *rlp.Stream) error {
+	var message struct {
+		Payload struct {
+			Sequence   *big.Int
+			Round      *big.Int
+			Digest     common.Hash
+		}
+		Signature []byte
+	}
+	if err := stream.Decode(&message); err != nil {
+		return err
+	}
+	signedPayload.code = prepareMsgCode
+	signedPayload.Sequence = message.Payload.Sequence
+	signedPayload.Round = message.Payload.Round
+	signedPayload.Digest = message.Payload.Digest
+	signedPayload.signature = message.Signature
+	return nil
+}
+
+
+func (m *PrepareMsgOld) EncodePayload() ([]byte, error) {
+	return rlp.EncodeToBytes([]interface{}{m.Sequence, m.Round, m.Digest})
+}
+
+func (m *PrepareMsgOld) EncodeSignedPayload() ([]byte, error) {
+	return rlp.EncodeToBytes(
+		[]interface{}{
+			[]interface{}{m.Sequence, m.Round, m.Digest},
+			m.signature,
+		})
+}
+
+func (m *PrepareMsgOld) decodePayload(stream *rlp.Stream) error {
 	var payload struct {
 		Sequence   *big.Int
 		Round      *big.Int
@@ -399,13 +513,13 @@ func (m *PrepareMsg) decodePayload(stream *rlp.Stream) error {
 	return nil
 }
 
-func (m *PrepareMsg) EncodeRLP(w io.Writer) error {
+func (m *PrepareMsgOld) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		[]interface{}{m.Sequence, m.Round, m.Digest},
 		m.signature})
 }
 
-func (m *PrepareMsg) DecodeRLP(stream *rlp.Stream) error {
+func (m *PrepareMsgOld) DecodeRLP(stream *rlp.Stream) error {
 	var message struct {
 		Payload struct {
 			Sequence   *big.Int

@@ -27,7 +27,7 @@ func (c *core) broadcastCommit() {
 
 	sub := c.current.Subject()
 	commitMsg := &CommitMsg{
-		CommonMsg:  CommonMsg{
+		CommonPayload:  CommonPayload{
 			code:           commitMsgCode,
 			source: c.address,
 			Sequence:       sub.View.Sequence,
@@ -75,6 +75,11 @@ func (c *core) handleCommitMsg(commit *CommitMsg) error {
 	logger := c.logger.New("state", c.state)
 
 	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
+
+	// For testing of round changes!!!!
+	if commit.Sequence.Int64() % 2 == 0 && commit.Round.Int64() == 0 {
+		return nil
+	}
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {

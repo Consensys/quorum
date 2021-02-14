@@ -17,7 +17,6 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus"
@@ -31,16 +30,14 @@ func (c *core) sendPreprepareMsg(request *Request) {
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
 		preprepareMsg := &PreprepareMsg{
-			CommonMsg:     CommonMsg{
+			CommonPayload:     CommonPayload{
 				code:           preprepareMsgCode,
 				source:         c.address,
 				Sequence:       curView.Sequence,
 				Round:          curView.Round,
-				EncodedPayload: nil,
 				signature:      nil,
 			},
-			Proposal:      request.Proposal.(*types.Block),
-			Justification: nil,
+			Proposal:      request.Proposal,
 		}
 
 		// Sign payload
@@ -56,7 +53,17 @@ func (c *core) sendPreprepareMsg(request *Request) {
 		}
 
 		// Justification
-		// TODO
+		if request.RCMessages != nil {
+			preprepareMsg.JustificationRoundChanges = make([]*SignedRoundChangePayload, 0)
+			for _, m := range request.RCMessages.Values() {
+				preprepareMsg.JustificationRoundChanges = append(preprepareMsg.JustificationRoundChanges, &m.(*RoundChangeMsg).SignedRoundChangePayload)
+			}
+			logger.Info("QBFT: On Pre-prepare", "rc justification", preprepareMsg.JustificationRoundChanges)
+		}
+		if request.PrepareMessages != nil {
+			preprepareMsg.JustificationPrepares = request.PrepareMessages
+			logger.Info("QBFT: On Pre-prepare", "prepare justification", preprepareMsg.JustificationPrepares)
+		}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepareMsg)
@@ -80,7 +87,7 @@ func (c *core) sendPreprepareMsg(request *Request) {
 func (c *core) handlePreprepareMsg(preprepare *PreprepareMsg) error {
 	logger := c.logger.New("state", c.state)
 
-	c.logger.Info("QBFT: handlePreprepareMsg", "view", preprepare.View())
+	c.logger.Info("QBFT: handlePreprepareMsg", "view", preprepare.View(), "m", preprepare)
 
 	// Check if the message comes from current proposer
 	logger.Warn("QBFT who's proposer?", "source", preprepare.source, "proposer", c.valSet.GetProposer().Address())
@@ -89,12 +96,11 @@ func (c *core) handlePreprepareMsg(preprepare *PreprepareMsg) error {
 		return errNotFromProposer
 	}
 
-	// TODO: Justification
-	/*
-		if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, piggyBackMsgs.RCMessages, piggyBackMsgs.PreparedMessages, c.QuorumSize()) {
-			logger.Error("Unable to justify PRE-PREPARE message")
-			return errInvalidPreparedBlock
-		}*/
+	// Justification
+	if preprepare.Round.Uint64() > 0 && !justify(preprepare.Proposal, preprepare.JustificationRoundChanges, preprepare.JustificationPrepares, c.QuorumSize()) {
+		logger.Error("QBFT: Unable to justify PRE-PREPARE message")
+		return errInvalidPreparedBlock
+	}
 
 	// Verify the proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {

@@ -26,15 +26,16 @@ func (c *core) broadcastPrepare() {
 	logger := c.logger.New("state", c.state)
 
 	sub := c.current.Subject()
-	prepareMsg := &PrepareMsg{
-		CommonMsg:  CommonMsg{
-			code:           prepareMsgCode,
-			source: c.address,
-			Sequence:       sub.View.Sequence,
-			Round:          sub.View.Round,
+	prepareMsg := &PrepareMsg{SignedPreparePayload{
+		CommonPayload: CommonPayload{
+			code:      prepareMsgCode,
+			source:    c.Address(),
+			Sequence:  sub.View.Sequence,
+			Round:     sub.View.Round,
+			signature: nil,
 		},
-		Digest:     sub.Digest,
-	}
+		Digest:        sub.Digest,
+	}}
 
 	// Sign Message
 	encodedPayload, err := prepareMsg.EncodePayload()
@@ -84,10 +85,25 @@ func (c *core) handlePrepare(prepare *PrepareMsg) error {
 	// and we are in earlier state before Prepared state.
 	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 
+		logger.Info("QBFT: have quorum of prepares")
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round
-		c.QBFTPreparedPrepares = c.current.QBFTPrepares
+		c.QBFTPreparedPrepares = make([]*SignedPreparePayload, 0)
+		for _, m := range c.current.QBFTPrepares.Values() {
+			c.QBFTPreparedPrepares = append(c.QBFTPreparedPrepares, &SignedPreparePayload{
+				CommonPayload: CommonPayload{
+					code:      prepareMsgCode,
+					source:    m.Source(),
+					Sequence:  m.View().Sequence,
+					Round:     m.View().Round,
+					signature: m.Signature(),
+				},
+				Digest:        m.(*PrepareMsg).Digest,
+			})		
+		}
+
 		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {
+			logger.Info("QBFT: the prepare matches the proposal", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
 			c.current.preparedBlock = c.current.Proposal()
 		}
 

@@ -185,7 +185,12 @@ func (c *core) handleDecodedMessage(m QBFTMessage) error {
 func (c *core) deliverMessage(m QBFTMessage) error {
 	var err error
 
-	//c.logger.Info("QBFT: deliverMessage", "code", m.Code())
+	// This is for testing of round changes.
+	/*
+	if m.View().Sequence.Int64() % 2 == 0 && m.View().Round.Int64() == 0 {
+		return nil
+	}*/
+
 
 	switch m.Code() {
 	case preprepareMsgCode:
@@ -208,8 +213,9 @@ func (c *core) handleTimeoutMsg() {
 	// Start the new round
 	round := c.current.Round()
 	nextRound := new(big.Int).Add(round, common.Big1)
+	c.logger.Warn("QBFT: TIMER CHANGING ROUND", "pr", c.current.preparedRound)
 	c.startNewRound(nextRound)
-
+	c.logger.Warn("QBFT: TIMER CHANGED ROUND", "pr", c.current.preparedRound)
 	// Send Round Change
 	c.broadcastRoundChange(nextRound)
 }

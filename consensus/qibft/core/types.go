@@ -234,7 +234,7 @@ func Encode(val interface{}) ([]byte, error) {
 type Request struct {
 	Proposal        istanbul.Proposal
 	RCMessages      *qbftMsgSet
-	PrepareMessages *messageSet
+	PrepareMessages []*SignedPreparePayload
 }
 
 // View includes a round number and a sequence number.

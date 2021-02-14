@@ -95,8 +95,7 @@ type core struct {
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
 
-	PreparedRoundPrepares *messageSet
-	QBFTPreparedPrepares *qbftMsgSet
+	QBFTPreparedPrepares []*SignedPreparePayload
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
@@ -235,7 +234,7 @@ func (c *core) startNewRound(round *big.Int) {
 
 	// Update RoundChangeSet by deleting older round messages
 	if round.Uint64() == 0 {
-		c.PreparedRoundPrepares = nil
+		c.QBFTPreparedPrepares = nil
 		c.roundChangeSet = newRoundChangeSet(c.valSet)
 	} else {
 		// Clear earlier round messages
@@ -251,9 +250,9 @@ func (c *core) startNewRound(round *big.Int) {
 // updateRoundState updates round state by checking if locking block is necessary
 func (c *core) updateRoundState(view *View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
-		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
+		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
-		c.current = newRoundState(view, validatorSet, nil, nil, c.backend.HasBadProposal)
+		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
