@@ -28,6 +28,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -504,7 +506,7 @@ func newLesServerService(ctx *adapters.ServiceContext, stack *node.Node) (node.L
 	config.SyncMode = downloader.FullSync
 	config.LightServ = testServerCapacity
 	config.LightPeers = testMaxClients
-	ethereum, err := eth.New(stack, &config)
+	ethereum, err := eth.New(stack, &config, &core.PrivatePSISImpl{})
 	if err != nil {
 		return nil, err
 	}

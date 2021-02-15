@@ -50,6 +50,7 @@ type Backend interface {
 
 	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+	PSIS() core.PrivateStateIdentifierService
 }
 
 // Filter can be used to retrieve and filter logs.

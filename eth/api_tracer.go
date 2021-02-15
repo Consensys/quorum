@@ -157,7 +157,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
 	statedb, mtService, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
@@ -471,7 +471,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		reexec = *config.Reexec
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
-	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
 	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
@@ -573,7 +573,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		reexec = *config.Reexec
 	}
 	statedb, mtService, err := api.computeStateDB(parent, reexec)
-	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
 	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
@@ -856,7 +856,7 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}
-	psm, _ := core.PSIS.ResolveForUserContext(ctx)
+	psm, _ := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
 	privateStateDb, err := mtService.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err

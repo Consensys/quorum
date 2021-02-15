@@ -51,6 +51,10 @@ func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
 }
 
+func (b *LesApiBackend) PSIS() core.PrivateStateIdentifierService {
+	return &core.PrivatePSISImpl{}
+}
+
 func (b *LesApiBackend) CurrentBlock() *types.Block {
 	return types.NewBlockWithHeader(b.eth.BlockChain().CurrentHeader())
 }

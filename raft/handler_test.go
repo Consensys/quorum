@@ -161,7 +161,7 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 
 	e, err := eth.New(stack, &eth.Config{
 		Genesis: &core.Genesis{Config: params.QuorumTestChainConfig},
-	})
+	}, &core.PrivatePSISImpl{})
 	if err != nil {
 		return nil, err
 	}

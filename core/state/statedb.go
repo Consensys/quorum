@@ -166,7 +166,7 @@ func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Da
 	if err != nil {
 		return nil, nil, err
 	}
-	privateState, err = New(rawdb.GetPrivateStateRoot(ethDb, root), privateDb, privateSnaps)
+	privateState, err = New(rawdb.GetMTPrivateStateRoot(ethDb, root), privateDb, privateSnaps)
 	if err != nil {
 		return nil, nil, err
 	}

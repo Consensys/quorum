@@ -253,15 +253,15 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	quorumValidatePrivacyEnhancements(ethereum)
 }
 
-func quorumInitPSIS() {
+func quorumInitPSIS() core.PrivateStateIdentifierService {
 	if private.P.HasFeature(engine.MultiplePrivateStates) {
-		var err error
-		core.PSIS, err = psis.NewTesseraPrivacyGroupPSIS()
+		privateStateIdentifierService, err := psis.NewTesseraPrivacyGroupPSIS()
 		if err != nil {
 			utils.Fatalf("Unable to initialize the private state identifier service (PSIS): %v", err)
 		}
+		return privateStateIdentifierService
 	} else {
-		core.PSIS = &core.PrivatePSISImpl{}
+		return &core.PrivatePSISImpl{}
 	}
 }
 

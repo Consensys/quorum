@@ -81,7 +81,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psS
 				// it may happen that two of the managed parties belong to the same private state
 				var appliedOnPrivateState = make(map[string]string)
 				for _, managedParty := range managedParties {
-					psm, _ := PSIS.ResolveForManagedParty(managedParty)
+					psm, _ := p.bc.PSIS().ResolveForManagedParty(managedParty)
 					// if we already handled this private state skip it
 					if _, found := appliedOnPrivateState[psm.ID]; found {
 						continue

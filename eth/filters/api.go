@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -246,7 +244,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc
 		rpcSub      = notifier.CreateSubscription()
 		matchedLogs = make(chan []*types.Log)
 	)
-	psm, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := api.backend.PSIS().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +295,7 @@ type FilterCriteria ethereum.FilterQuery
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) (rpc.ID, error) {
 	logs := make(chan []*types.Log)
-	psm, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := api.backend.PSIS().ResolveForUserContext(ctx)
 	if err != nil {
 		return rpc.ID(""), err
 	}
@@ -336,7 +334,7 @@ func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) 
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
-	psm, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := api.backend.PSIS().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +385,7 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
-	psm, err := core.PSIS.ResolveForUserContext(ctx)
+	psm, err := api.backend.PSIS().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ var DefaultExtensionHandler *ExtensionHandler
 
 type ExtensionHandler struct {
 	ptm           private.PrivateTransactionManager
+	psis          core.PrivateStateIdentifierService
 	isMultitenant bool
 }
 
@@ -30,6 +31,10 @@ func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *
 
 func (handler *ExtensionHandler) SupportMultitenancy(b bool) {
 	handler.isMultitenant = b
+}
+
+func (handler *ExtensionHandler) SetPSIS(psis core.PrivateStateIdentifierService) {
+	handler.psis = psis
 }
 
 func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
@@ -143,7 +148,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, 
 	}
 
 	//check the given PSI is same as PSI of sender key
-	senderPsm, err := core.PSIS.ResolveForManagedParty(senderPublicKey)
+	senderPsm, err := handler.psis.ResolveForManagedParty(senderPublicKey)
 	if err != nil {
 		log.Debug("Extension: unable to determine sender public key PSI", "err", err)
 		return false

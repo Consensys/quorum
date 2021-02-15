@@ -217,6 +217,7 @@ type BlockChain struct {
 
 	psServiceCache state.Database
 	isMultitenant  bool // if this blockchain supports multitenancy
+	psis           PrivateStateIdentifierService
 }
 
 // function pointer for updating private state
@@ -229,6 +230,11 @@ func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState 
 	if bc.setPrivateState != nil {
 		bc.setPrivateState(txLogs, privateState, psi)
 	}
+}
+
+// PSIS returns the private state identification service.
+func (bc *BlockChain) PSIS() PrivateStateIdentifierService {
+	return bc.psis
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -2029,7 +2035,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Write the block to the chain and get the status.
 		substart = time.Now()
-		status, err := bc.writeBlockWithState(block, allReceipts, logs, statedb, privateState, mtService, false)
+		status, err := bc.writeBlockWithState(block, allReceipts, logs, statedb, psService, false)
 		atomic.StoreUint32(&followupInterrupt, 1)
 		if err != nil {
 			return it.index, err

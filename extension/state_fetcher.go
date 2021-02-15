@@ -27,6 +27,7 @@ type ChainAccessor interface {
 // Only extract required methods from ethService.APIBackend
 type APIBackendHelper interface {
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+	PSIS() core.PrivateStateIdentifierService
 	CurrentBlock() *types.Block
 }
 

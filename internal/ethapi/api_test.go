@@ -646,6 +646,10 @@ func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.S
 	panic("implement me")
 }
 
+func (sb *StubBackend) PSIS() core.PrivateStateIdentifierService {
+	panic("implement me")
+}
+
 type StubMinimalApiState struct {
 }
 

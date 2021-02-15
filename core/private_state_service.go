@@ -89,7 +89,7 @@ func (mt *PrivateStateService) GetPrivateState(psi string) (*state.StateDB, erro
 		return nil, err
 	}
 	stateCache := state.NewDatabase(mt.bc.db)
-	statedb, err := state.New(common.BytesToHash(mtPrivateStateRoot), stateCache)
+	statedb, err := state.New(common.BytesToHash(mtPrivateStateRoot), stateCache, nil)
 	if err != nil {
 		return nil, err
 	}

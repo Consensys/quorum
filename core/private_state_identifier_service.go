@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 )
 
@@ -80,5 +81,3 @@ func (t *PrivatePSISImpl) Groups() []engine.PrivacyGroup {
 		},
 	}
 }
-
-var PSIS PrivateStateIdentifierService

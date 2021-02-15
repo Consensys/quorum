@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
@@ -37,7 +36,6 @@ type PrivacyService struct {
 	psiContracts map[string]map[common.Address]*ExtensionContract
 
 	node *node.Node
-	rpcClient *rpc.Client
 }
 
 var (
@@ -138,7 +136,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 		service.psiContracts["private"][foundLog.Address] = &newContractExtension
 		for _, mp := range managedParties {
-			psm, _ := core.PSIS.ResolveForManagedParty(mp)
+			psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(mp)
 			if service.psiContracts[psm.ID] == nil {
 				service.psiContracts[psm.ID] = make(map[common.Address]*ExtensionContract)
 			}
@@ -257,7 +255,7 @@ func (service *PrivacyService) watchForCompletionEvents(psi string) error {
 		log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
 
 		//TODO(peter): handle err
-		privateFromPsm, _ := core.PSIS.ResolveForManagedParty(privateFrom)
+		privateFromPsm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
 
 		txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
 		if err != nil {
@@ -343,8 +341,8 @@ func (service *PrivacyService) Start() error {
 	service.managementContractFacade = NewManagementContractFacade(client)
 	service.extClient = NewInProcessClient(client)
 
-	
-	for _, group := range core.PSIS.Groups() {
+
+	for _, group := range service.apiBackendHelper.PSIS().Groups() {
 		for _, f := range []func() error{
 			service.watchForNewContracts,       // watch for new extension contract creation event
 			service.watchForCancelledContracts, // watch for extension contract cancellation event
