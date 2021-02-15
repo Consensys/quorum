@@ -386,7 +386,7 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx
 		uint64CodeOffset = 0xffffffffffffffff
 	}
 	addr := common.Address(a.Bytes20())
-	codeCopy := getData(getDualState(interpreter.evm, addr), uint64CodeOffset, length.Uint64())
+	codeCopy := getData(getDualState(interpreter.evm, addr).GetCode(addr), uint64CodeOffset, length.Uint64())
 	// Quorum: get public/private state db based on addr
 	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
