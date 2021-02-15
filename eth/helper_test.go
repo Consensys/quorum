@@ -232,7 +232,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 	rand.Read(id[:])
 	peer := pm.newPeer(version, p2p.NewPeer(id, name, nil), net, pm.txpool.Get)
 	errc := make(chan error, 1)
-	go func() { errc <- pm.runPeer(peer) }()
+	go func() { errc <- pm.runPeer(peer, protocolName) }()
 	tp := &testPeer{app: app, net: net, peer: peer}
 
 	// Execute any implicitly requested handshakes and return
