@@ -32,11 +32,14 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -45,6 +48,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -95,6 +99,10 @@ type Ethereum struct {
 	netRPCService *ethapi.PublicNetAPI
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+
+	// Quorum - Multitenancy
+	// contractAuthzProvider is set after node starts instead in New()
+	contractAuthzProvider multitenancy.ContractAuthorizationProvider
 }
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
@@ -108,6 +116,13 @@ func (s *Ethereum) SetContractBackend(backend bind.ContractBackend) {
 	if s.lesServer != nil {
 		s.lesServer.SetContractBackend(backend)
 	}
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *Ethereum) SetContractAuthorizationProvider(dm multitenancy.ContractAuthorizationProvider) {
+	s.contractAuthzProvider = dm
 }
 
 // New creates a new Ethereum object (including the
@@ -146,12 +161,25 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
+	// changes to manipulate the chain id for migration from 2.0.2 and below version to 2.0.3
+	// version of Quorum  - this is applicable for v2.0.3 onwards
+	if chainConfig.IsQuorum {
+		if (chainConfig.ChainID != nil && chainConfig.ChainID.Int64() == 1) || config.NetworkId == 1 {
+			return nil, errors.New("Cannot have chain id or network id as 1.")
+		}
+	}
+
+	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {
+		//Upon starting the node, write the flag to disallow changing ChainID/EIP155 block after HF
+		rawdb.WriteQuorumEIP155Activation(chainDb)
+	}
+
 	eth := &Ethereum{
 		config:            config,
 		chainDb:           chainDb,
 		eventMux:          ctx.EventMux,
 		accountManager:    ctx.AccountManager,
-		engine:            CreateConsensusEngine(ctx, chainConfig, &config.Ethash, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		engine:            CreateConsensusEngine(ctx, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
 		closeBloomHandler: make(chan struct{}),
 		networkID:         config.NetworkId,
 		gasPrice:          config.Miner.GasPrice,
@@ -160,12 +188,35 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		bloomIndexer:      NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 	}
 
+	// Quorum: Set protocol Name/Version
+	// keep `var protocolName = "eth"` as is, and only update the quorum consensus specific protocol
+	// This is used to enable the eth service to return multiple devp2p subprotocols.
+	// Previously, for istanbul/64 istnbul/99 and clique (v2.6) `protocolName` would be overridden and
+	// set to the consensus subprotocol name instead of "eth", meaning the node would no longer
+	// communicate over the "eth" subprotocol, e.g. "eth" or "istanbul/99" but not eth" and "istanbul/99".
+	// With this change, support is added so that the "eth" subprotocol remains and optionally a consensus subprotocol
+	// can be added allowing the node to communicate over "eth" and an optional consensus subprotocol, e.g. "eth" and "istanbul/100"
+	if chainConfig.IsQuorum {
+		quorumProtocol := eth.engine.Protocol()
+		// set the quorum specific consensus devp2p subprotocol, eth subprotocol remains set to protocolName as in upstream geth.
+		quorumConsensusProtocolName = quorumProtocol.Name
+		quorumConsensusProtocolVersions = quorumProtocol.Versions
+		quorumConsensusProtocolLengths = quorumProtocol.Lengths
+	}
+
+	// force to set the istanbul etherbase to node key address
+	if chainConfig.Istanbul != nil {
+		eth.etherbase = crypto.PubkeyToAddress(ctx.NodeKey().PublicKey)
+	}
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
 	var dbVer = "<nil>"
 	if bcVersion != nil {
 		dbVer = fmt.Sprintf("%d", *bcVersion)
 	}
-	log.Info("Initialising Ethereum protocol", "versions", ProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	log.Info("Initialising Ethereum protocol", "name", protocolName, "versions", ProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	if chainConfig.IsQuorum {
+		log.Info("Initialising Quorum consensus protocol", "name", quorumConsensusProtocolName, "versions", quorumConsensusProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	}
 
 	if !config.SkipBcVersionCheck {
 		if bcVersion != nil && *bcVersion > core.BlockChainVersion {
@@ -190,7 +241,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			SnapshotLimit:       config.SnapshotCache,
 		}
 	)
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	newBlockChainFunc := core.NewBlockChain
+	if config.EnableMultitenancy {
+		newBlockChainFunc = core.NewMultitenantBlockChain
+	}
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -213,13 +268,14 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
-	if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.Whitelist); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.Whitelist, config.RaftMode); err != nil {
 		return nil, err
 	}
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
-	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
+	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
-	eth.APIBackend = &EthAPIBackend{ctx.ExtRPCEnabled(), eth, nil}
+	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&ctx.NodeKey().PublicKey)[1:]) // Quorum
+	eth.APIBackend = &EthAPIBackend{ctx.ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.Miner.GasPrice
@@ -234,7 +290,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	return eth, nil
 }
 
-func makeExtraData(extra []byte) []byte {
+func makeExtraData(extra []byte, isQuorum bool) []byte {
 	if len(extra) == 0 {
 		// create default extradata
 		extra, _ = rlp.EncodeToBytes([]interface{}{
@@ -244,21 +300,34 @@ func makeExtraData(extra []byte) []byte {
 			runtime.GOOS,
 		})
 	}
-	if uint64(len(extra)) > params.MaximumExtraDataSize {
-		log.Warn("Miner extra data exceed limit", "extra", hexutil.Bytes(extra), "limit", params.MaximumExtraDataSize)
+	if uint64(len(extra)) > params.GetMaximumExtraDataSize(isQuorum) {
+		log.Warn("Miner extra data exceed limit", "extra", hexutil.Bytes(extra), "limit", params.GetMaximumExtraDataSize(isQuorum))
 		extra = nil
 	}
 	return extra
 }
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Ethereum service
-func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
+func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainConfig, config *Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
+		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
+	// If Istanbul is requested, set it up
+	if chainConfig.Istanbul != nil {
+		if chainConfig.Istanbul.Epoch != 0 {
+			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
+		}
+		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
+		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
+		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
+
+		return istanbulBackend.New(&config.Istanbul, ctx.NodeKey(), db)
+	}
+
 	// Otherwise assume proof-of-work
-	switch config.PowMode {
+	switch config.Ethash.PowMode {
 	case ethash.ModeFake:
 		log.Warn("Ethash used in fake mode")
 		return ethash.NewFaker()
@@ -269,18 +338,11 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 		log.Warn("Ethash used in shared mode")
 		return ethash.NewShared()
 	default:
-		engine := ethash.New(ethash.Config{
-			CacheDir:         ctx.ResolvePath(config.CacheDir),
-			CachesInMem:      config.CachesInMem,
-			CachesOnDisk:     config.CachesOnDisk,
-			CachesLockMmap:   config.CachesLockMmap,
-			DatasetDir:       config.DatasetDir,
-			DatasetsInMem:    config.DatasetsInMem,
-			DatasetsOnDisk:   config.DatasetsOnDisk,
-			DatasetsLockMmap: config.DatasetsLockMmap,
-		}, notify, noverify)
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
+		// For Quorum, Raft run as a separate service, so
+		// the Ethereum service still needs a consensus engine,
+		// use the consensus with the lightest overhead
+		log.Warn("Ethash used in full fake mode")
+		return ethash.NewFullFaker()
 	}
 }
 
@@ -302,7 +364,7 @@ func (s *Ethereum) APIs() []rpc.API {
 	}
 
 	// Append all the local APIs and return
-	return append(apis, []rpc.API{
+	apis = append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -348,6 +410,7 @@ func (s *Ethereum) APIs() []rpc.API {
 			Public:    true,
 		},
 	}...)
+	return apis
 }
 
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
@@ -434,8 +497,12 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 // SetEtherbase sets the mining reward address.
 func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	s.lock.Lock()
+	defer s.lock.Unlock()
+	if _, ok := s.engine.(consensus.Istanbul); ok {
+		log.Error("Cannot set etherbase in Istanbul consensus")
+		return
+	}
 	s.etherbase = etherbase
-	s.lock.Unlock()
 
 	s.miner.SetEtherbase(etherbase)
 }
@@ -516,6 +583,17 @@ func (s *Ethereum) Downloader() *downloader.Downloader { return s.protocolManage
 func (s *Ethereum) Synced() bool                       { return atomic.LoadUint32(&s.protocolManager.acceptTxs) == 1 }
 func (s *Ethereum) ArchiveMode() bool                  { return s.config.NoPruning }
 
+// Quorum
+// adds quorum specific protocols to the Protocols() function which in the associated upstream geth version returns
+// only one subprotocol, "eth", and the supported versions of the "eth" protocol.
+// Quorum uses the eth service to run configurable consensus protocols, e.g. istanbul. Thru release v20.10.0
+// the "eth" subprotocol would be replaced with a modified subprotocol, e.g. "istanbul/99" which would contain all the "eth"
+// messages + the istanbul message and be communicated over the consensus specific subprotocol ("istanbul"), and
+// not over "eth".
+// Now the eth service supports multiple protocols, e.g. "eth" and an optional consensus
+// protocol, e.g. "istanbul/100".
+// /Quorum
+
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
@@ -528,6 +606,15 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.lesServer != nil {
 		protos = append(protos, s.lesServer.Protocols()...)
 	}
+
+	// /Quorum
+	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
+	if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != protocolName {
+		quorumProtos := s.quorumConsensusProtocols()
+		protos = append(protos, quorumProtos...)
+	}
+	// /end Quorum
+
 	return protos
 }
 
@@ -577,4 +664,8 @@ func (s *Ethereum) Stop() error {
 	s.chainDb.Close()
 	s.eventMux.Stop()
 	return nil
+}
+
+func (s *Ethereum) CalcGasLimit(block *types.Block) uint64 {
+	return core.CalcGasLimit(block, s.config.Miner.GasFloor, s.config.Miner.GasCeil)
 }

@@ -258,8 +258,10 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([
 
 func opBalance(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	slot := callContext.stack.peek()
-	address := common.Address(slot.Bytes20())
-	slot.SetFromBig(interpreter.evm.StateDB.GetBalance(address))
+	addr := common.Address(slot.Bytes20())
+	// Quorum: get public/private state db based on addr
+	balance := getDualState(interpreter.evm, addr).GetBalance(addr)
+	slot.SetFromBig(balance)
 	return nil, nil
 }
 
@@ -341,7 +343,10 @@ func opReturnDataCopy(pc *uint64, interpreter *EVMInterpreter, callContext *call
 
 func opExtCodeSize(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	slot := callContext.stack.peek()
-	slot.SetUint64(uint64(interpreter.evm.StateDB.GetCodeSize(common.Address(slot.Bytes20()))))
+	addr := common.Address(slot.Bytes20())
+	// Quorum: get public/private state db based on addr
+	slot.SetUint64(uint64(getDualState(interpreter.evm, addr).GetCodeSize(addr)))
+
 	return nil, nil
 }
 
@@ -381,7 +386,8 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx
 		uint64CodeOffset = 0xffffffffffffffff
 	}
 	addr := common.Address(a.Bytes20())
-	codeCopy := getData(interpreter.evm.StateDB.GetCode(addr), uint64CodeOffset, length.Uint64())
+	codeCopy := getData(getDualState(interpreter.evm, addr), uint64CodeOffset, length.Uint64())
+	// Quorum: get public/private state db based on addr
 	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
 	return nil, nil
@@ -416,10 +422,11 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx
 func opExtCodeHash(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	slot := callContext.stack.peek()
 	address := common.Address(slot.Bytes20())
-	if interpreter.evm.StateDB.Empty(address) {
+	stateDB := getDualState(interpreter.evm, address)
+	if stateDB.Empty(address) {
 		slot.Clear()
 	} else {
-		slot.SetBytes(interpreter.evm.StateDB.GetCodeHash(address).Bytes())
+		slot.SetBytes(stateDB.GetCodeHash(address).Bytes())
 	}
 	return nil, nil
 }
@@ -508,7 +515,8 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([
 func opSload(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	loc := callContext.stack.peek()
 	hash := common.Hash(loc.Bytes32())
-	val := interpreter.evm.StateDB.GetState(callContext.contract.Address(), hash)
+	// Quorum: get public/private state db based on addr
+	val := getDualState(interpreter.evm, callContext.contract.Address()).GetState(callContext.contract.Address(), hash)
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
@@ -516,7 +524,8 @@ func opSload(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]b
 func opSstore(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	loc := callContext.stack.pop()
 	val := callContext.stack.pop()
-	interpreter.evm.StateDB.SetState(callContext.contract.Address(),
+	// Quorum: get public/private state db based on addr
+	getDualState(interpreter.evm, callContext.contract.Address()).SetState(callContext.contract.Address(),
 		common.Hash(loc.Bytes32()), common.Hash(val.Bytes32()))
 	return nil, nil
 }
@@ -794,9 +803,11 @@ func opStop(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]by
 
 func opSuicide(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	beneficiary := callContext.stack.pop()
-	balance := interpreter.evm.StateDB.GetBalance(callContext.contract.Address())
-	interpreter.evm.StateDB.AddBalance(common.Address(beneficiary.Bytes20()), balance)
-	interpreter.evm.StateDB.Suicide(callContext.contract.Address())
+	// Quorum: get public/private state db based on addr
+	db := getDualState(interpreter.evm, callContext.contract.Address())
+	balance := db.GetBalance(callContext.contract.Address())
+	db.AddBalance(common.Address(beneficiary.Bytes20()), balance)
+	db.Suicide(callContext.contract.Address())
 	return nil, nil
 }
 

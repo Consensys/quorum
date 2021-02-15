@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 const (
@@ -207,7 +208,9 @@ func (cs *chainSyncer) loop() {
 
 	for {
 		if op := cs.nextSyncOp(); op != nil {
-			cs.startSync(op)
+			if !cs.pm.raftMode {
+				cs.startSync(op)
+			}
 		}
 
 		select {
@@ -260,7 +263,18 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 	mode, ourTD := cs.modeAndLocalHead()
 	op := peerToSyncOp(mode, peer)
 	if op.td.Cmp(ourTD) <= 0 {
+		// Quorum
+		// added for permissions changes to indicate node sync up has started
+		// if peer's TD is smaller than ours, no sync will happen
+		core.SetSyncStatus()
 		return nil // We're in sync.
+	}
+	if mode == downloader.FastSync {
+		// Make sure the peer's total difficulty we are synchronizing is higher.
+		if cs.pm.blockchain.GetTdByHash(cs.pm.blockchain.CurrentFastBlock().Hash()).Cmp(ourTD) >= 0 {
+			// Quorum never use FastSync, no need to execute SetSyncStatus
+			return nil
+		}
 	}
 	return op
 }

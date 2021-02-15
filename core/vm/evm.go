@@ -18,14 +18,31 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 )
+
+// note: Quorum, States, and Value Transfer
+//
+// In Quorum there is a tricky issue in one specific case when there is call from private state to public state:
+// * The state db is selected based on the callee (public)
+// * With every call there is an associated value transfer -- in our case this is 0
+// * Thus, there is an implicit transfer of 0 value from the caller to callee on the public state
+// * However in our scenario the caller is private
+// * Thus, the transfer creates a ghost of the private account on the public state with no value, code, or storage
+//
+// The solution is to skip this transfer of 0 value under Quorum
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
@@ -44,6 +61,29 @@ type (
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
+		// Quorum
+		// Using CodeAddr is favour over contract.Address()
+		// During DelegateCall() CodeAddr is the address of the delegated account
+		address := *contract.CodeAddr
+		// during simulation/eth_call, when contract code is empty, there's no execution hence the
+		// multitenancy check will not happen in captureOperationMode().
+		// This additional check to ensure we capture this case
+		if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(contract.Code) == 0 {
+			return nil, multitenancy.ErrNotAuthorized
+		}
+		if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+			return nil, err
+		}
+		// When delegatecall, need to capture the operation mode in the context of contract.Address()
+		// the affected contract is required read only mode
+		if address != contract.Address() {
+			evm.pushAddress(contract.Address())
+		} else {
+			evm.pushAddress(address)
+		}
+		defer evm.popAddress()
+		// End Quorum
+
 		precompiles := PrecompiledContractsHomestead
 		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
@@ -54,7 +94,7 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		if evm.chainRules.IsYoloV1 {
 			precompiles = PrecompiledContractsYoloV1
 		}
-		if p := precompiles[*contract.CodeAddr]; p != nil {
+		if p := precompiles[address]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
 		}
 	}
@@ -95,7 +135,20 @@ type Context struct {
 	BlockNumber *big.Int       // Provides information for NUMBER
 	Time        *big.Int       // Provides information for TIME
 	Difficulty  *big.Int       // Provides information for DIFFICULTY
+
+	// Quorum
+	// EVM should consider multitenancy
+	SupportsMultitenancy bool
+	// AuthorizeCreateFunc performs tenancy authorization check for contract creation.
+	// It's only injected during simulation
+	AuthorizeCreateFunc multitenancy.AuthorizeCreateFunc
+	// AuthorizeMessageCallFunc performs tenancy authorization check for message call to a contract.
+	// It's only injected during simulation/eth_call
+	AuthorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc
 }
+
+type PublicState StateDB
+type PrivateState StateDB
 
 // EVM is the Ethereum Virtual Machine base object and provides
 // the necessary tools to run a contract on the given state with
@@ -132,11 +185,102 @@ type EVM struct {
 	// available gas is calculated in gasCall* according to the 63/64 rule and later
 	// applied in opCall*.
 	callGasTemp uint64
+
+	// Quorum additions:
+	publicState       PublicState
+	privateState      PrivateState
+	states            [1027]*state.StateDB // TODO(joel) we should be able to get away with 1024 or maybe 1025
+	currentStateDepth uint
+
+	// This flag has different semantics from the `Interpreter:readOnly` flag (though they interact and could maybe
+	// be simplified). This is set by Quorum when it's inside a Private State -> Public State read.
+	quorumReadOnly bool
+	readOnlyDepth  uint
+
+	// these are for privacy enhancements and multitenancy
+	affectedContracts map[common.Address]*AffectedType // affected contract account address -> type
+	currentTx         *types.Transaction               // transaction currently being applied on this EVM
+	addressStack      []common.Address                 // store contract addresses being executed
+	// store last error during EVM execution lifecycle.
+	// we use this to bubble up the error instead of "evm: execution revert" error.
+	// use it with care as it's meant for runtime multitenancy check during simulation.
+	lastError error
+}
+
+// AffectedType defines attributes indicating how a contract is affected
+// as the result of the contract code execution in an EVM
+type AffectedType struct {
+	// reason captures how the contract is affected.
+	// Default to MessageCall and set to Creation if the contract under execution is newly created.
+	reason AffectedReason
+	// mode captures how the state is operated as the result of contract code execution.
+	// The value is cached as an expectation by performing trial of ModeRead and ModeWrite against access token for a contract before execution.
+	// Runtime multitenancy check uses this value to verify if an opcode execution violates the expectation.
+	// At the end of EVM lifecycle, this reflects the actual mode.
+	mode AffectedMode
+}
+
+func (t AffectedType) String() string {
+	return fmt.Sprintf("reason=%d,mode=%d", t.reason, t.mode)
+}
+
+// AffectedReason defines a type of operation that was applied to a contract.
+type AffectedReason byte
+
+const (
+	_        AffectedReason = iota
+	Creation AffectedReason = iota
+	MessageCall
+)
+
+// AffectedMode defines a mode in which the state is operated as the result of contract code execution.
+type AffectedMode byte
+
+const (
+	// ModeUnknown indicates an auxiliary mode used during initialization of an affected contract
+	ModeUnknown AffectedMode = iota
+	// ModeRead indicates that state has not been modified as the result of contract code execution
+	ModeRead AffectedMode = iota
+	// ModeWrite indicates that state has been modified as the result of contract code execution
+	ModeWrite = ModeRead << 1
+	// ModeUpdated indicates that the affected mode has been setup for multitenancy check.
+	// This is mainly used during simulation and eth_call
+	ModeUpdated = ModeRead << 7
+)
+
+func ModeOf(isWrite bool) AffectedMode {
+	if isWrite {
+		return ModeWrite
+	}
+	return ModeRead
+}
+
+func (mode AffectedMode) IsNotAuthorized(actualMode AffectedMode) bool {
+	return mode.Has(ModeUpdated) && !mode.Has(actualMode)
+}
+
+func (mode AffectedMode) Update(authorizedRead bool, authorizedWrite bool) AffectedMode {
+	newMode := mode | ModeUpdated
+	if authorizedRead {
+		newMode = newMode | ModeRead
+	}
+	if authorizedWrite {
+		newMode = newMode | ModeWrite
+	}
+	return newMode
+}
+
+func (mode AffectedMode) Has(modes ...AffectedMode) bool {
+	expectedMode := ModeUnknown
+	for _, m := range modes {
+		expectedMode = expectedMode | m
+	}
+	return mode&expectedMode == expectedMode
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmConfig Config) *EVM {
+func NewEVM(ctx Context, statedb, privateState StateDB, chainConfig *params.ChainConfig, vmConfig Config) *EVM {
 	evm := &EVM{
 		Context:      ctx,
 		StateDB:      statedb,
@@ -144,6 +288,12 @@ func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 		chainConfig:  chainConfig,
 		chainRules:   chainConfig.Rules(ctx.BlockNumber),
 		interpreters: make([]Interpreter, 0, 1),
+
+		publicState:  statedb,
+		privateState: privateState,
+
+		affectedContracts: make(map[common.Address]*AffectedType),
+		addressStack:      make([]common.Address, 0),
 	}
 
 	if chainConfig.IsEWASM(ctx.BlockNumber) {
@@ -161,6 +311,8 @@ func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 		// }
 		panic("No supported ewasm interpreter yet.")
 	}
+
+	evm.Push(privateState)
 
 	// vmConfig.EVMInterpreter will be used by EVM-C, it won't be checked here
 	// as we always want to have the built-in EVM as the failover option.
@@ -194,6 +346,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
+
+	evm.Push(getDualState(evm, addr))
+	defer func() { evm.Pop() }()
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -224,7 +380,18 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.quorumReadOnly {
+				return nil, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	}
+
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)
@@ -266,6 +433,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
+
+	evm.Push(getDualState(evm, addr))
+	defer func() { evm.Pop() }()
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -305,6 +476,10 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
+
+	evm.Push(getDualState(evm, addr))
+	defer func() { evm.Pop() }()
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -341,25 +516,26 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	}
 	var (
 		to       = AccountRef(addr)
-		snapshot = evm.StateDB.Snapshot()
+		stateDb  = getDualState(evm, addr)
+		snapshot = stateDb.Snapshot()
 	)
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, new(big.Int), gas)
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, stateDb.GetCodeHash(addr), stateDb.GetCode(addr))
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	evm.StateDB.AddBalance(addr, big.NewInt(0))
+	stateDb.AddBalance(addr, big.NewInt(0))
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
 	ret, err = run(evm, contract, input, true)
 	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
+		stateDb.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -389,8 +565,25 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
-	nonce := evm.StateDB.GetNonce(caller.Address())
-	evm.StateDB.SetNonce(caller.Address(), nonce+1)
+
+	// Quorum
+	// Get the right state in case of a dual state environment. If a sender
+	// is a transaction (depth == 0) use the public state to derive the address
+	// and increment the nonce of the public state. If the sender is a contract
+	// (depth > 0) use the private state to derive the nonce and increment the
+	// nonce on the private state only.
+	//
+	// If the transaction went to a public contract the private and public state
+	// are the same.
+	var creatorStateDb StateDB
+	if evm.depth > 0 {
+		creatorStateDb = evm.privateState
+	} else {
+		creatorStateDb = evm.publicState
+	}
+
+	nonce := creatorStateDb.GetNonce(caller.Address())
+	creatorStateDb.SetNonce(caller.Address(), nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
 	contractHash := evm.StateDB.GetCodeHash(address)
@@ -399,11 +592,35 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
+	if evm.SupportsMultitenancy && evm.AuthorizeCreateFunc != nil {
+		if authorized := evm.AuthorizeCreateFunc(); !authorized {
+			return nil, common.Address{}, gas, multitenancy.ErrNotAuthorized
+		}
+	}
 	evm.StateDB.CreateAccount(address)
+	evm.affectedContracts[address] = newAffectedType(Creation, ModeWrite|ModeRead)
 	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), address, value)
+	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
+		// for calls (reading contract state) or finding the affected contracts there is no transaction
+		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
+			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
+			evm.StateDB.SetPrivacyMetadata(address, pm)
+			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)
+		}
+	}
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.quorumReadOnly {
+				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), address, value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), address, value)
+	}
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
@@ -421,8 +638,9 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	ret, err := run(evm, contract, nil, false)
 
-	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := evm.chainRules.IsEIP158 && len(ret) > params.MaxCodeSize
+	maxCodeSize := evm.ChainConfig().GetMaxCodeSize(evm.BlockNumber)
+	// check whether the max code size has been exceeded, check maxcode size from chain config
+	maxCodeSizeExceeded := evm.chainRules.IsEIP158 && len(ret) > maxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
@@ -458,7 +676,25 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
+	// Quorum
+	// Get the right state in case of a dual state environment. If a sender
+	// is a transaction (depth == 0) use the public state to derive the address
+	// and increment the nonce of the public state. If the sender is a contract
+	// (depth > 0) use the private state to derive the nonce and increment the
+	// nonce on the private state only.
+	//
+	// If the transaction went to a public contract the private and public state
+	// are the same.
+	var creatorStateDb StateDB
+	if evm.depth > 0 {
+		creatorStateDb = evm.privateState
+	} else {
+		creatorStateDb = evm.publicState
+	}
+
+	// Ensure there's no existing contract already at the designated address
+	nonce := creatorStateDb.GetNonce(caller.Address())
+	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
@@ -474,3 +710,235 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 
 // ChainConfig returns the environment's chain configuration
 func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
+
+// Quorum functions for dual state
+func getDualState(evm *EVM, addr common.Address) StateDB {
+	// priv: (a) -> (b)  (private)
+	// pub:   a  -> [b]  (private -> public)
+	// priv: (a) ->  b   (public)
+	state := evm.StateDB
+
+	if evm.PrivateState().Exist(addr) {
+		state = evm.PrivateState()
+		evm.captureAffectedContract(addr, ModeUnknown)
+	} else if evm.PublicState().Exist(addr) {
+		state = evm.PublicState()
+	}
+
+	return state
+}
+
+func (evm *EVM) PublicState() PublicState           { return evm.publicState }
+func (evm *EVM) PrivateState() PrivateState         { return evm.privateState }
+func (evm *EVM) SetCurrentTX(tx *types.Transaction) { evm.currentTx = tx }
+func (evm *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	evm.currentTx.SetTxPrivacyMetadata(pm)
+}
+func (evm *EVM) Push(statedb StateDB) {
+	// Quorum : the read only depth to be set up only once for the entire
+	// op code execution. This will be set first time transition from
+	// private state to public state happens
+	// statedb will be the state of the contract being called.
+	// if a private contract is calling a public contract make it readonly.
+	if !evm.quorumReadOnly && evm.privateState != statedb {
+		evm.quorumReadOnly = true
+		evm.readOnlyDepth = evm.currentStateDepth
+	}
+
+	if castedStateDb, ok := statedb.(*state.StateDB); ok {
+		evm.states[evm.currentStateDepth] = castedStateDb
+		evm.currentStateDepth++
+	}
+
+	evm.StateDB = statedb
+}
+func (evm *EVM) Pop() {
+	evm.currentStateDepth--
+	if evm.quorumReadOnly && evm.currentStateDepth == evm.readOnlyDepth {
+		evm.quorumReadOnly = false
+	}
+	evm.StateDB = evm.states[evm.currentStateDepth-1]
+}
+
+func (evm *EVM) Depth() int { return evm.depth }
+
+// We only need to revert the current state because when we call from private
+// public state it's read only, there wouldn't be anything to reset.
+// (A)->(B)->C->(B): A failure in (B) wouldn't need to reset C, as C was flagged
+// read only.
+func (evm *EVM) RevertToSnapshot(snapshot int) {
+	evm.StateDB.RevertToSnapshot(snapshot)
+}
+
+// Quorum
+//
+// Returns addresses of contracts which are message-called
+func (evm *EVM) CalledContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t.reason == MessageCall {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+// Quorum
+//
+// Returns addresses of contracts which are newly created
+func (evm *EVM) CreatedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t.reason == Creation {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+// Quorum
+//
+// pushAddress stores the contract address being affected during EVM execution
+func (evm *EVM) pushAddress(address common.Address) {
+	evm.addressStack = append(evm.addressStack, address)
+}
+
+// Quorum
+//
+// popAddress retrieves the affected contract address from the stack
+func (evm *EVM) popAddress() {
+	l := len(evm.addressStack)
+	if l == 0 {
+		return
+	}
+	evm.addressStack = evm.addressStack[:l-1]
+}
+
+// Quorum
+//
+// peekAddress retrieves the affected contract address from the top of the stack
+func (evm *EVM) peekAddress() common.Address {
+	l := len(evm.addressStack)
+	if l == 0 {
+		return common.Address{}
+	}
+	return evm.addressStack[l-1]
+}
+
+// Quorum
+//
+// captureOperationMode stores the type of operation being applied on the current
+// affected contract whose address is on top of the stack.
+// For multitenancy, it checks if the mode is allowed. Also it bubbles up the last error
+// captured. This helps to avoid "evm: execution revert" generic error
+func (evm *EVM) captureOperationMode(isWriteOperation bool) error {
+	currentAddress := evm.peekAddress()
+	if (currentAddress == common.Address{}) {
+		return evm.lastError
+	}
+	actualMode := ModeOf(isWriteOperation)
+	if t, ok := evm.affectedContracts[currentAddress]; ok {
+		// perform multitenancy check
+		if evm.enforceMultitenancyCheck() {
+			if t.mode.IsNotAuthorized(actualMode) {
+				log.Trace("Multitenancy check for captureOperationMode()", "address", currentAddress.Hex(), "actual", actualMode, "expect", t.mode)
+				evm.lastError = multitenancy.ErrNotAuthorized
+			}
+			// bubble up the last error
+			if evm.lastError != nil {
+				return evm.lastError
+			}
+		}
+		t.mode = t.mode | actualMode
+	}
+	return nil
+}
+
+// Quorum
+//
+// captureAffectedContract stores the contract address to the affectedContract list if not yet there.
+// The affected mode is also updated if required.
+// Default affected reason is MessageCall.
+// In simulation/eth_call for multitenancy, it sets the expectation of AffectedMode
+// to be verified later when an opcode is executed.
+func (evm *EVM) captureAffectedContract(address common.Address, mode AffectedMode) error {
+	affectedType, found := evm.affectedContracts[address]
+	if !found {
+		affectedType = newAffectedType(MessageCall, mode)
+		evm.affectedContracts[address] = affectedType
+	}
+	if affectedType.mode != ModeUnknown {
+		return nil
+	}
+	if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil {
+		authorizedRead, authorizedWrite, err := evm.AuthorizeMessageCallFunc(address)
+		if err != nil {
+			return err
+		}
+		// if we don't authorize either read/write, it's unauthorized access
+		// and we need to inform EVM
+		if !authorizedRead && !authorizedWrite {
+			evm.lastError = multitenancy.ErrNotAuthorized
+			log.Debug("Affected contract not authorized", "address", address.Hex(), "read", authorizedRead, "write", authorizedWrite)
+			return multitenancy.ErrNotAuthorized
+		}
+		oldMode := affectedType.mode
+		affectedType.mode = affectedType.mode.Update(authorizedRead, authorizedWrite)
+		log.Debug("AffectedMode changed", "address", address.Hex(), "old", oldMode, "new", affectedType.mode)
+	}
+	return nil
+}
+
+// enforceMultitenancyCheck returns true if EVM is enforced to do multitenancy check
+// during simulation/eth_call, false otherwise
+func (evm *EVM) enforceMultitenancyCheck() bool {
+	return evm.AuthorizeCreateFunc != nil || evm.AuthorizeMessageCallFunc != nil
+}
+
+// Quorum
+//
+// AffecteMode returns the type of operation (read/write) which was applied on the given
+// contract address. It returns ModeUnknown if the contract is not affected during
+// the lifecycle of this EVM instance
+func (evm *EVM) AffectedMode(a common.Address) (AffectedMode, error) {
+	if t, ok := evm.affectedContracts[a]; ok {
+		return t.mode, nil
+	}
+	return ModeUnknown, fmt.Errorf("address not found")
+}
+
+func newAffectedType(r AffectedReason, m AffectedMode) *AffectedType {
+	return &AffectedType{
+		reason: r,
+		mode:   m,
+	}
+}
+
+// Quorum
+//
+// AffectedContracts returns all affected contracts that are the results of
+// MessageCall transaction
+func (evm *EVM) AffectedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t.reason == MessageCall {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+// Return MerkleRoot of all affected contracts (due to both creation and message call)
+func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
+	combined := new(trie.Trie)
+	for addr := range evm.affectedContracts {
+		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		if err := combined.TryUpdate(addr.Bytes(), data); err != nil {
+			return common.Hash{}, err
+		}
+	}
+	return combined.Hash(), nil
+}
