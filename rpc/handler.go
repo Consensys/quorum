@@ -337,14 +337,7 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 			cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, psi)
 		}
 	}
-	// try to extract the PSI from the request ID if it is not already there in the context
-	if cp.ctx.Value("PSI") == nil && strings.HasPrefix(string(msg.ID), "\"PSI(") {
-		split := strings.Split(string(msg.ID), ")")
-		if len(split) > 1 {
-			psi := split[0][5:]
-			cp.ctx = context.WithValue(cp.ctx, "PSI", psi)
-		}
-	}
+
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)
 	}
