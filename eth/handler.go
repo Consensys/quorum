@@ -1042,4 +1042,5 @@ func (self *ProtocolManager) FindPeers(targets map[common.Address]bool) map[comm
 	}
 	return m
 }
+
 // End Quorum

@@ -50,6 +50,7 @@ func deriveSigner(V *big.Int) Signer {
 		return HomesteadSigner{}
 	}
 }
+
 // End Quorum
 
 type Transaction struct {
@@ -137,6 +138,7 @@ func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
 func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
 	tx.privacyMetadata = pm
 }
+
 // End Quorum
 
 // ChainId returns which chain id this transaction was signed for (if at all)
@@ -208,18 +210,18 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-func (tx *Transaction) Data() []byte                      { return common.CopyBytes(tx.data.Payload) }
-func (tx *Transaction) Gas() uint64                       { return tx.data.GasLimit }
-func (tx *Transaction) GasPrice() *big.Int                { return new(big.Int).Set(tx.data.Price) }
+func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
+func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
+func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
 func (tx *Transaction) GasPriceCmp(other *Transaction) int {
 	return tx.data.Price.Cmp(other.data.Price)
 }
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.data.Price.Cmp(other)
 }
-func (tx *Transaction) Value() *big.Int  { return new(big.Int).Set(tx.data.Amount) }
-func (tx *Transaction) Nonce() uint64    { return tx.data.AccountNonce }
-func (tx *Transaction) CheckNonce() bool { return true }
+func (tx *Transaction) Value() *big.Int                   { return new(big.Int).Set(tx.data.Amount) }
+func (tx *Transaction) Nonce() uint64                     { return tx.data.AccountNonce }
+func (tx *Transaction) CheckNonce() bool                  { return true }
 func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
 
 // To returns the recipient address of the transaction.
@@ -557,4 +559,5 @@ func (tx *Transaction) SetPrivate() {
 		tx.data.V.SetUint64(37)
 	}
 }
+
 // End Quorum

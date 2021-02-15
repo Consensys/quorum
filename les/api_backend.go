@@ -266,6 +266,7 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 func (b *LesApiBackend) CallTimeOut() time.Duration {
 	return b.eth.config.EVMCallTimeOut
 }
+
 // End Quorum
 
 func (b *LesApiBackend) RPCGasCap() uint64 {
@@ -311,4 +312,5 @@ func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 	}
 	return auth, nil
 }
+
 // End Quorum

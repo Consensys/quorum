@@ -343,6 +343,7 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 func (p *peer) Send(msgcode uint64, data interface{}) error {
 	return p2p.Send(p.rw, msgcode, data)
 }
+
 // End Quorum
 
 // SendTransactions64 sends transactions to the peer and includes the hashes
@@ -728,7 +729,7 @@ func newPeerSet() *peerSet {
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer, removePeer func(string),protoName string) error {
+func (ps *peerSet) Register(p *peer, removePeer func(string), protoName string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -778,6 +779,7 @@ func (ps *peerSet) Peers() map[string]*peer {
 	}
 	return set
 }
+
 // End Quorum
 
 // Peer retrieves the registered peer with the given id.
