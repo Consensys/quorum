@@ -422,7 +422,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	if p == nil {
 		return errUnknownPeer
 	}
-	if d.mode == BoundedFullSync {
+	if mode == BoundedFullSync {
 		return d.syncWithPeerUntil(p, hash, td)
 	}
 	return d.syncWithPeer(p, hash, td)
@@ -1932,7 +1932,7 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 	d.syncStatsChainHeight = remoteHeight
 	d.syncStatsLock.Unlock()
 
-	d.queue.Prepare(localHeight+1, d.mode)
+	d.queue.Prepare(localHeight+1, d.getMode())
 	if d.syncInitHook != nil {
 		d.syncInitHook(localHeight, remoteHeight)
 	}
