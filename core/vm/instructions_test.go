@@ -192,7 +192,7 @@ func TestSAR(t *testing.T) {
 
 func TestAddMod(t *testing.T) {
 	var (
-		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
+		env            = NewEVM(Context{}, nil, nil, params.TestChainConfig, Config{})
 		stack          = newstack()
 		evmInterpreter = NewEVMInterpreter(env, env.vmConfig)
 		pc             = uint64(0)
