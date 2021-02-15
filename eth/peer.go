@@ -741,7 +741,6 @@ func (ps *peerSet) Register(p *peer, protoName string) error {
 	if p.version >= eth65 && protoName == protocolName {
 		go p.announceTransactions()
 	}
-
 	return nil
 }
 

@@ -833,16 +833,19 @@ func (b *Block) Call(ctx context.Context, args struct {
 	}
 
 	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
-	result, gas, failed, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
+	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
 	status := hexutil.Uint64(1)
-	if failed {
+	if result.Failed() {
 		status = 0
 	}
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.Return(),
+		gasUsed: hexutil.Uint64(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (b *Block) EstimateGas(ctx context.Context, args struct {
@@ -901,16 +904,19 @@ func (p *Pending) Call(ctx context.Context, args struct {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
 
 	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
-	result, gas, failed, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
+	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
 	status := hexutil.Uint64(1)
-	if failed {
+	if result.Failed() {
 		status = 0
 	}
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.Return(),
+		gasUsed: hexutil.Uint64(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (p *Pending) EstimateGas(ctx context.Context, args struct {

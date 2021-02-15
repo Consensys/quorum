@@ -94,6 +94,6 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	vm.SetCurrentTX(tx)
 	// /Quorum
 
-	_, _, _, err = ApplyMessage(vm, msg, gaspool)
+	_, err = ApplyMessage(vm, msg, gaspool)
 	return err
 }

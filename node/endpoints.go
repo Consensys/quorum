@@ -30,7 +30,7 @@ import (
 )
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint.
-func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (net.Listener, bool, error) {
+func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (*http.Server, net.Addr, bool, error) {
 	// start the HTTP listener
 	var (
 		listener     net.Listener
@@ -38,7 +38,7 @@ func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.
 		isTlsEnabled bool
 	)
 	if isTlsEnabled, listener, err = startListener(endpoint, tlsConfigSource); err != nil {
-		return nil, isTlsEnabled, err
+		return nil, nil, isTlsEnabled, err
 	}
 	// make sure timeout values are meaningful
 	CheckTimeouts(&timeouts)
@@ -54,11 +54,11 @@ func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 	go httpSrv.Serve(listener)
-	return listener, isTlsEnabled, err
+	return httpSrv, listener.Addr(), isTlsEnabled, err
 }
 
 // startWSEndpoint starts a websocket endpoint.
-func startWSEndpoint(endpoint string, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (net.Listener, bool, error) {
+func startWSEndpoint(endpoint string, handler http.Handler, tlsConfigSource security.TLSConfigurationSource) (*http.Server, net.Addr, bool, error) {
 	// start the HTTP listener
 	var (
 		listener     net.Listener
@@ -66,11 +66,11 @@ func startWSEndpoint(endpoint string, handler http.Handler, tlsConfigSource secu
 		isTlsEnabled bool
 	)
 	if isTlsEnabled, listener, err = startListener(endpoint, tlsConfigSource); err != nil {
-		return nil, isTlsEnabled, err
+		return nil, nil, isTlsEnabled, err
 	}
 	wsSrv := &http.Server{Handler: handler}
 	go wsSrv.Serve(listener)
-	return listener, isTlsEnabled, err
+	return wsSrv, listener.Addr(), isTlsEnabled, err
 }
 
 // checkModuleAvailability checks that all names given in modules are actually

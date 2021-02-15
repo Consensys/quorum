@@ -108,6 +108,8 @@ type Config struct {
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on demand
 
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
+
 	// Whitelist of required block number -> hash values to accept
 	Whitelist map[uint64]common.Hash `toml:"-"`
 
@@ -171,14 +173,9 @@ type Config struct {
 	// CheckpointOracle is the configuration for checkpoint oracle.
 	CheckpointOracle *params.CheckpointOracleConfig `toml:",omitempty"`
 
-	// Istanbul block override (TODO: remove after the fork)
-	OverrideIstanbul *big.Int
-
 	// timeout value for call
 	EVMCallTimeOut time.Duration
 
-	// MuirGlacier block override (TODO: remove after the fork)
-	OverrideMuirGlacier *big.Int `toml:",omitempty"`
-
+	// Quorum
 	EnableMultitenancy bool
 }
