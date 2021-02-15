@@ -167,7 +167,7 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
 		return
 	} else if !isAuthEnabled {
-		securityContext = context.WithValue(securityContext, ctxPrivateStateIdentifier, userProvidedPSI)
+		securityContext = context.WithValue(securityContext, CtxPrivateStateIdentifier, userProvidedPSI)
 		return
 	}
 	if token, hasToken := extractToken(r); hasToken {

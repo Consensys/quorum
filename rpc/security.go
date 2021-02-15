@@ -27,7 +27,7 @@ const (
 	ctxIsMultitenant = securityContextKey("IS_MULTITENANT")
 	// this key is set into the secured context to indicate
 	// the authorized private state being operated on for the request
-	ctxPrivateStateIdentifier = securityContextKey("PRIVATE_STATE_IDENTIFIER")
+	CtxPrivateStateIdentifier = securityContextKey("PRIVATE_STATE_IDENTIFIER")
 	// this key is set into the request context to indicate
 	// the private state being operated on for the request
 	ctxRequestPrivateStateIdentifier = securityContextKey("REQUEST_PRIVATE_STATE_IDENTIFIER")
@@ -136,7 +136,7 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 				}
 				authorizedPSI = requestPSI
 			}
-			secCtx = context.WithValue(secCtx, ctxPrivateStateIdentifier, authorizedPSI)
+			secCtx = context.WithValue(secCtx, CtxPrivateStateIdentifier, authorizedPSI)
 		}
 	}
 	return secCtx, nil

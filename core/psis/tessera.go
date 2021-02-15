@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type TesseraPrivacyGroupPSISImpl struct {
@@ -26,9 +28,12 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForManagedParty(managedParty string
 }
 
 func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context) (*core.PrivateStateMetadata, error) {
-	psi, ok := ctx.Value("PSI").(string)
+	psiTyped, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
+	var psi string
 	if !ok {
 		psi = "private"
+	} else {
+		psi = string(psiTyped)
 	}
 	psm, found := t.privacyGroupById[psi]
 	if !found {

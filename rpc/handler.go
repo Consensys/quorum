@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -328,14 +329,14 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 		}
 		h.log.Debug("Enrich call context with values from security context")
 		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
-		cp.ctx = context.WithValue(cp.ctx, ctxPrivateStateIdentifier, secCtx.Value(ctxPrivateStateIdentifier))
+		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, secCtx.Value(CtxPrivateStateIdentifier))
 	}
 	// try to extract the PSI from the request ID if it is not already there in the context
-	if cp.ctx.Value(ctxPrivateStateIdentifier) == nil && strings.HasPrefix(string(msg.ID), "\"PSI(") {
+	if cp.ctx.Value(CtxPrivateStateIdentifier) == nil && strings.HasPrefix(string(msg.ID), "\"PSI(") {
 		split := strings.Split(string(msg.ID), ")")
 		if len(split) > 1 {
 			psi := split[0][5:]
-			cp.ctx = context.WithValue(cp.ctx, ctxPrivateStateIdentifier, psi)
+			cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, types.PrivateStateIdentifier(psi))
 		}
 	}
 	if msg.isSubscribe() {
