@@ -80,5 +80,3 @@ func (t *PrivatePSISImpl) Groups() []engine.PrivacyGroup {
 		},
 	}
 }
-
-var PSIS PrivateStateIdentifierService

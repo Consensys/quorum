@@ -100,14 +100,14 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 	return service, nil
 }
 
-func (service *PrivacyService) watchForNewContracts() error {
-	handler := NewSubscriptionHandler(service.node, "private", service.ptm, service)
+func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdentifier) error {
+	handler := NewSubscriptionHandler(service.node, psi, service.ptm, service)
 
 	cb := func(foundLog types.Log) {
 		service.mu.Lock()
 
-				tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
-				from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
+		tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
+		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
 		if err != nil {
