@@ -37,12 +37,7 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context)
 	}
 	psm, found := t.privacyGroupById[psi]
 	if !found {
-		// TODO figure out if we'll allow clear text as well as base64 encoded IDs (and what about the possible clashes)
-		psiBase64 := base64.StdEncoding.EncodeToString([]byte(psi))
-		psm, found = t.privacyGroupById[psiBase64]
-		if !found {
-			return nil, fmt.Errorf("Unable to find private state for context psi %s", psi)
-		}
+		return nil, fmt.Errorf("unable to find private state for context psi %s", psi)
 	}
 	return psm, nil
 }
@@ -59,6 +54,14 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 	residentGroupByKey := make(map[string]*core.PrivateStateMetadata)
 	privacyGroupById := make(map[string]*core.PrivateStateMetadata)
 	for _, group := range groups {
+		if group.Type == "RESIDENT" {
+			// Resident group IDs come in base64 encoded, so revert to original ID
+			decoded, err := base64.StdEncoding.DecodeString(group.PrivacyGroupId)
+			if err != nil {
+				return nil, err
+			}
+			group.PrivacyGroupId = string(decoded)
+		}
 
 		existing, found := privacyGroupById[group.PrivacyGroupId]
 		if found {
