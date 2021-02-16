@@ -99,10 +99,7 @@ func (service *RaftService) Stop() error {
 	service.minter.stop()
 	service.eventMux.Stop()
 
-	// TODO ricardolyn:
-	// when running on RAFT mode, raft service calls this after eth service.
-	// after the change of https://github.com/ethereum/go-ethereum/pull/21010/files, means that the freezer process is already stopped by eth service when doing close.
-	// so when raft service tries to close, it hangs as the channel is alreacy closed.
+	// chainDb.Close() handles gracefully if freezedb process is already stopped
 	service.chainDb.Close()
 
 	log.Info("Raft stopped")
