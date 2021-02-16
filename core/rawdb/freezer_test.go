@@ -10,30 +10,20 @@ import (
 
 // Quorum
 
-func Test_freezer_shouldClose_whenHaveSubscribers(t *testing.T) {
-	// given
+func Test_freezer_Close(t *testing.T) {
+	// Close first time
 	mockFreezer := newFreezerMock(t)
-
-	// when
 	err := mockFreezer.Close()
-
-	// then
 	assert.Nil(t, err)
-}
 
-func Test_shouldCloseGracefully_whenNoSubscribers(t *testing.T) {
-	// given
-	mockFreezer := newFreezerMock(t)
-	mockFreezer.Close()
+	// Close second time should return error but do not hang sending data to freeze.quit channel
 	timeout := time.After(1 * time.Second)
 	errCh := make(chan error)
 
-	// when
 	go func() {
 		errCh <- mockFreezer.Close()
 	}()
 
-	// then
 	select {
 	case <-timeout:
 		t.Fatal("freezer.Close() timed out")
