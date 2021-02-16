@@ -134,7 +134,6 @@ func (f *freezer) Close() error {
 	// Check if 'f.quit' has subscribers, as freezer.Close() might be called again by Raft when stopping raft service
 	select {
 	case f.quit <- struct{}{}:
-		log.Info("stopping Freezer DB process")
 	default:
 		errs = append(errs, errors.New("freezer DB process already stopped"))
 	}
