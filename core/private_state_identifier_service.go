@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 )
 
