@@ -661,6 +661,7 @@ func (s *Ethereum) Stop() error {
 	s.miner.Stop()
 	s.blockchain.Stop()
 	s.engine.Close()
+	//TODO ricardolyn: when running on RAFT mode, eth service is also running and chaindb.Close is called here first
 	s.chainDb.Close()
 	s.eventMux.Stop()
 	return nil

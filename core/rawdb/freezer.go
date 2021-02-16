@@ -128,7 +128,17 @@ func newFreezer(datadir string, namespace string) (*freezer, error) {
 
 // Close terminates the chain freezer, unmapping all the data files.
 func (f *freezer) Close() error {
-	f.quit <- struct{}{}
+	// TODO ricardolyn: add unit test
+	// Quorum
+	// Check if 'f.quit' channel already closed, as freezer.Close() might be called again by Raft when stopping raft service
+	select {
+	case f.quit <- struct{}{}:
+		log.Info("Freezer DB process stopped")
+	default:
+		log.Info("Freezer DB process already stopped")
+	}
+	// End Quorum
+
 	var errs []error
 	for _, table := range f.tables {
 		if err := table.Close(); err != nil {
