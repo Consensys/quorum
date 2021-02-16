@@ -24,7 +24,7 @@ func Test_freezer_shouldClose_whenHaveSubscribers(t *testing.T) {
 func Test_shouldCloseGracefully_whenNoSubscribers(t *testing.T) {
 	// given
 	mockFreezer := newFreezerMock(t)
-	mockFreezer.Close() // should trigger channel close
+	mockFreezer.Close()
 	timeout := time.After(1 * time.Second)
 	errCh := make(chan error)
 
