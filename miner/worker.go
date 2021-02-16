@@ -96,7 +96,7 @@ type environment struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	mtService *core.PrivateStateService
+	privateStateService *core.PrivateStateService
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -108,7 +108,7 @@ type task struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	mtService *core.PrivateStateService
+	privateStateService *core.PrivateStateService
 }
 
 const (
@@ -284,7 +284,11 @@ func (w *worker) pending(psi string) (*types.Block, *state.StateDB, *state.State
 	if w.snapshotState == nil {
 		return nil, nil, nil
 	}
-	privateState, _ := w.current.mtService.GetPrivateState(psi)
+	privateState, err := w.current.privateStateService.GetPrivateState(psi)
+	if err != nil {
+		log.Error("Unable to retrieve private state", "psi", psi, "err", err)
+		return nil, nil, nil
+	}
 	return w.snapshotBlock, w.snapshotState.Copy(), privateState.Copy()
 }
 
@@ -671,7 +675,7 @@ func (w *worker) resultLoop() {
 			allReceipts := core.MergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.mtService, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateStateService, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -697,18 +701,18 @@ func (w *worker) resultLoop() {
 
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, mtService, err := w.chain.StateAt(parent.Root())
+	publicState, privateStateService, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	env := &environment{
-		signer:    types.MakeSigner(w.chainConfig, header.Number),
-		state:     publicState,
-		ancestors: mapset.NewSet(),
-		family:    mapset.NewSet(),
-		uncles:    mapset.NewSet(),
-		header:    header,
-		mtService: mtService,
+		signer:              types.MakeSigner(w.chainConfig, header.Number),
+		state:               publicState,
+		ancestors:           mapset.NewSet(),
+		family:              mapset.NewSet(),
+		uncles:              mapset.NewSet(),
+		header:              header,
+		privateStateService: privateStateService,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -781,9 +785,9 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) revertToPrivateStateSnapshots(snapshots map[string]int) {
 	for psi, snapshot := range snapshots {
-		mtPrivateState, err := w.current.mtService.GetPrivateState(psi)
+		privateState, err := w.current.privateStateService.GetPrivateState(psi)
 		if err == nil {
-			mtPrivateState.RevertToSnapshot(snapshot)
+			privateState.RevertToSnapshot(snapshot)
 		}
 	}
 }
@@ -806,17 +810,17 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 			if _, found := appliedOnPrivateState[psm.ID]; found {
 				continue
 			}
-			mtPrivateState, err := w.current.mtService.GetPrivateState(psm.ID)
+			privateState, err := w.current.privateStateService.GetPrivateState(psm.ID)
 			if err != nil {
 				w.revertToPrivateStateSnapshots(privateStateSnaphots)
 				return nil, err
 			}
-			privateStateSnaphots[psm.ID] = mtPrivateState.Snapshot()
-			mtPrivateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+			privateStateSnaphots[psm.ID] = privateState.Snapshot()
+			privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 			publicStateDBCopy := w.current.state.Copy()
 			publicStateDBCopy.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 			// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-			_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), false)
+			_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), false)
 			if err != nil {
 				w.revertToPrivateStateSnapshots(privateStateSnaphots)
 				return nil, err
@@ -829,13 +833,18 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 			privateLogs = append(privateLogs, mtPrivateReceipt.Logs...)
 
-			w.chain.CheckAndSetPrivateState(mtPrivateReceipt.Logs, mtPrivateState, psm.ID)
+			w.chain.CheckAndSetPrivateState(mtPrivateReceipt.Logs, privateState, psm.ID)
 
 			appliedOnPrivateState[psm.ID] = "applied"
 		}
 	}
 
-	privateState, _ := w.current.mtService.GetEmptyState()
+	privateState, err := w.current.privateStateService.GetEmptyState()
+	if err != nil {
+		w.current.state.RevertToSnapshot(snap)
+		w.revertToPrivateStateSnapshots(privateStateSnaphots)
+		return nil, err
+	}
 	privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 	privateStateSnaphots[core.EmptyPrivateStateMetadata.ID] = privateState.Snapshot()
 	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), true)
@@ -1122,7 +1131,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, mtService: w.current.mtService, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateService: w.current.privateStateService, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,
