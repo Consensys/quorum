@@ -558,8 +558,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.chainconfig.IsQuorum {
 		// Quorum
 		// Gas price must be zero for Quorum transaction
-		// TODO ricardolyn: here
-		if tx.GasPrice().Cmp(common.Big0) != 0 {
+		if tx.GasPriceIntCmp(common.Big0) != 0 {
 			return ErrInvalidGasPrice
 		}
 		// Ether value is not currently supported on private transactions
@@ -573,7 +572,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	} else {
 		// Drop non-local transactions under our own minimal accepted gas price
 		local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
-		// TODO ricardolyn: check if we should us this above
 		if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
 			return ErrUnderpriced
 		}

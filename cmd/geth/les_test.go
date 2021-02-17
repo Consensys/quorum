@@ -128,11 +128,14 @@ func startLightServer(t *testing.T) *gethrpc {
 
 func startClient(t *testing.T, name string) *gethrpc {
 	datadir := initGeth(t)
-	// TODO ricardolyn: removing --syncmode=light doesn't give error when connecting to .ipc file
 	return startGethWithRpc(t, name, "--datadir", datadir, "--nodiscover", "--syncmode=light", "--nat=extip:127.0.0.1")
 }
 
 func TestPriorityClient(t *testing.T) {
+	// Quorum
+	t.Skip("skipping test in Quorum (no support for light sync mode).")
+	// End Quorum
+
 	lightServer := startLightServer(t)
 	defer lightServer.killAndWait()
 

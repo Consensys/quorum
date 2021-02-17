@@ -98,9 +98,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		return h
 	}
 	var (
-		statedb = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
-		// TODO ricardolyn: right pattern?
-		privateStatedb = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
+		statedb        = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
+		privateStatedb = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre) // Quorum private state db
 		signer         = types.MakeSigner(chainConfig, new(big.Int).SetUint64(pre.Env.Number))
 		gaspool        = new(core.GasPool)
 		blockHash      = common.Hash{0x13, 0x37}
