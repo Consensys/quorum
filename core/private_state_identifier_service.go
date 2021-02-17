@@ -48,6 +48,14 @@ var EmptyPrivateStateMetadata = PrivateStateMetadata{
 	Addresses:   nil,
 }
 
+var DefaultPrivateStateMetadata = PrivateStateMetadata{
+	ID:          "private",
+	Name:        "private",
+	Description: "legacy private state",
+	Type:        Resident,
+	Addresses:   nil,
+}
+
 type PrivateStateIdentifierService interface {
 	ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error)
 	ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error)
