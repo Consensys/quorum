@@ -268,15 +268,19 @@ func (minter *minter) createWork() *work {
 		Time:       uint64(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAtPSI(parent.Root(), core.EmptyPrivateStateMetadata.ID)
+	publicState, privateStateManager, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
+	}
+	defaultPrivateState, err := privateStateManager.GetDefaultState()
+	if err != nil {
+		panic(fmt.Sprint("failed to get default private state: ", err))
 	}
 
 	return &work{
 		config:       minter.config,
 		publicState:  publicState,
-		privateState: privateState,
+		privateState: defaultPrivateState,
 		header:       header,
 	}
 }

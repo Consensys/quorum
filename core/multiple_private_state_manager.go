@@ -8,7 +8,7 @@ import (
 )
 
 // manages a number of state DB objects identified by their PSI (private state identifier)
-type PrivateStateService struct {
+type MultiplePrivateStateManager struct {
 	// the trie of private states
 	// key - the private state identifier
 	// value - the root hash of the private state
@@ -23,6 +23,18 @@ type PrivateStateService struct {
 	managedStates map[string]*ManagedState
 }
 
+func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Hash) (PrivateStateManager, error) {
+	mtPrivateStateTrieRoot := rawdb.GetMTPrivateStateRoot(bc.db, previousBlockHash)
+	tr, err := bc.psManagerCache.OpenTrie(mtPrivateStateTrieRoot)
+	if err != nil {
+		return nil, err
+	}
+	return &MultiplePrivateStateManager{
+		trie:          tr,
+		bc:            bc,
+		managedStates: make(map[string]*ManagedState)}, nil
+}
+
 // A managed state is a pair of stateDb and it's corresponding stateCache objects
 // Although right now we may not need a separate stateCache it may be useful if we'll do multiple managed state commits in parallel
 type ManagedState struct {
@@ -30,21 +42,9 @@ type ManagedState struct {
 	stateCache state.Database
 }
 
-func NewPrivateStateService(bc *BlockChain, previousBlockHash common.Hash) (*PrivateStateService, error) {
-	mtPrivateStateTrieRoot := rawdb.GetMTPrivateStateRoot(bc.db, previousBlockHash)
-	tr, err := bc.psServiceCache.OpenTrie(mtPrivateStateTrieRoot)
-	if err != nil {
-		return nil, err
-	}
-	return &PrivateStateService{
-		trie:          tr,
-		bc:            bc,
-		managedStates: make(map[string]*ManagedState)}, nil
-}
-
 //utility function for debugging
-func (mt *PrivateStateService) GetManagedStateRoots() []string {
-	myMap := mt.managedStates
+func (psm *MultiplePrivateStateManager) GetManagedStateRoots() []string {
+	myMap := psm.managedStates
 	keys := make([]string, 0, len(myMap))
 
 	for k := range myMap {
@@ -54,8 +54,8 @@ func (mt *PrivateStateService) GetManagedStateRoots() []string {
 }
 
 //utility function for debugging
-func (mt *PrivateStateService) GetManagedStates() []*ManagedState {
-	myMap := mt.managedStates
+func (psm *MultiplePrivateStateManager) GetManagedStates() []*ManagedState {
+	myMap := psm.managedStates
 	keys := make([]*ManagedState, 0, len(myMap))
 
 	for _, v := range myMap {
@@ -75,41 +75,49 @@ func (mt *PrivateStateService) GetManagedStates() []*ManagedState {
 // State delegate consequences:
 // * a managed state in a multiple private state environment will NOT have the same state root as the private state in
 // a standalone quorum (due to the empty contracts not being part of the actual state in the multiple private states env)
-func (mt *PrivateStateService) GetEmptyState() (*state.StateDB, error) {
-	return mt.GetPrivateState(EmptyPrivateStateMetadata.ID)
+func (psm *MultiplePrivateStateManager) GetDefaultState() (*state.StateDB, error) {
+	return psm.GetPrivateState(EmptyPrivateStateMetadata.ID)
 }
 
-func (mt *PrivateStateService) GetPrivateState(psi string) (*state.StateDB, error) {
-	managedState, found := mt.managedStates[psi]
+func (psm *MultiplePrivateStateManager) GetDefaultStateMetadata() PrivateStateMetadata {
+	return EmptyPrivateStateMetadata
+}
+
+func (psm *MultiplePrivateStateManager) IsMPS() bool {
+	return true
+}
+
+func (psm *MultiplePrivateStateManager) GetPrivateState(psi string) (*state.StateDB, error) {
+	managedState, found := psm.managedStates[psi]
 	if found {
 		return managedState.stateDb, nil
 	}
-	mtPrivateStateRoot, err := mt.trie.TryGet([]byte(psi))
+	mtPrivateStateRoot, err := psm.trie.TryGet([]byte(psi))
 	if err != nil {
 		return nil, err
 	}
-	stateCache := state.NewDatabase(mt.bc.db)
+	stateCache := state.NewDatabase(psm.bc.db)
 	statedb, err := state.New(common.BytesToHash(mtPrivateStateRoot), stateCache, nil)
 	if err != nil {
 		return nil, err
 	}
 	if psi != EmptyPrivateStateMetadata.ID {
-		emptyState, err := mt.GetEmptyState()
+		emptyState, err := psm.GetDefaultState()
 		if err != nil {
 			return nil, err
 		}
 		statedb.SetEmptyState(emptyState)
 	}
-	mt.managedStates[psi] = &ManagedState{
+	psm.managedStates[psi] = &ManagedState{
 		stateCache: stateCache,
 		stateDb:    statedb,
 	}
 	return statedb, nil
 }
 
-func (mt *PrivateStateService) Reset() error {
-	for psi, managedState := range mt.managedStates {
-		root, err := mt.trie.TryGet([]byte(psi))
+func (psm *MultiplePrivateStateManager) Reset() error {
+	for psi, managedState := range psm.managedStates {
+		root, err := psm.trie.TryGet([]byte(psi))
 		if err != nil {
 			return err
 		}
@@ -122,15 +130,15 @@ func (mt *PrivateStateService) Reset() error {
 }
 
 // commitAndWrite- commits all private states, updates the trie of private states, writes to disk
-func (mt *PrivateStateService) CommitAndWrite(block *types.Block) error {
-	for psi, managedState := range mt.managedStates {
+func (psm *MultiplePrivateStateManager) CommitAndWrite(block *types.Block) error {
+	for psi, managedState := range psm.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(mt.bc.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(psm.bc.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
 		// update the managed state root in the trie of states
-		err = mt.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		err = psm.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
 			return err
 		}
@@ -140,37 +148,59 @@ func (mt *PrivateStateService) CommitAndWrite(block *types.Block) error {
 		}
 	}
 	// commit the trie of states
-	mtRoot, err := mt.trie.Commit(nil)
+	mtRoot, err := psm.trie.Commit(nil)
 	if err != nil {
 		return err
 	}
-	err = rawdb.WriteMTPrivateStateRoot(mt.bc.db, block.Root(), mtRoot)
+	err = rawdb.WriteMTPrivateStateRoot(psm.bc.db, block.Root(), mtRoot)
 	if err != nil {
 		return err
 	}
-	privateTriedb := mt.bc.psServiceCache.TrieDB()
+	privateTriedb := psm.bc.psManagerCache.TrieDB()
 	err = privateTriedb.Commit(mtRoot, false)
 	return err
 }
 
 // commit - commits all private states, updates the trie of private states only
-func (mt *PrivateStateService) Commit(block *types.Block) error {
-	for psi, managedState := range mt.managedStates {
+func (psm *MultiplePrivateStateManager) Commit(block *types.Block) error {
+	for psi, managedState := range psm.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(mt.bc.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(psm.bc.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
 		// update the managed state root in the trie of states
-		err = mt.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		err = psm.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
 			return err
 		}
 	}
 	// commit the trie of states
-	_, err := mt.trie.Commit(nil)
+	_, err := psm.trie.Commit(nil)
 	if err != nil {
 		return err
 	}
 	return err
+}
+
+func (psm *MultiplePrivateStateManager) MergeReceipts(pub, priv types.Receipts) types.Receipts {
+	m := make(map[common.Hash]*types.Receipt)
+	for _, receipt := range pub {
+		m[receipt.TxHash] = receipt
+	}
+	for _, receipt := range priv {
+		publicReceipt := m[receipt.TxHash]
+		publicReceipt.MTVersions = make(map[string]*types.Receipt)
+		publicReceipt.MTVersions[EmptyPrivateStateMetadata.ID] = receipt
+		for psi, mtReceipt := range receipt.MTVersions {
+			publicReceipt.MTVersions[psi] = mtReceipt
+		}
+	}
+
+	ret := make(types.Receipts, 0, len(pub))
+	for _, pubReceipt := range pub {
+		ret = append(ret, m[pubReceipt.TxHash])
+	}
+
+	return ret
 }

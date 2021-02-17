@@ -96,7 +96,7 @@ type environment struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateStateService *core.PrivateStateService
+	privateStateManager core.PrivateStateManager
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -108,7 +108,7 @@ type task struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateStateService *core.PrivateStateService
+	privateStateManager core.PrivateStateManager
 }
 
 const (
@@ -284,7 +284,7 @@ func (w *worker) pending(psi string) (*types.Block, *state.StateDB, *state.State
 	if w.snapshotState == nil {
 		return nil, nil, nil
 	}
-	privateState, err := w.current.privateStateService.GetPrivateState(psi)
+	privateState, err := w.current.privateStateManager.GetPrivateState(psi)
 	if err != nil {
 		log.Error("Unable to retrieve private state", "psi", psi, "err", err)
 		return nil, nil, nil
@@ -672,10 +672,10 @@ func (w *worker) resultLoop() {
 				}
 			}
 
-			allReceipts := core.MergeReceipts(pubReceipts, prvReceipts)
+			allReceipts := task.privateStateManager.MergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateStateService, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateStateManager, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -701,7 +701,7 @@ func (w *worker) resultLoop() {
 
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, privateStateService, err := w.chain.StateAt(parent.Root())
+	publicState, privateStateManager, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
@@ -712,7 +712,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		family:              mapset.NewSet(),
 		uncles:              mapset.NewSet(),
 		header:              header,
-		privateStateService: privateStateService,
+		privateStateManager: privateStateManager,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -785,7 +785,7 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) revertToPrivateStateSnapshots(snapshots map[string]int) {
 	for psi, snapshot := range snapshots {
-		privateState, err := w.current.privateStateService.GetPrivateState(psi)
+		privateState, err := w.current.privateStateManager.GetPrivateState(psi)
 		if err == nil {
 			privateState.RevertToSnapshot(snapshot)
 		}
@@ -800,7 +800,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateLogs := make([]*types.Log, 0)
 	privateStateSnaphots := make(map[string]int)
 
-	if tx.IsPrivate() {
+	if tx.IsPrivate() && w.current.privateStateManager.IsMPS() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		// it may happen that two of the managed parties belong to the same private state
 		var appliedOnPrivateState = make(map[string]string)
@@ -810,7 +810,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 			if _, found := appliedOnPrivateState[psm.ID]; found {
 				continue
 			}
-			privateState, err := w.current.privateStateService.GetPrivateState(psm.ID)
+			privateState, err := w.current.privateStateManager.GetPrivateState(psm.ID)
 			if err != nil {
 				w.revertToPrivateStateSnapshots(privateStateSnaphots)
 				return nil, err
@@ -839,15 +839,15 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		}
 	}
 
-	privateState, err := w.current.privateStateService.GetEmptyState()
+	privateState, err := w.current.privateStateManager.GetDefaultState()
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
 	privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-	privateStateSnaphots[core.EmptyPrivateStateMetadata.ID] = privateState.Snapshot()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), true)
+	privateStateSnaphots[w.current.privateStateManager.GetDefaultStateMetadata().ID] = privateState.Snapshot()
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig(), w.current.privateStateManager.IsMPS())
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
@@ -860,10 +860,14 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	allLogs := receipt.Logs
 
 	if privateReceipt != nil {
+		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateState, w.current.privateStateManager.GetDefaultStateMetadata().ID)
 		if len(MTVersions) > 0 {
 			privateReceipt.MTVersions = MTVersions
 		}
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
+		if len(privateReceipt.Logs) > 0 {
+			privateLogs = append(privateReceipt.Logs, privateLogs...)
+		}
 		allLogs = append(allLogs, privateLogs...)
 	}
 	return allLogs, nil
@@ -1131,7 +1135,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateService: w.current.privateStateService, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateManager: w.current.privateStateManager, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,

@@ -148,7 +148,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		mtService, mtServiceErr := NewPrivateStateService(blockchain, block.ParentHash())
+		mtService, mtServiceErr := NewPrivateStateManager(blockchain, block.ParentHash())
 		if mtServiceErr != nil {
 			return mtServiceErr
 		}

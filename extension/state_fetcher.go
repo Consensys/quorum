@@ -18,9 +18,9 @@ import (
 type ChainAccessor interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
-	StateAt(root common.Hash) (*state.StateDB, *core.PrivateStateService, error)
+	StateAt(root common.Hash) (*state.StateDB, core.PrivateStateManager, error)
 	StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error)
-	State() (*state.StateDB, *core.PrivateStateService, error)
+	State() (*state.StateDB, core.PrivateStateManager, error)
 	CurrentBlock() *types.Block
 }
 

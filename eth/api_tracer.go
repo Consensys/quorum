@@ -670,11 +670,11 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // computeStateDB retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *core.PrivateStateService, error) {
+func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, core.PrivateStateManager, error) {
 	// If we have the state fully available, use that
-	statedb, mtService, err := api.eth.blockchain.StateAt(block.Root())
+	statedb, psManager, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
-		return statedb, mtService, nil
+		return statedb, psManager, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
@@ -685,7 +685,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block == nil {
 			break
 		}
-		statedb, mtService, err = api.eth.blockchain.StateAt(block.Root())
+		statedb, psManager, err = api.eth.blockchain.StateAt(block.Root())
 		if err == nil {
 			break
 		}
@@ -714,7 +714,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block = api.eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
 			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, mtService, vm.Config{})
+		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, psManager, vm.Config{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
@@ -726,11 +726,11 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if err := statedb.Reset(root); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
-		err = mtService.Commit(block)
+		err = psManager.Commit(block)
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := mtService.Reset(); err != nil {
+		if err := psManager.Reset(); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		database.TrieDB().Reference(root, common.Hash{})
@@ -741,7 +741,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	}
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
-	return statedb, mtService, nil
+	return statedb, psManager, nil
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM

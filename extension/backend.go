@@ -423,9 +423,5 @@ func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, add
 		return false
 	}
 	psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
-	if psm.ID != psi {
-		return false
-	}
-
-	return true
+	return psm.ID == psi
 }

@@ -201,6 +201,9 @@ func (r *Receipt) Size() common.StorageSize {
 type ReceiptForStorage Receipt
 
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
+	if r.MTVersions == nil {
+		return r.EncodeRLPOrig(w)
+	}
 	enc := &mtStoredReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
 		CumulativeGasUsed: r.CumulativeGasUsed,
@@ -210,20 +213,18 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
 	}
-	if r.MTVersions != nil {
-		idx := 0
-		for key, val := range r.MTVersions {
-			rec := storedReceiptRLP{
-				PostStateOrStatus: val.statusEncoding(),
-				CumulativeGasUsed: val.CumulativeGasUsed,
-				Logs:              make([]*LogForStorage, len(val.Logs)),
-			}
-			for i, log := range val.Logs {
-				rec.Logs[i] = (*LogForStorage)(log)
-			}
-			enc.MTVersions[idx] = mtStoredReceiptMapEntry{Key: key, Value: rec}
-			idx++
+	idx := 0
+	for key, val := range r.MTVersions {
+		rec := storedReceiptRLP{
+			PostStateOrStatus: val.statusEncoding(),
+			CumulativeGasUsed: val.CumulativeGasUsed,
+			Logs:              make([]*LogForStorage, len(val.Logs)),
 		}
+		for i, log := range val.Logs {
+			rec.Logs[i] = (*LogForStorage)(log)
+		}
+		enc.MTVersions[idx] = mtStoredReceiptMapEntry{Key: key, Value: rec}
+		idx++
 	}
 	return rlp.Encode(w, enc)
 }

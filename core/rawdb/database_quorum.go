@@ -27,6 +27,7 @@ import (
 )
 
 var (
+	privateRootPrefix           = []byte("P")
 	mtPrivateRootPrefix         = []byte("MTP")
 	privateBloomPrefix          = []byte("Pb")
 	quorumEIP155ActivatedPrefix = []byte("quorum155active")
@@ -50,6 +51,11 @@ func WriteQuorumEIP155Activation(db ethdb.KeyValueWriter) error {
 	return db.Put(quorumEIP155ActivatedPrefix, []byte{1})
 }
 
+func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(privateRootPrefix, blockRoot[:]...))
+	return common.BytesToHash(root)
+}
+
 func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	root, _ := db.Get(append(mtPrivateRootPrefix, blockRoot[:]...))
 	return common.BytesToHash(root)
@@ -58,6 +64,10 @@ func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash
 func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
 	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
 	return common.BytesToHash(root)
+}
+
+func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }
 
 func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
