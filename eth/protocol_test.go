@@ -192,8 +192,8 @@ func TestForkIDSplit(t *testing.T) {
 	peerProFork := newPeer(64, p2p.NewPeer(enode.ID{2}, "", nil), p2pProFork)
 
 	errc := make(chan error, 2)
-	go func() { errc <- ethNoFork.handle(peerProFork) }()
-	go func() { errc <- ethProFork.handle(peerNoFork) }()
+	go func() { errc <- ethNoFork.handle(peerProFork, protocolName) }()
+	go func() { errc <- ethProFork.handle(peerNoFork, protocolName) }()
 
 	select {
 	case err := <-errc:
@@ -211,8 +211,8 @@ func TestForkIDSplit(t *testing.T) {
 	peerProFork = newPeer(64, p2p.NewPeer(enode.ID{2}, "", nil), p2pProFork)
 
 	errc = make(chan error, 2)
-	go func() { errc <- ethNoFork.handle(peerProFork) }()
-	go func() { errc <- ethProFork.handle(peerNoFork) }()
+	go func() { errc <- ethNoFork.handle(peerProFork, protocolName) }()
+	go func() { errc <- ethProFork.handle(peerNoFork, protocolName) }()
 
 	select {
 	case err := <-errc:
@@ -230,8 +230,8 @@ func TestForkIDSplit(t *testing.T) {
 	peerProFork = newPeer(64, p2p.NewPeer(enode.ID{2}, "", nil), p2pProFork)
 
 	errc = make(chan error, 2)
-	go func() { errc <- ethNoFork.handle(peerProFork) }()
-	go func() { errc <- ethProFork.handle(peerNoFork) }()
+	go func() { errc <- ethNoFork.handle(peerProFork, protocolName) }()
+	go func() { errc <- ethProFork.handle(peerNoFork, protocolName) }()
 
 	select {
 	case err := <-errc:

@@ -158,7 +158,7 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-			go p.Send(istanbulMsg, payload)
+			go p.SendConsensus(istanbulMsg, payload)
 		}
 	}
 	return nil
