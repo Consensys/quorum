@@ -117,10 +117,11 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	}
 
 	psm, _ := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psi := psm.ID
 
 	// check if the extension has been completed. if yes
 	// no acceptance required
-	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From, psm.ID)
+	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From, psi)
 	if err != nil {
 		return "", err
 	}
@@ -144,7 +145,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", err
 	}
 
-	voterList, err := api.privacyService.managementContract(psm.ID).GetAllVoters(addressToVoteOn)
+	voterList, err := api.privacyService.managementContract(psi).GetAllVoters(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}
@@ -152,7 +153,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", errNotAcceptor
 	}
 
-	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From, psm.ID) {
+	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From, psi) {
 		return "", errors.New("already voted")
 	}
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
@@ -161,7 +162,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	}
 
 	//Find the extension contract in order to interact with it
-	extender, err := api.privacyService.managementContract(psm.ID).Transactor(addressToVoteOn)
+	extender, err := api.privacyService.managementContract(psi).Transactor(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}

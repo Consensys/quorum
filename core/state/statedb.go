@@ -324,6 +324,9 @@ func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, err
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
 	}
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.GetPrivacyMetadata(addr)
+	}
 	return nil, nil
 }
 
@@ -331,6 +334,9 @@ func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*Privac
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetCommittedPrivacyMetadata()
+	}
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.GetCommittedStatePrivacyMetadata(addr)
 	}
 	return nil, nil
 }
@@ -628,6 +634,9 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
+	}
+	if s.emptyStateDB != nil {
+		return s.emptyStateDB.getStateObject(addr)
 	}
 	return nil
 }

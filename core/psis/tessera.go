@@ -53,6 +53,7 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 	}
 	residentGroupByKey := make(map[string]*core.PrivateStateMetadata)
 	privacyGroupById := make(map[string]*core.PrivateStateMetadata)
+	convertedGroups := make([]engine.PrivacyGroup, 0)
 	for _, group := range groups {
 		if group.Type == "RESIDENT" {
 			// Resident group IDs come in base64 encoded, so revert to original ID
@@ -77,10 +78,11 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 				residentGroupByKey[address] = privacyGroupToPrivateStateMetadata(group)
 			}
 		}
+		convertedGroups = append(convertedGroups, group)
 	}
 
 	return &TesseraPrivacyGroupPSISImpl{
-		groups:             groups,
+		groups:             convertedGroups,
 		residentGroupByKey: residentGroupByKey,
 		privacyGroupById:   privacyGroupById,
 	}, nil

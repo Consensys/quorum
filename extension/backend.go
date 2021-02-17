@@ -127,21 +127,17 @@ func (service *PrivacyService) watchForNewContracts() error {
 		}
 
 		data := common.BytesToEncryptedPayloadHash(tx.Data())
-		_, managedParties, _, _, err := service.ptm.Receive(data)
+		privateFrom, _, _, _, err := service.ptm.Receive(data)
 		if err != nil {
 			log.Error("Error receiving private payload", "error", err)
 			service.mu.Unlock()
 			return
 		}
 
-		service.psiContracts["private"][foundLog.Address] = &newContractExtension
-		for _, mp := range managedParties {
-			psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(mp)
-			if service.psiContracts[psm.ID] == nil {
-				service.psiContracts[psm.ID] = make(map[common.Address]*ExtensionContract)
-			}
-			service.psiContracts[psm.ID][foundLog.Address] = &newContractExtension
+		if service.psiContracts[psi] == nil {
+			service.psiContracts[psi] = make(map[common.Address]*ExtensionContract)
 		}
+		service.psiContracts[psi][foundLog.Address] = &newContractExtension
 
 		if err := service.dataHandler.Save(service.psiContracts); err != nil {
 			log.Error("Error writing extension data to file", "error", err)
@@ -161,9 +157,8 @@ func (service *PrivacyService) watchForNewContracts() error {
 				return
 			}
 
-			privateFrom, _, _, _, err := service.ptm.Receive(data)
-			if err != nil || len(privateFrom) == 0 {
-				log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+			psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+			if psm.ID != psi {
 				return
 			}
 
@@ -174,7 +169,8 @@ func (service *PrivacyService) watchForNewContracts() error {
 			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
 
 			extensionAPI := NewPrivateExtensionAPI(service)
-			_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
+			ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier(psm.ID))
+			_, err = extensionAPI.ApproveExtension(ctx, newContractExtension.ManagementContractAddress, true, txArgs)
 
 			if err != nil {
 				log.Error("Extension: initiator vote on management contract failed", "error", err)
@@ -190,11 +186,8 @@ func (service *PrivacyService) watchForCancelledContracts(psi string) error {
 
 	cb := func(l types.Log) {
 		service.mu.Lock()
-		if _, ok := service.psiContracts["private"][l.Address]; ok {
-			//Don't bother looking up the parties, just search all the PSIs for it
-			for _, contracts := range service.psiContracts {
-				delete(contracts, l.Address)
-			}
+		if _, ok := service.psiContracts[psi][l.Address]; ok {
+			delete(service.psiContracts[psi], l.Address)
 			if err := service.dataHandler.Save(service.psiContracts); err != nil {
 				log.Error("Failed to store list of contracts being extended", "error", err)
 			}
@@ -214,7 +207,7 @@ func (service *PrivacyService) watchForCompletionEvents(psi string) error {
 		defer func() {
 			service.mu.Unlock()
 		}()
-		extensionEntry, ok := service.psiContracts["private"][l.Address]
+		extensionEntry, ok := service.psiContracts[psi][l.Address]
 		if !ok {
 			// we didn't have this management contract, so ignore it
 			log.Debug("Extension: this node doesn't participate in the contract extender", "address", l.Address.Hex())
@@ -254,9 +247,10 @@ func (service *PrivacyService) watchForCompletionEvents(psi string) error {
 		}
 		log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
 
-		//TODO(peter): handle err
-		privateFromPsm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
-
+		txPsi, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+		if txPsi.ID != psi {
+			return
+		}
 		txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
 		if err != nil {
 			log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
@@ -269,8 +263,8 @@ func (service *PrivacyService) watchForCompletionEvents(psi string) error {
 			log.Error("[contract] caller.ContractToExtend", "error", err)
 			return
 		}
-		log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
-		entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, privateFromPsm.ID)
+		log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex(), "psi", txPsi.ID)
+		entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend, txPsi.ID)
 		if err != nil {
 			log.Error("[state] service.stateFetcher.GetAddressStateFromBlock", "block", l.BlockHash.Hex(), "contract", contractToExtend.Hex(), "error", err)
 			return
@@ -281,13 +275,13 @@ func (service *PrivacyService) watchForCompletionEvents(psi string) error {
 		// PSV & PP changes
 		// send the new transaction with state dump to all participants
 		extraMetaData := engine.ExtraMetadata{PrivacyFlag: engine.PrivacyFlagStandardPrivate}
-		privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, privateFromPsm.ID)
+		privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(l.BlockHash, contractToExtend, txPsi.ID)
 		if err != nil {
 			log.Error("[privacyMetaData] fetch err", "err", err)
 		} else {
 			extraMetaData.PrivacyFlag = privacyMetaData.PrivacyFlag
 			if privacyMetaData.PrivacyFlag == engine.PrivacyFlagStateValidation {
-				storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, privateFromPsm.ID)
+				storageRoot, err := service.stateFetcher.GetStorageRoot(l.BlockHash, contractToExtend, txPsi.ID)
 				if err != nil {
 					log.Error("[storageRoot] fetch err", "err", err)
 				}
@@ -420,5 +414,18 @@ func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, add
 		return false
 	}
 
-	return isCreator
+	if !isCreator {
+		return false
+	}
+
+	privateFrom, _, _, _, err := service.ptm.Receive(privacyMetaData.CreationTxHash)
+	if err != nil || len(privateFrom) == 0 {
+		return false
+	}
+	psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+	if psm.ID != psi {
+		return false
+	}
+
+	return true
 }

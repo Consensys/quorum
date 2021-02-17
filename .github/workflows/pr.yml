@@ -86,7 +86,7 @@ jobs:
         # for PR, only selective tests are run.
         # More comprehensive suites are scheduled to run in master
         tag:
-          - '(basic && !extension) || networks/typical::raftmps'
+          - 'basic || networks/typical::raftmps'
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
     runs-on: ubuntu-18.04

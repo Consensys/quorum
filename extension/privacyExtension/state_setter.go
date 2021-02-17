@@ -154,7 +154,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, 
 		return false
 	}
 
-	if psi != "private" && senderPsm.ID != psi {
+	if senderPsm.ID != psi {
 		// sender was another tenant on this node
 		//not an error case, so no need to log an error
 		return false
