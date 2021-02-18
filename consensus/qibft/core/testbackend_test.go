@@ -93,7 +93,7 @@ func (self *testSystemBackend) Gossip(valSet istanbul.ValidatorSet, message []by
 	return nil
 }
 
-func (self *testSystemBackend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
+func (self *testSystemBackend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) error {
 	testLogger.Info("commit message", "address", self.Address())
 	self.committedMsgs = append(self.committedMsgs, testCommittedMsgs{
 		commitProposal: proposal,

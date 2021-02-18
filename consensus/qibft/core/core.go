@@ -190,7 +190,7 @@ func (c *core) commit() {
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
 
-		if err := c.backend.Commit(proposal, committedSeals); err != nil {
+		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
 			c.sendNextRoundChange()
 			return
 		}
