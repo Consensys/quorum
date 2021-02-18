@@ -280,6 +280,13 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 		// it's important that f MUST BE OF TYPE rpc.HttpCredentialsProviderFunc
 		dialCtx = context.WithValue(dialCtx, rpc.CtxCredentialsProvider, f)
 	}
+	if psi := os.Getenv(rpc.EnvVarPrivateStateIdentifier); len(psi) > 0 {
+		var f rpc.HttpPSIProviderFunc = func(ctx context.Context) (string, error) {
+			return psi, nil
+		}
+		// it's important that f MUST BE OF TYPE rpc.HttpPSIProviderFunc
+		dialCtx = context.WithValue(dialCtx, rpc.CtxPSIProvider, f)
+	}
 	if hasCustomTls {
 		u, err := url.Parse(endpoint)
 		if err != nil {
@@ -307,6 +314,9 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 	// enrich clients with provider functions to populate HTTP request header
 	if f, ok := dialCtx.Value(rpc.CtxCredentialsProvider).(rpc.HttpCredentialsProviderFunc); ok {
 		client = client.WithHTTPCredentials(f)
+	}
+	if f, ok := dialCtx.Value(rpc.CtxPSIProvider).(rpc.HttpPSIProviderFunc); ok {
+		client = client.WithHTTPPSI(f)
 	}
 	return client, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type PrivateStateType uint64
@@ -14,6 +15,8 @@ const (
 	Pantheon PrivateStateType = 1 << PrivateStateType(iota-1) // 2
 )
 
+// PrivateStateMetadata is the domain model in Quorum which maps with
+// PrivacyGroup domain in Tessera
 type PrivateStateMetadata struct {
 	ID          string
 	Name        string
@@ -22,8 +25,8 @@ type PrivateStateMetadata struct {
 	Addresses   []string
 }
 
-func (self *PrivateStateMetadata) HasAddress(address string) bool {
-	for _, addr := range self.Addresses {
+func (psm *PrivateStateMetadata) HasAddress(address string) bool {
+	for _, addr := range psm.Addresses {
 		if addr == address {
 			return true
 		}
@@ -31,9 +34,9 @@ func (self *PrivateStateMetadata) HasAddress(address string) bool {
 	return false
 }
 
-func (self *PrivateStateMetadata) HasAnyAddress(addresses []string) bool {
+func (psm *PrivateStateMetadata) HasAnyAddress(addresses []string) bool {
 	for _, addr := range addresses {
-		if self.HasAddress(addr) {
+		if psm.HasAddress(addr) {
 			return true
 		}
 	}
@@ -70,7 +73,7 @@ func (t *PrivatePSISImpl) ResolveForManagedParty(managedParty string) (*PrivateS
 }
 
 func (t *PrivatePSISImpl) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
-	psi, ok := ctx.Value("PSI").(string)
+	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(string)
 	if !ok {
 		psi = "private"
 	}
