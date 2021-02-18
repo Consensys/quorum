@@ -238,14 +238,18 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
+
+	// Quorum
+	if storedcfg.PrivacyEnhancementsBlock == nil {
+		checkAndPrintPrivacyEnhancementsWarning(newcfg)
+	}
+	// End Quorum
+
 	compatErr := storedcfg.CheckCompatible(newcfg, *height, rawdb.GetIsQuorumEIP155Activated(db))
 	if compatErr != nil && *height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
-	if storedcfg.PrivacyEnhancementsBlock == nil {
-		checkAndPrintPrivacyEnhancementsWarning(newcfg)
-	}
 	return newcfg, stored, nil
 }
 
