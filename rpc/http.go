@@ -219,6 +219,13 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 			req.Header.Set(HttpAuthorizationHeader, token)
 		}
 	}
+	if hc.psiProvider != nil {
+		if psi, err := hc.psiProvider(ctx); err != nil {
+			log.Warn("unable to obtain PSI from provider", "err", err)
+		} else {
+			req.Header.Set(HttpPrivateStateIdentifierHeader, string(psi))
+		}
+	}
 	// End Quorum
 
 	hc.mu.Unlock()

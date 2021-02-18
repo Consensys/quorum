@@ -25,7 +25,8 @@ const (
 	// this key is set by server to indicate if server supports mulitenancy
 	ctxIsMultitenant = securityContextKey("IS_MULTITENANT")
 	// this key is set into the secured context to indicate
-	// the authorized private state being operated on for the request
+	// the authorized private state being operated on for the request.
+	// the value MUST BE OF TYPE types.PrivateStateIdentifier
 	CtxPrivateStateIdentifier = securityContextKey("PRIVATE_STATE_IDENTIFIER")
 	// this key is set into the request context to indicate
 	// the private state being operated on for the request
@@ -37,6 +38,11 @@ const (
 	ctxAuthenticationError   = securityContextKey("AUTHENTICATION_ERROR")   // key to save error during authentication before processing the request body
 	CtxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
 )
+
+type securityContextSupport interface {
+	securityContextConfigurer
+	securityContextResolver
+}
 
 type securityContextConfigurer interface {
 	Configure(secCtx securityContext)
@@ -52,7 +58,7 @@ type securityError struct{ message string }
 type HttpCredentialsProviderFunc func(ctx context.Context) (string, error)
 
 // Provider function to return a string value being injected in goquorum-psi http request header
-type HttpPSIProviderFunc func(ctx context.Context) (string, error)
+type HttpPSIProviderFunc func(ctx context.Context) (types.PrivateStateIdentifier, error)
 
 func (e *securityError) ErrorCode() int { return -32001 }
 

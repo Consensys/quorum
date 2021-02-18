@@ -29,6 +29,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/plugin/security"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"

@@ -172,7 +172,7 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tl
 			if err != nil {
 				log.Warn("unable to obtain PSI from provider", "err", err)
 			} else {
-				header.Set(HttpPrivateStateIdentifierHeader, psi)
+				header.Set(HttpPrivateStateIdentifierHeader, string(psi))
 			}
 		}
 		conn, resp, err := dialer.DialContext(ctx, endpoint, header)

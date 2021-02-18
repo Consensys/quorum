@@ -28,6 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -78,8 +80,7 @@ type Client struct {
 	isHTTP   bool
 	services *serviceRegistry
 
-	idCounter   uint32
-	idPSIPrefix string
+	idCounter uint32
 
 	// This function, if non-nil, is called when the connection is lost.
 	reconnectFunc reconnectFunc
@@ -237,10 +238,8 @@ func (c *Client) RegisterName(name string, receiver interface{}) error {
 func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
 	idBytes := strconv.AppendUint(nil, uint64(id), 10)
-	if len(c.idPSIPrefix) > 0 {
-		idBytes = append([]byte(c.idPSIPrefix), idBytes...)
-		idBytes = append(idBytes, []byte("\"")...)
-		idBytes = append([]byte("\""), idBytes...)
+	if conn, ok := c.writeConn.(securityContextSupport); ok {
+		idBytes = types.EncodePSI(idBytes, conn.Resolve().Value(CtxPrivateStateIdentifier).(types.PrivateStateIdentifier))
 	}
 	return idBytes
 }
@@ -668,8 +667,7 @@ func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) *
 
 // Quorum
 //
-// Enrich HTTP requests with PSI value
-// Do nothing if transport is not HTTP
+// Enrich requests with PSI value only for HTTP transport
 func (c *Client) WithHTTPPSI(providerFunc HttpPSIProviderFunc) *Client {
 	if !c.isHTTP {
 		return c
@@ -677,6 +675,22 @@ func (c *Client) WithHTTPPSI(providerFunc HttpPSIProviderFunc) *Client {
 	// usually c.isHTTP check is sufficient, the below enforces the defensive check
 	if conn, ok := c.writeConn.(*httpConn); ok {
 		conn.psiProvider = providerFunc
+	}
+	return c
+}
+
+// Quorum
+// Hardcode the PSI value being used for non-HTTP transport
+func (c *Client) WithPSI(psi types.PrivateStateIdentifier) *Client {
+	if c.isHTTP {
+		return c
+	}
+	// for non-http transport, writeConn must be a codec
+	// which implements securityContextSupport
+	// This is a defensive check
+	if r, ok := c.writeConn.(securityContextSupport); ok {
+		currentCtx := r.Resolve()
+		r.Configure(context.WithValue(currentCtx, CtxPrivateStateIdentifier, psi))
 	}
 	return c
 }
