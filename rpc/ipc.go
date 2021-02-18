@@ -19,7 +19,6 @@ package rpc
 import (
 	"context"
 	"net"
-	"os"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
@@ -46,6 +45,10 @@ func (s *Server) ServeListener(l net.Listener) error {
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
+//
+// Quorum
+// 1. Enrich the IPC client with PSI value returned by provider function, if found, in the context.
+//    Here we have to use the id field in JSON message to carry the PSI value.
 func DialIPC(ctx context.Context, endpoint string) (*Client, error) {
 	client, err := newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
 		conn, err := newIPCConnection(ctx, endpoint)
@@ -57,10 +60,12 @@ func DialIPC(ctx context.Context, endpoint string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	psi := os.Getenv("PSI")
-	if len(psi) > 0 {
-		client.idgen = randomIDGeneratorWithPSI(psi)
-		client.idPSIPrefix = "PSI(" + psi + ")"
+	// enrich client with PSI value
+	if psiProviderFunc, hasPsiProviderFunc := ctx.Value(CtxPSIProvider).(HttpPSIProviderFunc); hasPsiProviderFunc {
+		if psi, err := psiProviderFunc(ctx); err != nil {
+			client.idgen = randomIDGeneratorWithPSI(psi)
+			client.idPSIPrefix = "PSI(" + psi + ")"
+		}
 	}
 	return client, nil
 }

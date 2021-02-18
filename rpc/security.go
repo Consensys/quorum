@@ -7,11 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/multitenancy"
-
 	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
@@ -21,8 +19,9 @@ type securityContext context.Context
 
 const (
 	HttpAuthorizationHeader              = "Authorization"
-	HttpPrivateStateIdentifierHeader     = "PSI"
+	HttpPrivateStateIdentifierHeader     = "GoQuorum-PSI"
 	QueryPrivateStateIdentifierParamName = "PSI"
+	EnvVarPrivateStateIdentifier         = "GOQUORUM_PSI"
 	// this key is set by server to indicate if server supports mulitenancy
 	ctxIsMultitenant = securityContextKey("IS_MULTITENANT")
 	// this key is set into the secured context to indicate
@@ -33,6 +32,7 @@ const (
 	ctxRequestPrivateStateIdentifier = securityContextKey("REQUEST_PRIVATE_STATE_IDENTIFIER")
 	// this key is exported for WS transport
 	CtxCredentialsProvider = securityContextKey("CREDENTIALS_PROVIDER") // key to save reference to rpc.HttpCredentialsProviderFunc
+	CtxPSIProvider         = securityContextKey("PSI_PROVIDER")         // key to save reference to rpc.HttpPSIProviderFunc
 	// keys used to save values in request context
 	ctxAuthenticationError   = securityContextKey("AUTHENTICATION_ERROR")   // key to save error during authentication before processing the request body
 	CtxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
@@ -50,6 +50,9 @@ type securityError struct{ message string }
 
 // Provider function to return token being injected in Authorization http request header
 type HttpCredentialsProviderFunc func(ctx context.Context) (string, error)
+
+// Provider function to return a string value being injected in goquorum-psi http request header
+type HttpPSIProviderFunc func(ctx context.Context) (string, error)
 
 func (e *securityError) ErrorCode() int { return -32001 }
 

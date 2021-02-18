@@ -157,6 +157,7 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tl
 	}
 
 	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
+	psiProviderFunc, hasPsiProviderFunc := ctx.Value(CtxPSIProvider).(HttpPSIProviderFunc)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
 		if hasCredProviderFunc {
 			token, err := credProviderFunc(ctx)
@@ -164,6 +165,14 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tl
 				log.Warn("unable to obtain credentials from provider", "err", err)
 			} else {
 				header.Set(HttpAuthorizationHeader, token)
+			}
+		}
+		if hasPsiProviderFunc {
+			psi, err := psiProviderFunc(ctx)
+			if err != nil {
+				log.Warn("unable to obtain PSI from provider", "err", err)
+			} else {
+				header.Set(HttpPrivateStateIdentifierHeader, psi)
 			}
 		}
 		conn, resp, err := dialer.DialContext(ctx, endpoint, header)
@@ -206,13 +215,6 @@ func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {
 		header.Add(HttpAuthorizationHeader, "Basic "+b64auth)
 		endpointURL.User = nil
 	}
-	// TODO remove when the PSI is derived from the auth token
-	// for now it allows for easy testing
-	psi := os.Getenv("PSI")
-	if len(psi) != 0 {
-		header.Set("PSI", psi)
-	}
-
 	return endpointURL.String(), header, nil
 }
 

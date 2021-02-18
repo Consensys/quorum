@@ -53,6 +53,8 @@ type httpConn struct {
 	// Quorum
 	// To return value being populated in Authorization request header
 	credentialsProvider HttpCredentialsProviderFunc
+	// psiProvider returns a value being populated in HttpPrivateStateIdentifierHeader
+	psiProvider HttpPSIProviderFunc
 }
 
 // httpConn is treated specially by Client.

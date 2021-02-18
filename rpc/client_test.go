@@ -671,8 +671,7 @@ func TestClient_withCredentials_whenTargetingHTTP(t *testing.T) {
 	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
 		return "Bearer arbitrary_token", nil
 	}
-	authenticatedClient, err := c.WithHTTPCredentials(f)
-	assert.NoError(t, err)
+	authenticatedClient := c.WithHTTPCredentials(f)
 
 	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
 	assert.EqualError(t, err, "arbitrary_call - access denied")

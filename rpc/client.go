@@ -655,13 +655,28 @@ func (c *Client) read(codec ServerCodec) {
 //
 // Secure HTTP requests with authorization header
 // Do nothing if transport is not HTTP
-func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) (*Client, error) {
+func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) *Client {
 	if !c.isHTTP {
-		return c, nil
+		return c
 	}
 	// usually c.isHTTP check is sufficient, the below enforces the defensive check
 	if conn, ok := c.writeConn.(*httpConn); ok {
 		conn.credentialsProvider = providerFunc
 	}
-	return c, nil
+	return c
+}
+
+// Quorum
+//
+// Enrich HTTP requests with PSI value
+// Do nothing if transport is not HTTP
+func (c *Client) WithHTTPPSI(providerFunc HttpPSIProviderFunc) *Client {
+	if !c.isHTTP {
+		return c
+	}
+	// usually c.isHTTP check is sufficient, the below enforces the defensive check
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.psiProvider = providerFunc
+	}
+	return c
 }

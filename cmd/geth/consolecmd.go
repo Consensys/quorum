@@ -255,6 +255,7 @@ func remoteConsole(ctx *cli.Context) error {
 // Quorum: passing the cli context to build security-aware client:
 // 1. Custom TLS configuration
 // 2. Access Token awareness via rpc.HttpCredentialsProviderFunc
+// 3. PSI awareness from environment variable
 func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 	if endpoint == "" {
 		endpoint = node.DefaultIPCEndpoint(clientIdentifier)
@@ -279,6 +280,13 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 		// it's important that f MUST BE OF TYPE rpc.HttpCredentialsProviderFunc
 		dialCtx = context.WithValue(dialCtx, rpc.CtxCredentialsProvider, f)
 	}
+	if psi := os.Getenv(rpc.EnvVarPrivateStateIdentifier); len(psi) > 0 {
+		var f rpc.HttpPSIProviderFunc = func(ctx context.Context) (string, error) {
+			return psi, nil
+		}
+		// it's important that f MUST BE OF TYPE rpc.HttpPSIProviderFunc
+		dialCtx = context.WithValue(dialCtx, rpc.CtxPSIProvider, f)
+	}
 	if hasCustomTls {
 		u, err := url.Parse(endpoint)
 		if err != nil {
@@ -300,10 +308,17 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 	} else {
 		client, err = rpc.DialContext(dialCtx, endpoint)
 	}
-	if f, ok := dialCtx.Value(rpc.CtxCredentialsProvider).(rpc.HttpCredentialsProviderFunc); ok && err == nil {
-		client, err = client.WithHTTPCredentials(f)
+	if err != nil {
+		return nil, err
 	}
-	return client, err
+	// enrich clients with provider functions to populate HTTP request header
+	if f, ok := dialCtx.Value(rpc.CtxCredentialsProvider).(rpc.HttpCredentialsProviderFunc); ok {
+		client = client.WithHTTPCredentials(f)
+	}
+	if f, ok := dialCtx.Value(rpc.CtxPSIProvider).(rpc.HttpPSIProviderFunc); ok {
+		client = client.WithHTTPPSI(f)
+	}
+	return client, nil
 }
 
 // ephemeralConsole starts a new geth node, attaches an ephemeral JavaScript
