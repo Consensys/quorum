@@ -30,6 +30,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/log"
@@ -281,8 +283,8 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 		dialCtx = context.WithValue(dialCtx, rpc.CtxCredentialsProvider, f)
 	}
 	if psi := os.Getenv(rpc.EnvVarPrivateStateIdentifier); len(psi) > 0 {
-		var f rpc.HttpPSIProviderFunc = func(ctx context.Context) (string, error) {
-			return psi, nil
+		var f rpc.HttpPSIProviderFunc = func(ctx context.Context) (types.PrivateStateIdentifier, error) {
+			return types.PrivateStateIdentifier(psi), nil
 		}
 		// it's important that f MUST BE OF TYPE rpc.HttpPSIProviderFunc
 		dialCtx = context.WithValue(dialCtx, rpc.CtxPSIProvider, f)

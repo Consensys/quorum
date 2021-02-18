@@ -71,14 +71,6 @@ func randomIDGenerator() func() ID {
 	}
 }
 
-// TODO randomIDGenerator (or idgen) only appears to be called in the server context so this change may not be necessary
-func randomIDGeneratorWithPSI(psi string) func() ID {
-	gen := randomIDGenerator()
-	return func() ID {
-		return ID("PSI(" + psi + ")_" + string(gen()))
-	}
-}
-
 func encodeID(b []byte) ID {
 	id := hex.EncodeToString(b)
 	id = strings.TrimLeft(id, "0")
