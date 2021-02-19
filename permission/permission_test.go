@@ -329,11 +329,11 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 	// test NodeList
 	assert.Equal(t, len(testObject.NodeList()), 0)
 	// test AcctList
-	assert.True(t, len(testObject.AcctList()) > 0, fmt.Sprintf("expected non zero account list"))
+	assert.True(t, len(testObject.AcctList()) > 0, "expected non zero account list")
 	// test OrgList
-	assert.True(t, len(testObject.OrgList()) > 0, fmt.Sprintf("expected non zero org list"))
+	assert.True(t, len(testObject.OrgList()) > 0, "expected non zero org list")
 	// test RoleList
-	assert.True(t, len(testObject.RoleList()) > 0, fmt.Sprintf("expected non zero org list"))
+	assert.True(t, len(testObject.RoleList()) > 0, "expected non zero org list")
 }
 
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {

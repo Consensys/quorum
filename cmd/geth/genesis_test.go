@@ -61,7 +61,7 @@ var customGenesisTests = []struct {
 			"parentHash" : "0x0000000000000000000000000000000000000000000000000000000000000000",
 			"timestamp"  : "0x00",
 			"config"     : {
-				"homesteadBlock" : 314,
+				"homesteadBlock" : 42,
 				"daoForkBlock"   : 141,
 				"daoForkSupport" : true,
 				"isQuorum" : false
@@ -131,7 +131,7 @@ func TestCustomGenesisUpgradeWithPrivacyEnhancementsBlock(t *testing.T) {
 			"parentHash" : "0x0000000000000000000000000000000000000000000000000000000000000000",
 			"timestamp"  : "0x00",
 			"config"     : {
-				"homesteadBlock" : 314,
+				"homesteadBlock" : 42,
 				"daoForkBlock"   : 141,
 				"daoForkSupport" : true,
 				"isQuorum" : false
@@ -158,7 +158,7 @@ func TestCustomGenesisUpgradeWithPrivacyEnhancementsBlock(t *testing.T) {
 			"parentHash" : "0x0000000000000000000000000000000000000000000000000000000000000000",
 			"timestamp"  : "0x00",
 			"config"     : {
-				"homesteadBlock" : 314,
+				"homesteadBlock" : 42,
 				"daoForkBlock"   : 141,
 				"privacyEnhancementsBlock"   : 1000,
 				"daoForkSupport" : true,
