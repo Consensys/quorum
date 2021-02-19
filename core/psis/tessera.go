@@ -13,27 +13,22 @@ import (
 )
 
 type TesseraPrivacyGroupPSISImpl struct {
-	groups             []engine.PrivacyGroup
 	residentGroupByKey map[string]*core.PrivateStateMetadata
-	privacyGroupById   map[string]*core.PrivateStateMetadata
+	privacyGroupById   map[types.PrivateStateIdentifier]*core.PrivateStateMetadata
 }
 
 func (t *TesseraPrivacyGroupPSISImpl) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
 	psm, found := t.residentGroupByKey[managedParty]
 	if !found {
-		return nil, fmt.Errorf("Unable to find private state for managed party %s", managedParty)
+		return nil, fmt.Errorf("unable to find private state metadata for managed party %s", managedParty)
 	}
-
 	return psm, nil
 }
 
 func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context) (*core.PrivateStateMetadata, error) {
-	psiTyped, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
-	var psi string
+	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
 	if !ok {
-		psi = "private"
-	} else {
-		psi = string(psiTyped)
+		psi = types.DefaultPrivateStateIdentifier
 	}
 	psm, found := t.privacyGroupById[psi]
 	if !found {
@@ -42,8 +37,12 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context)
 	return psm, nil
 }
 
-func (t *TesseraPrivacyGroupPSISImpl) Groups() []engine.PrivacyGroup {
-	return t.groups
+func (t *TesseraPrivacyGroupPSISImpl) PSIs() []types.PrivateStateIdentifier {
+	psis := make([]types.PrivateStateIdentifier, 0, len(t.privacyGroupById))
+	for psi := range t.privacyGroupById {
+		psis = append(psis, psi)
+	}
+	return psis
 }
 
 func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
@@ -52,7 +51,7 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 		return nil, err
 	}
 	residentGroupByKey := make(map[string]*core.PrivateStateMetadata)
-	privacyGroupById := make(map[string]*core.PrivateStateMetadata)
+	privacyGroupById := make(map[types.PrivateStateIdentifier]*core.PrivateStateMetadata)
 	convertedGroups := make([]engine.PrivacyGroup, 0)
 	for _, group := range groups {
 		if group.Type == "RESIDENT" {
@@ -63,12 +62,12 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 			}
 			group.PrivacyGroupId = string(decoded)
 		}
-
-		existing, found := privacyGroupById[group.PrivacyGroupId]
+		psi := types.ToPrivateStateIdentifier(group.PrivacyGroupId)
+		existing, found := privacyGroupById[psi]
 		if found {
 			return nil, fmt.Errorf("privacy groups id clash id=%s existing.Name=%s duplicate.Name=%s", existing.ID, existing.Name, group.Name)
 		}
-		privacyGroupById[group.PrivacyGroupId] = privacyGroupToPrivateStateMetadata(group)
+		privacyGroupById[psi] = privacyGroupToPrivateStateMetadata(group)
 		if group.Type == "RESIDENT" {
 			for _, address := range group.Members {
 				existing, found := residentGroupByKey[address]
@@ -82,7 +81,6 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 	}
 
 	return &TesseraPrivacyGroupPSISImpl{
-		groups:             convertedGroups,
 		residentGroupByKey: residentGroupByKey,
 		privacyGroupById:   privacyGroupById,
 	}, nil
@@ -90,7 +88,7 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 
 func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *core.PrivateStateMetadata {
 	return &core.PrivateStateMetadata{
-		ID:          group.PrivacyGroupId,
+		ID:          types.PrivateStateIdentifier(group.PrivacyGroupId),
 		Name:        group.Name,
 		Description: group.Description,
 		Type:        strTypeToPrivateStateType(group.Type),

@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -18,7 +18,7 @@ const (
 // PrivateStateMetadata is the domain model in Quorum which maps with
 // PrivacyGroup domain in Tessera
 type PrivateStateMetadata struct {
-	ID          string
+	ID          types.PrivateStateIdentifier
 	Name        string
 	Description string
 	Type        PrivateStateType
@@ -44,7 +44,7 @@ func (psm *PrivateStateMetadata) HasAnyAddress(addresses []string) bool {
 }
 
 var EmptyPrivateStateMetadata = PrivateStateMetadata{
-	ID:          "empty",
+	ID:          types.PrivateStateIdentifier("empty"),
 	Name:        "empty",
 	Description: "empty state",
 	Type:        Resident,
@@ -52,7 +52,7 @@ var EmptyPrivateStateMetadata = PrivateStateMetadata{
 }
 
 var DefaultPrivateStateMetadata = PrivateStateMetadata{
-	ID:          "private",
+	ID:          types.DefaultPrivateStateIdentifier,
 	Name:        "private",
 	Description: "legacy private state",
 	Type:        Resident,
@@ -62,33 +62,26 @@ var DefaultPrivateStateMetadata = PrivateStateMetadata{
 type PrivateStateIdentifierService interface {
 	ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error)
 	ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error)
-	Groups() []engine.PrivacyGroup
+	PSIs() []types.PrivateStateIdentifier
 }
 
 type PrivatePSISImpl struct {
 }
 
 func (t *PrivatePSISImpl) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
-	return &PrivateStateMetadata{ID: "private", Type: Resident}, nil
+	return &PrivateStateMetadata{ID: types.DefaultPrivateStateIdentifier, Type: Resident}, nil
 }
 
 func (t *PrivatePSISImpl) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
-	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(string)
+	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
 	if !ok {
-		psi = "private"
+		psi = types.DefaultPrivateStateIdentifier
 	}
 	return &PrivateStateMetadata{ID: psi, Type: Resident}, nil
 }
 
-func (t *PrivatePSISImpl) Groups() []engine.PrivacyGroup {
-	return []engine.PrivacyGroup{
-		{
-			Type:           "Resident",
-			Name:           "private",
-			PrivacyGroupId: "private",
-			Description:    "private",
-			From:           "",
-			Members:        []string{},
-		},
+func (t *PrivatePSISImpl) PSIs() []types.PrivateStateIdentifier {
+	return []types.PrivateStateIdentifier{
+		types.DefaultPrivateStateIdentifier,
 	}
 }
