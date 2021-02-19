@@ -7,7 +7,7 @@ import (
 )
 
 type PrivateStateManager interface {
-	GetPrivateState(psi string) (*state.StateDB, error)
+	GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error)
 	CommitAndWrite(block *types.Block) error
 	Commit(block *types.Block) error
 	Reset() error

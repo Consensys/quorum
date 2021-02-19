@@ -582,7 +582,7 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 			}
 
 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
-			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, "private")
+			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.DefaultPrivateStateIdentifier)
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "psi1")
 			assert.True(t, privDb.Exist(expectedContractAddress))
@@ -611,7 +611,7 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 	select {
 	case logs := <-logsChan:
 		assert.Len(t, logs, 3)
-		assert.Equal(t, "private", logs[0].PSI)
+		assert.Equal(t, types.DefaultPrivateStateIdentifier, logs[0].PSI)
 		assert.Equal(t, "psi1", logs[1].PSI)
 		assert.Equal(t, "psi2", logs[2].PSI)
 	case <-time.NewTimer(3 * time.Second).C:

@@ -33,7 +33,7 @@ type PrivacyService struct {
 	apiBackendHelper APIBackendHelper
 
 	mu           sync.Mutex
-	psiContracts map[string]map[common.Address]*ExtensionContract
+	psiContracts map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract
 
 	node *node.Node
 }
@@ -52,13 +52,13 @@ var (
 type stopEvent struct {
 }
 
-func (service *PrivacyService) client(psi string) Client {
+func (service *PrivacyService) client(psi types.PrivateStateIdentifier) Client {
 	rpcClient, _ := service.node.AttachWithPSI(psi)
 	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
 	return NewInProcessClient(client)
 }
 
-func (service *PrivacyService) managementContract(psi string) ManagementContractFacade {
+func (service *PrivacyService) managementContract(psi types.PrivateStateIdentifier) ManagementContractFacade {
 	rpcClient, _ := service.node.AttachWithPSI(psi)
 	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
 	return NewManagementContractFacade(client)
@@ -77,7 +77,7 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 	}
 
 	service := &PrivacyService{
-		psiContracts:     make(map[string]map[common.Address]*ExtensionContract),
+		psiContracts:     make(map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract),
 		ptm:              ptm,
 		dataHandler:      handler,
 		stateFetcher:     fetcher,
@@ -169,7 +169,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
 
 			extensionAPI := NewPrivateExtensionAPI(service)
-			ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier(psm.ID))
+			ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, psm.ID)
 			_, err = extensionAPI.ApproveExtension(ctx, newContractExtension.ManagementContractAddress, true, txArgs)
 
 			if err != nil {
@@ -181,7 +181,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 	return handler.createSub(newExtensionQuery, cb)
 }
 
-func (service *PrivacyService) watchForCancelledContracts(psi string) error {
+func (service *PrivacyService) watchForCancelledContracts(psi types.PrivateStateIdentifier) error {
 	handler := NewSubscriptionHandler(service.node, psi, service.ptm, service)
 
 	cb := func(l types.Log) {
@@ -198,7 +198,7 @@ func (service *PrivacyService) watchForCancelledContracts(psi string) error {
 	return handler.createSub(finishedExtensionQuery, cb)
 }
 
-func (service *PrivacyService) watchForCompletionEvents(psi string) error {
+func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateIdentifier) error {
 	handler := NewSubscriptionHandler(service.node, psi, service.ptm, service)
 
 	cb := func(l types.Log) {
@@ -386,7 +386,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 }
 
 // returns the participant list for a given private contract
-func (service *PrivacyService) GetAllParticipants(blockHash common.Hash, address common.Address, psi string) ([]string, error) {
+func (service *PrivacyService) GetAllParticipants(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) ([]string, error) {
 	privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address, psi)
 	if err != nil {
 		return nil, err
@@ -403,7 +403,7 @@ func (service *PrivacyService) GetAllParticipants(blockHash common.Hash, address
 }
 
 // check if the node had created the contract
-func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, address common.Address, psi string) bool {
+func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) bool {
 	privacyMetaData, err := service.stateFetcher.GetPrivacyMetaData(blockHash, address, psi)
 	if err != nil {
 		return true

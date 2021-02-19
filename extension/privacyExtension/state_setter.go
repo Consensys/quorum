@@ -37,7 +37,7 @@ func (handler *ExtensionHandler) SetPSIS(psis core.PrivateStateIdentifierService
 	handler.psis = psis
 }
 
-func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
+func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
 	extraMetaDataUpdated := false
 	for _, txLog := range txLogs {
 		if !logContainsExtensionTopic(txLog) {
@@ -84,7 +84,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 	}
 }
 
-func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string, psi string) ([]string, map[string]extension.AccountWithMetadata, *state.PrivacyMetadata, bool) {
+func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string, psi types.PrivateStateIdentifier) ([]string, map[string]extension.AccountWithMetadata, *state.PrivacyMetadata, bool) {
 	if uuidIsSentByUs := handler.UuidIsOwn(address, uuid, psi); !uuidIsSentByUs {
 		return nil, nil, nil, false
 	}
@@ -124,7 +124,7 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]string, []byte
 	return managedParties, stateData, privacyMetaData, true
 }
 
-func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, psi string) bool {
+func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string, psi types.PrivateStateIdentifier) bool {
 	if uuid == "" {
 		//we never called accept
 		log.Warn("Extension: State shared by accept never called")

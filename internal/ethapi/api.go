@@ -628,7 +628,7 @@ func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return psm.ID, nil
+	return psm.ID.String(), nil
 }
 
 // BlockNumber returns the block number of the chain head.

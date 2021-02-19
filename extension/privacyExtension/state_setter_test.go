@@ -18,7 +18,7 @@ func TestExtensionHandler_CheckExtensionAndSetPrivateState_NoLogs(t *testing.T) 
 	dbBefore := statedb.Copy()
 	rootBeforeExtension, _ := statedb.Commit(true)
 
-	handler.CheckExtensionAndSetPrivateState(nil, statedb, "private")
+	handler.CheckExtensionAndSetPrivateState(nil, statedb, types.DefaultPrivateStateIdentifier)
 
 	rootAfterExtension, _ := statedb.Commit(true)
 	assert.Equal(t, rootBeforeExtension, rootAfterExtension)
@@ -53,10 +53,10 @@ func TestExtensionHandler_CheckExtensionAndSetPrivateState_LogsAreNotExtensionLo
 			BlockHash:   common.HexToHash("0x7e7fb6985ff7e1c7293b8e3202a2b101458acd0b93b5fbed18aab40e8cbeb587"),
 			Index:       0,
 			Removed:     false,
-			PSI:         "private",
+			PSI:         types.DefaultPrivateStateIdentifier,
 		},
 	}
-	handler.CheckExtensionAndSetPrivateState(notExtensionLogs, statedb, "private")
+	handler.CheckExtensionAndSetPrivateState(notExtensionLogs, statedb, types.DefaultPrivateStateIdentifier)
 
 	rootAfterExtension, _ := statedb.Commit(true)
 	assert.Equal(t, rootBeforeExtension, rootAfterExtension)
@@ -78,7 +78,7 @@ func TestExtensionHandler_UuidIsOwn_EmptyUUID(t *testing.T) {
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
-	isOwn := handler.UuidIsOwn(address, "", "private")
+	isOwn := handler.UuidIsOwn(address, "", types.DefaultPrivateStateIdentifier)
 
 	assert.False(t, isOwn)
 }
@@ -92,7 +92,7 @@ func TestExtensionHandler_UuidIsOwn_IsSenderIsFalse(t *testing.T) {
 	const uuid = "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
-	isOwn := handler.UuidIsOwn(address, uuid, "private")
+	isOwn := handler.UuidIsOwn(address, uuid, types.DefaultPrivateStateIdentifier)
 
 	assert.False(t, isOwn)
 }
@@ -181,7 +181,7 @@ func TestExtensionHandler_UuidIsOwn_PrivatePSISucceeds(t *testing.T) {
 	}
 	handler := NewExtensionHandler(ptm)
 
-	isOwn := handler.UuidIsOwn(address, uuid, "private")
+	isOwn := handler.UuidIsOwn(address, uuid, types.DefaultPrivateStateIdentifier)
 
 	assert.True(t, isOwn)
 }

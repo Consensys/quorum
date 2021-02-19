@@ -497,7 +497,7 @@ func (api *RetestethAPI) mineBlock() error {
 			}
 		}
 	}
-	statedb, pvtstdb, err := api.blockchain.StateAtPSI(parent.Root(), "private")
+	statedb, pvtstdb, err := api.blockchain.StateAtPSI(parent.Root(), types.DefaultPrivateStateIdentifier)
 	if err != nil {
 		return err
 	}
@@ -665,14 +665,14 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, _, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, _, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
 	} else {
 		var pvtst *state.StateDB
 		root = parentHeader.Root
-		statedb, pvtst, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, pvtst, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
@@ -776,14 +776,14 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, _, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, _, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return StorageRangeResult{}, err
 		}
 	} else {
 		var pvtstdb *state.StateDB
 		root = parentHeader.Root
-		statedb, pvtstdb, err = api.blockchain.StateAtPSI(root, "private")
+		statedb, pvtstdb, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return StorageRangeResult{}, err
 		}

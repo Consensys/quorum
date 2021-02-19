@@ -3,9 +3,11 @@ package extension
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,12 +21,13 @@ func TestWriteContentsToFileWritesOkay(t *testing.T) {
 		ManagementContractAddress: common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		CreationData:              []byte("Sample Transaction Data"),
 	}
-	psiExtensions := map[string]map[common.Address]*ExtensionContract{
-		"private": extensionContracts,
-		"somekey": extensionContracts,
+	psiExtensions := map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract{
+		types.DefaultPrivateStateIdentifier: extensionContracts,
+		"somekey":                           extensionContracts,
 	}
 
 	datadir, err := ioutil.TempDir("", t.Name())
+	defer os.RemoveAll(datadir)
 	assert.Nil(t, err, "could not create temp directory for test")
 
 	dataHandler := NewJsonFileDataHandler(datadir)
@@ -52,12 +55,13 @@ func TestLoadOldContents(t *testing.T) {
 		ManagementContractAddress: common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		CreationData:              []byte("Sample Transaction Data"),
 	}
-	psiExtensions := map[string]map[common.Address]*ExtensionContract{
-		"private": extensionContracts,
-		"somekey": extensionContracts,
+	psiExtensions := map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract{
+		types.DefaultPrivateStateIdentifier: extensionContracts,
+		"somekey":                           extensionContracts,
 	}
 
 	datadir, err := ioutil.TempDir("", t.Name())
+	defer os.RemoveAll(datadir)
 	assert.Nil(t, err, "could not create temp directory for test")
 
 	dataHandler := NewJsonFileDataHandler(datadir)

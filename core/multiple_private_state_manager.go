@@ -20,7 +20,7 @@ type MultiplePrivateStateManager struct {
 	previousBlockHash common.Hash
 
 	// managed states map
-	managedStates map[string]*ManagedState
+	managedStates map[types.PrivateStateIdentifier]*ManagedState
 }
 
 func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Hash) (PrivateStateManager, error) {
@@ -32,7 +32,7 @@ func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Has
 	return &MultiplePrivateStateManager{
 		trie:          tr,
 		bc:            bc,
-		managedStates: make(map[string]*ManagedState)}, nil
+		managedStates: make(map[types.PrivateStateIdentifier]*ManagedState)}, nil
 }
 
 // A managed state is a pair of stateDb and it's corresponding stateCache objects
@@ -40,28 +40,6 @@ func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Has
 type ManagedState struct {
 	stateDb    *state.StateDB
 	stateCache state.Database
-}
-
-//utility function for debugging
-func (psm *MultiplePrivateStateManager) GetManagedStateRoots() []string {
-	myMap := psm.managedStates
-	keys := make([]string, 0, len(myMap))
-
-	for k := range myMap {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-//utility function for debugging
-func (psm *MultiplePrivateStateManager) GetManagedStates() []*ManagedState {
-	myMap := psm.managedStates
-	keys := make([]*ManagedState, 0, len(myMap))
-
-	for _, v := range myMap {
-		keys = append(keys, v)
-	}
-	return keys
 }
 
 // TODO - !!!IMPORTANT!!! review the state delegate logic with the rest of the team
@@ -87,7 +65,7 @@ func (psm *MultiplePrivateStateManager) IsMPS() bool {
 	return true
 }
 
-func (psm *MultiplePrivateStateManager) GetPrivateState(psi string) (*state.StateDB, error) {
+func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	managedState, found := psm.managedStates[psi]
 	if found {
 		return managedState.stateDb, nil
@@ -190,16 +168,16 @@ func (psm *MultiplePrivateStateManager) MergeReceipts(pub, priv types.Receipts) 
 	}
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
-		publicReceipt.MTVersions = make(map[string]*types.Receipt)
+		publicReceipt.MTVersions = make(map[types.PrivateStateIdentifier]*types.Receipt)
 		publicReceipt.MTVersions[EmptyPrivateStateMetadata.ID] = receipt
 		for psi, mtReceipt := range receipt.MTVersions {
 			publicReceipt.MTVersions[psi] = mtReceipt
 		}
 	}
 
-	ret := make(types.Receipts, 0, len(pub))
-	for _, pubReceipt := range pub {
-		ret = append(ret, m[pubReceipt.TxHash])
+	ret := make(types.Receipts, len(pub))
+	for idx, pubReceipt := range pub {
+		ret[idx] = m[pubReceipt.TxHash]
 	}
 
 	return ret

@@ -15,7 +15,7 @@ type subscriptionHandler struct {
 	service *PrivacyService
 }
 
-func NewSubscriptionHandler(node *node.Node, psi string, ptm private.PrivateTransactionManager, service *PrivacyService) *subscriptionHandler {
+func NewSubscriptionHandler(node *node.Node, psi types.PrivateStateIdentifier, ptm private.PrivateTransactionManager, service *PrivacyService) *subscriptionHandler {
 	rpcClient, err := node.AttachWithPSI(psi)
 	if err != nil {
 		panic("extension: could not connect to ethereum client rpc")

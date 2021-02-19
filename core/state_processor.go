@@ -72,13 +72,13 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		MTVersions := make(map[string]*types.Receipt)
+		MTVersions := make(map[types.PrivateStateIdentifier]*types.Receipt)
 		privateLogs := make([]*types.Log, 0)
 
 		if tx.IsPrivate() && psManager.IsMPS() {
 			_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 			// it may happen that two of the managed parties belong to the same private state
-			var appliedOnPrivateState = make(map[string]string)
+			var appliedOnPrivateState = make(map[types.PrivateStateIdentifier]struct{})
 			for _, managedParty := range managedParties {
 				psm, _ := p.bc.PSIS().ResolveForManagedParty(managedParty)
 				// if we already handled this private state skip it
@@ -107,7 +107,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 
 				p.bc.CheckAndSetPrivateState(mtPrivateReceipt.Logs, mtPrivateState, psm.ID)
 
-				appliedOnPrivateState[psm.ID] = "applied"
+				appliedOnPrivateState[psm.ID] = struct{}{}
 			}
 		}
 

@@ -68,7 +68,7 @@ type Receipt struct {
 	TransactionIndex uint        `json:"transactionIndex"`
 
 	// multi tenancy
-	MTVersions map[string]*Receipt
+	MTVersions map[PrivateStateIdentifier]*Receipt
 }
 
 type receiptMarshaling struct {
@@ -97,7 +97,7 @@ type mtStoredReceiptRLP struct {
 }
 
 type mtStoredReceiptMapEntry struct {
-	Key   string
+	Key   PrivateStateIdentifier
 	Value storedReceiptRLP
 }
 
@@ -282,7 +282,7 @@ func decodeMTStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
 
 	if len(stored.MTVersions) > 0 {
-		r.MTVersions = make(map[string]*Receipt)
+		r.MTVersions = make(map[PrivateStateIdentifier]*Receipt)
 		for _, entry := range stored.MTVersions {
 			rec := &Receipt{}
 			if err := rec.setStatus(entry.Value.PostStateOrStatus); err != nil {
@@ -379,7 +379,7 @@ func (r Receipts) GetRlp(i int) []byte {
 func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
 	//flatten all the receipts
 
-	allReceipts := make(map[string][]*Receipt)
+	allReceipts := make(map[PrivateStateIdentifier][]*Receipt)
 	allPublic := make([]*Receipt, 0)
 
 	for i := 0; i < len(r); i++ {
@@ -437,7 +437,7 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 		oldPsis := tmp[i].MTVersions
 		tmp[i].MTVersions = nil
 		if txs[i].IsPrivate() {
-			tmp[i].MTVersions = make(map[string]*Receipt)
+			tmp[i].MTVersions = make(map[PrivateStateIdentifier]*Receipt)
 		}
 		for psi := range oldPsis {
 			tmp[i].MTVersions[psi] = allReceipts[psi][i]

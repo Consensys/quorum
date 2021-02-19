@@ -506,6 +506,7 @@ func (n *Node) AttachWithPSI(psi string) (*rpc.Client, error) {
 	if n.server == nil {
 		return nil, ErrNodeStopped
 	}
+	// TODO - NLREBASE - return client.WithPSI(types.PrivateStateIdentifier(psi)), nil
 	return rpc.DialInProcWithPSI(n.inprocHandler, psi), nil
 }
 

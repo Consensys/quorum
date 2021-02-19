@@ -48,9 +48,9 @@ func (psm *LegacyPrivateStateManager) IsMPS() bool {
 	return false
 }
 
-func (psm *LegacyPrivateStateManager) GetPrivateState(psi string) (*state.StateDB, error) {
-	if psi != "private" {
-		return nil, fmt.Errorf("Only the 'private' psi is supported by the legacy private state manager")
+func (psm *LegacyPrivateStateManager) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+	if psi != types.DefaultPrivateStateIdentifier {
+		return nil, fmt.Errorf("only the 'private' psi is supported by the legacy private state manager")
 	}
 	return psm.stateDB, nil
 }

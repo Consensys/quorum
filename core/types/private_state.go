@@ -24,6 +24,14 @@ type PrivacyMetadata struct {
 // it could be a privacy group name or ID
 type PrivateStateIdentifier string
 
+func (psi PrivateStateIdentifier) String() string {
+	return string(psi)
+}
+
+func ToPrivateStateIdentifier(s string) PrivateStateIdentifier {
+	return PrivateStateIdentifier(s)
+}
+
 // EncodePSI includes counter and PSI value in an JSON message ID.
 // i.e.: <counter> becomes "<psi>/32"
 func EncodePSI(idCounterBytes []byte, psi PrivateStateIdentifier) json.RawMessage {

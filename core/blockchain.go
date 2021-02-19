@@ -210,10 +210,10 @@ type BlockChain struct {
 	processor  Processor  // Block transaction processor interface
 	vmConfig   vm.Config
 
-	badBlocks       *lru.Cache                                 // Bad block cache
-	shouldPreserve  func(*types.Block) bool                    // Function used to determine whether should preserve the given block.
-	terminateInsert func(common.Hash, uint64) bool             // Testing hook used to terminate ancient receipt chain insertion.
-	setPrivateState func([]*types.Log, *state.StateDB, string) // Function to check extension and set private state
+	badBlocks       *lru.Cache                                                       // Bad block cache
+	shouldPreserve  func(*types.Block) bool                                          // Function used to determine whether should preserve the given block.
+	terminateInsert func(common.Hash, uint64) bool                                   // Testing hook used to terminate ancient receipt chain insertion.
+	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
 	psManagerCache state.Database
 	isMultitenant  bool // if this blockchain supports multitenancy
@@ -221,12 +221,12 @@ type BlockChain struct {
 }
 
 // function pointer for updating private state
-func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB, string)) {
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier)) {
 	bc.setPrivateState = ps
 }
 
 // function to update the private state as a part contract state extension
-func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi string) {
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
 	if bc.setPrivateState != nil {
 		bc.setPrivateState(txLogs, privateState, psi)
 	}
@@ -690,11 +690,11 @@ func (bc *BlockChain) State() (*state.StateDB, PrivateStateManager, error) {
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
-func (bc *BlockChain) StatePSI(psi string) (*state.StateDB, *state.StateDB, error) {
+func (bc *BlockChain) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
 	return bc.StateAtPSI(bc.CurrentBlock().Root(), psi)
 }
 
-func (bc *BlockChain) StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error) {
+func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
 	publicStateDb, psService, err := bc.StateAt(root)
 	if err != nil {
 		return nil, nil, err

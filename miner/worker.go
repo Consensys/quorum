@@ -277,7 +277,7 @@ func (w *worker) enablePreseal() {
 }
 
 // pending returns the pending state and corresponding block.
-func (w *worker) pending(psi string) (*types.Block, *state.StateDB, *state.StateDB) {
+func (w *worker) pending(psi types.PrivateStateIdentifier) (*types.Block, *state.StateDB, *state.StateDB) {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
@@ -783,7 +783,7 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
-func (w *worker) revertToPrivateStateSnapshots(snapshots map[string]int) {
+func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateIdentifier]int) {
 	for psi, snapshot := range snapshots {
 		privateState, err := w.current.privateStateManager.GetPrivateState(psi)
 		if err == nil {
@@ -796,14 +796,14 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	snap := w.current.state.Snapshot()
 	txnStart := time.Now()
 
-	MTVersions := make(map[string]*types.Receipt)
+	MTVersions := make(map[types.PrivateStateIdentifier]*types.Receipt)
 	privateLogs := make([]*types.Log, 0)
-	privateStateSnaphots := make(map[string]int)
+	privateStateSnaphots := make(map[types.PrivateStateIdentifier]int)
 
 	if tx.IsPrivate() && w.current.privateStateManager.IsMPS() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		// it may happen that two of the managed parties belong to the same private state
-		var appliedOnPrivateState = make(map[string]string)
+		var appliedOnPrivateState = make(map[types.PrivateStateIdentifier]struct{})
 		for _, managedParty := range managedParties {
 			psm, _ := w.chain.PSIS().ResolveForManagedParty(managedParty)
 			// if we already handled this private state skip it
@@ -835,7 +835,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 			w.chain.CheckAndSetPrivateState(mtPrivateReceipt.Logs, privateState, psm.ID)
 
-			appliedOnPrivateState[psm.ID] = "applied"
+			appliedOnPrivateState[psm.ID] = struct{}{}
 		}
 	}
 

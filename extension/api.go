@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -59,7 +60,7 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(ctx context.Contex
 }
 
 // checks if the voter has already voted on the contract.
-func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address, psi string) bool {
+func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) bool {
 	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
@@ -68,7 +69,7 @@ func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.A
 }
 
 // checks if the contract extension is completed
-func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address, psi string) (bool, error) {
+func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (bool, error) {
 	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
@@ -80,7 +81,7 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 }
 
 // returns the contract being extended for the given management contract
-func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi string) (common.Address, error) {
+func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (common.Address, error) {
 	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
@@ -91,12 +92,12 @@ func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
 	// check if the passed contract is public contract
 	chain := api.privacyService.stateFetcher.chainAccessor
-	publicStateDb, _, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), "private")
+	publicStateDb, _, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), types.DefaultPrivateStateIdentifier)
 	return publicStateDb != nil && publicStateDb.Exist(toExtend)
 }
 
 // checks if the contract being extended is available on the node
-func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi string, toExtend common.Address) bool {
+func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi types.PrivateStateIdentifier, toExtend common.Address) bool {
 	// check if the private contract exists on the node extending the contract
 	chain := api.privacyService.stateFetcher.chainAccessor
 	_, privateStateDb, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), psi)

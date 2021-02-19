@@ -55,7 +55,7 @@ type Log struct {
 	Removed bool `json:"removed"`
 
 	// multi tenancy
-	PSI string
+	PSI PrivateStateIdentifier
 }
 
 type logMarshaling struct {

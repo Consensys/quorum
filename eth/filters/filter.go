@@ -60,7 +60,7 @@ type Filter struct {
 	db        ethdb.Database
 	addresses []common.Address
 	topics    [][]common.Hash
-	psi       string
+	psi       types.PrivateStateIdentifier
 
 	block      common.Hash // Block hash if filtering a single block
 	begin, end int64       // Range interval if filtering multiple blocks
@@ -70,7 +70,7 @@ type Filter struct {
 
 // NewRangeFilter creates a new filter which uses a bloom filter on blocks to
 // figure out whether a particular block is interesting or not.
-func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash, psi string) *Filter {
+func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash, psi types.PrivateStateIdentifier) *Filter {
 	// Flatten the address and topic filter clauses into a single bloombits filter
 	// system. Since the bloombits are not positional, nil topics are permitted,
 	// which get flattened into a nil byte slice.
@@ -103,7 +103,7 @@ func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Addres
 
 // NewBlockFilter creates a new filter which directly inspects the contents of
 // a block to figure out whether it is interesting or not.
-func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Address, topics [][]common.Hash, psi string) *Filter {
+func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Address, topics [][]common.Hash, psi types.PrivateStateIdentifier) *Filter {
 	// Create a generic filter and convert it into a block filter
 	filter := newFilter(backend, addresses, topics, psi)
 	filter.block = block
@@ -112,7 +112,7 @@ func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Addre
 
 // newFilter creates a generic filter that can either filter based on a block hash,
 // or based on range queries. The search criteria needs to be explicitly set.
-func newFilter(backend Backend, addresses []common.Address, topics [][]common.Hash, psi string) *Filter {
+func newFilter(backend Backend, addresses []common.Address, topics [][]common.Hash, psi types.PrivateStateIdentifier) *Filter {
 	return &Filter{
 		backend:   backend,
 		addresses: addresses,
@@ -295,7 +295,7 @@ func includes(addresses []common.Address, a common.Address) bool {
 }
 
 // filterLogs creates a slice of logs matching the given criteria.
-func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash, psi string) []*types.Log {
+func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash, psi types.PrivateStateIdentifier) []*types.Log {
 	var ret []*types.Log
 Logs:
 	for _, log := range logs {

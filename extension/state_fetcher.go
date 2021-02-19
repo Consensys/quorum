@@ -19,7 +19,7 @@ type ChainAccessor interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, core.PrivateStateManager, error)
-	StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error)
+	StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error)
 	State() (*state.StateDB, core.PrivateStateManager, error)
 	CurrentBlock() *types.Block
 }
@@ -52,7 +52,7 @@ func (fetcher *StateFetcher) getCurrentBlockHash() common.Hash {
 // GetAddressStateFromBlock is a public method that combines the other
 // functions of a StateFetcher, retrieving the state of an address at a given
 // block, represented in JSON.
-func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, addressToFetch common.Address, psi string) ([]byte, error) {
+func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, addressToFetch common.Address, psi types.PrivateStateIdentifier) ([]byte, error) {
 	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 }
 
 // privateState returns the private state database for a given block hash.
-func (fetcher *StateFetcher) privateState(blockHash common.Hash, psi string) (*state.StateDB, error) {
+func (fetcher *StateFetcher) privateState(blockHash common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	block := fetcher.chainAccessor.GetBlockByHash(blockHash)
 	_, privateState, err := fetcher.chainAccessor.StateAtPSI(block.Root(), psi)
 
@@ -90,7 +90,7 @@ func (fetcher *StateFetcher) addressStateAsJson(privateState *state.StateDB, add
 }
 
 // returns the privacy metadata
-func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address common.Address, psi string) (*state.PrivacyMetadata, error) {
+func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) (*state.PrivacyMetadata, error) {
 	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address c
 }
 
 // returns the privacy metadata
-func (fetcher *StateFetcher) GetStorageRoot(blockHash common.Hash, address common.Address, psi string) (common.Hash, error) {
+func (fetcher *StateFetcher) GetStorageRoot(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) (common.Hash, error) {
 	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return common.Hash{}, err
