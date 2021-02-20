@@ -19,6 +19,8 @@ package core
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -29,54 +31,47 @@ func (c *core) sendPreprepareMsg(request *Request) {
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
-		preprepareMsg := &PreprepareMsg{
-			CommonPayload:     CommonPayload{
-				code:           preprepareMsgCode,
-				source:         c.address,
-				Sequence:       curView.Sequence,
-				Round:          curView.Round,
-				signature:      nil,
-			},
-			Proposal:      request.Proposal,
-		}
+		preprepare := message.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
+		preprepare.SetSource(c.Address())
 
 		// Sign payload
-		encodedPayload, err := preprepareMsg.EncodePayload()
+		encodedPayload, err := preprepare.EncodePayload()
 		if err != nil {
-			logger.Error("QBFT: Failed to encode payload of pre-prepare message_deprecated", "msg", preprepareMsg, "err", err)
+			logger.Error("QBFT: Failed to encode payload of pre-prepare message", "msg", preprepare, "err", err)
 			return
 		}
-		preprepareMsg.signature, err = c.backend.Sign(encodedPayload)
+		signature, err := c.backend.Sign(encodedPayload)
 		if err != nil {
-			logger.Error("QBFT: Failed to sign pre-prepare message_deprecated", "msg", preprepareMsg, "err", err)
+			logger.Error("QBFT: Failed to sign pre-prepare message", "msg", preprepare, "err", err)
 			return
 		}
+		preprepare.SetSignature(signature)
 
 		// Justification
 		if request.RCMessages != nil {
-			preprepareMsg.JustificationRoundChanges = make([]*SignedRoundChangePayload, 0)
+			preprepare.JustificationRoundChanges = make([]*message.SignedRoundChangePayload, 0)
 			for _, m := range request.RCMessages.Values() {
-				preprepareMsg.JustificationRoundChanges = append(preprepareMsg.JustificationRoundChanges, &m.(*RoundChangeMsg).SignedRoundChangePayload)
-				logger.Info("QBFT: Appending RC justification", "rc", m.(*RoundChangeMsg).SignedRoundChangePayload)
+				preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*message.RoundChange).SignedRoundChangePayload)
+				logger.Info("QBFT: Appending RC justification", "rc", m.(*message.RoundChange).SignedRoundChangePayload)
 			}
-			logger.Info("QBFT: On Pre-prepare", "rc justification", preprepareMsg.JustificationRoundChanges)
+			logger.Info("QBFT: On Pre-prepare", "rc justification", preprepare.JustificationRoundChanges)
 		}
 		if request.PrepareMessages != nil {
-			preprepareMsg.JustificationPrepares = request.PrepareMessages
-			logger.Info("QBFT: On Pre-prepare", "prepare justification", preprepareMsg.JustificationPrepares)
+			preprepare.JustificationPrepares = request.PrepareMessages
+			logger.Info("QBFT: On Pre-prepare", "prepare justification", preprepare.JustificationPrepares)
 		}
 
-		// RLP-encode message_deprecated
-		payload, err := rlp.EncodeToBytes(&preprepareMsg)
+		// RLP-encode message
+		payload, err := rlp.EncodeToBytes(&preprepare)
 		if err != nil {
-			logger.Error("QBFT: Failed to encode pre-prepare message_deprecated", "msg", preprepareMsg, "err", err)
+			logger.Error("QBFT: Failed to encode pre-prepare message", "msg", preprepare, "err", err)
 			return
 		}
 
-		logger.Info("QBFT: sendPreprepareMsg", "m", preprepareMsg)
-		// Broadcast RLP-encoded message_deprecated
-		if err = c.backend.Broadcast(c.valSet, preprepareMsgCode, payload); err != nil {
-			logger.Error("QBFT: Failed to broadcast message_deprecated", "msg", preprepareMsg, "err", err)
+		logger.Info("QBFT: sendPreprepareMsg", "m", preprepare)
+		// Broadcast RLP-encoded message
+		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
+			logger.Error("QBFT: Failed to broadcast message", "msg", preprepare, "err", err)
 			return
 		}
 
@@ -85,21 +80,21 @@ func (c *core) sendPreprepareMsg(request *Request) {
 	}
 }
 
-func (c *core) handlePreprepareMsg(preprepare *PreprepareMsg) error {
+func (c *core) handlePreprepareMsg(preprepare *message.Preprepare) error {
 	logger := c.logger.New("state", c.state)
 
 	c.logger.Info("QBFT: handlePreprepareMsg", "view", preprepare.View(), "m", preprepare)
 
-	// Check if the message_deprecated comes from current proposer
-	logger.Warn("QBFT who's proposer?", "source", preprepare.source, "proposer", c.valSet.GetProposer().Address())
-	if !c.valSet.IsProposer(preprepare.source) {
+	// Check if the message comes from current proposer
+	logger.Warn("QBFT who's proposer?", "source", preprepare.Source(), "proposer", c.valSet.GetProposer().Address())
+	if !c.valSet.IsProposer(preprepare.Source()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return errNotFromProposer
 	}
 
 	// Justification
 	if preprepare.Round.Uint64() > 0 && !justify(preprepare.Proposal, preprepare.JustificationRoundChanges, preprepare.JustificationPrepares, c.QuorumSize()) {
-		logger.Error("QBFT: Unable to justify PRE-PREPARE message_deprecated")
+		logger.Error("QBFT: Unable to justify PRE-PREPARE message")
 		return errInvalidPreparedBlock
 	}
 
@@ -110,7 +105,7 @@ func (c *core) handlePreprepareMsg(preprepare *PreprepareMsg) error {
 			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
 			c.stopFuturePreprepareTimer()
 			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
-				_, validator := c.valSet.GetByAddress(preprepare.source)
+				_, validator := c.valSet.GetByAddress(preprepare.Source())
 				c.sendEvent(backlogEvent{
 					src: validator,
 					msg: preprepare,

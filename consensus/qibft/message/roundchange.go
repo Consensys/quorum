@@ -2,26 +2,55 @@ package message
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/pkg/errors"
-	"io"
-	"math/big"
 )
 
 // ROUND-CHANGE
-type RoundChangeMsg struct {
+type RoundChange struct {
 	SignedRoundChangePayload
 	PreparedBlock *types.Block
 	Justification []*SignedPreparePayload
+}
+
+func NewRoundChange(sequence *big.Int, round *big.Int, preparedRound *big.Int, preparedBlock istanbul.Proposal) *RoundChange {
+	roundChange := &RoundChange{
+		SignedRoundChangePayload: SignedRoundChangePayload{
+			CommonPayload: CommonPayload{
+				code:     RoundChangeCode,
+				Sequence: sequence,
+				Round:    round,
+			},
+			PreparedRound:  preparedRound,
+			PreparedDigest: common.Hash{},
+		},
+	}
+
+	if preparedBlock != nil {
+		roundChange.PreparedBlock = preparedBlock.(*types.Block)
+		roundChange.PreparedDigest = preparedBlock.Hash()
+	}
+
+	return roundChange
 }
 
 type SignedRoundChangePayload struct {
 	CommonPayload
 	PreparedRound  *big.Int
 	PreparedDigest common.Hash
+}
+
+func (p *SignedRoundChangePayload) String() string {
+	return fmt.Sprintf("RoundChange {seq=%v, round=%v, pr=%v, pv=%v}",
+		p.Sequence, p.Round, p.PreparedRound, p.PreparedDigest.Hex())
 }
 
 func (p *SignedRoundChangePayload) EncodeRLP(w io.Writer) error {
@@ -101,13 +130,12 @@ func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 		return err
 	}
 
-	p.code = roundChangeMsgCode
+	p.code = RoundChangeCode
 
 	log.Info("QBFT: Correctly decoded SignedRoundChangePayload", "p", p)
 
 	return nil
 }
-
 
 func (p *SignedRoundChangePayload) EncodePayload() ([]byte, error) {
 	var prepared = []interface{}{}
@@ -121,7 +149,7 @@ func (p *SignedRoundChangePayload) EncodePayload() ([]byte, error) {
 			prepared})
 }
 
-func (m *RoundChangeMsg) EncodeRLP(w io.Writer) error {
+func (m *RoundChange) EncodeRLP(w io.Writer) error {
 	var prepared = []interface{}{}
 	if m.PreparedRound != nil && !m.PreparedDigest.IsEmpty() {
 		prepared = []interface{}{m.PreparedRound, m.PreparedDigest}
@@ -138,7 +166,7 @@ func (m *RoundChangeMsg) EncodeRLP(w io.Writer) error {
 		})
 }
 
-func (m *RoundChangeMsg) DecodeRLP(stream *rlp.Stream) error {
+func (m *RoundChange) DecodeRLP(stream *rlp.Stream) error {
 	var err error
 
 	// RoundChange Message

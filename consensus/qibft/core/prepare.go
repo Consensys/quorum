@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -26,51 +27,44 @@ func (c *core) broadcastPrepare() {
 	logger := c.logger.New("state", c.state)
 
 	sub := c.current.Subject()
-	prepareMsg := &PrepareMsg{SignedPreparePayload{
-		CommonPayload: CommonPayload{
-			code:      prepareMsgCode,
-			source:    c.Address(),
-			Sequence:  sub.View.Sequence,
-			Round:     sub.View.Round,
-			signature: nil,
-		},
-		Digest:        sub.Digest,
-	}}
+	prepare := message.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest)
+	prepare.SetSource(c.Address())
 
 	// Sign Message
-	encodedPayload, err := prepareMsg.EncodePayload()
+	encodedPayload, err := prepare.EncodePayload()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode payload of prepare message_deprecated", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to encode payload of prepare message", "msg", prepare, "err", err)
 		return
 	}
-	prepareMsg.signature, err = c.backend.Sign(encodedPayload)
+	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign commit message_deprecated", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to sign commit message", "msg", prepare, "err", err)
 		return
 	}
+	prepare.SetSignature(signature)
 
-	// RLP-encode message_deprecated
-	payload, err := rlp.EncodeToBytes(&prepareMsg)
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode commit message_deprecated", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to encode commit message", "msg", prepare, "err", err)
 		return
 	}
 
 	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", payload)
-	// Broadcast RLP-encoded message_deprecated
-	if err = c.backend.Broadcast(c.valSet, prepareMsgCode, payload); err != nil {
-		logger.Error("QBFT: Failed to broadcast message_deprecated", "msg", prepareMsg, "err", err)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", prepare, "err", err)
 		return
 	}
 }
 
-func (c *core) handlePrepare(prepare *PrepareMsg) error {
+func (c *core) handlePrepare(prepare *message.Prepare) error {
 	logger := c.logger.New("state", c.state)
 
 	logger.Info("QBFT: handlePrepare", "msg", &prepare)
 
 	// For testing of round changes!!!!
-	if prepare.Sequence.Int64() % 2 == 0 && prepare.Round.Int64() == 0 {
+	if prepare.Sequence.Int64()%2 == 0 && prepare.Round.Int64() == 0 {
 		return nil
 	}
 
@@ -82,7 +76,7 @@ func (c *core) handlePrepare(prepare *PrepareMsg) error {
 
 	// Add to received msgs
 	if err := c.current.QBFTPrepares.Add(prepare); err != nil {
-		c.logger.Error("QBFT: Failed to save prepare message_deprecated", "msg", prepare, "err", err)
+		c.logger.Error("QBFT: Failed to save prepare message", "msg", prepare, "err", err)
 		return err
 	}
 
@@ -93,18 +87,13 @@ func (c *core) handlePrepare(prepare *PrepareMsg) error {
 		logger.Info("QBFT: have quorum of prepares")
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round
-		c.QBFTPreparedPrepares = make([]*SignedPreparePayload, 0)
+		c.QBFTPreparedPrepares = make([]*message.SignedPreparePayload, 0)
 		for _, m := range c.current.QBFTPrepares.Values() {
-			c.QBFTPreparedPrepares = append(c.QBFTPreparedPrepares, &SignedPreparePayload{
-				CommonPayload: CommonPayload{
-					code:      prepareMsgCode,
-					source:    m.Source(),
-					Sequence:  m.View().Sequence,
-					Round:     m.View().Round,
-					signature: m.Signature(),
-				},
-				Digest:        m.(*PrepareMsg).Digest,
-			})		
+			c.QBFTPreparedPrepares = append(
+				c.QBFTPreparedPrepares,
+				&prepare.SignedPreparePayload,
+				message.NewSignedPreparePayload(
+					m.View().Sequence, m.View().Round, m.(*message.Prepare).Digest, m.Signature(), m.Source()))
 		}
 
 		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {

@@ -23,20 +23,23 @@ import (
 	"strings"
 	"sync"
 
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Construct a new message_deprecated set to accumulate messages for given sequence/view number.
+// Construct a new message set to accumulate messages for given sequence/view number.
 func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 	return &qbftMsgSet{
-		view: &View{
+		view: &istanbul2.View{
 			Round:    new(big.Int),
 			Sequence: new(big.Int),
 		},
 		messagesMu: new(sync.Mutex),
-		messages:   make(map[common.Address]QBFTMessage),
+		messages:   make(map[common.Address]message.QBFTMessage),
 		valSet:     valSet,
 	}
 }
@@ -44,30 +47,30 @@ func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 // ----------------------------------------------------------------------------
 
 type qbftMsgSet struct {
-	view       *View
+	view       *istanbul2.View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
-	messages   map[common.Address]QBFTMessage
+	messages   map[common.Address]message.QBFTMessage
 }
 
 // qbftMsgMapAsStruct is a temporary holder struct to convert messages map to a slice when Encoding and Decoding qbftMsgSet
 type qbftMsgMapAsStruct struct {
 	Address common.Address
-	Msg     QBFTMessage
+	Msg     message.QBFTMessage
 }
 
-func (ms *qbftMsgSet) View() *View {
+func (ms *qbftMsgSet) View() *istanbul2.View {
 	return ms.view
 }
 
-func (ms *qbftMsgSet) Add(msg QBFTMessage) error {
+func (ms *qbftMsgSet) Add(msg message.QBFTMessage) error {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	ms.messages[msg.Source()] = msg
 	return nil
 }
 
-func (ms *qbftMsgSet) Values() (result []QBFTMessage) {
+func (ms *qbftMsgSet) Values() (result []message.QBFTMessage) {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -84,7 +87,7 @@ func (ms *qbftMsgSet) Size() int {
 	return len(ms.messages)
 }
 
-func (ms *qbftMsgSet) Get(addr common.Address) QBFTMessage {
+func (ms *qbftMsgSet) Get(addr common.Address) message.QBFTMessage {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	return ms.messages[addr]
@@ -136,7 +139,7 @@ func (ms *qbftMsgSet) DecodeRLP(stream *rlp.Stream) error {
 		return nil
 	}
 	var msgSet struct {
-		MsgView *View
+		MsgView *istanbul2.View
 		//		valSet        istanbul.ValidatorSet
 		MessagesSlice []qbftMsgMapAsStruct
 	}
@@ -145,7 +148,7 @@ func (ms *qbftMsgSet) DecodeRLP(stream *rlp.Stream) error {
 	}
 
 	// convert the messages struct slice back to map
-	messages := make(map[common.Address]QBFTMessage)
+	messages := make(map[common.Address]message.QBFTMessage)
 	for _, msgStruct := range msgSet.MessagesSlice {
 		messages[msgStruct.Address] = msgStruct.Msg
 	}

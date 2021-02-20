@@ -20,16 +20,19 @@ import (
 	"math/big"
 	"sync"
 
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
 // newRoundState creates a new roundState instance with the given view and validatorSet
-func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *PreprepareMsg, preparedRound *big.Int, preparedBlock istanbul.Proposal, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
+func newRoundState(view *istanbul2.View, validatorSet istanbul.ValidatorSet, preprepare *message.Preprepare, preparedRound *big.Int, preparedBlock istanbul.Proposal, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
 	return &roundState{
-		round:          view.Round,
-		sequence:       view.Sequence,
-		Preprepare:     preprepare,
+		round:      view.Round,
+		sequence:   view.Sequence,
+		Preprepare: preprepare,
 		//Prepares:       newMessageSet(validatorSet),
 		//Commits:        newMessageSet(validatorSet),
 		QBFTPrepares:   newQBFTMsgSet(validatorSet),
@@ -47,10 +50,10 @@ func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *P
 type roundState struct {
 	round      *big.Int
 	sequence   *big.Int
-	Preprepare *PreprepareMsg
+	Preprepare *message.Preprepare
 
 	QBFTPrepares *qbftMsgSet
-	QBFTCommits *qbftMsgSet
+	QBFTCommits  *qbftMsgSet
 
 	pendingRequest *Request
 	preparedRound  *big.Int
@@ -72,7 +75,7 @@ func (s *roundState) Subject() *Subject {
 	}
 
 	return &Subject{
-		View: &View{
+		View: &istanbul2.View{
 			Round:    new(big.Int).Set(s.round),
 			Sequence: new(big.Int).Set(s.sequence),
 		},
@@ -80,7 +83,7 @@ func (s *roundState) Subject() *Subject {
 	}
 }
 
-func (s *roundState) SetPreprepare(preprepare *PreprepareMsg) {
+func (s *roundState) SetPreprepare(preprepare *message.Preprepare) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

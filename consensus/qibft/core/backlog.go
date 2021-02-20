@@ -17,6 +17,8 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -24,22 +26,22 @@ var (
 	// msgPriority is defined for calculating processing priority to speedup consensus
 	// msgPreprepare > msgCommit > msgPrepare
 	msgPriority = map[uint64]int{
-		preprepareMsgCode: 1,
-		commitMsgCode:     2,
-		prepareMsgCode:    3,
+		message.PreprepareCode: 1,
+		message.CommitCode:     2,
+		message.PrepareCode:    3,
 	}
 )
 
-// checkMessage checks the message_deprecated state
-// return errInvalidMessage if the message_deprecated is invalid
-// return errFutureMessage if the message_deprecated view is larger than current view
-// return errOldMessage if the message_deprecated view is smaller than current view
-func (c *core) checkMessage(msgCode uint64, view *View) error {
+// checkMessage checks the message state
+// return errInvalidMessage if the message is invalid
+// return errFutureMessage if the message view is larger than current view
+// return errOldMessage if the message view is smaller than current view
+func (c *core) checkMessage(msgCode uint64, view *qibft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
 
-	if msgCode == roundChangeMsgCode {
+	if msgCode == message.RoundChangeCode {
 		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
 			return errFutureMessage
 		} else if view.Cmp(c.currentView()) < 0 {
@@ -60,23 +62,23 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 	case StateAcceptRequest:
 		// StateAcceptRequest only accepts msgPreprepare and msgRoundChange
 		// other messages are future messages
-		if msgCode > preprepareMsgCode {
+		if msgCode > message.PreprepareCode {
 			return errFutureMessage
 		}
 		return nil
 	case StatePreprepared:
 		// StatePreprepared only accepts msgPrepare and msgRoundChange
-		// message_deprecated less than msgPrepare are invalid and greater are future messages
-		if msgCode < prepareMsgCode {
+		// message less than msgPrepare are invalid and greater are future messages
+		if msgCode < message.PrepareCode {
 			return errInvalidMessage
-		} else if msgCode > prepareMsgCode {
+		} else if msgCode > message.PrepareCode {
 			return errFutureMessage
 		}
 		return nil
 	case StatePrepared:
 		// StatePrepared only accepts msgCommit and msgRoundChange
 		// other messages are invalid messages
-		if msgCode < commitMsgCode {
+		if msgCode < message.CommitCode {
 			return errInvalidMessage
 		}
 		return nil
@@ -87,7 +89,7 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 	return nil
 }
 
-func (c *core) storeQBFTBacklog(msg QBFTMessage) {
+func (c *core) storeQBFTBacklog(msg message.QBFTMessage) {
 	src := msg.Source()
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -96,7 +98,7 @@ func (c *core) storeQBFTBacklog(msg QBFTMessage) {
 		return
 	}
 
-	logger.Trace("Store future message_deprecated")
+	logger.Trace("Store future message")
 
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
@@ -130,21 +132,20 @@ func (c *core) processBacklog() {
 
 		// We stop processing if
 		//   1. backlog is empty
-		//   2. The first message_deprecated in queue is a future message_deprecated
+		//   2. The first message in queue is a future message
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
 
 			var code uint64
-			var view View
+			var view qibft.View
 			var event backlogEvent
 
-
-			msg := m.(QBFTMessage)
+			msg := m.(message.QBFTMessage)
 			code = msg.Code()
 			view = msg.View()
 			event.msg = msg
 
-			// Push back if it's a future message_deprecated
+			// Push back if it's a future message
 			err := c.checkMessage(code, &view)
 			if err != nil {
 				if err == errFutureMessage {
@@ -164,13 +165,13 @@ func (c *core) processBacklog() {
 	}
 }
 
-func toPriority(msgCode uint64, view *View) float32 {
-	if msgCode == roundChangeMsgCode {
-		// For msgRoundChange, set the message_deprecated priority based on its sequence
+func toPriority(msgCode uint64, view *qibft.View) float32 {
+	if msgCode == message.RoundChangeCode {
+		// For msgRoundChange, set the message priority based on its sequence
 		return -float32(view.Sequence.Uint64() * 1000)
 	}
 	// FIXME: round will be reset as 0 while new sequence
-	// 10 * Round limits the range of message_deprecated code is from 0 to 9
+	// 10 * Round limits the range of message code is from 0 to 9
 	// 1000 * Sequence limits the range of round is from 0 to 99
 	return -float32(view.Sequence.Uint64()*1000 + view.Round.Uint64()*10 + uint64(msgPriority[msgCode]))
 }

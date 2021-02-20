@@ -23,6 +23,9 @@ import (
 	"sync"
 	"time"
 
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -95,7 +98,7 @@ type core struct {
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
 
-	QBFTPreparedPrepares []*SignedPreparePayload
+	QBFTPreparedPrepares []*message.SignedPreparePayload
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
@@ -109,8 +112,8 @@ type core struct {
 	consensusTimer metrics.Timer
 }
 
-func (c *core) currentView() *View {
-	return &View{
+func (c *core) currentView() *istanbul2.View {
+	return &istanbul2.View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
@@ -155,7 +158,7 @@ func (c *core) commitQBFT() {
 		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
 		for i, msg := range c.current.QBFTCommits.Values() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			commitMsg := msg.(*CommitMsg)
+			commitMsg := msg.(*message.Commit)
 			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
 
@@ -205,14 +208,14 @@ func (c *core) startNewRound(round *big.Int) {
 		return
 	}
 
-	var newView *View
+	var newView *istanbul2.View
 	if roundChange {
-		newView = &View{
+		newView = &istanbul2.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		newView = &View{
+		newView = &istanbul2.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
@@ -248,7 +251,7 @@ func (c *core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *View, validatorSet istanbul.ValidatorSet, roundChange bool) {
+func (c *core) updateRoundState(view *istanbul2.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {

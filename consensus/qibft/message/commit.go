@@ -1,10 +1,11 @@
 package message
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // A QBFT COMMIT message.
@@ -12,6 +13,18 @@ type Commit struct {
 	CommonPayload
 	Digest     common.Hash
 	CommitSeal []byte
+}
+
+func NewCommit(sequence *big.Int, round *big.Int, digest common.Hash, seal []byte) *Commit {
+	return &Commit{
+		CommonPayload: CommonPayload{
+			code:     CommitCode,
+			Sequence: sequence,
+			Round:    round,
+		},
+		Digest:     digest,
+		CommitSeal: seal,
+	}
 }
 
 func (m *Commit) EncodePayload() ([]byte, error) {

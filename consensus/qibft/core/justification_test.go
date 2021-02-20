@@ -2,12 +2,14 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -20,7 +22,7 @@ func TestJustifyTrue(t *testing.T) {
 		// All ROUND-CHANGE messages have pr/pb nil
 		testParameterizedCase(t, quorumSize, quorumSize, 0, 0, 0, 0, 0, true)
 
-		// Some ROUND-CHANGE message_deprecated has pr/pb not nil
+		// Some ROUND-CHANGE message has pr/pb not nil
 		for equal := 1; equal <= quorumSize; equal++ {
 			for less := 0; less <= quorumSize-equal; less++ {
 				nil := quorumSize - equal - less
@@ -58,7 +60,7 @@ func TestJustifyFalse(t *testing.T) {
 					testParameterizedCase(t, quorumSize, nil, equal, less, 0, total, quorumSize-total, false)
 				}
 
-				// Total PREPARE messages equal to quorumSize and some PREPARE message_deprecated has round different than others
+				// Total PREPARE messages equal to quorumSize and some PREPARE message has round different than others
 				for different := 1; different <= quorumSize; different++ {
 					testParameterizedCase(t, quorumSize, nil, equal, less, 0, quorumSize-different, different, false)
 				}
@@ -95,9 +97,9 @@ func testParameterizedCase(
 	}
 
 	// ROUND-CHANGE messages
-	roundChangeMessages := make([]*SignedRoundChangePayload, 0)
+	roundChangeMessages := make([]*message.SignedRoundChangePayload, 0)
 	for index, validator := range validatorSet.List() {
-		var m *SignedRoundChangePayload
+		var m *message.SignedRoundChangePayload
 		if index < rcForNil {
 			m = createRoundChangeMessage(validator.Address(), round, 0, nil)
 		} else if index >= rcForNil && index < rcForNil+rcEqualToTargetRound {
@@ -113,9 +115,9 @@ func testParameterizedCase(
 	}
 
 	// PREPARE messages
-	prepareMessages := make([]*SignedPreparePayload, 0)
+	prepareMessages := make([]*message.SignedPreparePayload, 0)
 	for index, validator := range validatorSet.List() {
-		var m *SignedPreparePayload
+		var m *message.SignedPreparePayload
 		if index < preparesForTargetRound {
 			m = createPrepareMessage(validator.Address(), targetPreparedRound, block)
 		} else if index >= preparesForTargetRound && index < preparesForTargetRound+preparesNotForTargetRound {
@@ -130,6 +132,12 @@ func testParameterizedCase(
 		prepareMessages = append(prepareMessages, m)
 	}
 
+	for _, m := range roundChangeMessages {
+		fmt.Printf("RC %v\n", m)
+	}
+	for _, m := range prepareMessages {
+		fmt.Printf("PR %v\n", m)
+	}
 	fmt.Println("roundChangeMessages", roundChangeMessages, len(roundChangeMessages))
 	if justify(block, roundChangeMessages, prepareMessages, quorumSize) != isJustified {
 		t.Errorf("quorumSize = %v, rcForNil = %v, rcEqualToTargetRound = %v, rcLowerThanTargetRound = %v, rcHigherThanTargetRound = %v, preparesForTargetRound = %v, preparesNotForTargetRound = %v (Expected: %v, Actual: %v)",
@@ -138,36 +146,14 @@ func testParameterizedCase(
 	}
 }
 
-func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *SignedRoundChangePayload {
-	var pb *types.Block
-	if preparedBlock != nil {
-		pb = preparedBlock.(*types.Block)
-	}
-
-	return &SignedRoundChangePayload{
-		CommonPayload: CommonPayload{
-			code:      roundChangeMsgCode,
-			source:    from,
-			Sequence:  big.NewInt(1),
-			Round:     big.NewInt(round),
-			signature: nil,
-		},
-		PreparedRound:  big.NewInt(preparedRound),
-		PreparedDigest: pb,
-	}
+func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *message.SignedRoundChangePayload {
+	m := message.NewRoundChange(big.NewInt(1), big.NewInt(1), big.NewInt(preparedRound), preparedBlock)
+	m.SetSource(from)
+	return &m.SignedRoundChangePayload
 }
 
-func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *SignedPreparePayload {
-	return &SignedPreparePayload{
-		CommonPayload: CommonPayload{
-			code:      prepareMsgCode,
-			source:    from,
-			Sequence:  big.NewInt(1),
-			Round:     big.NewInt(round),
-			signature: nil,
-		},
-		Digest:        preparedBlock.Hash(),
-	}
+func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message.SignedPreparePayload {
+	return message.NewSignedPreparePayload(big.NewInt(1), big.NewInt(round), preparedBlock.Hash(), nil, from)
 }
 
 func generateValidators(n int) []common.Address {
@@ -190,4 +176,3 @@ func makeBlock(number int64) *types.Block {
 	block := &types.Block{}
 	return block.WithSeal(header)
 }
-

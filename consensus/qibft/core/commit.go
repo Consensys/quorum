@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -26,58 +27,53 @@ func (c *core) broadcastCommit() {
 	logger := c.logger.New("state", c.state)
 
 	sub := c.current.Subject()
-	commitMsg := &CommitMsg{
-		CommonPayload:  CommonPayload{
-			code:           commitMsgCode,
-			source: c.address,
-			Sequence:       sub.View.Sequence,
-			Round:          sub.View.Round,
-		},
-		Digest:     sub.Digest,
-	}
 
-	// Add Commit Seal
-	seal := PrepareCommittedSeal(sub.Digest)
-	commitMsg.CommitSeal, err = c.backend.Sign(seal)
+	// Create Commit Seal
+	commitSeal, err := c.backend.Sign(PrepareCommittedSeal(sub.Digest))
 	if err != nil {
-		logger.Error("QBFT: Failed to create commit seal", "msg", commitMsg, "err", err)
+		logger.Error("QBFT: Failed to create commit seal", "sub", sub, "err", err)
 		return
 	}
+
+	commit := message.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
+	commit.SetSource(c.Address())
 
 	// Sign Message
-	encodedPayload, err := commitMsg.EncodePayload()
+	encodedPayload, err := commit.EncodePayload()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode payload of commit message_deprecated", "msg", commitMsg, "err", err)
-		return
-	}
-	commitMsg.signature, err = c.backend.Sign(encodedPayload)
-	if err != nil {
-		logger.Error("QBFT: Failed to sign commit message_deprecated", "msg", commitMsg, "err", err)
+		logger.Error("QBFT: Failed to encode payload of commit message", "msg", commit, "err", err)
 		return
 	}
 
-	// RLP-encode message_deprecated
-	payload, err := rlp.EncodeToBytes(&commitMsg)
+	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode commit message_deprecated", "msg", commitMsg, "err", err)
+		logger.Error("QBFT: Failed to sign commit message", "msg", commit, "err", err)
+		return
+	}
+	commit.SetSignature(signature)
+
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&commit)
+	if err != nil {
+		logger.Error("QBFT: Failed to encode commit message", "msg", commit, "err", err)
 		return
 	}
 
 	logger.Info("QBFT: broadcastCommitMsg", "m", sub, "payload", payload)
-	// Broadcast RLP-encoded message_deprecated
-	if err = c.backend.Broadcast(c.valSet, commitMsgCode, payload); err != nil {
-		logger.Error("QBFT: Failed to broadcast message_deprecated", "msg", commitMsg, "err", err)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", commit, "err", err)
 		return
 	}
 }
 
-func (c *core) handleCommitMsg(commit *CommitMsg) error {
+func (c *core) handleCommitMsg(commit *message.Commit) error {
 	logger := c.logger.New("state", c.state)
 
 	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
 
 	// For testing of round changes!!!!
-	if commit.Sequence.Int64() % 2 == 0 && commit.Round.Int64() == 0 {
+	if commit.Sequence.Int64()%2 == 0 && commit.Round.Int64() == 0 {
 		return nil
 	}
 
@@ -89,7 +85,7 @@ func (c *core) handleCommitMsg(commit *CommitMsg) error {
 
 	// Add to received msgs
 	if err := c.current.QBFTCommits.Add(commit); err != nil {
-		c.logger.Error("QBFT: Failed to save commit message_deprecated", "msg", commit, "err", err)
+		c.logger.Error("QBFT: Failed to save commit message", "msg", commit, "err", err)
 		return err
 	}
 

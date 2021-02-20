@@ -19,11 +19,10 @@ package backend
 import (
 	"bytes"
 	"errors"
+	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"io/ioutil"
 	"math/big"
 	"reflect"
-
-	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -62,7 +61,7 @@ func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	if _, ok := qibftCore.MessageCodes()[msg.Code]; ok {
+	if _, ok := qibftMessage.MessageCodes()[msg.Code]; ok {
 		if !sb.coreStarted {
 			return true, istanbul.ErrStoppedEngine
 		}

@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 	"math/big"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
+	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -161,7 +162,7 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			var outboundCode uint64 = istanbulMsg
-			if _, ok := qibftCore.MessageCodes()[code]; ok {
+			if _, ok := qibftMessage.MessageCodes()[code]; ok {
 				outboundCode = code
 			}
 			go p.Send(outboundCode, payload)

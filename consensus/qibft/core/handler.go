@@ -17,8 +17,10 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -98,8 +100,8 @@ func (c *core) handleEvents() {
 					c.storeRequestMsg(r)
 				}
 			case istanbul.MessageEvent:
-				if _, ok := MessageCodes()[ev.Code]; !ok {
-					c.logger.Error("QBFT: Invalid message_deprecated code on MessageEvent", "code", ev.Code)
+				if _, ok := message.MessageCodes()[ev.Code]; !ok {
+					c.logger.Error("QBFT: Invalid message code on MessageEvent", "code", ev.Code)
 					continue
 				}
 				//c.logger.Warn("QBFT: MessageEvent", "code", ev.Code)
@@ -111,11 +113,11 @@ func (c *core) handleEvents() {
 				c.logger.Warn("QBFT: BacklogEvent", "code", ev.msg.Code())
 				// No need to check signature for internal messages
 				if err := c.handleDecodedMessage(ev.msg); err != nil {
-					c.logger.Error("QBFT: Error handling message_deprecated from backlog", "msg", ev.msg, "err", err)
+					c.logger.Error("QBFT: Error handling message from backlog", "msg", ev.msg, "err", err)
 				}
 				data, err := rlp.EncodeToBytes(ev.msg)
 				if err != nil {
-					c.logger.Error("QBFT: Error encoding backlog message_deprecated", "err", err)
+					c.logger.Error("QBFT: Error encoding backlog message", "err", err)
 					continue
 				}
 				c.backend.Gossip(c.valSet, ev.msg.Code(), data)
@@ -143,36 +145,28 @@ func (c *core) sendEvent(ev interface{}) {
 }
 
 func (c *core) handleEncodedMsg(code uint64, data []byte) error {
-	//c.logger.Info("QBFT: handleEncodedMsg", "code", code)
 	// Decode data into a QBFTMessage
-	m, err := DecodeMessage(code, data)
+	m, err := message.Decode(code, data)
 	if err != nil {
-		c.logger.Error("QBFT: Error decoding message_deprecated", "code", code, "err", err)
+		c.logger.Error("QBFT: Error decoding message", "code", code, "err", err)
 		return err
 	}
 
-	// Verify signature and set source address
-	payload, err := m.EncodePayload()
-	if err != nil {
-		c.logger.Error("QBFT: Error encoding payload", "code", code, "err", err)
+	// Verify signatures and set source address
+	if err = c.verifySignatures(m); err != nil {
+		return err
 	}
-	source, err := c.validateFn(payload, m.Signature())
-	if err != nil {
-		c.logger.Error("QBFT: Error verifying signature", "msg", m, "err", err)
-		return errInvalidSigner
-	}
-	m.SetSource(source)
 
 	return c.handleDecodedMessage(m)
 
 }
 
-func (c *core) handleDecodedMessage(m QBFTMessage) error {
+func (c *core) handleDecodedMessage(m message.QBFTMessage) error {
 	view := m.View()
 	//c.logger.Info("QBFT: handleDecodedMessage", "code", m.Code(), "view", view)
 
 	if err := c.checkMessage(m.Code(), &view); err != nil {
-		// Store in the backlog it it's a future message_deprecated
+		// Store in the backlog it it's a future message
 		if err == errFutureMessage {
 			c.storeQBFTBacklog(m)
 		}
@@ -181,28 +175,21 @@ func (c *core) handleDecodedMessage(m QBFTMessage) error {
 	return c.deliverMessage(m)
 }
 
-// Deliver to specific message_deprecated handler
-func (c *core) deliverMessage(m QBFTMessage) error {
+// Deliver to specific message handler
+func (c *core) deliverMessage(m message.QBFTMessage) error {
 	var err error
 
-	// This is for testing of round changes.
-	/*
-	if m.View().Sequence.Int64() % 2 == 0 && m.View().Round.Int64() == 0 {
-		return nil
-	}*/
-
-
 	switch m.Code() {
-	case preprepareMsgCode:
-		err = c.handlePreprepareMsg(m.(*PreprepareMsg))
-	case prepareMsgCode:
-		err = c.handlePrepare(m.(*PrepareMsg))
-	case commitMsgCode:
-		err = c.handleCommitMsg(m.(*CommitMsg))
-	case roundChangeMsgCode:
-		err = c.handleRoundChange(m.(*RoundChangeMsg))
+	case message.PreprepareCode:
+		err = c.handlePreprepareMsg(m.(*message.Preprepare))
+	case message.PrepareCode:
+		err = c.handlePrepare(m.(*message.Prepare))
+	case message.CommitCode:
+		err = c.handleCommitMsg(m.(*message.Commit))
+	case message.RoundChangeCode:
+		err = c.handleRoundChange(m.(*message.RoundChange))
 	default:
-		c.logger.Error("QBFT: Error invalid message_deprecated code", "code", m.Code())
+		c.logger.Error("QBFT: Error invalid message code", "code", m.Code())
 		return errInvalidMessage
 	}
 
@@ -218,4 +205,49 @@ func (c *core) handleTimeoutMsg() {
 	c.logger.Warn("QBFT: TIMER CHANGED ROUND", "pr", c.current.preparedRound)
 	// Send Round Change
 	c.broadcastRoundChange(nextRound)
+}
+
+// Verifies the signature of the message m and of any justification payloads
+// piggybacked in m, if any. It also sets the source address on the messages
+// and justification payloads.
+func (c *core) verifySignatures(m message.QBFTMessage) error {
+	// Anonymous function to verify the signature of a single message or payload
+	verify := func(m message.QBFTMessage) error {
+		payload, err := m.EncodePayload()
+		if err != nil {
+			c.logger.Error("QBFT: Error encoding payload", "code", m.Code(), "err", err)
+		}
+		source, err := c.validateFn(payload, m.Signature())
+		if err != nil {
+			c.logger.Error("QBFT: Error verifying signature", "msg", m, "err", err)
+			return errInvalidSigner
+		}
+		m.SetSource(source)
+		return nil
+	}
+
+	// Verifies the signature of the message
+	if err := verify(m); err != nil {
+		return err
+	}
+
+	// Verifies the signature of piggybacked justification payloads.
+	switch m.(type) {
+	case *message.RoundChange:
+		signedPreparePayloads := m.(*message.RoundChange).Justification
+		for _, p := range signedPreparePayloads {
+			if err := verify(p); err != nil {
+				return err
+			}
+		}
+	case *message.Preprepare:
+		signedRoundChangePayloads := m.(*message.Preprepare).JustificationRoundChanges
+		for _, p := range signedRoundChangePayloads {
+			if err := verify(p); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

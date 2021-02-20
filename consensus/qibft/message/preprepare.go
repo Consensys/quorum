@@ -1,26 +1,38 @@
 package message
 
 import (
+	"io"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/consensus/qibft"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
 )
 
-type PreprepareMsg struct {
+type Preprepare struct {
 	CommonPayload
-	Proposal istanbul.Proposal
+	Proposal                  qibft.Proposal
 	JustificationRoundChanges []*SignedRoundChangePayload
-	JustificationPrepares []*SignedPreparePayload
+	JustificationPrepares     []*SignedPreparePayload
 }
 
-func (m *PreprepareMsg) EncodePayload() ([]byte, error) {
+func NewPreprepare(sequence *big.Int, round *big.Int, proposal qibft.Proposal) *Preprepare {
+	return &Preprepare{
+		CommonPayload: CommonPayload{
+			code:     PreprepareCode,
+			Sequence: sequence,
+			Round:    round,
+		},
+		Proposal: proposal,
+	}
+}
+
+func (m *Preprepare) EncodePayload() ([]byte, error) {
 	return rlp.EncodeToBytes(
 		[]interface{}{m.Sequence, m.Round, m.Proposal})
 }
 
-func (m *PreprepareMsg) EncodeRLP(w io.Writer) error {
+func (m *Preprepare) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(
 		w,
 		[]interface{}{
@@ -35,19 +47,19 @@ func (m *PreprepareMsg) EncodeRLP(w io.Writer) error {
 		})
 }
 
-func (m *PreprepareMsg) DecodeRLP(stream *rlp.Stream) error {
+func (m *Preprepare) DecodeRLP(stream *rlp.Stream) error {
 	var message struct {
 		SignedPayload struct {
 			Payload struct {
 				Sequence *big.Int
-				Round *big.Int
+				Round    *big.Int
 				Proposal *types.Block
 			}
 			Signature []byte
 		}
 		Justification struct {
 			RoundChanges []*SignedRoundChangePayload
-			Prepares []*SignedPreparePayload
+			Prepares     []*SignedPreparePayload
 		}
 	}
 	if err := stream.Decode(&message); err != nil {

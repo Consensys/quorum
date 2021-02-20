@@ -18,11 +18,12 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 )
 
 type backlogEvent struct {
 	src istanbul.Validator
-	msg QBFTMessage
+	msg message.QBFTMessage
 }
 
 type timeoutEvent struct{}
