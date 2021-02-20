@@ -20,7 +20,7 @@ func TestJustifyTrue(t *testing.T) {
 		// All ROUND-CHANGE messages have pr/pb nil
 		testParameterizedCase(t, quorumSize, quorumSize, 0, 0, 0, 0, 0, true)
 
-		// Some ROUND-CHANGE message has pr/pb not nil
+		// Some ROUND-CHANGE message_deprecated has pr/pb not nil
 		for equal := 1; equal <= quorumSize; equal++ {
 			for less := 0; less <= quorumSize-equal; less++ {
 				nil := quorumSize - equal - less
@@ -58,7 +58,7 @@ func TestJustifyFalse(t *testing.T) {
 					testParameterizedCase(t, quorumSize, nil, equal, less, 0, total, quorumSize-total, false)
 				}
 
-				// Total PREPARE messages equal to quorumSize and some PREPARE message has round different than others
+				// Total PREPARE messages equal to quorumSize and some PREPARE message_deprecated has round different than others
 				for different := 1; different <= quorumSize; different++ {
 					testParameterizedCase(t, quorumSize, nil, equal, less, 0, quorumSize-different, different, false)
 				}
@@ -152,8 +152,8 @@ func createRoundChangeMessage(from common.Address, round int64, preparedRound in
 			Round:     big.NewInt(round),
 			signature: nil,
 		},
-		PreparedRound: big.NewInt(preparedRound),
-		PreparedValue: pb,
+		PreparedRound:  big.NewInt(preparedRound),
+		PreparedDigest: pb,
 	}
 }
 

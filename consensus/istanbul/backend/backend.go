@@ -161,10 +161,9 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			var outboundCode uint64 = istanbulMsg
-			if code >= 0x12 || code <= 0x15 {
+			if _, ok := qibftCore.MessageCodes()[code]; ok {
 				outboundCode = code
 			}
-
 			go p.Send(outboundCode, payload)
 		}
 	}

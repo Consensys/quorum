@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Construct a new message set to accumulate messages for given sequence/view number.
+// Construct a new message_deprecated set to accumulate messages for given sequence/view number.
 func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
 	return &messageSet{
 		view: &View{
@@ -36,7 +36,7 @@ func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
 			Sequence: new(big.Int),
 		},
 		messagesMu: new(sync.Mutex),
-		messages:   make(map[common.Address]*message),
+		messages:   make(map[common.Address]*message_deprecated),
 		valSet:     valSet,
 	}
 }
@@ -47,20 +47,20 @@ type messageSet struct {
 	view       *View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
-	messages   map[common.Address]*message
+	messages   map[common.Address]*message_deprecated
 }
 
 // messageMapAsStruct is a temporary holder struct to convert messages map to a slice when Encoding and Decoding messageSet
 type messageMapAsStruct struct {
 	Address common.Address
-	Msg     *message
+	Msg     *message_deprecated
 }
 
 func (ms *messageSet) View() *View {
 	return ms.view
 }
 
-func (ms *messageSet) Add(msg *message) error {
+func (ms *messageSet) Add(msg *message_deprecated) error {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -71,7 +71,7 @@ func (ms *messageSet) Add(msg *message) error {
 	return ms.addVerifiedMessage(msg)
 }
 
-func (ms *messageSet) Values() (result []*message) {
+func (ms *messageSet) Values() (result []*message_deprecated) {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -88,7 +88,7 @@ func (ms *messageSet) Size() int {
 	return len(ms.messages)
 }
 
-func (ms *messageSet) Get(addr common.Address) *message {
+func (ms *messageSet) Get(addr common.Address) *message_deprecated {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	return ms.messages[addr]
@@ -96,8 +96,8 @@ func (ms *messageSet) Get(addr common.Address) *message {
 
 // ----------------------------------------------------------------------------
 
-func (ms *messageSet) verify(msg *message) error {
-	// verify if the message comes from one of the validators
+func (ms *messageSet) verify(msg *message_deprecated) error {
+	// verify if the message_deprecated comes from one of the validators
 	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
 		return istanbul.ErrUnauthorizedAddress
 	}
@@ -107,7 +107,7 @@ func (ms *messageSet) verify(msg *message) error {
 	return nil
 }
 
-func (ms *messageSet) addVerifiedMessage(msg *message) error {
+func (ms *messageSet) addVerifiedMessage(msg *message_deprecated) error {
 	ms.messages[msg.Address] = msg
 	return nil
 }
@@ -166,7 +166,7 @@ func (ms *messageSet) DecodeRLP(stream *rlp.Stream) error {
 	}
 
 	// convert the messages struct slice back to map
-	messages := make(map[common.Address]*message)
+	messages := make(map[common.Address]*message_deprecated)
 	for _, msgStruct := range msgSet.MessagesSlice {
 		messages[msgStruct.Address] = msgStruct.Msg
 	}

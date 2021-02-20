@@ -99,7 +99,7 @@ func (c *core) handleEvents() {
 				}
 			case istanbul.MessageEvent:
 				if _, ok := MessageCodes()[ev.Code]; !ok {
-					c.logger.Error("QBFT: Invalid message code on MessageEvent", "code", ev.Code)
+					c.logger.Error("QBFT: Invalid message_deprecated code on MessageEvent", "code", ev.Code)
 					continue
 				}
 				//c.logger.Warn("QBFT: MessageEvent", "code", ev.Code)
@@ -111,11 +111,11 @@ func (c *core) handleEvents() {
 				c.logger.Warn("QBFT: BacklogEvent", "code", ev.msg.Code())
 				// No need to check signature for internal messages
 				if err := c.handleDecodedMessage(ev.msg); err != nil {
-					c.logger.Error("QBFT: Error handling message from backlog", "msg", ev.msg, "err", err)
+					c.logger.Error("QBFT: Error handling message_deprecated from backlog", "msg", ev.msg, "err", err)
 				}
 				data, err := rlp.EncodeToBytes(ev.msg)
 				if err != nil {
-					c.logger.Error("QBFT: Error encoding backlog message", "err", err)
+					c.logger.Error("QBFT: Error encoding backlog message_deprecated", "err", err)
 					continue
 				}
 				c.backend.Gossip(c.valSet, ev.msg.Code(), data)
@@ -147,7 +147,7 @@ func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 	// Decode data into a QBFTMessage
 	m, err := DecodeMessage(code, data)
 	if err != nil {
-		c.logger.Error("QBFT: Error decoding message", "code", code, "err", err)
+		c.logger.Error("QBFT: Error decoding message_deprecated", "code", code, "err", err)
 		return err
 	}
 
@@ -172,7 +172,7 @@ func (c *core) handleDecodedMessage(m QBFTMessage) error {
 	//c.logger.Info("QBFT: handleDecodedMessage", "code", m.Code(), "view", view)
 
 	if err := c.checkMessage(m.Code(), &view); err != nil {
-		// Store in the backlog it it's a future message
+		// Store in the backlog it it's a future message_deprecated
 		if err == errFutureMessage {
 			c.storeQBFTBacklog(m)
 		}
@@ -181,7 +181,7 @@ func (c *core) handleDecodedMessage(m QBFTMessage) error {
 	return c.deliverMessage(m)
 }
 
-// Deliver to specific message handler
+// Deliver to specific message_deprecated handler
 func (c *core) deliverMessage(m QBFTMessage) error {
 	var err error
 
@@ -202,7 +202,7 @@ func (c *core) deliverMessage(m QBFTMessage) error {
 	case roundChangeMsgCode:
 		err = c.handleRoundChange(m.(*RoundChangeMsg))
 	default:
-		c.logger.Error("QBFT: Error invalid message code", "code", m.Code())
+		c.logger.Error("QBFT: Error invalid message_deprecated code", "code", m.Code())
 		return errInvalidMessage
 	}
 

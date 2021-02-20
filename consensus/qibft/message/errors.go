@@ -1,24 +1,14 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
-package core
+package message
 
 import "errors"
 
 var (
+	ErrFailedDecodePreprepare = errors.New("failed to decode PRE-PREPARE message")
+	ErrFailedDecodePrepare = errors.New("failed to decode PREPARE message")
+	ErrFailedDecodeCommit = errors.New("failed to decode COMMIT message")
+	ErrFailedDecodeRoundChange = errors.New("failed to decode ROUND-CHANGE message")
+	ErrInvalidMessage = errors.New("invalid message")
+	/*
 	// errInconsistentSubject is returned when received subject is different from
 	// current subject.
 	errInconsistentSubject = errors.New("inconsistent subjects")
@@ -46,5 +36,5 @@ var (
 	// errInvalidSigner is returned when the message_deprecated is signed by a validator different than message_deprecated sender
 	errInvalidSigner = errors.New("message_deprecated not signed by the sender")
 	// errInvalidPreparedBlock is returned when prepared block is not validated in round change messages
-	errInvalidPreparedBlock = errors.New("invalid prepared block in round change messages")
+	errInvalidPreparedBlock = errors.New("invalid prepared block in round change messages")*/
 )

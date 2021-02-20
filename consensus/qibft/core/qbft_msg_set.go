@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Construct a new message set to accumulate messages for given sequence/view number.
+// Construct a new message_deprecated set to accumulate messages for given sequence/view number.
 func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 	return &qbftMsgSet{
 		view: &View{

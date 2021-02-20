@@ -28,13 +28,13 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// broadcastNextRoundChange sends the ROUND CHANGE message with current round + 1
+// broadcastNextRoundChange sends the ROUND CHANGE message_deprecated with current round + 1
 func (c *core) broadcastNextRoundChange() {
 	cv := c.currentView()
 	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
-// sendRoundChange sends the ROUND CHANGE message with the given round
+// sendRoundChange sends the ROUND CHANGE message_deprecated with the given round
 func (c *core) broadcastRoundChange(round *big.Int) {
 	logger := c.logger.New("state", c.state)
 
@@ -53,26 +53,29 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 				Round:     round,
 				signature: nil,
 			},
-			PreparedRound: nil,
-			PreparedValue: nil,
+			PreparedRound:  nil,
+			PreparedDigest: common.Hash{},
 		},
+		PreparedBlock: nil,
+		Justification: nil,
 	}
 
 	// Fill in prepared round and prepared value
 	if c.current.preparedRound != nil && c.current.preparedBlock != nil {
 		rcMsg.PreparedRound = c.current.preparedRound
-		rcMsg.PreparedValue = c.current.preparedBlock.(*types.Block)
+		rcMsg.PreparedBlock = c.current.preparedBlock.(*types.Block)
+		rcMsg.PreparedDigest = rcMsg.PreparedBlock.Hash()
 	}
 
-	// Sign message
+	// Sign message_deprecated
 	encodedPayload, err := rcMsg.EncodePayload()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode round-change message", "msg", rcMsg, "err", err)
+		logger.Error("QBFT: Failed to encode round-change message_deprecated", "msg", rcMsg, "err", err)
 		return
 	}
 	rcMsg.signature, err = c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign round-change message", "msg", rcMsg, "err", err)
+		logger.Error("QBFT: Failed to sign round-change message_deprecated", "msg", rcMsg, "err", err)
 		return
 	}
 
@@ -82,17 +85,17 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 		logger.Info("QBFT: On RoundChange", "justification", rcMsg.Justification)
 	}
 
-	// RLP-encode message
+	// RLP-encode message_deprecated
 	data, err := rlp.EncodeToBytes(rcMsg)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode round-change message", "msg", rcMsg, "err", err)
+		logger.Error("QBFT: Failed to encode round-change message_deprecated", "msg", rcMsg, "err", err)
 		return
 	}
 
-	logger.Info("QBFT: broadcast round-change message", "msg", rcMsg)
-	// Broadcast RLP-encoded message
+	logger.Info("QBFT: broadcast round-change message_deprecated", "msg", rcMsg)
+	// Broadcast RLP-encoded message_deprecated
 	if err = c.backend.Broadcast(c.valSet, roundChangeMsgCode, data); err != nil {
-		logger.Error("QBFT: Failed to broadcast message", "msg", rcMsg, "err", err)
+		logger.Error("QBFT: Failed to broadcast message_deprecated", "msg", rcMsg, "err", err)
 		return
 	}
 }
@@ -105,20 +108,20 @@ func (c *core) handleRoundChange(roundChange *RoundChangeMsg) error {
 	view := roundChange.View()
 	currentRound := c.currentView().Round
 
-	// Add the ROUND CHANGE message to its message set and return how many
+	// Add the ROUND CHANGE message_deprecated to its message_deprecated set and return how many
 	// messages we've got with the same round number and sequence number.
 	if view.Round.Cmp(currentRound) >= 0 {
 		var prepareMessages []*SignedPreparePayload = nil
 		var pr *big.Int = nil
 		var pb *types.Block = nil
-		if roundChange.PreparedRound != nil && roundChange.PreparedValue != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
+		if roundChange.PreparedRound != nil && roundChange.PreparedBlock != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
 			prepareMessages = roundChange.Justification
 			pr = roundChange.PreparedRound
-			pb = roundChange.PreparedValue
+			pb = roundChange.PreparedBlock
 		}
 		err := c.roundChangeSet.Add(view.Round, roundChange, pr, pb, prepareMessages, c.QuorumSize())
 		if err != nil {
-			logger.Warn("Failed to add round change message", "msg", roundChange, "err", err)
+			logger.Warn("Failed to add round change message_deprecated", "msg", roundChange, "err", err)
 			return err
 		}
 	}
@@ -193,11 +196,15 @@ func (rcs *roundChangeSet) NewRound(r *big.Int) {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 	round := r.Uint64()
-	rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
-	rcs.prepareMessages[round] = make([]*SignedPreparePayload, 0)
+	if rcs.roundChanges[round] == nil {
+		rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
+	}
+	if rcs.prepareMessages[round] == nil {
+		rcs.prepareMessages[round] = make([]*SignedPreparePayload, 0)
+	}
 }
 
-// Add adds the round and message into round change set
+// Add adds the round and message_deprecated into round change set
 func (rcs *roundChangeSet) Add(r *big.Int, msg QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*SignedPreparePayload, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()

@@ -81,7 +81,7 @@ func (s State) Cmp(y State) int {
 }
 
 
-type message struct {
+type message_deprecated struct {
 	Code          uint64
 	Msg           []byte
 	Address       common.Address
@@ -95,12 +95,12 @@ type message struct {
 // define the functions that needs to be provided for rlp Encoder/Decoder.
 
 // EncodeRLP serializes m into the Ethereum RLP format.
-func (m *message) EncodeRLP(w io.Writer) error {
+func (m *message_deprecated) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.PiggybackMsgs})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
-func (m *message) DecodeRLP(s *rlp.Stream) error {
+func (m *message_deprecated) DecodeRLP(s *rlp.Stream) error {
 	var msg struct {
 		Code          uint64
 		Msg           []byte
@@ -121,8 +121,8 @@ func (m *message) DecodeRLP(s *rlp.Stream) error {
 //
 // define the functions that needs to be provided for core.
 
-func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
-	// Decode message
+func (m *message_deprecated) FromPayload(b []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// Decode message_deprecated
 	err := rlp.DecodeBytes(b, &m)
 	if err != nil {
 		return err
@@ -132,7 +132,7 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 		m.PiggybackMsgs = nil
 	}
 
-	// Validate message (on a message without Signature)
+	// Validate message_deprecated (on a message_deprecated without Signature)
 	if validateFn != nil {
 		// Verify messages signature
 		if err = verifySignature(m, validateFn); err != nil {
@@ -172,8 +172,8 @@ func decodeAndVerifyPiggybackMsgs(piggybackMsgsPayload []byte, validateFn func([
 	return nil
 }*/
 
-// verifySignature verifies the signature of the given message
-func verifySignature(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
+// verifySignature verifies the signature of the given message_deprecated
+func verifySignature(m *message_deprecated, validateFn func([]byte, []byte) (common.Address, error)) error {
 	var payload []byte
 	payload, err := m.PayloadNoSig()
 	if err != nil {
@@ -191,7 +191,7 @@ func verifySignature(m *message, validateFn func([]byte, []byte) (common.Address
 }
 
 // verifyPiggyBackMsgSignatures verifies signatures of piggyback messages which are sent as part of PRE-PREPARE or ROUNDCHANGE messages
-func verifyPiggyBackMsgSignatures(messages map[common.Address]*message, validateFn func([]byte, []byte) (common.Address, error)) error {
+func verifyPiggyBackMsgSignatures(messages map[common.Address]*message_deprecated, validateFn func([]byte, []byte) (common.Address, error)) error {
 	for _, msg := range messages {
 		if err := verifySignature(msg, validateFn); err != nil {
 			return err
@@ -200,12 +200,12 @@ func verifyPiggyBackMsgSignatures(messages map[common.Address]*message, validate
 	return nil
 }
 
-func (m *message) Payload() ([]byte, error) {
+func (m *message_deprecated) Payload() ([]byte, error) {
 	return rlp.EncodeToBytes(m)
 }
 
-func (m *message) PayloadNoSig() ([]byte, error) {
-	return rlp.EncodeToBytes(&message{
+func (m *message_deprecated) PayloadNoSig() ([]byte, error) {
+	return rlp.EncodeToBytes(&message_deprecated{
 		Code:          m.Code,
 		Msg:           m.Msg,
 		Address:       m.Address,
@@ -214,11 +214,11 @@ func (m *message) PayloadNoSig() ([]byte, error) {
 	})
 }
 
-func (m *message) Decode(val interface{}) error {
+func (m *message_deprecated) Decode(val interface{}) error {
 	return rlp.DecodeBytes(m.Msg, val)
 }
 
-func (m *message) String() string {
+func (m *message_deprecated) String() string {
 	return fmt.Sprintf("{Code: %v, Address: %v}", m.Code, m.Address.String())
 }
 
@@ -230,7 +230,7 @@ func Encode(val interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(val)
 }
 
-// Request is used to construct a Preprepare message
+// Request is used to construct a Preprepare message_deprecated
 type Request struct {
 	Proposal        istanbul.Proposal
 	RCMessages      *qbftMsgSet
@@ -285,7 +285,7 @@ func (v *View) Cmp(y *View) int {
 	return 0
 }
 
-// Preprepare represents the message sent, when msgPreprepare is broadcasted
+// Preprepare represents the message_deprecated sent, when msgPreprepare is broadcasted
 type Preprepare struct {
 	View     *View
 	Proposal istanbul.Proposal
@@ -311,7 +311,7 @@ func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-// Subject represents the message sent when msgPrepare and msgCommit is broadcasted
+// Subject represents the message_deprecated sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
 	View   *View
 	Digest common.Hash
@@ -340,7 +340,7 @@ func (b *Subject) String() string {
 	return fmt.Sprintf("{View: %v, Proposal: %v}", b.View, b.Digest.String())
 }
 
-// RoundChangeMessage represents the message sent when msgRoundChange is broadcasted
+// RoundChangeMessage represents the message_deprecated sent when msgRoundChange is broadcasted
 type RoundChangeMessage struct {
 	View                *View
 	PreparedRound       *big.Int

@@ -40,7 +40,7 @@ func (c *core) handleRequest(request *Request) error {
 }
 
 // check request state
-// return errInvalidMessage if the message is invalid
+// return errInvalidMessage if the message_deprecated is invalid
 // return errFutureMessage if the sequence of proposal is larger than current sequence
 // return errOldMessage if the sequence of proposal is smaller than current sequence
 func (c *core) checkRequestMsg(request *Request) error {
@@ -79,7 +79,7 @@ func (c *core) processPendingRequests() {
 			c.logger.Warn("Malformed request, skip", "msg", m)
 			continue
 		}
-		// Push back if it's a future message
+		// Push back if it's a future message_deprecated
 		err := c.checkRequestMsg(r)
 		if err != nil {
 			if err == errFutureMessage {

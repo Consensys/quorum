@@ -30,10 +30,10 @@ var (
 	}
 )
 
-// checkMessage checks the message state
-// return errInvalidMessage if the message is invalid
-// return errFutureMessage if the message view is larger than current view
-// return errOldMessage if the message view is smaller than current view
+// checkMessage checks the message_deprecated state
+// return errInvalidMessage if the message_deprecated is invalid
+// return errFutureMessage if the message_deprecated view is larger than current view
+// return errOldMessage if the message_deprecated view is smaller than current view
 func (c *core) checkMessage(msgCode uint64, view *View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
@@ -66,7 +66,7 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 		return nil
 	case StatePreprepared:
 		// StatePreprepared only accepts msgPrepare and msgRoundChange
-		// message less than msgPrepare are invalid and greater are future messages
+		// message_deprecated less than msgPrepare are invalid and greater are future messages
 		if msgCode < prepareMsgCode {
 			return errInvalidMessage
 		} else if msgCode > prepareMsgCode {
@@ -96,7 +96,7 @@ func (c *core) storeQBFTBacklog(msg QBFTMessage) {
 		return
 	}
 
-	logger.Trace("Store future message")
+	logger.Trace("Store future message_deprecated")
 
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
@@ -130,7 +130,7 @@ func (c *core) processBacklog() {
 
 		// We stop processing if
 		//   1. backlog is empty
-		//   2. The first message in queue is a future message
+		//   2. The first message_deprecated in queue is a future message_deprecated
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
 
@@ -144,7 +144,7 @@ func (c *core) processBacklog() {
 			view = msg.View()
 			event.msg = msg
 
-			// Push back if it's a future message
+			// Push back if it's a future message_deprecated
 			err := c.checkMessage(code, &view)
 			if err != nil {
 				if err == errFutureMessage {
@@ -166,11 +166,11 @@ func (c *core) processBacklog() {
 
 func toPriority(msgCode uint64, view *View) float32 {
 	if msgCode == roundChangeMsgCode {
-		// For msgRoundChange, set the message priority based on its sequence
+		// For msgRoundChange, set the message_deprecated priority based on its sequence
 		return -float32(view.Sequence.Uint64() * 1000)
 	}
 	// FIXME: round will be reset as 0 while new sequence
-	// 10 * Round limits the range of message code is from 0 to 9
+	// 10 * Round limits the range of message_deprecated code is from 0 to 9
 	// 1000 * Sequence limits the range of round is from 0 to 99
 	return -float32(view.Sequence.Uint64()*1000 + view.Round.Uint64()*10 + uint64(msgPriority[msgCode]))
 }

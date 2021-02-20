@@ -40,26 +40,26 @@ func (c *core) broadcastPrepare() {
 	// Sign Message
 	encodedPayload, err := prepareMsg.EncodePayload()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode payload of prepare message", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to encode payload of prepare message_deprecated", "msg", prepareMsg, "err", err)
 		return
 	}
 	prepareMsg.signature, err = c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign commit message", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to sign commit message_deprecated", "msg", prepareMsg, "err", err)
 		return
 	}
 
-	// RLP-encode message
+	// RLP-encode message_deprecated
 	payload, err := rlp.EncodeToBytes(&prepareMsg)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode commit message", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to encode commit message_deprecated", "msg", prepareMsg, "err", err)
 		return
 	}
 
 	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", payload)
-	// Broadcast RLP-encoded message
+	// Broadcast RLP-encoded message_deprecated
 	if err = c.backend.Broadcast(c.valSet, prepareMsgCode, payload); err != nil {
-		logger.Error("QBFT: Failed to broadcast message", "msg", prepareMsg, "err", err)
+		logger.Error("QBFT: Failed to broadcast message_deprecated", "msg", prepareMsg, "err", err)
 		return
 	}
 }
@@ -69,6 +69,11 @@ func (c *core) handlePrepare(prepare *PrepareMsg) error {
 
 	logger.Info("QBFT: handlePrepare", "msg", &prepare)
 
+	// For testing of round changes!!!!
+	if prepare.Sequence.Int64() % 2 == 0 && prepare.Round.Int64() == 0 {
+		return nil
+	}
+
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
 		logger.Error("QBFT: Failed to check digest")
@@ -77,7 +82,7 @@ func (c *core) handlePrepare(prepare *PrepareMsg) error {
 
 	// Add to received msgs
 	if err := c.current.QBFTPrepares.Add(prepare); err != nil {
-		c.logger.Error("QBFT: Failed to save prepare message", "msg", prepare, "err", err)
+		c.logger.Error("QBFT: Failed to save prepare message_deprecated", "msg", prepare, "err", err)
 		return err
 	}
 

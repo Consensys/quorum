@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,7 +13,7 @@ import (
 // and by the set `prepareMessages` of PREPARE messages.
 // For this we must either have:
 //     - a quorum of ROUND-CHANGE messages with preparedRound and preparedBlockDigest equal to nil; or
-//     - a ROUND-CHANGE message (1) whose preparedRound is not nil and is equal or higher than the
+//     - a ROUND-CHANGE message_deprecated (1) whose preparedRound is not nil and is equal or higher than the
 //           preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
 //           preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
 func justify(proposal istanbul.Proposal, roundChangeMessages []*SignedRoundChangePayload, prepareMessages []*SignedPreparePayload, quorumSize int) bool {
@@ -30,7 +31,7 @@ func justify(proposal istanbul.Proposal, roundChangeMessages []*SignedRoundChang
 	var preparedRound *big.Int
 	iteration := 0
 	for _, spp := range prepareMessages {
-		if iteration == 0 { // Get the round of the first message
+		if iteration == 0 { // Get the round of the first message_deprecated
 			preparedRound = spp.Round
 		}
 		if preparedRound.Cmp(spp.Round) != 0 || proposal.Hash() != spp.Digest {
@@ -51,7 +52,8 @@ func justify(proposal istanbul.Proposal, roundChangeMessages []*SignedRoundChang
 func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*SignedRoundChangePayload, quorumSize int) bool {
 	nilCount := 0
 	for _, m := range roundChangeMessages {
-		if (m.PreparedRound == nil || m.PreparedRound.Cmp(common.Big0) == 0) && m.PreparedValue == nil {
+		log.Info("QBFT: hasQuorumOfRoundChangeMessagesForNil", "rc", m)
+		if (m.PreparedRound == nil || m.PreparedRound.Cmp(common.Big0) == 0) && m.PreparedDigest.IsEmpty() {
 			nilCount++
 			if nilCount == quorumSize {
 				return true
@@ -61,15 +63,16 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*SignedRoundChan
 	return false
 }
 
-// Checks whether a set of ROUND-CHANGE messages has some message with `preparedRound` and `preparedBlockDigest`,
+// Checks whether a set of ROUND-CHANGE messages has some message_deprecated with `preparedRound` and `preparedBlockDigest`,
 // and has `quorumSize` messages with prepared round equal to nil or equal or lower than `preparedRound`.
 func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*SignedRoundChangePayload, preparedRound *big.Int, preparedBlock istanbul.Proposal, quorumSize int) bool {
 	lowerOrEqualRoundCount := 0
 	hasMatchingMessage := false
 	for _, m := range roundChangeMessages {
+		log.Info("QBFT: hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock", "rc", m)
 		if m.PreparedRound == nil || m.PreparedRound.Cmp(preparedRound) <= 0 {
 			lowerOrEqualRoundCount++
-			if m.PreparedRound != nil && m.PreparedRound.Cmp(preparedRound) == 0 && m.PreparedValue.Hash() == preparedBlock.Hash() {
+			if m.PreparedRound != nil && m.PreparedRound.Cmp(preparedRound) == 0 && m.PreparedDigest == preparedBlock.Hash() {
 				hasMatchingMessage = true
 			}
 			if lowerOrEqualRoundCount >= quorumSize && hasMatchingMessage {
@@ -82,7 +85,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 }
 
 // Checks whether the round and block of a set of PREPARE messages of at least quorumSize match the
-// preparedRound and preparedBlockDigest of a ROUND-CHANGE message.
+// preparedRound and preparedBlockDigest of a ROUND-CHANGE message_deprecated.
 func hasMatchingRoundChangeAndPrepares(roundChangeMessage *RoundChangeMessage, prepareMessages *messageSet, quorumSize int) bool {
 	if prepareMessages.Size() < quorumSize {
 		return false
@@ -109,7 +112,7 @@ func hasMatchingRoundChangeAndPreparesFORQBFT(roundChange *RoundChangeMsg, prepa
 	}
 
 	for _, spp := range prepareMessages {
-		if spp.Digest != roundChange.PreparedValue.Hash() {
+		if spp.Digest != roundChange.PreparedDigest {
 			return false
 		}
 		if spp.Round.Cmp(roundChange.PreparedRound) != 0 {
