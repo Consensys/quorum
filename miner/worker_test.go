@@ -534,7 +534,6 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 		&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil,
 	}
 
-
 	db := rawdb.NewMemoryDatabase()
 	chainConfig := params.AllCliqueProtocolChanges
 	chainConfig.IsQuorum = true
@@ -599,14 +598,14 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 	logsChan := make(chan []*types.Log)
 	sub := b.BlockChain().SubscribeLogsEvent(logsChan)
 	defer sub.Unsubscribe()
-	
+
 	logsContractData := "6080604052348015600f57600080fd5b507f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405160405180910390a1603e8060496000396000f3fe6080604052600080fdfea265627a7a72315820937805cb4f2481262ad95d420ab93220f11ceaea518c7ccf119fc2c58f58050d64736f6c63430005110032"
 	tx, _ := types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), 470000, nil, common.FromHex(logsContractData)), types.QuorumPrivateTxSigner{}, testBankKey)
-	
+
 	ptm.returns["Receive"][2] = common.FromHex(logsContractData)
-	
+
 	b.txPool.AddLocal(tx)
-	
+
 	select {
 	case logs := <-logsChan:
 		assert.Len(t, logs, 2)

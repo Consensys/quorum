@@ -137,7 +137,6 @@ func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 }
 
 func Test_setPrivacyMetadata(t *testing.T) {
-	hash := common.BytesToEncryptedPayloadHash([]byte{10})
 	privacyMetaData := &state.PrivacyMetadata{}
 
 	statedb := createStateDb(t, privacyMetaData)
@@ -145,7 +144,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 
 	// call setPrivacyMetaData
 	arbitraryBytes1 := []byte{10}
-	hash = common.BytesToEncryptedPayloadHash(arbitraryBytes1)
+	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
 	// we don't save PrivacyMetadata if it's standardprivate

@@ -106,10 +106,9 @@ func TestExtensionHandler_UuidIsOwn_WrongPSIFails(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	
 	psis := &mockPSIS{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
 	handler.SetPSIS(psis)
@@ -133,7 +132,7 @@ func TestExtensionHandler_UuidIsOwn_DecryptPayloadFails(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psis := &mockPSIS{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
 	handler.SetPSIS(psis)
@@ -157,7 +156,7 @@ func TestExtensionHandler_UuidIsOwn_AddressDoesntMatch(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psis := &mockPSIS{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
 	handler.SetPSIS(psis)
@@ -184,7 +183,7 @@ func TestExtensionHandler_UuidIsOwn_AddressMatches(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psis := &mockPSIS{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
 	handler.SetPSIS(psis)
@@ -208,7 +207,7 @@ func TestExtensionHandler_UuidIsOwn_PrivatePSISucceeds(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psis := &mockPSIS{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "private", Type: core.Resident}, nil},
+			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "private", Type: core.Resident}, nil},
 		},
 	}
 	handler.SetPSIS(psis)
