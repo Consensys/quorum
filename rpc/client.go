@@ -239,7 +239,9 @@ func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
 	idBytes := strconv.AppendUint(nil, uint64(id), 10)
 	if conn, ok := c.writeConn.(securityContextSupport); ok {
-		idBytes = types.EncodePSI(idBytes, conn.Resolve().Value(CtxPrivateStateIdentifier).(types.PrivateStateIdentifier))
+		if psi, ok := conn.Resolve().Value(CtxPrivateStateIdentifier).(types.PrivateStateIdentifier); ok {
+			idBytes = types.EncodePSI(idBytes, psi)
+		}
 	}
 	return idBytes
 }
