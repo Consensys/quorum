@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -65,7 +66,6 @@ func TestLogContainsExtensionTopicWithCorrectHashReturnsTrue(t *testing.T) {
 }
 
 func createStateDb(t *testing.T, metadata *state.PrivacyMetadata) *state.StateDB {
-	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"22","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	var accounts map[string]extension.AccountWithMetadata
@@ -91,7 +91,7 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 	storage, _ := statedb.GetStorageRoot(address)
 
 	// we don't save PrivacyMetadata if it's standardprivate
-	privacyMetaData, err := statedb.GetManagedParties(address)
+	privacyMetaData, err := statedb.GetPrivacyMetadata(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 	assert.Nil(t, privacyMetaData)
 
@@ -138,7 +138,7 @@ func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 
 func Test_setPrivacyMetadata(t *testing.T) {
 	hash := common.BytesToEncryptedPayloadHash([]byte{10})
-	privacyMetaData := &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
+	privacyMetaData := &state.PrivacyMetadata{}
 
 	statedb := createStateDb(t, privacyMetaData)
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -277,9 +277,29 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 	assert.EqualValues(t, presetManagedParties, mp)
 }
 
+type mockPSIS struct {
+	core.PrivatePSISImpl
+	returns map[string][]interface{}
+}
+
 type mockPrivateTransactionManager struct {
 	notinuse.PrivateTransactionManager
 	returns map[string][]interface{}
+}
+
+func (mpsis *mockPSIS) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+	values := mpsis.returns["ResolveForManagedParty"]
+	var (
+		r1 *core.PrivateStateMetadata
+		r2 error
+	)
+	if values[0] != nil {
+		r1 = values[0].(*core.PrivateStateMetadata)
+	}
+	if values[1] != nil {
+		r2 = values[1].(error)
+	}
+	return r1, r2
 }
 
 func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {

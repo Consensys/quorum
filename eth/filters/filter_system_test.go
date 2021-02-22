@@ -158,7 +158,7 @@ func (b *testBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.B
 }
 
 func (b *testBackend) PSIS() core.PrivateStateIdentifierService {
-	return nil
+	return &core.PrivatePSISImpl{}
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.

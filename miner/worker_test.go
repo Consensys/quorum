@@ -74,6 +74,10 @@ var (
 		GasFloor: params.GenesisGasLimit,
 		GasCeil:  params.GenesisGasLimit,
 	}
+	psis = &mockPSIS{
+		returns: make(map[string][]interface{}),
+		count:   make(map[string]int),
+	}
 )
 
 func init() {
@@ -121,7 +125,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	}
 	genesis := gspec.MustCommit(db)
 
-	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
+	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil, psis)
 	txpool := core.NewTxPool(testTxPoolConfig, chainConfig, chain)
 
 	// Generate a small n-block chain and an uncle block for it
@@ -523,13 +527,20 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 	}()
 	private.P = ptm
 	ptm.returns["Receive"] = []interface{}{
-		"", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil,
+		"", []string{"psi1"}, common.FromHex(testCode), nil, nil,
 	}
+
+	psis.returns["ResolveForManagedParty"] = []interface{}{
+		&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil,
+	}
+
 
 	db := rawdb.NewMemoryDatabase()
 	chainConfig := params.AllCliqueProtocolChanges
 	chainConfig.IsQuorum = true
+	chainConfig.IsMPS = true
 	defer func() { chainConfig.IsQuorum = false }()
+	defer func() { chainConfig.IsMPS = false }()
 
 	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
 	defer w.close()
@@ -541,14 +552,6 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 
 		for item := range sub.Chan() {
 			newBlock <- item.Data.(core.NewMinedBlockEvent).Block
-		}
-	}
-
-	// Ensure worker has finished initialization
-	for {
-		b := w.pendingBlock()
-		if b != nil && b.NumberU64() == 1 {
-			break
 		}
 	}
 	w.start() // Start mining!
@@ -582,14 +585,13 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 			}
 
 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
-			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.DefaultPrivateStateIdentifier)
+			//contract should exist on empty state
+			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, "empty")
 			assert.True(t, privDb.Exist(expectedContractAddress))
+			//contract should exist on both psi states and not be empty
 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "psi1")
 			assert.True(t, privDb.Exist(expectedContractAddress))
-			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "psi2")
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "other")
-			assert.False(t, privDb.Exist(expectedContractAddress))
+			assert.False(t, privDb.Empty(expectedContractAddress))
 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
 			t.Fatalf("timeout")
 		}
@@ -606,17 +608,115 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 
 	b.txPool.AddLocal(tx)
 
-	<-newBlock
-
 	select {
 	case logs := <-logsChan:
-		assert.Len(t, logs, 3)
-		assert.Equal(t, types.DefaultPrivateStateIdentifier, logs[0].PSI)
+		assert.Len(t, logs, 2)
+		//emptystate has "" PSI field
+		assert.Equal(t, "", logs[0].PSI)
 		assert.Equal(t, "psi1", logs[1].PSI)
-		assert.Equal(t, "psi2", logs[2].PSI)
 	case <-time.NewTimer(3 * time.Second).C:
 		t.Error("timeout")
 	}
+}
+
+func TestPrivatePSIEmptyStateCreated(t *testing.T) {
+	ptm := &mockPrivateTransactionManager{
+		returns: make(map[string][]interface{}),
+		count:   make(map[string]int),
+	}
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = ptm
+	ptm.returns["Receive"] = []interface{}{
+		"", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil,
+	}
+
+	db := rawdb.NewMemoryDatabase()
+	chainConfig := params.AllCliqueProtocolChanges
+	chainConfig.IsQuorum = true
+	chainConfig.IsMPS = true
+	defer func() { chainConfig.IsQuorum = false }()
+	defer func() { chainConfig.IsMPS = false }()
+
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
+	defer w.close()
+
+	newBlock := make(chan *types.Block)
+	listenNewBlock := func() {
+		sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
+		defer sub.Unsubscribe()
+
+		for item := range sub.Chan() {
+			newBlock <- item.Data.(core.NewMinedBlockEvent).Block
+		}
+	}
+	w.start() // Start mining!
+
+	// Ignore first 2 commits caused by start operation
+	ignored := make(chan struct{}, 2)
+	w.skipSealHook = func(task *task) bool {
+		ignored <- struct{}{}
+		return true
+	}
+	for i := 0; i < 2; i++ {
+		<-ignored
+	}
+
+	go listenNewBlock()
+
+	// Ignore empty commit here for less noise
+	w.skipSealHook = func(task *task) bool {
+		return len(task.receipts) == 0
+	}
+	for i := 0; i < 5; i++ {
+		randomPrivateTx := b.newRandomTx(true, true)
+		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
+		b.txPool.AddLocal(randomPrivateTx)
+		select {
+		case blk := <-newBlock:
+			//check if the tx is present
+			found := blk.Transaction(randomPrivateTx.Hash())
+			if found == nil {
+				continue
+			}
+
+			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
+			//contract should exist on emptyState but no contract code
+			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, "empty")
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
+			//contract should exist on random state (delegated to emptystate) but no contract code
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, "other")
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
+		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+type mockPSIS struct {
+	core.PrivatePSISImpl
+	returns map[string][]interface{}
+	count   map[string]int
+}
+
+func (mpsis *mockPSIS) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+	mpsis.count["ResolveForManagedParty"]++
+	values := mpsis.returns["ResolveForManagedParty"]
+	var (
+		r1 *core.PrivateStateMetadata
+		r2 error
+	)
+	if values[0] != nil {
+		r1 = values[0].(*core.PrivateStateMetadata)
+	}
+	if values[1] != nil {
+		r2 = values[1].(error)
+	}
+	return r1, r2
 }
 
 type mockPrivateTransactionManager struct {

@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type testerVote struct {
@@ -347,7 +348,7 @@ func TestVoting(t *testing.T) {
 			config.Epoch = tt.epoch
 		}
 		engine := New(config, accounts.accounts[tt.validators[0]], db).(*backend)
-		chain, _ := core.NewBlockChain(db, nil, genesis.Config, engine, vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
+		chain, _ := core.NewBlockChain(db, nil, params.QuorumTestChainConfig, engine, vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
 
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))

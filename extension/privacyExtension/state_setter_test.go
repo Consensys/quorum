@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
@@ -105,6 +106,13 @@ func TestExtensionHandler_UuidIsOwn_WrongPSIFails(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
+	
+	psis := &mockPSIS{
+		returns: map[string][]interface{}{
+			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+		},
+	}
+	handler.SetPSIS(psis)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -123,6 +131,12 @@ func TestExtensionHandler_UuidIsOwn_DecryptPayloadFails(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
+	psis := &mockPSIS{
+		returns: map[string][]interface{}{
+			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+		},
+	}
+	handler.SetPSIS(psis)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -141,6 +155,12 @@ func TestExtensionHandler_UuidIsOwn_AddressDoesntMatch(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
+	psis := &mockPSIS{
+		returns: map[string][]interface{}{
+			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+		},
+	}
+	handler.SetPSIS(psis)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -162,6 +182,12 @@ func TestExtensionHandler_UuidIsOwn_AddressMatches(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
+	psis := &mockPSIS{
+		returns: map[string][]interface{}{
+			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
+		},
+	}
+	handler.SetPSIS(psis)
 
 	isOwn := handler.UuidIsOwn(address, uuid, "psi1")
 
@@ -175,11 +201,17 @@ func TestExtensionHandler_UuidIsOwn_PrivatePSISucceeds(t *testing.T) {
 	ptm := &mockPrivateTransactionManager{
 		returns: map[string][]interface{}{
 			"IsSender":       {true, nil},
-			"Receive":        {"psi1", nil, []byte(`{"somedata": "val"}`), nil, nil},
+			"Receive":        {"psi1, private", nil, []byte(`{"somedata": "val"}`), nil, nil},
 			"DecryptPayload": {address.Bytes(), nil, nil},
 		},
 	}
 	handler := NewExtensionHandler(ptm)
+	psis := &mockPSIS{
+		returns: map[string][]interface{}{
+			"ResolveForManagedParty" : {&core.PrivateStateMetadata{ID: "private", Type: core.Resident}, nil},
+		},
+	}
+	handler.SetPSIS(psis)
 
 	isOwn := handler.UuidIsOwn(address, uuid, types.DefaultPrivateStateIdentifier)
 
