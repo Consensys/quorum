@@ -282,13 +282,7 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 		// it's important that f MUST BE OF TYPE rpc.HttpCredentialsProviderFunc
 		dialCtx = context.WithValue(dialCtx, rpc.CtxCredentialsProvider, f)
 	}
-	if psi := os.Getenv(rpc.EnvVarPrivateStateIdentifier); len(psi) > 0 {
-		var f rpc.HttpPSIProviderFunc = func(ctx context.Context) (types.PrivateStateIdentifier, error) {
-			return types.PrivateStateIdentifier(psi), nil
-		}
-		// it's important that f MUST BE OF TYPE rpc.HttpPSIProviderFunc
-		dialCtx = context.WithValue(dialCtx, rpc.CtxPSIProvider, f)
-	}
+	dialCtx = resolvePrivateStateIdentifier(dialCtx, endpoint)
 	if hasCustomTls {
 		u, err := url.Parse(endpoint)
 		if err != nil {
@@ -321,6 +315,36 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 		client = client.WithHTTPPSI(f)
 	}
 	return client, nil
+}
+
+// Quorum
+// resolvePrivateStateIdentifier returns new enriched context containing the rpc.HttpPSIProviderFunc
+// mainly to support HTTP and WS transports.
+func resolvePrivateStateIdentifier(ctx context.Context, endpoint string) (newCtx context.Context) {
+	newCtx = ctx
+	var rawPSI string
+	// first take from endpoint
+	parsedUrl, err := url.Parse(endpoint)
+	if err != nil {
+		return
+	}
+	switch parsedUrl.Scheme {
+	case "http", "https", "ws", "wss":
+		rawPSI = parsedUrl.Query().Get(rpc.QueryPrivateStateIdentifierParamName)
+	default:
+	}
+	// then from the env variable
+	if value := os.Getenv(rpc.EnvVarPrivateStateIdentifier); len(value) > 0 {
+		rawPSI = value
+	}
+	if len(rawPSI) > 0 {
+		// must declare type here so the context value reflects the same
+		var f rpc.HttpPSIProviderFunc = func(_ context.Context) (types.PrivateStateIdentifier, error) {
+			return types.PrivateStateIdentifier(rawPSI), nil
+		}
+		newCtx = context.WithValue(ctx, rpc.CtxPSIProvider, f)
+	}
+	return
 }
 
 // ephemeralConsole starts a new geth node, attaches an ephemeral JavaScript
