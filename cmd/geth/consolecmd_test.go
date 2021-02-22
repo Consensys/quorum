@@ -17,7 +17,6 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"flag"
@@ -30,10 +29,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/influxdata/influxdb/pkg/testing/assert"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/params"
@@ -301,60 +296,4 @@ func SetResetPrivateConfig(value string) func() {
 	return func() {
 		os.Setenv("PRIVATE_CONFIG", existingValue)
 	}
-}
-
-func TestResolvePrivateStateIdentifier_whenTypicalEndpoints(t *testing.T) {
-	testCases := []struct {
-		endpoint    string
-		expectedPSI types.PrivateStateIdentifier
-	}{
-		{
-			endpoint:    "http://aritraryhost?PSI=PS1",
-			expectedPSI: types.PrivateStateIdentifier("PS1"),
-		},
-		{
-			endpoint:    "https://aritraryhost?PSI=PS2",
-			expectedPSI: types.PrivateStateIdentifier("PS2"),
-		},
-		{
-			endpoint:    "ws://aritraryhost?PSI=PS3",
-			expectedPSI: types.PrivateStateIdentifier("PS3"),
-		},
-		{
-			endpoint:    "wss://aritraryhost?PSI=PS4",
-			expectedPSI: types.PrivateStateIdentifier("PS4"),
-		},
-	}
-	for _, tc := range testCases {
-		actualCtx := resolvePrivateStateIdentifier(context.Background(), tc.endpoint)
-
-		testifyassert.NotNil(t, actualCtx.Value(rpc.CtxPSIProvider))
-		f, ok := actualCtx.Value(rpc.CtxPSIProvider).(rpc.HttpPSIProviderFunc)
-		testifyassert.True(t, ok)
-		actualPSI, err := f(context.Background())
-		testifyassert.NoError(t, err)
-		assert.Equal(t, tc.expectedPSI, actualPSI)
-	}
-}
-
-func TestResolvePrivateStateIdentifier_whenEnvVariableTakesPrecedence(t *testing.T) {
-	_ = os.Setenv(rpc.EnvVarPrivateStateIdentifier, "ENV_PS1")
-	defer func() { _ = os.Unsetenv(rpc.EnvVarPrivateStateIdentifier) }()
-
-	endpoint := "http://aritraryhost?PSI=PS1"
-	actualCtx := resolvePrivateStateIdentifier(context.Background(), endpoint)
-
-	testifyassert.NotNil(t, actualCtx.Value(rpc.CtxPSIProvider))
-	f, ok := actualCtx.Value(rpc.CtxPSIProvider).(rpc.HttpPSIProviderFunc)
-	testifyassert.True(t, ok)
-	actualPSI, err := f(context.Background())
-	testifyassert.NoError(t, err)
-	assert.Equal(t, types.PrivateStateIdentifier("ENV_PS1"), actualPSI)
-}
-
-func TestResolvePrivateStateIdentifier_whenNoPSI(t *testing.T) {
-	endpoint := "data/geth.ipc"
-	actualCtx := resolvePrivateStateIdentifier(context.Background(), endpoint)
-
-	testifyassert.Nil(t, actualCtx.Value(rpc.CtxPSIProvider))
 }

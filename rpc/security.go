@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -33,7 +35,7 @@ const (
 	ctxRequestPrivateStateIdentifier = securityContextKey("REQUEST_PRIVATE_STATE_IDENTIFIER")
 	// this key is exported for WS transport
 	CtxCredentialsProvider = securityContextKey("CREDENTIALS_PROVIDER") // key to save reference to rpc.HttpCredentialsProviderFunc
-	CtxPSIProvider         = securityContextKey("PSI_PROVIDER")         // key to save reference to rpc.HttpPSIProviderFunc
+	CtxPSIProvider         = securityContextKey("PSI_PROVIDER")         // key to save reference to rpc.PSIProviderFunc
 	// keys used to save values in request context
 	ctxAuthenticationError   = securityContextKey("AUTHENTICATION_ERROR")   // key to save error during authentication before processing the request body
 	CtxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
@@ -57,8 +59,10 @@ type securityError struct{ message string }
 // Provider function to return token being injected in Authorization http request header
 type HttpCredentialsProviderFunc func(ctx context.Context) (string, error)
 
-// Provider function to return a string value being injected in goquorum-psi http request header
-type HttpPSIProviderFunc func(ctx context.Context) (types.PrivateStateIdentifier, error)
+// Provider function to return a string value which will be
+// 1. injected in `goquorum-psi` http request header for HTTP/WS transports
+// 2. encoded in JSON MessageID for IPC/InProc transports
+type PSIProviderFunc func(ctx context.Context) (types.PrivateStateIdentifier, error)
 
 func (e *securityError) ErrorCode() int { return -32001 }
 
@@ -176,4 +180,33 @@ func extractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
 		return types.DefaultPrivateStateIdentifier, false
 	}
 	return types.PrivateStateIdentifier(psi), true
+}
+
+// resolvePSIProvider enriches the given context with PSIProviderFunc if PSI value found
+// in URL Query or env variable
+func resolvePSIProvider(ctx context.Context, endpoint string) (newCtx context.Context) {
+	newCtx = ctx
+	var rawPSI string
+	// first take from endpoint
+	parsedUrl, err := url.Parse(endpoint)
+	if err != nil {
+		return
+	}
+	switch parsedUrl.Scheme {
+	case "http", "https", "ws", "wss":
+		rawPSI = parsedUrl.Query().Get(QueryPrivateStateIdentifierParamName)
+	default:
+	}
+	// then from the env variable
+	if value := os.Getenv(EnvVarPrivateStateIdentifier); len(value) > 0 {
+		rawPSI = value
+	}
+	if len(rawPSI) > 0 {
+		// must declare type here so the context value reflects the same
+		var f PSIProviderFunc = func(_ context.Context) (types.PrivateStateIdentifier, error) {
+			return types.PrivateStateIdentifier(rawPSI), nil
+		}
+		newCtx = context.WithValue(ctx, CtxPSIProvider, f)
+	}
+	return
 }

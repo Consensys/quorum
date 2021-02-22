@@ -54,7 +54,7 @@ type httpConn struct {
 	// To return value being populated in Authorization request header
 	credentialsProvider HttpCredentialsProviderFunc
 	// psiProvider returns a value being populated in HttpPrivateStateIdentifierHeader
-	psiProvider HttpPSIProviderFunc
+	psiProvider PSIProviderFunc
 }
 
 // httpConn is treated specially by Client.
@@ -129,10 +129,11 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 
-	initctx := context.Background()
+
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)
 	headers.Set("content-type", contentType)
+	initctx := resolvePSIProvider(context.Background(), endpoint)
 
 	return newClient(initctx, func(context.Context) (ServerCodec, error) {
 		hc := &httpConn{
