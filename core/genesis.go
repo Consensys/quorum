@@ -239,6 +239,10 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
+	if storedcfg.IsMPS != newcfg.IsMPS && *height > 0 {
+		// TODO once we implement the MPS upgrade logic the error message should be updated (to reflect the other ways of setting the IsMPS flag value)
+		return newcfg, stored, fmt.Errorf("the IsMPS (multiple private states support) flag once configured at block height 0 cannot be changed")
+	}
 	compatErr := storedcfg.CheckCompatible(newcfg, *height, rawdb.GetIsQuorumEIP155Activated(db))
 	if compatErr != nil && *height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
