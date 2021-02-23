@@ -34,20 +34,25 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/signer/core"
@@ -223,6 +228,11 @@ The gendoc generates example structures of the json-rpc communication types.
 `}
 )
 
+// <Quorum>
+var supportedPlugins = []plugin.PluginInterfaceName{plugin.AccountPluginInterfaceName}
+
+// </Quorum>
+
 // AppHelpFlagGroups is the application flags, grouped by functionality.
 var AppHelpFlagGroups = []flags.FlagGroup{
 	{
@@ -249,6 +259,12 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			testFlag,
 			advancedMode,
 			acceptFlag,
+			// <Quorum>
+			utils.PluginSettingsFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
+			utils.PluginSkipVerifyFlag,
+			// </Quorum>
 		},
 	},
 	{
@@ -285,6 +301,12 @@ func init() {
 		advancedMode,
 		acceptFlag,
 		legacyRPCPortFlag,
+		// <Quorum>
+		utils.PluginSettingsFlag,
+		utils.PluginLocalVerifyFlag,
+		utils.PluginPublicKeyFlag,
+		utils.PluginSkipVerifyFlag,
+		// </Quorum>
 	}
 	app.Action = signer
 	app.Commands = []cli.Command{initCommand,
@@ -499,7 +521,10 @@ func newAccount(c *cli.Context) error {
 		lightKdf                  = c.GlobalBool(utils.LightKDFFlag.Name)
 	)
 	log.Info("Starting clef", "keystore", ksLoc, "light-kdf", lightKdf)
-	am := core.StartClefAccountManager(ksLoc, true, lightKdf, "")
+	am, _, err := startClefAccountManagerWithPlugins(c, ksLoc, true, lightKdf, "")
+	if err != nil {
+		return err
+	}
 	// This gives is us access to the external API
 	apiImpl := core.NewSignerAPI(am, 0, true, ui, nil, false, pwStorage)
 	// This gives us access to the internal API
@@ -638,7 +663,12 @@ func signer(c *cli.Context) error {
 	)
 	log.Info("Starting signer", "chainid", chainId, "keystore", ksLoc,
 		"light-kdf", lightKdf, "advanced", advanced)
-	am := core.StartClefAccountManager(ksLoc, nousb, lightKdf, scpath)
+
+	am, pm, err := startClefAccountManagerWithPlugins(c, ksLoc, nousb, lightKdf, scpath)
+	if err != nil {
+		return err
+	}
+
 	apiImpl := core.NewSignerAPI(am, chainId, nousb, ui, db, advanced, pwStorage)
 
 	// Establish the bidirectional communication, by creating a new UI backend and registering
@@ -665,6 +695,13 @@ func signer(c *cli.Context) error {
 			Service:   api,
 			Version:   "1.0"},
 	}
+
+	// <Quorum>
+	if pm != nil {
+		rpcAPI = addPluginAPIs(pm, rpcAPI, ui)
+	}
+	// </Quorum>
+
 	if c.GlobalBool(utils.HTTPEnabledFlag.Name) {
 		vhosts := splitAndTrim(c.GlobalString(utils.HTTPVirtualHostsFlag.Name))
 		cors := splitAndTrim(c.GlobalString(utils.HTTPCORSDomainFlag.Name))
@@ -687,7 +724,7 @@ func signer(c *cli.Context) error {
 
 		// start http server
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.HTTPListenAddrFlag.Name), port)
-		httpServer, addr, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler)
+		httpServer, addr, _, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler, nil)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}
@@ -734,6 +771,48 @@ func signer(c *cli.Context) error {
 	log.Info("Exiting...", "signal", sig)
 
 	return nil
+}
+
+// <Quorum/>
+// startPluginManager gets plugin config and starts a new PluginManager
+func startPluginManager(c *cli.Context) (*plugin.PluginManager, *plugin.Settings, error) {
+	nodeConf := new(node.Config)
+	if err := utils.SetPlugins(c, nodeConf); err != nil {
+		return nil, nil, err
+	}
+	pluginConf := nodeConf.Plugins
+
+	if err := pluginConf.CheckSettingsAreSupported(supportedPlugins); err != nil {
+		return nil, nil, err
+	}
+
+	pm, err := plugin.NewPluginManager("clef", pluginConf, c.Bool(utils.PluginSkipVerifyFlag.Name), c.Bool(utils.PluginLocalVerifyFlag.Name), c.String(utils.PluginPublicKeyFlag.Name))
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := pm.Start(nil); err != nil {
+		return nil, nil, err
+	}
+	return pm, pluginConf, nil
+}
+
+// addPluginAPIs adds the exposed plugin APIs to Clef's API.
+// It alters some of the plugin APIs so that calls to them will require UI approval.
+func addPluginAPIs(pm *plugin.PluginManager, rpcAPI []rpc.API, ui core.UIClientAPI) []rpc.API {
+	// pm.APIs() returns a slice of values hence the following approach that may look clumsy
+	var (
+		stdPluginAPIs      = pm.APIs()
+		approvalPluginAPIs = make([]rpc.API, len(stdPluginAPIs))
+	)
+
+	for i, api := range stdPluginAPIs {
+		switch s := api.Service.(type) {
+		case account.CreatorService:
+			api.Service = core.NewApprovalCreatorService(s, ui)
+		}
+		approvalPluginAPIs[i] = api
+	}
+	return append(rpcAPI, approvalPluginAPIs...)
 }
 
 // splitAndTrim splits input separated by a comma
@@ -1185,4 +1264,54 @@ These data types are defined in the channel between clef and the UI`)
 	for _, elem := range output {
 		fmt.Println(elem)
 	}
+}
+
+// Quorum
+// startClefAccountManagerWithPlugins - wrapped function to create a CLEF account manager with Plugin Support
+func startClefAccountManagerWithPlugins(c *cli.Context, ksLocation string, nousb, lightKDF bool, scpath string) (*accounts.Manager, *plugin.PluginManager, error) {
+	var err error
+	// <Quorum> start the plugin manager
+	var (
+		pm         *plugin.PluginManager
+		pluginConf *plugin.Settings
+	)
+	if c.IsSet(utils.PluginSettingsFlag.Name) {
+		log.Info("Using plugins")
+		pm, pluginConf, err = startPluginManager(c)
+		if err != nil {
+			utils.Fatalf(err.Error())
+		}
+
+		// setup goroutine to stop plugin manager when clef stops
+		go func() {
+			sigc := make(chan os.Signal, 1)
+			signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+			defer signal.Stop(sigc)
+			<-sigc
+			log.Info("Got interrupt, shutting down...")
+			go pm.Stop()
+			for i := 10; i > 0; i-- {
+				<-sigc
+				if i > 1 {
+					log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
+				}
+			}
+			debug.Exit() // ensure trace and CPU profile data is flushed.
+			debug.LoudPanic("boom")
+		}()
+	}
+	// </Quorum>
+
+	am := core.StartClefAccountManager(ksLocation, nousb, lightKDF, pluginConf, scpath)
+
+	// <Quorum> setup the pluggable accounts backend with the plugin
+	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := pm.AddAccountPluginToBackend(b); err != nil {
+			return nil, nil, err
+		}
+	}
+	// </Quorum>
+
+	return am, pm, nil
 }

@@ -28,9 +28,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -95,13 +98,17 @@ type ProtocolManager struct {
 	wg        sync.WaitGroup
 	peerWG    sync.WaitGroup
 
+	// Quorum
+	raftMode bool
+	engine   consensus.Engine
+
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
 }
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, whitelist map[uint64]common.Hash) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, whitelist map[uint64]common.Hash, raftMode bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:  networkID,
@@ -114,7 +121,15 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 		whitelist:  whitelist,
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
+		raftMode:   raftMode,
+		engine:     engine,
 	}
+
+	// Quorum
+	if handler, ok := manager.engine.(consensus.Handler); ok {
+		handler.SetBroadcaster(manager)
+	}
+	// /Quorum
 
 	if mode == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the fast
@@ -205,6 +220,7 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
+	// Quorum: Set p2p.Protocol info from engine.Protocol()
 	length, ok := protocolLengths[version]
 	if !ok {
 		panic("makeProtocol for unknown version")
@@ -215,7 +231,7 @@ func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			return pm.runPeer(pm.newPeer(int(version), p, rw, pm.txpool.Get))
+			return pm.runPeer(pm.newPeer(int(version), p, rw, pm.txpool.Get), protocolName)
 		},
 		NodeInfo: func() interface{} {
 			return pm.NodeInfo()
@@ -259,10 +275,19 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
 
-	// broadcast mined blocks
-	pm.wg.Add(1)
-	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop()
+	// Quorum
+	if !pm.raftMode {
+		// broadcast mined blocks
+		pm.wg.Add(1)
+		pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
+		go pm.minedBroadcastLoop()
+	} else {
+		// We set this immediately in raft mode to make sure the miner never drops
+		// incoming txes. Raft mode doesn't use the fetcher or downloader, and so
+		// this would never be set otherwise.
+		atomic.StoreUint32(&pm.acceptTxs, 1)
+	}
+	// /Quorum
 
 	// start sync handlers
 	pm.wg.Add(2)
@@ -271,8 +296,10 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 }
 
 func (pm *ProtocolManager) Stop() {
-	pm.txsSub.Unsubscribe()        // quits txBroadcastLoop
-	pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
+	if !pm.raftMode {
+		pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	}
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
@@ -293,18 +320,20 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter, ge
 	return newPeer(pv, p, rw, getPooledTx)
 }
 
-func (pm *ProtocolManager) runPeer(p *peer) error {
+// Quorum - added protoName argument
+func (pm *ProtocolManager) runPeer(p *peer, protoName string) error {
 	if !pm.chainSync.handlePeerEvent(p) {
 		return p2p.DiscQuitting
 	}
 	pm.peerWG.Add(1)
 	defer pm.peerWG.Done()
-	return pm.handle(p)
+	return pm.handle(p, protoName)
 }
 
+// quorum: protoname is either "eth" or a subprotocol that overrides "eth", e.g. legacy "istanbul/99"
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
-func (pm *ProtocolManager) handle(p *peer) error {
+func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 	// Ignore maxPeers if this is a trusted peer
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
@@ -319,13 +348,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter); err != nil {
-		p.Log().Debug("Ethereum handshake failed", "err", err)
+	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, protoName); err != nil {
+		p.Log().Debug("Ethereum handshake failed", "protoName", protoName, "err", err)
 		return err
 	}
 
 	// Register the peer locally
-	if err := pm.peers.Register(p, pm.removePeer); err != nil {
+	if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
 		p.Log().Error("Ethereum peer registration failed", "err", err)
 		return err
 	}
@@ -366,6 +395,11 @@ func (pm *ProtocolManager) handle(p *peer) error {
 			return err
 		}
 	}
+
+	// Quorum notify other subprotocols that the eth peer is ready, and has been added to the peerset.
+	p.EthPeerRegistered <- struct{}{}
+	// Quorum
+
 	// Handle incoming messages until the connection is torn down
 	for {
 		if err := pm.handleMsg(p); err != nil {
@@ -387,6 +421,28 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
 	defer msg.Discard()
+
+	// Quorum
+	if pm.raftMode {
+		switch msg.Code {
+		case TransactionMsg, PooledTransactionsMsg,
+			GetPooledTransactionsMsg, NewPooledTransactionHashesMsg,
+			GetBlockHeadersMsg, BlockHeadersMsg,
+			GetBlockBodiesMsg, BlockBodiesMsg:
+			// supported by Raft
+		default:
+			log.Info("raft: ignoring message", "code", msg.Code)
+			return nil
+		}
+	} else if handler, ok := pm.engine.(consensus.Handler); ok { // quorum: NewBlock required for consensus, e.g. "istanbul"
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		handled, err := handler.HandleMsg(addr, msg)
+		if handled {
+			return err
+		}
+	}
+	// End Quorum
 
 	// Handle the message depending on its contents
 	switch {
@@ -806,6 +862,11 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+// Quorum
+func (pm *ProtocolManager) Enqueue(id string, block *types.Block) {
+	pm.blockFetcher.Enqueue(id, block)
+}
+
 // BroadcastBlock will either propagate a block to a subset of its peers, or
 // will only announce its availability (depending what's requested).
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
@@ -847,6 +908,12 @@ func (pm *ProtocolManager) BroadcastTransactions(txs types.Transactions, propaga
 		annos = make(map[*peer][]common.Hash)
 	)
 	// Broadcast transactions to a batch of peers not knowing about it
+	// NOTE: Raft-based consensus currently assumes that geth broadcasts
+	// transactions to all peers in the network. A previous comment here
+	// indicated that this logic might change in the future to only send to a
+	// subset of peers. If this change occurs upstream, a merge conflict should
+	// arise here, and we should add logic to send to *all* peers in raft mode.
+
 	if propagate {
 		for _, tx := range txs {
 			peers := pm.peers.PeersWithoutTx(tx.Hash())
@@ -920,16 +987,60 @@ type NodeInfo struct {
 	Genesis    common.Hash         `json:"genesis"`    // SHA3 hash of the host's genesis block
 	Config     *params.ChainConfig `json:"config"`     // Chain configuration for the fork rules
 	Head       common.Hash         `json:"head"`       // SHA3 hash of the host's best owned block
+	Consensus  string              `json:"consensus"`  // Consensus mechanism in use
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	currentBlock := pm.blockchain.CurrentBlock()
+	// //Quorum
+	//
+	// changes done to fetch maxCodeSize dynamically based on the
+	// maxCodeSizeConfig changes
+	// /Quorum
+	chainConfig := pm.blockchain.Config()
+	chainConfig.MaxCodeSize = uint64(chainConfig.GetMaxCodeSize(pm.blockchain.CurrentBlock().Number()) / 1024)
+
 	return &NodeInfo{
 		Network:    pm.networkID,
 		Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
 		Genesis:    pm.blockchain.Genesis().Hash(),
-		Config:     pm.blockchain.Config(),
+		Config:     chainConfig,
 		Head:       currentBlock.Hash(),
+		Consensus:  pm.getConsensusAlgorithm(),
 	}
 }
+
+// Quorum
+func (pm *ProtocolManager) getConsensusAlgorithm() string {
+	var consensusAlgo string
+	if pm.raftMode { // raft does not use consensus interface
+		consensusAlgo = "raft"
+	} else {
+		switch pm.engine.(type) {
+		case consensus.Istanbul:
+			consensusAlgo = "istanbul"
+		case *clique.Clique:
+			consensusAlgo = "clique"
+		case *ethash.Ethash:
+			consensusAlgo = "ethash"
+		default:
+			consensusAlgo = "unknown"
+		}
+	}
+	return consensusAlgo
+}
+
+func (self *ProtocolManager) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
+	m := make(map[common.Address]consensus.Peer)
+	for _, p := range self.peers.Peers() {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		if targets[addr] {
+			m[addr] = p
+		}
+	}
+	return m
+}
+
+// End Quorum

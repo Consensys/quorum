@@ -128,8 +128,17 @@ func newFreezer(datadir string, namespace string) (*freezer, error) {
 
 // Close terminates the chain freezer, unmapping all the data files.
 func (f *freezer) Close() error {
-	f.quit <- struct{}{}
 	var errs []error
+
+	// Quorum
+	// Check if 'f.quit' has subscribers, as freezer.Close() might be called again by Raft when stopping raft service
+	select {
+	case f.quit <- struct{}{}:
+	default:
+		errs = append(errs, errors.New("freezer DB process already stopped"))
+	}
+	// End Quorum
+
 	for _, table := range f.tables {
 		if err := table.Close(); err != nil {
 			errs = append(errs, err)
@@ -287,12 +296,12 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			backoff = true
 			continue
 
-		case *number < params.FullImmutabilityThreshold:
-			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.FullImmutabilityThreshold)
+		case *number < uint64(params.GetImmutabilityThreshold()):
+			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.GetImmutabilityThreshold())
 			backoff = true
 			continue
 
-		case *number-params.FullImmutabilityThreshold <= f.frozen:
+		case *number-uint64(params.GetImmutabilityThreshold()) <= f.frozen:
 			log.Debug("Ancient blocks frozen already", "number", *number, "hash", hash, "frozen", f.frozen)
 			backoff = true
 			continue
@@ -304,7 +313,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		// Seems we have data ready to be frozen, process in usable batches
-		limit := *number - params.FullImmutabilityThreshold
+		limit := *number - uint64(params.GetImmutabilityThreshold())
 		if limit-f.frozen > freezerBatchLimit {
 			limit = f.frozen + freezerBatchLimit
 		}

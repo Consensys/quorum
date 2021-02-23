@@ -320,12 +320,16 @@ func doTest(cmdline []string) {
 	if len(flag.CommandLine.Args()) > 0 {
 		packages = flag.CommandLine.Args()
 	}
+	// Quorum
+	// Ignore not Quorum related packages to accelerate build
+	packages = build.ExpandPackagesNoVendor(packages)
+	packages = build.IgnorePackages(packages)
 
 	// Run the actual tests.
 	// Test a single package at a time. CI builders are slow
 	// and some tests run into timeouts under load.
 	gotest := goTool("test", buildFlags(env)...)
-	gotest.Args = append(gotest.Args, "-p", "1")
+	gotest.Args = append(gotest.Args, "-p", "1", "--short")
 	if *coverage {
 		gotest.Args = append(gotest.Args, "-covermode=atomic", "-cover")
 	}

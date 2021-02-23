@@ -638,6 +638,9 @@ func (ethash *Ethash) SetThreads(threads int) {
 // Note the returned hashrate includes local hashrate, but also includes the total
 // hashrate of all remote miner.
 func (ethash *Ethash) Hashrate() float64 {
+	if ethash.hashrate == nil {
+		return 0
+	}
 	// Short circuit if we are run the ethash in normal/test mode.
 	if ethash.config.PowMode != ModeNormal && ethash.config.PowMode != ModeTest {
 		return ethash.hashrate.Rate1()
@@ -679,4 +682,9 @@ func (ethash *Ethash) APIs(chain consensus.ChainReader) []rpc.API {
 // dataset.
 func SeedHash(block uint64) []byte {
 	return seedHash(block)
+}
+
+// Protocol implements consensus.Engine.Protocol
+func (ethash *Ethash) Protocol() consensus.Protocol {
+	return consensus.EthProtocol
 }

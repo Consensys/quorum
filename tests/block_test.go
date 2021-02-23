@@ -44,6 +44,12 @@ func TestBlockchain(t *testing.T) {
 	// using 4.6 TGas
 	bt.skipLoad(`.*randomStatetest94.json.*`)
 
+	//Quorum - uncles are not in scope for quorum
+	bt.skipLoad(`.*bcUncleSpecialTests/futureUncleTimestampDifficultyDrop4\.json`)
+	bt.skipLoad(`.*bcUncleSpecialTests/futureUncleTimestampDifficultyDrop3\.json`)
+	bt.skipLoad(`.*bcUncleSpecialTests/futureUncleTimestampDifficultyDrop2\.json`)
+	bt.skipLoad(`.*bcUncleSpecialTests/futureUncleTimestampDifficultyDrop\.json`)
+
 	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
 		if err := bt.checkFailure(t, name+"/trie", test.Run(false)); err != nil {
 			t.Errorf("test without snapshotter failed: %v", err)

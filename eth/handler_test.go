@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -37,6 +38,45 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 )
+
+// Tests that correct consensus mechanism details are returned in NodeInfo.
+func TestNodeInfo(t *testing.T) {
+
+	// Define the tests to be run
+	tests := []struct {
+		consensus      string
+		cliqueConfig   *params.CliqueConfig
+		istanbulConfig *params.IstanbulConfig
+		raftMode       bool
+	}{
+		{"ethash", nil, nil, false},
+		{"raft", nil, nil, true},
+		{"istanbul", nil, &params.IstanbulConfig{Epoch: 1, ProposerPolicy: 1, Ceil2Nby3Block: big.NewInt(0)}, false},
+		{"clique", &params.CliqueConfig{Period: 1, Epoch: 1}, nil, false},
+	}
+
+	// Make sure anything we screw up is restored
+	backup := consensus.EthProtocol.Versions
+	defer func() { consensus.EthProtocol.Versions = backup }()
+
+	// Try all available consensus mechanisms and check for errors
+	for i, tt := range tests {
+
+		pm, _, err := newTestProtocolManagerConsensus(tt.consensus, tt.cliqueConfig, tt.istanbulConfig, tt.raftMode)
+
+		if pm != nil {
+			defer pm.Stop()
+		}
+		if err == nil {
+			pmConsensus := pm.getConsensusAlgorithm()
+			if tt.consensus != pmConsensus {
+				t.Errorf("test %d: consensus type error, wanted %v but got %v", i, tt.consensus, pmConsensus)
+			}
+		} else {
+			t.Errorf("test %d: consensus type error %v", i, err)
+		}
+	}
+}
 
 // Tests that block headers can be retrieved from a remote chain based on user queries.
 func TestGetBlockHeaders63(t *testing.T) { testGetBlockHeaders(t, 63) }
@@ -352,7 +392,7 @@ func testGetNodeData(t *testing.T, protocol int) {
 		trie, _ := state.New(pm.blockchain.GetBlockByNumber(i).Root(), state.NewDatabase(statedb), nil)
 
 		for j, acc := range accounts {
-			state, _ := pm.blockchain.State()
+			state, _, _ := pm.blockchain.State()
 			bw := state.GetBalance(acc)
 			bh := trie.GetBalance(acc)
 
@@ -495,7 +535,7 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
-	pm, err := NewProtocolManager(config, cht, syncmode, DefaultConfig.NetworkId, new(event.TypeMux), &testTxPool{pool: make(map[common.Hash]*types.Transaction)}, ethash.NewFaker(), blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(config, cht, syncmode, DefaultConfig.NetworkId, new(event.TypeMux), &testTxPool{pool: make(map[common.Hash]*types.Transaction)}, ethash.NewFaker(), blockchain, db, 1, nil, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}
@@ -582,7 +622,7 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
-	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, &testTxPool{pool: make(map[common.Hash]*types.Transaction)}, pow, blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, &testTxPool{pool: make(map[common.Hash]*types.Transaction)}, pow, blockchain, db, 1, nil, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}
@@ -646,7 +686,7 @@ func TestBroadcastMalformedBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
-	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, new(event.TypeMux), new(testTxPool), engine, blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, new(event.TypeMux), new(testTxPool), engine, blockchain, db, 1, nil, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}

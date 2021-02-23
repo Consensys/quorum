@@ -164,10 +164,25 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		} else {
 			log.Info("Writing custom genesis block")
 		}
+
+		// Quorum: Set default transaction size limit if not set in genesis
+		if genesis.Config.TransactionSizeLimit == 0 {
+			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
+		}
+
+		// Check transaction size limit and max contract code size
+		err := genesis.Config.IsValid()
+		if err != nil {
+			return genesis.Config, common.Hash{}, err
+		}
+
+		// /Quorum
+
 		block, err := genesis.Commit(db)
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
+		checkAndPrintPrivacyEnhancementsWarning(genesis.Config)
 		return genesis.Config, block.Hash(), nil
 	}
 
@@ -207,6 +222,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if storedcfg == nil {
 		log.Warn("Found genesis block without chain config")
 		rawdb.WriteChainConfig(db, stored, newcfg)
+		checkAndPrintPrivacyEnhancementsWarning(newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -222,12 +238,27 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
-	compatErr := storedcfg.CheckCompatible(newcfg, *height)
+
+	// Quorum
+	if storedcfg.PrivacyEnhancementsBlock == nil {
+		checkAndPrintPrivacyEnhancementsWarning(newcfg)
+	}
+	// End Quorum
+
+	compatErr := storedcfg.CheckCompatible(newcfg, *height, rawdb.GetIsQuorumEIP155Activated(db))
 	if compatErr != nil && *height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
 	return newcfg, stored, nil
+}
+
+func checkAndPrintPrivacyEnhancementsWarning(config *params.ChainConfig) {
+	if config.PrivacyEnhancementsBlock != nil {
+		log.Warn("Privacy enhancements have been enabled from block height " + config.PrivacyEnhancementsBlock.String() +
+			". Please ensure your privacy manager is upgraded and supports privacy enhancements (tessera version 1.*) " +
+			"otherwise your quorum node will fail to start.")
+	}
 }
 
 func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
