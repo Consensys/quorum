@@ -73,7 +73,7 @@ func (c *core) handleCommitMsg(commit *message.Commit) error {
 	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
 
 	// For testing of round changes!!!!
-	if commit.Sequence.Int64()%2 == 0 && commit.Round.Int64() == 0 {
+	if commit.Sequence.Int64() % 4 == 0 && commit.Round.Int64() == 0 {
 		return nil
 	}
 

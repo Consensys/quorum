@@ -64,7 +64,7 @@ func (c *core) handlePrepare(prepare *message.Prepare) error {
 	logger.Info("QBFT: handlePrepare", "msg", &prepare)
 
 	// For testing of round changes!!!!
-	if prepare.Sequence.Int64()%2 == 0 && prepare.Round.Int64() == 0 {
+	if prepare.Sequence.Int64() % 4 == 2 && prepare.Round.Int64() == 0 {
 		return nil
 	}
 
