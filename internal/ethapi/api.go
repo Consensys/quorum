@@ -1715,7 +1715,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		args.PrivateTxType = "restricted"
 	}
 	if args.IsPrivate() {
-		if len(args.PrivateFrom) == 0 {
+		if len(args.PrivateFrom) == 0 && b.ChainConfig().IsMPS {
 			psm, err := b.PSMR().ResolveForUserContext(ctx)
 			if err != nil {
 				return err
