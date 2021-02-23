@@ -331,11 +331,10 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
 		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, secCtx.Value(CtxPrivateStateIdentifier))
 	}
-	// try to extract the PSI from the request ID if it is not already there in the context
+	// try to extract the PSI from the request ID if it is not already there in the context.
+	// this is mainly to serve IPC and InProc transport
 	if cp.ctx.Value(CtxPrivateStateIdentifier) == nil {
-		if psi, found := types.DecodePSI(msg.ID); found {
-			cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, psi)
-		}
+		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, types.DecodePSI(msg.ID))
 	}
 
 	if msg.isSubscribe() {

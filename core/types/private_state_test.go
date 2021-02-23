@@ -22,9 +22,8 @@ func TestEncodePSI_whenNoPSI(t *testing.T) {
 func TestDecodePSI_whenTypical(t *testing.T) {
 	input := "\"ARBITRARY/1\""
 
-	psi, found := DecodePSI([]byte(input))
+	psi := DecodePSI([]byte(input))
 
-	assert.True(t, found)
 	assert.Equal(t, PrivateStateIdentifier("ARBITRARY"), psi)
 }
 
@@ -36,9 +35,8 @@ func TestDecodePSI_whenNoPSI(t *testing.T) {
 		"\"xyz\"",
 	}
 	for _, input := range inputs {
-		psi, found := DecodePSI([]byte(input))
+		psi := DecodePSI([]byte(input))
 
-		assert.False(t, found, "input: %s", input)
-		assert.Equal(t, PrivateStateIdentifier(""), psi, "input: %s", input)
+		assert.Equal(t, DefaultPrivateStateIdentifier, psi, "input: %s", input)
 	}
 }

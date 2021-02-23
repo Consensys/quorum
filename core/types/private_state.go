@@ -51,17 +51,17 @@ func EncodePSI(idCounterBytes []byte, psi PrivateStateIdentifier) json.RawMessag
 	return newID
 }
 
-// DecodePSI extracts PSI value from an encoded JSON message ID. Return second value as false
-// if no PSI is encoded
+// DecodePSI extracts PSI value from an encoded JSON message ID. Return DefaultPrivateStateIdentifier
+// if not found
 // i.e.: "<counter>/<psi>" returns <psi>
-func DecodePSI(id json.RawMessage) (PrivateStateIdentifier, bool) {
+func DecodePSI(id json.RawMessage) PrivateStateIdentifier {
 	idStr := string(id)
 	if !strings.HasPrefix(idStr, "\"") || !strings.HasSuffix(idStr, "\"") {
-		return "", false
+		return DefaultPrivateStateIdentifier
 	}
 	sepIdx := strings.Index(idStr, "/")
 	if sepIdx == -1 {
-		return "", false
+		return DefaultPrivateStateIdentifier
 	}
-	return PrivateStateIdentifier(id[1:sepIdx]), true
+	return PrivateStateIdentifier(id[1:sepIdx])
 }

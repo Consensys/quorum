@@ -20,8 +20,11 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 func newTestServer() *Server {
@@ -63,6 +66,10 @@ type echoResult struct {
 	Args   *echoArgs
 }
 
+type echoPSIResult struct {
+	PSI types.PrivateStateIdentifier
+}
+
 type testError struct{}
 
 func (testError) Error() string          { return "testError" }
@@ -81,6 +88,14 @@ func (s *testService) EchoWithCtx(ctx context.Context, str string, i int, args *
 
 func (s *testService) EchoCtxId(ctx context.Context) interface{} {
 	return ctx.Value("id")
+}
+
+func (s *testService) EchoCtxPSI(ctx context.Context) (echoPSIResult, error) {
+	value := ctx.Value(CtxPrivateStateIdentifier)
+	if value == nil {
+		return echoPSIResult{}, fmt.Errorf("no PSI found in the context")
+	}
+	return echoPSIResult{PSI: value.(types.PrivateStateIdentifier)}, nil
 }
 
 func (s *testService) Sleep(ctx context.Context, duration time.Duration) {

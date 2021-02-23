@@ -31,6 +31,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/assert"
@@ -428,7 +430,7 @@ func TestClientNotificationStorm(t *testing.T) {
 	}
 
 	doTest(8000, false)
-	doTest(23000, true)
+	doTest(24000, true)
 }
 
 func TestClientSetHeader(t *testing.T) {
@@ -700,4 +702,135 @@ func TestClient_withCredentials_whenTargetingWS(t *testing.T) {
 
 	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
 	assert.EqualError(t, err, "arbitrary_call - access denied")
+}
+
+func TestClient_HTTP_WS_whenDefaultPSI(t *testing.T) {
+	for _, transport := range []string{"http", "ws"} {
+		f := func(transport string) {
+			server := newTestServer()
+			defer server.Stop()
+
+			client, hs := httpTestClient(server, transport, nil)
+			defer hs.Close()
+			defer client.Close()
+
+			verifyPSI(t, client, types.DefaultPrivateStateIdentifier)
+		}
+		f(transport)
+	}
+}
+
+func TestClient_InProc_whenDefaultPSI(t *testing.T) {
+	server := newTestServer()
+	defer server.Stop()
+
+	client := DialInProc(server)
+	defer client.Close()
+
+	verifyPSI(t, client, types.DefaultPrivateStateIdentifier)
+}
+
+func TestClient_IPC_whenDefaultPSI(t *testing.T) {
+	server := newTestServer()
+	defer server.Stop()
+
+	client, l := ipcTestClient(server, nil)
+	defer l.Close()
+	defer client.Close()
+
+	verifyPSI(t, client, types.DefaultPrivateStateIdentifier)
+}
+
+func startHTTPTestServer(transport string) (*Server, *httptest.Server) {
+	handler := newTestServer()
+	// Create the HTTP server.
+	var hs *httptest.Server
+	switch transport {
+	case "ws":
+		hs = httptest.NewUnstartedServer(handler.WebsocketHandler([]string{"*"}))
+	case "http":
+		hs = httptest.NewUnstartedServer(handler)
+	default:
+		panic("unknown HTTP transport: " + transport)
+	}
+	// Connect the client.
+	hs.Start()
+	return handler, hs
+}
+
+func TestClient_whenProvidingPSIViaURLParam(t *testing.T) {
+	for _, transport := range []string{"http", "ws"} {
+		f := func(transport string) {
+			expectedPSI := "PS1"
+			srvHandler, srvHttp := startHTTPTestServer(transport)
+			defer func() {
+				srvHandler.Stop()
+				srvHttp.Close()
+			}()
+
+			endpoint := fmt.Sprintf("%s://%s?%s=%s", transport, srvHttp.Listener.Addr().String(), QueryPrivateStateIdentifierParamName, expectedPSI)
+			client, err := Dial(endpoint)
+			assert.NoError(t, err, endpoint)
+
+			verifyPSI(t, client, types.PrivateStateIdentifier(expectedPSI), endpoint)
+		}
+		f(transport)
+	}
+}
+
+func TestClient_whenProvidingPSIViaEnvVar(t *testing.T) {
+	for _, transport := range []string{"http", "ws"} {
+		f := func(transport string) {
+			expectedPSI := "PS1"
+			assert.NoError(t, os.Setenv(EnvVarPrivateStateIdentifier, expectedPSI))
+			defer os.Unsetenv(EnvVarPrivateStateIdentifier)
+			srvHandler, srvHttp := startHTTPTestServer(transport)
+			defer func() {
+				srvHandler.Stop()
+				srvHttp.Close()
+			}()
+
+			endpoint := fmt.Sprintf("%s://%s", transport, srvHttp.Listener.Addr().String())
+			client, err := Dial(endpoint)
+			assert.NoError(t, err, endpoint)
+
+			verifyPSI(t, client, types.PrivateStateIdentifier(expectedPSI), endpoint)
+		}
+		f(transport)
+	}
+}
+
+func TestClient_IPC_whenSetupPSIExplicitly(t *testing.T) {
+	expectedPSI := types.PrivateStateIdentifier("arbitrary_psi")
+	server := newTestServer()
+	defer server.Stop()
+
+	client, l := ipcTestClient(server, nil)
+	defer l.Close()
+	defer client.Close()
+
+	client.WithPSI(expectedPSI)
+
+	verifyPSI(t, client, expectedPSI)
+}
+
+func TestClient_InProc_whenSetupPSIExplicitly(t *testing.T) {
+	expectedPSI := types.PrivateStateIdentifier("arbitrary_psi")
+	server := newTestServer()
+	defer server.Stop()
+
+	client := DialInProc(server)
+	defer client.Close()
+
+	client.WithPSI(expectedPSI)
+
+	verifyPSI(t, client, expectedPSI)
+}
+
+func verifyPSI(t *testing.T, client *Client, expectedPSI types.PrivateStateIdentifier, msgAndArgs ...interface{}) {
+	var resp echoPSIResult
+	err := client.Call(&resp, "test_echoCtxPSI")
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedPSI, resp.PSI, msgAndArgs)
 }
