@@ -85,11 +85,11 @@ func setup() {
 	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
-	publicStateDB, err = state.New(common.Hash{}, db)
+	publicStateDB, err = state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}
-	privateStateDB, err = state.New(common.Hash{}, db)
+	privateStateDB, err = state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}

@@ -64,7 +64,7 @@ func newClientHandler(ulcServers []string, ulcFraction int, checkpoint *params.T
 	if checkpoint != nil {
 		height = (checkpoint.SectionIndex+1)*params.CHTFrequency - 1
 	}
-	handler.fetcher = newLightFetcher(handler)
+	handler.fetcher = newLightFetcher(handler, backend.serverPool.getTimeout)
 	handler.downloader = downloader.New(height, backend.chainDb, nil, backend.eventMux, nil, backend.blockchain, handler.removePeer)
 	handler.backend.peers.subscribe((*downloaderPeerNotify)(handler))
 	return handler
@@ -85,14 +85,9 @@ func (h *clientHandler) runPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter)
 	}
 	peer := newServerPeer(int(version), h.backend.config.NetworkId, trusted, p, newMeteredMsgWriter(rw, int(version)))
 	defer peer.close()
-	peer.poolEntry = h.backend.serverPool.connect(peer, peer.Node())
-	if peer.poolEntry == nil {
-		return p2p.DiscRequested
-	}
 	h.wg.Add(1)
 	defer h.wg.Done()
 	err := h.handle(peer)
-	h.backend.serverPool.disconnect(peer.poolEntry)
 	return err
 }
 
@@ -129,10 +124,6 @@ func (h *clientHandler) handle(p *serverPeer) error {
 
 	h.fetcher.announce(p, &announceData{Hash: p.headInfo.Hash, Number: p.headInfo.Number, Td: p.headInfo.Td})
 
-	// pool entry can be nil during the unit test.
-	if p.poolEntry != nil {
-		h.backend.serverPool.registered(p.poolEntry)
-	}
 	// Mark the peer starts to be served.
 	atomic.StoreUint32(&p.serving, 1)
 	defer atomic.StoreUint32(&p.serving, 0)
@@ -180,6 +171,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrRequestRejected, "")
 		}
 		p.updateFlowControl(update)
+		p.updateVtParams()
 
 		if req.Hash != (common.Hash{}) {
 			if p.announceType == announceTypeNone {
@@ -205,6 +197,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		if h.fetcher.requestedID(resp.ReqID) {
 			h.fetcher.deliverHeaders(p, resp.ReqID, resp.Headers)
 		} else {
@@ -222,6 +215,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgBlockBodies,
 			ReqID:   resp.ReqID,
@@ -237,6 +231,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgCode,
 			ReqID:   resp.ReqID,
@@ -252,6 +247,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgReceipts,
 			ReqID:   resp.ReqID,
@@ -267,6 +263,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgProofsV2,
 			ReqID:   resp.ReqID,
@@ -282,6 +279,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgHelperTrieProofs,
 			ReqID:   resp.ReqID,
@@ -297,6 +295,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		p.fcServer.ReceivedReply(resp.ReqID, resp.BV)
+		p.answeredRequest(resp.ReqID)
 		deliverMsg = &Msg{
 			MsgType: MsgTxStatus,
 			ReqID:   resp.ReqID,

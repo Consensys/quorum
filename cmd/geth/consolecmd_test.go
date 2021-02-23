@@ -116,7 +116,7 @@ at block: 0 ({{niltime}})
 // Tests that a console can be attached to a running node via various means.
 func TestIPCAttachWelcome(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
-	// Configure the instance for IPC attachement
+	// Configure the instance for IPC attachment
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 	var ipc string
 

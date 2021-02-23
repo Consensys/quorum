@@ -43,7 +43,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -392,18 +391,20 @@ func (api *RetestethAPI) SetChainParams(ctx context.Context, chainParams ChainPa
 		inner = ethash.NewFaker()
 	case "Ethash":
 		inner = ethash.New(ethash.Config{
-			CacheDir:       "ethash",
-			CachesInMem:    2,
-			CachesOnDisk:   3,
-			DatasetsInMem:  1,
-			DatasetsOnDisk: 2,
+			CacheDir:         "ethash",
+			CachesInMem:      2,
+			CachesOnDisk:     3,
+			CachesLockMmap:   false,
+			DatasetsInMem:    1,
+			DatasetsOnDisk:   2,
+			DatasetsLockMmap: false,
 		}, nil, false)
 	default:
 		return false, fmt.Errorf("unrecognised seal engine: %s", chainParams.SealEngine)
 	}
 	engine := &NoRewardEngine{inner: inner, rewardsOn: chainParams.SealEngine != "NoReward"}
 
-	blockchain, err := core.NewBlockChain(ethDb, nil, chainConfig, engine, vm.Config{}, nil)
+	blockchain, err := core.NewBlockChain(ethDb, nil, chainConfig, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -681,7 +682,7 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
 			vmenv := vm.NewEVM(context, statedb, pvtst, api.blockchain.Config(), vm.Config{})
-			if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return AccountRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
 			// Ensure any modifications are committed to the state
@@ -791,7 +792,7 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
 			vmenv := vm.NewEVM(context, statedb, pvtstdb, api.blockchain.Config(), vm.Config{})
-			if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return StorageRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
 			// Ensure any modifications are committed to the state
@@ -890,8 +891,16 @@ func retesteth(ctx *cli.Context) error {
 			Version:   "1.0",
 		},
 	}
-	vhosts := splitAndTrim(ctx.GlobalString(utils.RPCVirtualHostsFlag.Name))
-	cors := splitAndTrim(ctx.GlobalString(utils.RPCCORSDomainFlag.Name))
+	vhosts := splitAndTrim(ctx.GlobalString(utils.HTTPVirtualHostsFlag.Name))
+	cors := splitAndTrim(ctx.GlobalString(utils.HTTPCORSDomainFlag.Name))
+
+	// register apis and create handler stack
+	srv := rpc.NewServer()
+	err := node.RegisterApisFromWhitelist(rpcAPI, []string{"test", "eth", "debug", "web3"}, srv, false)
+	if err != nil {
+		utils.Fatalf("Could not register RPC apis: %w", err)
+	}
+	handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
 
 	// start http server
 	var RetestethHTTPTimeouts = rpc.HTTPTimeouts{
@@ -899,8 +908,8 @@ func retesteth(ctx *cli.Context) error {
 		WriteTimeout: 120 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	httpEndpoint := fmt.Sprintf("%s:%d", ctx.GlobalString(utils.RPCListenAddrFlag.Name), ctx.Int(rpcPortFlag.Name))
-	listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"test", "eth", "debug", "web3"}, cors, vhosts, RetestethHTTPTimeouts, nil, &security.DisabledAuthenticationManager{})
+	httpEndpoint := fmt.Sprintf("%s:%d", ctx.GlobalString(utils.HTTPListenAddrFlag.Name), ctx.Int(rpcPortFlag.Name))
+	httpServer, _, _, err := node.StartHTTPEndpoint(httpEndpoint, RetestethHTTPTimeouts, handler, nil)
 	if err != nil {
 		utils.Fatalf("Could not start RPC api: %v", err)
 	}
@@ -908,7 +917,8 @@ func retesteth(ctx *cli.Context) error {
 	log.Info("HTTP endpoint opened", "url", extapiURL)
 
 	defer func() {
-		listener.Close()
+		// Don't bother imposing a timeout here.
+		httpServer.Shutdown(context.Background())
 		log.Info("HTTP endpoint closed", "url", httpEndpoint)
 	}()
 

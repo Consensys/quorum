@@ -200,7 +200,7 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 		signStatus[sealer]++
 	}
 	return &Status{
-		InturnPercent: float64((100 * optimals)) / float64(numBlocks),
+		InturnPercent: float64(100*optimals) / float64(numBlocks),
 		SigningStatus: signStatus,
 		NumBlocks:     numBlocks,
 	}, nil

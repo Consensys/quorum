@@ -154,7 +154,7 @@ func (s *Service) loop() {
 	txSub := txpool.SubscribeNewTxsEvent(txEventCh)
 	defer txSub.Unsubscribe()
 
-	// Start a goroutine that exhausts the subsciptions to avoid events piling up
+	// Start a goroutine that exhausts the subscriptions to avoid events piling up
 	var (
 		quitCh = make(chan struct{})
 		headCh = make(chan *types.Block, 1)
@@ -194,16 +194,17 @@ func (s *Service) loop() {
 		}
 		close(quitCh)
 	}()
+
+	// Resolve the URL, defaulting to TLS, but falling back to none too
+	path := fmt.Sprintf("%s/api", s.host)
+	urls := []string{path}
+
+	// url.Parse and url.IsAbs is unsuitable (https://github.com/golang/go/issues/19779)
+	if !strings.Contains(path, "://") {
+		urls = []string{"wss://" + path, "ws://" + path}
+	}
 	// Loop reporting until termination
 	for {
-		// Resolve the URL, defaulting to TLS, but falling back to none too
-		path := fmt.Sprintf("%s/api", s.host)
-		urls := []string{path}
-
-		// url.Parse and url.IsAbs is unsuitable (https://github.com/golang/go/issues/19779)
-		if !strings.Contains(path, "://") {
-			urls = []string{"wss://" + path, "ws://" + path}
-		}
 		// Establish a websocket connection to the server on any supported URL
 		var (
 			conn *websocket.Conn
@@ -244,6 +245,8 @@ func (s *Service) loop() {
 		for err == nil {
 			select {
 			case <-quitCh:
+				fullReport.Stop()
+				// Make sure the connection is closed
 				conn.Close()
 				return
 
@@ -268,6 +271,7 @@ func (s *Service) loop() {
 				}
 			}
 		}
+		fullReport.Stop()
 		// Make sure the connection is closed
 		conn.Close()
 	}
@@ -316,8 +320,11 @@ func (s *Service) readLoop(conn *websocket.Conn) {
 			request, ok := msg["emit"][1].(map[string]interface{})
 			if !ok {
 				log.Warn("Invalid stats history request", "msg", msg["emit"][1])
-				s.histCh <- nil
-				continue // Ethstats sometime sends invalid history requests, ignore those
+				select {
+				case s.histCh <- nil: // Treat it as an no indexes request
+				default:
+				}
+				continue
 			}
 			list, ok := request["list"].([]interface{})
 			if !ok {
@@ -345,7 +352,7 @@ func (s *Service) readLoop(conn *websocket.Conn) {
 	}
 }
 
-// nodeInfo is the collection of metainformation about a node that is displayed
+// nodeInfo is the collection of meta information about a node that is displayed
 // on the monitoring page.
 type nodeInfo struct {
 	Name     string `json:"name"`

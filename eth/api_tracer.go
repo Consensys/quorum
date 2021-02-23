@@ -150,6 +150,9 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 	// Ensure we have a valid starting state before doing any work
 	origin := start.NumberU64()
 	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16) // Chain tracing will probably start at genesis
+	// Quorum
+	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// End Quorum
 
 	if number := start.NumberU64(); number > 0 {
 		start = api.eth.blockchain.GetBlock(start.ParentHash(), start.NumberU64()-1)
@@ -157,7 +160,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	statedb, privateStateDb, err := api.eth.blockchain.StateAt(start.Root())
+	statedb, privateStateDb, err := state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil)
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -170,8 +173,9 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-			statedb, privateStateDb, err = api.eth.blockchain.StateAt(start.Root())
-			if err == nil {
+
+			// Quorum - use NewDual(...) to create private state too
+			if statedb, privateStateDb, err = state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
 				break
 			}
 		}
@@ -526,7 +530,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		vmenv.SetCurrentTX(tx)
 		// /Quorum
 
-		if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
+		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
 			failed = err
 			break
 		}
@@ -627,7 +631,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		vmenv.SetCurrentTX(tx)
 		// /Quorum
 
-		_, _, _, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+		_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 		if writer != nil {
 			writer.Flush()
 		}
@@ -673,14 +677,18 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
 	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// Quorum
+	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// End Quorum
 
 	for i := uint64(0); i < reexec; i++ {
 		block = api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 		if block == nil {
 			break
 		}
-		statedb, privateStateDb, err = api.eth.blockchain.StateAt(block.Root())
-		if err == nil {
+
+		// Quorum - use NewDual(...) to create private state too
+		if statedb, privateStateDb, err = state.NewDual(block.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
 			break
 		}
 	}
@@ -808,7 +816,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	vmenv.SetCurrentTX(tx)
 	// /Quorum
 
-	ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
+	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
 	}
@@ -816,9 +824,9 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
 		return &ethapi.ExecutionResult{
-			Gas:         gas,
-			Failed:      failed,
-			ReturnValue: fmt.Sprintf("%x", ret),
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: fmt.Sprintf("%x", result.Return()),
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
@@ -866,7 +874,7 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 		// Not yet the searched for transaction, execute on top of the current state
 		vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
 		vmenv.SetCurrentTX(tx)
-		if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.Context{}, nil, nil, fmt.Errorf("tx %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state

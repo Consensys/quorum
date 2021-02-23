@@ -52,7 +52,7 @@ func TestServerRegisterName(t *testing.T) {
 		t.Fatalf("Expected service calc to be registered")
 	}
 
-	wantCallbacks := 8
+	wantCallbacks := 9
 	// Quorum - Add extra callback for the function added by us EchoCtxId
 	wantCallbacks += 1
 	// End Quorum

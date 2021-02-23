@@ -13,7 +13,7 @@ func TestDumpAddressWhenFound(t *testing.T) {
 	//db := ethdb.NewMemDatabase()
 	db := rawdb.NewMemoryDatabase()
 
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	stateFetcher := NewStateFetcher(nil)
@@ -35,7 +35,7 @@ func TestDumpAddressWhenFound(t *testing.T) {
 func TestDumpAddressWhenNotFound(t *testing.T) {
 	//db := ethdb.NewMemDatabase()
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	statedb.Commit(false)
 
 	stateFetcher := NewStateFetcher(nil)

@@ -264,7 +264,7 @@ func (n ID) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (n *ID) UnmarshalText(text []byte) error {
-	id, err := parseID(string(text))
+	id, err := ParseID(string(text))
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (n *EnodeID) UnmarshalText(text []byte) error {
 // The string may be prefixed with 0x.
 // It panics if the string is not a valid ID.
 func HexID(in string) ID {
-	id, err := parseID(in)
+	id, err := ParseID(in)
 	if err != nil {
 		panic(err)
 	}
@@ -325,7 +325,7 @@ func RaftHexID(in string) (EnodeID, error) {
 	return id, nil
 }
 
-func parseID(in string) (ID, error) {
+func ParseID(in string) (ID, error) {
 	var id ID
 	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))
 	if err != nil {

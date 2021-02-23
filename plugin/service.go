@@ -106,7 +106,7 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 		// it indicates that the plugin template "extends" basePlugin
 		basePluginField := rv.Elem().FieldByName("basePlugin")
 		if !basePluginField.IsValid() || basePluginField.Type() != basePluginPointerType {
-			panic(fmt.Sprintf("plugin template must extend *basePlugin"))
+			panic("plugin template must extend *basePlugin")
 		}
 		// need to have write access to the unexported field in the target object
 		basePluginField = reflect.NewAt(basePluginField.Type(), unsafe.Pointer(basePluginField.UnsafeAddr())).Elem()

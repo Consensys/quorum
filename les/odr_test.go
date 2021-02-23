@@ -91,7 +91,7 @@ func odrAccounts(ctx context.Context, db ethdb.Database, config *params.ChainCon
 	for _, addr := range acc {
 		if bc != nil {
 			header := bc.GetHeaderByHash(bhash)
-			st, err = state.New(header.Root, state.NewDatabase(db))
+			st, err = state.New(header.Root, state.NewDatabase(db), nil)
 		} else {
 			header := lc.GetHeaderByHash(bhash)
 			st = light.NewState(ctx, header, lc.Odr())
@@ -122,7 +122,7 @@ func odrContractCall(ctx context.Context, db ethdb.Database, config *params.Chai
 		data[35] = byte(i)
 		if bc != nil {
 			header := bc.GetHeaderByHash(bhash)
-			statedb, err := state.New(header.Root, state.NewDatabase(db))
+			statedb, err := state.New(header.Root, state.NewDatabase(db), nil)
 
 			if err == nil {
 				from := statedb.GetOrNewStateObject(bankAddr)
@@ -135,8 +135,8 @@ func odrContractCall(ctx context.Context, db ethdb.Database, config *params.Chai
 
 				//vmenv := core.NewEnv(statedb, config, bc, msg, header, vm.Config{})
 				gp := new(core.GasPool).AddGas(math.MaxUint64)
-				ret, _, _, _ := core.ApplyMessage(vmenv, msg, gp)
-				res = append(res, ret...)
+				result, _ := core.ApplyMessage(vmenv, msg, gp)
+				res = append(res, result.Return()...)
 			}
 		} else {
 			header := lc.GetHeaderByHash(bhash)
@@ -146,9 +146,9 @@ func odrContractCall(ctx context.Context, db ethdb.Database, config *params.Chai
 			context := core.NewEVMContext(msg, header, lc, nil)
 			vmenv := vm.NewEVM(context, state, state, config, vm.Config{})
 			gp := new(core.GasPool).AddGas(math.MaxUint64)
-			ret, _, _, _ := core.ApplyMessage(vmenv, msg, gp)
+			result, _ := core.ApplyMessage(vmenv, msg, gp)
 			if state.Error() == nil {
-				res = append(res, ret...)
+				res = append(res, result.Return()...)
 			}
 		}
 	}

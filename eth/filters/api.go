@@ -79,6 +79,7 @@ func NewPublicFilterAPI(backend Backend, lightMode bool) *PublicFilterAPI {
 // Tt is started when the api is created.
 func (api *PublicFilterAPI) timeoutLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 	for {
 		<-ticker.C
 		api.filtersMu.Lock()
