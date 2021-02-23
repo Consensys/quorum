@@ -72,11 +72,6 @@ func (c *core) handleCommitMsg(commit *message.Commit) error {
 
 	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
 
-	// For testing of round changes!!!!
-	if commit.Sequence.Int64() % 4 == 0 && commit.Round.Int64() == 0 {
-		return nil
-	}
-
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
 		logger.Error("QBFT: Failed to check digest")

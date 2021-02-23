@@ -52,16 +52,8 @@ func newTesterAccountPool() *testerAccountPool {
 	}
 }
 
-func (ap *testerAccountPool) sign(header *types.Header, validator string) {
-	// Ensure we have a persistent key for the validator
-	if ap.accounts[validator] == nil {
-		ap.accounts[validator], _ = crypto.GenerateKey()
-	}
-	// Sign the header and embed the signature in extra data
-	hashData := crypto.Keccak256([]byte(sigHash(header).Bytes()))
-	sig, _ := crypto.Sign(hashData, ap.accounts[validator])
-
-	writeSeal(header, sig)
+func (ap *testerAccountPool) writeValidatorVote(header *types.Header, validator string, recipientAddress string, voteType byte) error {
+	return writeValidatorVote(header, ap.address(recipientAddress), voteType)
 }
 
 func (ap *testerAccountPool) address(account string) common.Address {
@@ -336,7 +328,7 @@ func TestVoting(t *testing.T) {
 			Mixhash:    types.IstanbulDigest,
 		}
 		b := genesis.ToBlock(nil)
-		extra, _ := prepareExtra(b.Header(), validators)
+		extra, _ := qbftPrepareExtra(b.Header(), validators)
 		genesis.ExtraData = extra
 		// Create a pristine blockchain with the genesis injected
 		db := rawdb.NewMemoryDatabase()
@@ -355,20 +347,26 @@ func TestVoting(t *testing.T) {
 			headers[j] = &types.Header{
 				Number:     big.NewInt(int64(j) + 1),
 				Time:       uint64(int64(j) * int64(config.BlockPeriod)),
-				Coinbase:   accounts.address(vote.voted),
+				Coinbase:   accounts.address(vote.validator),
 				Difficulty: defaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
 			}
-			extra, _ := prepareExtra(headers[j], validators)
+			extra, _ := qbftPrepareExtra(headers[j], validators)
 			headers[j].Extra = extra
 			if j > 0 {
 				headers[j].ParentHash = headers[j-1].Hash()
 			}
+			voteType := types.QbftDropVote
 			if vote.auth {
-				copy(headers[j].Nonce[:], nonceAuthVote)
+				voteType = types.QbftAuthVote
 			}
 			copy(headers[j].Extra, genesis.ExtraData)
-			accounts.sign(headers[j], vote.validator)
+			if len(vote.voted) > 0 {
+				if err := accounts.writeValidatorVote(headers[j], vote.validator, vote.voted, voteType); err != nil {
+					t.Errorf("Error writeValidatorVote test: %d, validator: %s, voteType: %v", j, vote.voted, voteType)
+				}
+			}
+
 		}
 		// Pass all the headers through clique and ensure tallying succeeds
 		head := headers[len(headers)-1]

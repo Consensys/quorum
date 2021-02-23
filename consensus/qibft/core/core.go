@@ -131,25 +131,6 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
-/*
-func (c *core) commit() {
-	c.setState(StateCommitted)
-
-	proposal := c.current.Proposal()
-	if proposal != nil {
-		committedSeals := make([][]byte, c.current.Commits.Size())
-		for i, v := range c.current.Commits.Values() {
-			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			copy(committedSeals[i][:], v.CommittedSeal[:])
-		}
-
-		if err := c.backend.Commit(proposal, committedSeals); err != nil {
-			c.broadcastNextRoundChange()
-			return
-		}
-	}
-}*/
-
 func (c *core) commitQBFT() {
 	c.setState(StateCommitted)
 
@@ -162,7 +143,7 @@ func (c *core) commitQBFT() {
 			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
 
-		if err := c.backend.Commit(proposal, committedSeals); err != nil {
+		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
 			log.Error("QBFT: Error committing", "err", err)
 			c.broadcastNextRoundChange()
 			return

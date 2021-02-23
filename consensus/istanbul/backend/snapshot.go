@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"encoding/json"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
@@ -160,7 +159,10 @@ func (s *Snapshot) uncast(address common.Address, authorize bool) bool {
 
 // apply creates a new authorization snapshot by applying the given headers to
 // the original one.
-func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
+func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool) (*Snapshot, error) {
+	if isQBFTConsensus {
+		return s.qbftApply(headers)
+	}
 	// Allow passing in no headers for cleaner code
 	if len(headers) == 0 {
 		return s, nil
@@ -185,7 +187,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 			snap.Tally = make(map[common.Address]Tally)
 		}
 		// Resolve the authorization key and check against validators
-		validator, err := ecrecover(header)
+		validator, err := ecrecoverFromSignedHeader(header)
 		if err != nil {
 			return nil, err
 		}
@@ -250,6 +252,119 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 				}
 			}
 			delete(snap.Tally, header.Coinbase)
+		}
+	}
+	snap.Number += uint64(len(headers))
+	snap.Hash = headers[len(headers)-1].Hash()
+
+	return snap, nil
+}
+
+// qbftApply creates a new authorization snapshot using qbftExtra by applying the given headers to
+// the original one.
+func (s *Snapshot) qbftApply(headers []*types.Header) (*Snapshot, error) {
+	// Allow passing in no headers for cleaner code
+	if len(headers) == 0 {
+		return s, nil
+	}
+	// Sanity check that the headers can be applied
+	for i := 0; i < len(headers)-1; i++ {
+		if headers[i+1].Number.Uint64() != headers[i].Number.Uint64()+1 {
+			return nil, errInvalidVotingChain
+		}
+	}
+	if headers[0].Number.Uint64() != s.Number+1 {
+		return nil, errInvalidVotingChain
+	}
+	// Iterate through the headers and create a new snapshot
+	snap := s.copy()
+
+	for _, header := range headers {
+		// Remove any votes on checkpoint blocks
+		number := header.Number.Uint64()
+		if number%s.Epoch == 0 {
+			snap.Votes = nil
+			snap.Tally = make(map[common.Address]Tally)
+		}
+		// Resolve the authorization key and check against validators
+		validator, err := ecrecoverFromCoinbase(header)
+		if err != nil {
+			return nil, err
+		}
+		if _, v := snap.ValSet.GetByAddress(validator); v == nil {
+			return nil, errUnauthorized
+		}
+
+		// Get the Vote information from header
+		qbftExtra, err := types.ExtractQbftExtra(header)
+		if err != nil {
+			return nil, errInvalidExtraDataFormat
+		}
+
+		var validatorVote *types.ValidatorVote
+		if qbftExtra.Vote == nil || len(qbftExtra.Vote) == 0 {
+			validatorVote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QbftDropVote}
+		} else {
+			validatorVote = qbftExtra.Vote[0]
+		}
+
+		// Header authorized, discard any previous votes from the validator
+		for i, vote := range snap.Votes {
+			if vote.Validator == validator && vote.Address == validatorVote.RecipientAddress {
+				// Uncast the vote from the cached tally
+				snap.uncast(vote.Address, vote.Authorize)
+
+				// Uncast the vote from the chronological list
+				snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
+				break // only one vote allowed
+			}
+		}
+		// Tally up the new vote from the validator
+		var authorize bool
+		switch {
+		case validatorVote.VoteType == types.QbftAuthVote:
+			authorize = true
+		case validatorVote.VoteType == types.QbftDropVote:
+			authorize = false
+		default:
+			return nil, errInvalidVote
+		}
+		if snap.cast(validatorVote.RecipientAddress, authorize) {
+			snap.Votes = append(snap.Votes, &Vote{
+				Validator: validator,
+				Block:     number,
+				Address:   validatorVote.RecipientAddress,
+				Authorize: authorize,
+			})
+		}
+		// If the vote passed, update the list of validators
+		if tally := snap.Tally[validatorVote.RecipientAddress]; tally.Votes > snap.ValSet.Size()/2 {
+			if tally.Authorize {
+				snap.ValSet.AddValidator(validatorVote.RecipientAddress)
+			} else {
+				snap.ValSet.RemoveValidator(validatorVote.RecipientAddress)
+
+				// Discard any previous votes the deauthorized validator cast
+				for i := 0; i < len(snap.Votes); i++ {
+					if snap.Votes[i].Validator == validatorVote.RecipientAddress {
+						// Uncast the vote from the cached tally
+						snap.uncast(snap.Votes[i].Address, snap.Votes[i].Authorize)
+
+						// Uncast the vote from the chronological list
+						snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
+
+						i--
+					}
+				}
+			}
+			// Discard any previous votes around the just changed account
+			for i := 0; i < len(snap.Votes); i++ {
+				if snap.Votes[i].Address == validatorVote.RecipientAddress {
+					snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
+					i--
+				}
+			}
+			delete(snap.Tally, validatorVote.RecipientAddress)
 		}
 	}
 	snap.Number += uint64(len(headers))
