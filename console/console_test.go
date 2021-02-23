@@ -109,7 +109,7 @@ func newTester(t *testing.T, confOverride func(*eth.Config)) *tester {
 	if confOverride != nil {
 		confOverride(ethConf)
 	}
-	ethBackend, err := eth.New(stack, ethConf, &core.PrivatePSISImpl{})
+	ethBackend, err := eth.New(stack, ethConf, &core.DefaultPrivateStateMetadataResolver{})
 	if err != nil {
 		t.Fatalf("failed to register Ethereum protocol: %v", err)
 	}

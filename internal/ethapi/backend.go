@@ -93,7 +93,7 @@ type Backend interface {
 	// Quorum
 	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
-	PSIS() core.PrivateStateIdentifierService
+	PSMR() core.PrivateStateMetadataResolver
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

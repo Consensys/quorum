@@ -506,7 +506,7 @@ func newLesServerService(ctx *adapters.ServiceContext, stack *node.Node) (node.L
 	config.SyncMode = downloader.FullSync
 	config.LightServ = testServerCapacity
 	config.LightPeers = testMaxClients
-	ethereum, err := eth.New(stack, &config, &core.PrivatePSISImpl{})
+	ethereum, err := eth.New(stack, &config, &core.DefaultPrivateStateMetadataResolver{})
 	if err != nil {
 		return nil, err
 	}

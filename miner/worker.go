@@ -805,7 +805,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		// it may happen that two of the managed parties belong to the same private state
 		var appliedOnPrivateState = make(map[types.PrivateStateIdentifier]struct{})
 		for _, managedParty := range managedParties {
-			psm, _ := w.chain.PSIS().ResolveForManagedParty(managedParty)
+			psm, _ := w.chain.PSMR().ResolveForManagedParty(managedParty)
 			// if we already handled this private state skip it
 			if _, found := appliedOnPrivateState[psm.ID]; found {
 				continue

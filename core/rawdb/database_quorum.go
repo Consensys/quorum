@@ -28,7 +28,7 @@ import (
 
 var (
 	privateRootPrefix           = []byte("P")
-	mtPrivateRootPrefix         = []byte("MTP")
+	privateStatesTrieRootPrefix = []byte("PSTP")
 	privateBloomPrefix          = []byte("Pb")
 	quorumEIP155ActivatedPrefix = []byte("quorum155active")
 	// Quorum
@@ -56,8 +56,8 @@ func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	return common.BytesToHash(root)
 }
 
-func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
-	root, _ := db.Get(append(mtPrivateRootPrefix, blockRoot[:]...))
+func GetPrivateStatesTrieRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(privateStatesTrieRootPrefix, blockRoot[:]...))
 	return common.BytesToHash(root)
 }
 
@@ -70,8 +70,8 @@ func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }
 
-func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
-	return db.Put(append(mtPrivateRootPrefix, blockRoot[:]...), root[:])
+func WritePrivateStatesTrieRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(privateStatesTrieRootPrefix, blockRoot[:]...), root[:])
 }
 
 // WriteRootHashMapping stores the mapping between root hash of state trie and

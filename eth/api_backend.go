@@ -64,9 +64,9 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.blockchain.Config()
 }
 
-// PSIS returns the private state identification service.
-func (b *EthAPIBackend) PSIS() core.PrivateStateIdentifierService {
-	return b.eth.blockchain.PSIS()
+// PSMR returns the private state metadata resolver.
+func (b *EthAPIBackend) PSMR() core.PrivateStateMetadataResolver {
+	return b.eth.blockchain.PSMR()
 }
 
 func (b *EthAPIBackend) CurrentBlock() *types.Block {
@@ -155,7 +155,7 @@ func (b *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
-	psm, _ := b.PSIS().ResolveForUserContext(ctx)
+	psm, _ := b.PSMR().ResolveForUserContext(ctx)
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		// Quorum
@@ -199,7 +199,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		if blockNrOrHash.RequireCanonical && b.eth.blockchain.GetCanonicalHash(header.Number.Uint64()) != hash {
 			return nil, nil, errors.New("hash is not currently canonical")
 		}
-		psm, _ := b.PSIS().ResolveForUserContext(ctx)
+		psm, _ := b.PSMR().ResolveForUserContext(ctx)
 		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 		return EthAPIState{stateDb, privateState}, header, err
 
@@ -209,7 +209,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	receipts := b.eth.blockchain.GetReceiptsByHash(hash)
-	psm, err := b.PSIS().ResolveForUserContext(ctx)
+	psm, err := b.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}

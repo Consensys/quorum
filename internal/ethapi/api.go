@@ -624,7 +624,7 @@ func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
 
 // ChainId returns the chainID value for transaction replay protection.
 func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
-	psm, err := s.b.PSIS().ResolveForUserContext(ctx)
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -1717,7 +1717,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	}
 	if args.IsPrivate() {
 		if len(args.PrivateFrom) == 0 {
-			psm, err := b.PSIS().ResolveForUserContext(ctx)
+			psm, err := b.PSMR().ResolveForUserContext(ctx)
 			if err != nil {
 				return err
 			}
@@ -2402,7 +2402,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	if private.P == nil {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
-	psm, _ := s.b.PSIS().ResolveForUserContext(ctx)
+	psm, _ := s.b.PSMR().ResolveForUserContext(ctx)
 	if len(digestHex) < 3 {
 		return "", fmt.Errorf("Invalid digest hex")
 	}

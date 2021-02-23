@@ -646,7 +646,7 @@ func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.S
 	panic("implement me")
 }
 
-func (sb *StubBackend) PSIS() core.PrivateStateIdentifierService {
+func (sb *StubBackend) PSMR() core.PrivateStateMetadataResolver {
 	panic("implement me")
 }
 

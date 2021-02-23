@@ -276,8 +276,8 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 	assert.EqualValues(t, presetManagedParties, mp)
 }
 
-type mockPSIS struct {
-	core.PrivatePSISImpl
+type mockPSMR struct {
+	core.DefaultPrivateStateMetadataResolver
 	returns map[string][]interface{}
 }
 
@@ -286,8 +286,8 @@ type mockPrivateTransactionManager struct {
 	returns map[string][]interface{}
 }
 
-func (mpsis *mockPSIS) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
-	values := mpsis.returns["ResolveForManagedParty"]
+func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+	values := mpsmr.returns["ResolveForManagedParty"]
 	var (
 		r1 *core.PrivateStateMetadata
 		r2 error

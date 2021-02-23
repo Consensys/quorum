@@ -348,7 +348,7 @@ func TestVoting(t *testing.T) {
 			config.Epoch = tt.epoch
 		}
 		engine := New(config, accounts.accounts[tt.validators[0]], db).(*backend)
-		chain, _ := core.NewBlockChain(db, nil, params.QuorumTestChainConfig, engine, vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
+		chain, _ := core.NewBlockChain(db, nil, params.QuorumTestChainConfig, engine, vm.Config{}, nil, nil, &core.DefaultPrivateStateMetadataResolver{})
 
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))

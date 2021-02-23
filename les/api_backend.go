@@ -51,8 +51,8 @@ func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
 }
 
-func (b *LesApiBackend) PSIS() core.PrivateStateIdentifierService {
-	return &core.PrivatePSISImpl{}
+func (b *LesApiBackend) PSMR() core.PrivateStateMetadataResolver {
+	return &core.DefaultPrivateStateMetadataResolver{}
 }
 
 func (b *LesApiBackend) CurrentBlock() *types.Block {

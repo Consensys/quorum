@@ -70,7 +70,7 @@ func (s *PublicEthereumAPI) StorageRoot(ctx context.Context, addr common.Address
 		err       error
 	)
 
-	psm, _ := s.e.blockchain.PSIS().ResolveForUserContext(ctx)
+	psm, _ := s.e.blockchain.PSMR().ResolveForUserContext(ctx)
 	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
 		pub, priv, err = s.e.blockchain.StatePSI(psm.ID)
 	} else {
@@ -351,7 +351,7 @@ func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Addre
 //Taken from DumpBlock, as it was reused in DumpAddress.
 //Contains modifications from the original to return the private state db, as well as public.
 func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
-	psm, _ := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
+	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
@@ -428,7 +428,7 @@ const AccountRangeMaxResults = 256
 
 // AccountRangeAt enumerates all accounts in the given block and start point in paging request
 func (api *PublicDebugAPI) AccountRange(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, start []byte, maxResults int, nocode, nostorage, incompletes bool) (state.IteratorDump, error) {
-	psm, err := api.eth.blockchain.PSIS().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return state.IteratorDump{}, err
 	}

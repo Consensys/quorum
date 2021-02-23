@@ -1,4 +1,4 @@
-package psis
+package psmr
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type TesseraPrivacyGroupPSISImpl struct {
+type TesseraPrivateStateMetadataResolver struct {
 	residentGroupByKey map[string]*core.PrivateStateMetadata
 	privacyGroupById   map[types.PrivateStateIdentifier]*core.PrivateStateMetadata
 }
 
-func (t *TesseraPrivacyGroupPSISImpl) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+func (t *TesseraPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
 	psm, found := t.residentGroupByKey[managedParty]
 	if !found {
 		return nil, fmt.Errorf("unable to find private state metadata for managed party %s", managedParty)
@@ -25,7 +25,7 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForManagedParty(managedParty string
 	return psm, nil
 }
 
-func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context) (*core.PrivateStateMetadata, error) {
+func (t *TesseraPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*core.PrivateStateMetadata, error) {
 	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
@@ -37,7 +37,7 @@ func (t *TesseraPrivacyGroupPSISImpl) ResolveForUserContext(ctx context.Context)
 	return psm, nil
 }
 
-func (t *TesseraPrivacyGroupPSISImpl) PSIs() []types.PrivateStateIdentifier {
+func (t *TesseraPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentifier {
 	psis := make([]types.PrivateStateIdentifier, 0, len(t.privacyGroupById))
 	for psi := range t.privacyGroupById {
 		psis = append(psis, psi)
@@ -45,7 +45,7 @@ func (t *TesseraPrivacyGroupPSISImpl) PSIs() []types.PrivateStateIdentifier {
 	return psis
 }
 
-func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
+func NewTesseraPrivateStateMetadataResolver() (core.PrivateStateMetadataResolver, error) {
 	groups, err := private.P.Groups()
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func NewTesseraPrivacyGroupPSIS() (core.PrivateStateIdentifierService, error) {
 		convertedGroups = append(convertedGroups, group)
 	}
 
-	return &TesseraPrivacyGroupPSISImpl{
+	return &TesseraPrivateStateMetadataResolver{
 		residentGroupByKey: residentGroupByKey,
 		privacyGroupById:   privacyGroupById,
 	}, nil

@@ -24,8 +24,8 @@ type MultiplePrivateStateManager struct {
 }
 
 func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Hash) (PrivateStateManager, error) {
-	mtPrivateStateTrieRoot := rawdb.GetMTPrivateStateRoot(bc.db, previousBlockHash)
-	tr, err := bc.psManagerCache.OpenTrie(mtPrivateStateTrieRoot)
+	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(bc.db, previousBlockHash)
+	tr, err := bc.psManagerCache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -70,12 +70,12 @@ func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateId
 	if found {
 		return managedState.stateDb, nil
 	}
-	mtPrivateStateRoot, err := psm.trie.TryGet([]byte(psi))
+	privateStatesTrieRoot, err := psm.trie.TryGet([]byte(psi))
 	if err != nil {
 		return nil, err
 	}
 	stateCache := state.NewDatabase(psm.bc.db)
-	statedb, err := state.New(common.BytesToHash(mtPrivateStateRoot), stateCache, nil)
+	statedb, err := state.New(common.BytesToHash(privateStatesTrieRoot), stateCache, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (psm *MultiplePrivateStateManager) CommitAndWrite(block *types.Block) error
 	if err != nil {
 		return err
 	}
-	err = rawdb.WriteMTPrivateStateRoot(psm.bc.db, block.Root(), mtRoot)
+	err = rawdb.WritePrivateStatesTrieRoot(psm.bc.db, block.Root(), mtRoot)
 	if err != nil {
 		return err
 	}

@@ -80,7 +80,7 @@ type SimulatedBackend struct {
 func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
 	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
 	genesis.MustCommit(database)
-	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
+	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil, nil, &core.DefaultPrivateStateMetadataResolver{})
 
 	backend := &SimulatedBackend{
 		database:   database,
@@ -743,8 +743,8 @@ type filterBackend struct {
 	bc *core.BlockChain
 }
 
-func (fb *filterBackend) ChainDb() ethdb.Database                  { return fb.db }
-func (fb *filterBackend) PSIS() core.PrivateStateIdentifierService { return fb.bc.PSIS() }
+func (fb *filterBackend) ChainDb() ethdb.Database                 { return fb.db }
+func (fb *filterBackend) PSMR() core.PrivateStateMetadataResolver { return fb.bc.PSMR() }
 
 func (fb *filterBackend) EventMux() *event.TypeMux { panic("not supported") }
 

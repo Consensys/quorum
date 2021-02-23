@@ -36,7 +36,7 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts(ctx context.Context) []
 	api.privacyService.mu.Lock()
 	defer api.privacyService.mu.Unlock()
 
-	psi, err := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psi, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil
 	}
@@ -117,7 +117,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", err
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
 	psi := psm.ID
 
 	// check if the extension has been completed. if yes
@@ -207,7 +207,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("invalid recipient address")
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
 
 	// check if a private contract exists
 	if !api.checkIfPrivateStateExists(psm.ID, toExtend) {
@@ -280,7 +280,7 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", err
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
 	// get all participants for the contract being extended
 
 	status, err := api.checkIfExtensionComplete(extensionContract, txa.From, psm.ID)
@@ -328,7 +328,7 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	psm, _ := api.privacyService.apiBackendHelper.PSIS().ResolveForUserContext(ctx)
+	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
 	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{}, psm.ID)
 	if err != nil {
 		return "", err

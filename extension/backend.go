@@ -157,7 +157,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 				return
 			}
 
-			psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+			psm, _ := service.apiBackendHelper.PSMR().ResolveForManagedParty(privateFrom)
 			if psm.ID != psi {
 				return
 			}
@@ -247,7 +247,7 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 		}
 		log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
 
-		txPsi, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+		txPsi, _ := service.apiBackendHelper.PSMR().ResolveForManagedParty(privateFrom)
 		if txPsi.ID != psi {
 			return
 		}
@@ -422,6 +422,6 @@ func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, add
 	if err != nil || len(privateFrom) == 0 {
 		return false
 	}
-	psm, _ := service.apiBackendHelper.PSIS().ResolveForManagedParty(privateFrom)
+	psm, _ := service.apiBackendHelper.PSMR().ResolveForManagedParty(privateFrom)
 	return psm.ID == psi
 }

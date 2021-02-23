@@ -67,7 +67,7 @@ type Receipt struct {
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
 
-	// multi tenancy
+	// multi states
 	MTVersions map[PrivateStateIdentifier]*Receipt
 }
 

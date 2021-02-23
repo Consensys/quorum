@@ -106,12 +106,12 @@ func TestExtensionHandler_UuidIsOwn_WrongPSIFails(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	psis := &mockPSIS{
+	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
 			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
-	handler.SetPSIS(psis)
+	handler.SetPSMR(psmr)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -130,12 +130,12 @@ func TestExtensionHandler_UuidIsOwn_DecryptPayloadFails(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	psis := &mockPSIS{
+	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
 			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
-	handler.SetPSIS(psis)
+	handler.SetPSMR(psmr)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -154,12 +154,12 @@ func TestExtensionHandler_UuidIsOwn_AddressDoesntMatch(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	psis := &mockPSIS{
+	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
 			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
-	handler.SetPSIS(psis)
+	handler.SetPSMR(psmr)
 
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -181,19 +181,19 @@ func TestExtensionHandler_UuidIsOwn_AddressMatches(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	psis := &mockPSIS{
+	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
 			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil},
 		},
 	}
-	handler.SetPSIS(psis)
+	handler.SetPSMR(psmr)
 
 	isOwn := handler.UuidIsOwn(address, uuid, "psi1")
 
 	assert.True(t, isOwn)
 }
 
-func TestExtensionHandler_UuidIsOwn_PrivatePSISucceeds(t *testing.T) {
+func TestExtensionHandler_UuidIsOwn_PrivatePSMRSucceeds(t *testing.T) {
 	uuid := "0xabcd"
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
@@ -205,12 +205,12 @@ func TestExtensionHandler_UuidIsOwn_PrivatePSISucceeds(t *testing.T) {
 		},
 	}
 	handler := NewExtensionHandler(ptm)
-	psis := &mockPSIS{
+	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
 			"ResolveForManagedParty": {&core.PrivateStateMetadata{ID: "private", Type: core.Resident}, nil},
 		},
 	}
-	handler.SetPSIS(psis)
+	handler.SetPSMR(psmr)
 
 	isOwn := handler.UuidIsOwn(address, uuid, types.DefaultPrivateStateIdentifier)
 

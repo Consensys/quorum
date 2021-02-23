@@ -153,17 +153,17 @@ func TestAccountExtraDataLinker_whenNotFound(t *testing.T) {
 	}
 }
 
-func TestMTPrivateStateRoot(t *testing.T) {
+func TestPrivateStatesTrieRoot(t *testing.T) {
 	db := NewMemoryDatabase()
 	blockRoot := common.HexToHash("0x4c50c7d11e58e5c6f40fa1a630ffcb3a017453e7f9d0ec8ccb01033fcf9f2210")
 	mtRoot := common.HexToHash("0x5c46375b6b333983077e152d1b6ca101d0586a6565fa75750deb1b07154bbdca")
 
-	err := WriteMTPrivateStateRoot(db, blockRoot, mtRoot)
+	err := WritePrivateStatesTrieRoot(db, blockRoot, mtRoot)
 	assert.Nil(t, err)
 
-	retrievedRoot := GetMTPrivateStateRoot(db, blockRoot)
+	retrievedRoot := GetPrivateStatesTrieRoot(db, blockRoot)
 	assert.Equal(t, mtRoot, retrievedRoot)
 
-	retrievedEmptyRoot := GetMTPrivateStateRoot(db, common.Hash{})
+	retrievedEmptyRoot := GetPrivateStatesTrieRoot(db, common.Hash{})
 	assert.Equal(t, common.Hash{}, retrievedEmptyRoot)
 }

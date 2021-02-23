@@ -59,20 +59,20 @@ var DefaultPrivateStateMetadata = PrivateStateMetadata{
 	Addresses:   nil,
 }
 
-type PrivateStateIdentifierService interface {
+type PrivateStateMetadataResolver interface {
 	ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error)
 	ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error)
 	PSIs() []types.PrivateStateIdentifier
 }
 
-type PrivatePSISImpl struct {
+type DefaultPrivateStateMetadataResolver struct {
 }
 
-func (t *PrivatePSISImpl) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
+func (t *DefaultPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
 	return &PrivateStateMetadata{ID: types.DefaultPrivateStateIdentifier, Type: Resident}, nil
 }
 
-func (t *PrivatePSISImpl) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
+func (t *DefaultPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
 	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
@@ -80,7 +80,7 @@ func (t *PrivatePSISImpl) ResolveForUserContext(ctx context.Context) (*PrivateSt
 	return &PrivateStateMetadata{ID: psi, Type: Resident}, nil
 }
 
-func (t *PrivatePSISImpl) PSIs() []types.PrivateStateIdentifier {
+func (t *DefaultPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentifier {
 	return []types.PrivateStateIdentifier{
 		types.DefaultPrivateStateIdentifier,
 	}

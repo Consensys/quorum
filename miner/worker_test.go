@@ -74,7 +74,7 @@ var (
 		GasFloor: params.GenesisGasLimit,
 		GasCeil:  params.GenesisGasLimit,
 	}
-	psis = &mockPSIS{
+	psmr = &mockPSMR{
 		returns: make(map[string][]interface{}),
 		count:   make(map[string]int),
 	}
@@ -125,7 +125,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	}
 	genesis := gspec.MustCommit(db)
 
-	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil, psis)
+	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil, psmr)
 	txpool := core.NewTxPool(testTxPoolConfig, chainConfig, chain)
 
 	// Generate a small n-block chain and an uncle block for it
@@ -226,7 +226,7 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	// This test chain imports the mined blocks.
 	db2 := rawdb.NewMemoryDatabase()
 	b.genesis.MustCommit(db2)
-	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil, &core.PrivatePSISImpl{})
+	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil, &core.DefaultPrivateStateMetadataResolver{})
 	defer chain.Stop()
 
 	// Ignore empty commit here for less noise.
@@ -516,7 +516,7 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 }
 
-func TestPrivatePSIStateCreated(t *testing.T) {
+func TestPrivatePSMRStateCreated(t *testing.T) {
 	ptm := &mockPrivateTransactionManager{
 		returns: make(map[string][]interface{}),
 		count:   make(map[string]int),
@@ -530,7 +530,7 @@ func TestPrivatePSIStateCreated(t *testing.T) {
 		"", []string{"psi1"}, common.FromHex(testCode), nil, nil,
 	}
 
-	psis.returns["ResolveForManagedParty"] = []interface{}{
+	psmr.returns["ResolveForManagedParty"] = []interface{}{
 		&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil,
 	}
 
@@ -769,15 +769,15 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 	}
 }
 
-type mockPSIS struct {
-	core.PrivatePSISImpl
+type mockPSMR struct {
+	core.DefaultPrivateStateMetadataResolver
 	returns map[string][]interface{}
 	count   map[string]int
 }
 
-func (mpsis *mockPSIS) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
-	mpsis.count["ResolveForManagedParty"]++
-	values := mpsis.returns["ResolveForManagedParty"]
+func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+	mpsmr.count["ResolveForManagedParty"]++
+	values := mpsmr.returns["ResolveForManagedParty"]
 	var (
 		r1 *core.PrivateStateMetadata
 		r2 error
