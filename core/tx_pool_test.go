@@ -2083,3 +2083,47 @@ func TestEIP155SignerOnTxPool(t *testing.T) {
 	}
 
 }
+
+//Checks that the EIP155 signer is assigned to the TxPool no matter the configuration, even invalid config
+func TestEIP155SignerOnTxPool(t *testing.T) {
+	var flagtests = []struct {
+		name           string
+		homesteadBlock *big.Int
+		eip155Block    *big.Int
+	}{
+		{"hsnileip155nil", nil, nil},
+		{"hsnileip1550", nil, big.NewInt(0)},
+		{"hsnileip155100", nil, big.NewInt(100)},
+		{"hs0eip155nil", big.NewInt(0), nil},
+		{"hs0eip1550", big.NewInt(0), big.NewInt(0)},
+		{"hs0eip155100", big.NewInt(0), big.NewInt(100)},
+		{"hs100eip155nil", big.NewInt(100), nil},
+		{"hs100eip1550", big.NewInt(100), big.NewInt(0)},
+		{"hs100eip155100", big.NewInt(100), big.NewInt(100)},
+	}
+
+	for _, tt := range flagtests {
+		t.Run("", func(t *testing.T) {
+			db := rawdb.NewMemoryDatabase()
+			statedb, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
+			blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
+
+			chainconfig := &params.ChainConfig{
+				ChainID:        big.NewInt(10),
+				HomesteadBlock: tt.homesteadBlock,
+				EIP150Block:    big.NewInt(0),
+				EIP155Block:    tt.eip155Block,
+				EIP158Block:    big.NewInt(0),
+				ByzantiumBlock: big.NewInt(0),
+				Ethash:         new(params.EthashConfig),
+			}
+
+			pool := NewTxPool(testTxPoolConfig, chainconfig, blockchain)
+
+			if reflect.TypeOf(types.EIP155Signer{}) != reflect.TypeOf(pool.signer) {
+				t.Fail()
+			}
+		})
+	}
+
+}
