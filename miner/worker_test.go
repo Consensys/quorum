@@ -37,8 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,10 +73,6 @@ var (
 		GasFloor: params.GenesisGasLimit,
 		GasCeil:  params.GenesisGasLimit,
 	}
-	psmr = &mockPSMR{
-		returns: make(map[string][]interface{}),
-		count:   make(map[string]int),
-	}
 )
 
 func init() {
@@ -106,7 +101,7 @@ type testWorkerBackend struct {
 	uncleBlock *types.Block
 }
 
-func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int) *testWorkerBackend {
+func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int, psmr core.PrivateStateMetadataResolver) *testWorkerBackend {
 	var gspec = core.Genesis{
 		Config: chainConfig,
 		Alloc:  core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
@@ -189,8 +184,8 @@ func (b *testWorkerBackend) newRandomTx(creation bool, private bool) *types.Tran
 	return tx
 }
 
-func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int) (*worker, *testWorkerBackend) {
-	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks)
+func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int, psmr core.PrivateStateMetadataResolver) (*worker, *testWorkerBackend) {
+	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks, psmr)
 	backend.txPool.AddLocals(pendingTxs)
 	w := newWorker(testConfig, chainConfig, engine, backend, new(event.TypeMux), nil, false)
 	w.setEtherbase(testBankAddress)
@@ -220,7 +215,7 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 		engine = ethash.NewFaker()
 	}
 
-	w, b := newTestWorker(t, chainConfig, engine, db, 0)
+	w, b := newTestWorker(t, chainConfig, engine, db, 0, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	// This test chain imports the mined blocks.
@@ -269,7 +264,7 @@ func TestEmptyWorkClique(t *testing.T) {
 func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var (
@@ -315,7 +310,7 @@ func TestStreamUncleBlock(t *testing.T) {
 	ethash := ethash.NewFaker()
 	defer ethash.Close()
 
-	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1)
+	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -373,7 +368,7 @@ func TestRegenerateMiningBlockClique(t *testing.T) {
 func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
+	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -433,7 +428,7 @@ func TestAdjustIntervalClique(t *testing.T) {
 func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	w.skipSealHook = func(task *task) bool {
@@ -516,23 +511,33 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 }
 
+var PSI1PSM = core.PrivateStateMetadata{
+	ID:          "psi1",
+	Name:        "psi1",
+	Description: "private state 1",
+	Type:        core.Resident,
+	Addresses:   nil,
+}
+
+var PSI2PSM = core.PrivateStateMetadata{
+	ID:          "psi2",
+	Name:        "psi2",
+	Description: "private state 2",
+	Type:        core.Resident,
+	Addresses:   nil,
+}
+
 func TestPrivatePSMRStateCreated(t *testing.T) {
-	ptm := &mockPrivateTransactionManager{
-		returns: make(map[string][]interface{}),
-		count:   make(map[string]int),
-	}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+
 	saved := private.P
 	defer func() {
 		private.P = saved
 	}()
-	private.P = ptm
-	ptm.returns["Receive"] = []interface{}{
-		"", []string{"psi1"}, common.FromHex(testCode), nil, nil,
-	}
-
-	psmr.returns["ResolveForManagedParty"] = []interface{}{
-		&core.PrivateStateMetadata{ID: "psi1", Type: core.Resident}, nil,
-	}
+	private.P = mockptm
 
 	db := rawdb.NewMemoryDatabase()
 	chainConfig := params.AllCliqueProtocolChanges
@@ -541,7 +546,9 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	defer func() { chainConfig.IsQuorum = false }()
 	defer func() { chainConfig.IsMPS = false }()
 
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
+	mockpsmr := core.NewMockPrivateStateMetadataResolver(mockCtrl)
+
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, mockpsmr)
 	defer w.close()
 
 	newBlock := make(chan *types.Block)
@@ -572,6 +579,12 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 		return len(task.receipts) == 0
 	}
 	for i := 0; i < 5; i++ {
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).Times(3)
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).Times(1)
+		gomock.InOrder(
+			mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).Times(1),
+			mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).Times(1),
+		)
 		randomPrivateTx := b.newRandomTx(true, true)
 		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
 		b.txPool.AddLocal(randomPrivateTx)
@@ -586,10 +599,20 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
 			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("empty"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//contract should exist on both psi states and not be empty
 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("psi1"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.False(t, privDb.Empty(expectedContractAddress))
+			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("psi2"))
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.False(t, privDb.Empty(expectedContractAddress))
+			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
+			//contract should exist on random state (delegated to emptystate) but no contract code
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("other"))
+			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
 			t.Fatalf("timeout")
 		}
@@ -602,111 +625,35 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	logsContractData := "6080604052348015600f57600080fd5b507f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405160405180910390a1603e8060496000396000f3fe6080604052600080fdfea265627a7a72315820937805cb4f2481262ad95d420ab93220f11ceaea518c7ccf119fc2c58f58050d64736f6c63430005110032"
 	tx, _ := types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), 470000, nil, common.FromHex(logsContractData)), types.QuorumPrivateTxSigner{}, testBankKey)
 
-	ptm.returns["Receive"][2] = common.FromHex(logsContractData)
-
+	mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(logsContractData), nil, nil).Times(4)
+	gomock.InOrder(
+		mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).Times(1),
+		mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).Times(1),
+	)
 	b.txPool.AddLocal(tx)
 
 	select {
 	case logs := <-logsChan:
-		assert.Len(t, logs, 2)
+		assert.Len(t, logs, 3)
 		assert.Equal(t, types.PrivateStateIdentifier(""), logs[0].PSI)
 		assert.Equal(t, types.PrivateStateIdentifier("psi1"), logs[1].PSI)
+		assert.Equal(t, types.PrivateStateIdentifier("psi2"), logs[2].PSI)
 	case <-time.NewTimer(3 * time.Second).C:
 		t.Error("timeout")
 	}
 }
 
-func TestPrivatePSIEmptyStateCreated(t *testing.T) {
-	ptm := &mockPrivateTransactionManager{
-		returns: make(map[string][]interface{}),
-		count:   make(map[string]int),
-	}
-	saved := private.P
-	defer func() {
-		private.P = saved
-	}()
-	private.P = ptm
-	ptm.returns["Receive"] = []interface{}{
-		"", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil,
-	}
-
-	db := rawdb.NewMemoryDatabase()
-	chainConfig := params.AllCliqueProtocolChanges
-	chainConfig.IsQuorum = true
-	chainConfig.IsMPS = true
-	defer func() { chainConfig.IsQuorum = false }()
-	defer func() { chainConfig.IsMPS = false }()
-
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
-	defer w.close()
-
-	newBlock := make(chan *types.Block)
-	listenNewBlock := func() {
-		sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
-		defer sub.Unsubscribe()
-
-		for item := range sub.Chan() {
-			newBlock <- item.Data.(core.NewMinedBlockEvent).Block
-		}
-	}
-	w.start() // Start mining!
-
-	// Ignore first 2 commits caused by start operation
-	ignored := make(chan struct{}, 2)
-	w.skipSealHook = func(task *task) bool {
-		ignored <- struct{}{}
-		return true
-	}
-	for i := 0; i < 2; i++ {
-		<-ignored
-	}
-
-	go listenNewBlock()
-
-	// Ignore empty commit here for less noise
-	w.skipSealHook = func(task *task) bool {
-		return len(task.receipts) == 0
-	}
-	for i := 0; i < 5; i++ {
-		randomPrivateTx := b.newRandomTx(true, true)
-		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
-		b.txPool.AddLocal(randomPrivateTx)
-		select {
-		case blk := <-newBlock:
-			//check if the tx is present
-			found := blk.Transaction(randomPrivateTx.Hash())
-			if found == nil {
-				continue
-			}
-
-			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
-			//contract should exist on emptyState but no contract code
-			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("empty"))
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			//contract should exist on random state (delegated to emptystate) but no contract code
-			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("other"))
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
-		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
-			t.Fatalf("timeout")
-		}
-	}
-}
-
 func TestPrivateLegacyStateCreated(t *testing.T) {
-	ptm := &mockPrivateTransactionManager{
-		returns: make(map[string][]interface{}),
-		count:   make(map[string]int),
-	}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+
 	saved := private.P
 	defer func() {
 		private.P = saved
 	}()
-	private.P = ptm
-	ptm.returns["Receive"] = []interface{}{
-		"", []string{}, common.FromHex(testCode), nil, nil,
-	}
+	private.P = mockptm
 
 	db := rawdb.NewMemoryDatabase()
 	chainConfig := params.AllCliqueProtocolChanges
@@ -714,7 +661,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 	chainConfig.IsMPS = false
 	defer func() { chainConfig.IsQuorum = false }()
 
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, &core.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	newBlock := make(chan *types.Block)
@@ -745,6 +692,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 		return len(task.receipts) == 0
 	}
 	for i := 0; i < 5; i++ {
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{}, common.FromHex(testCode), nil, nil).Times(1)
 		randomPrivateTx := b.newRandomTx(true, true)
 		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
 		b.txPool.AddLocal(randomPrivateTx)
@@ -760,6 +708,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 			//contract exists on default state
 			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.DefaultPrivateStateIdentifier)
 			assert.True(t, privDb.Exist(expectedContractAddress))
+			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//only "private" state on legacy psm
 			_, _, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("other"))
 			assert.Error(t, err, "Only the 'private' psi is supported by the legacy private state manager")
@@ -767,60 +716,4 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 	}
-}
-
-type mockPSMR struct {
-	core.DefaultPrivateStateMetadataResolver
-	returns map[string][]interface{}
-	count   map[string]int
-}
-
-func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
-	mpsmr.count["ResolveForManagedParty"]++
-	values := mpsmr.returns["ResolveForManagedParty"]
-	var (
-		r1 *core.PrivateStateMetadata
-		r2 error
-	)
-	if values[0] != nil {
-		r1 = values[0].(*core.PrivateStateMetadata)
-	}
-	if values[1] != nil {
-		r2 = values[1].(error)
-	}
-	return r1, r2
-}
-
-type mockPrivateTransactionManager struct {
-	notinuse.PrivateTransactionManager
-	returns map[string][]interface{}
-	count   map[string]int
-}
-
-func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
-	mpm.count["Receive"]++
-	values := mpm.returns["Receive"]
-	var (
-		r1 string
-		r2 []string
-		r3 []byte
-		r4 *engine.ExtraMetadata
-		r5 error
-	)
-	if values[0] != nil {
-		r1 = values[0].(string)
-	}
-	if values[1] != nil {
-		r2 = values[1].([]string)
-	}
-	if values[2] != nil {
-		r3 = values[2].([]byte)
-	}
-	if values[3] != nil {
-		r4 = values[3].(*engine.ExtraMetadata)
-	}
-	if values[4] != nil {
-		r5 = values[4].(error)
-	}
-	return r1, r2, r3, r4, r5
 }
