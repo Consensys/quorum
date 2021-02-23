@@ -165,14 +165,14 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			if _, ok := qibftMessage.MessageCodes()[code]; ok {
 				outboundCode = code
 			}
-			go p.Send(outboundCode, payload)
+			go p.SendConsensus(outboundCode, payload)
 		}
 	}
 	return nil
 }
 
 // Commit implements istanbul.Backend.Commit
-func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
+func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) error {
 	// Check if the proposal is a valid block
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
@@ -182,11 +182,25 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	}
 
 	h := block.Header()
-	// Append seals into extra-data
-	err := writeCommittedSeals(h, seals)
-	if err != nil {
-		return err
+
+	// Append Round Number and seals into extra-data of qbft consensus
+	if sb.IsQIBFTConsensus() {
+		err := writeQBFTCommittedSeals(h, seals)
+		if err != nil {
+			return err
+		}
+		err = writeRoundNumber(h, round)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Append seals into extra-data
+		err := writeCommittedSeals(h, seals)
+		if err != nil {
+			return err
+		}
 	}
+
 	// update block's header
 	block = block.WithSeal(h)
 
@@ -341,6 +355,24 @@ func (sb *backend) IsQIBFTConsensus() bool {
 	}
 
 	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= 0 {
+		return true
+	}
+	return false
+}
+
+// IsQIBFTConsensusCrossed returns whether qbft consensus block has crossed
+// This is useful to see when the snapshot headers should be applied
+func (sb *backend) IsQIBFTConsensusCrossed() bool {
+	// If qibftBlock is not defined in genesis, then use legacy ibft
+	if sb.config.QibftBlock == nil {
+		return false
+	}
+
+	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0 {
+		return true
+	}
+
+	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= 1 {
 		return true
 	}
 	return false

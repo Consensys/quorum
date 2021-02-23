@@ -15,17 +15,19 @@ const (
 	eth64      = 64
 	Istanbul64 = 64
 	Istanbul99 = 99
+	// this istanbul subprotocol will be registered in addition to "eth"
+	Istanbul100 = 100
 )
 
 var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
-		Versions: []uint{Istanbul99, Istanbul64},
-		Lengths:  map[uint]uint64{Istanbul99: 22, Istanbul64: 18},
+		Versions: []uint{Istanbul100, Istanbul99, Istanbul64},
+		Lengths: map[uint]uint64{Istanbul100: 22, Istanbul99: 18, Istanbul64: 18},
 	}
 
 	CliqueProtocol = Protocol{
-		Name:     "clique",
+		Name:     "eth",
 		Versions: []uint{eth64, eth63},
 		Lengths:  map[uint]uint64{eth64: 17, eth63: 17},
 	}
@@ -66,4 +68,7 @@ type Broadcaster interface {
 type Peer interface {
 	// Send sends the message to this peer
 	Send(msgcode uint64, data interface{}) error
+
+	// SendConsensus sends the message to this p2p peer using the consensus specific devp2p subprotocol
+	SendConsensus(msgcode uint64, data interface{}) error
 }

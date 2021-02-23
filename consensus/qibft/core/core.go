@@ -143,7 +143,7 @@ func (c *core) commitQBFT() {
 			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
 
-		if err := c.backend.Commit(proposal, committedSeals); err != nil {
+		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
 			log.Error("QBFT: Error committing", "err", err)
 			c.broadcastNextRoundChange()
 			return

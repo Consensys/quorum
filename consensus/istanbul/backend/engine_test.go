@@ -47,7 +47,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 	// set the qibft consensus enabled to true
-	b.qibftConsensusEnabled = false
+	b.qibftConsensusEnabled = true
 	genesis.MustCommit(memDB)
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil)
 	if err != nil {
@@ -105,10 +105,11 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	}
 	genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
 
-	ist := &types.IstanbulExtra{
+	ist := &types.QbftExtra{
 		Validators:    addrs,
-		Seal:          []byte{},
+		Vote:          nil,
 		CommittedSeal: [][]byte{},
+		Round:         big.NewInt(0),
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
@@ -149,8 +150,9 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types
 	return block
 }
 
-func TestPrepare(t *testing.T) {
+func TestLegacyPrepare(t *testing.T) {
 	chain, engine := newBlockChain(1)
+	chain.Config().Istanbul.QibftBlock = nil
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
 	if err != nil {
@@ -158,6 +160,20 @@ func TestPrepare(t *testing.T) {
 	}
 	header.ParentHash = common.StringToHash("1234567890")
 	err = engine.Prepare(chain, header)
+	if err != consensus.ErrUnknownAncestor {
+		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
+	}
+}
+
+func TestPrepare(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	header := makeHeader(chain.Genesis(), engine.config)
+	err := engine.QbftPrepare(chain, header)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+	header.ParentHash = common.StringToHash("1234567890")
+	err = engine.QbftPrepare(chain, header)
 	if err != consensus.ErrUnknownAncestor {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
 	}
@@ -207,7 +223,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
-		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
+		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
 			t.Error(err.Error())
 		}
 		eventSub.Unsubscribe()
@@ -334,42 +350,16 @@ func TestVerifyHeader(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
+	// TODO This test does not make sense anymore as validate vote type is not stored in nonce
 	// invalid nonce
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	/*block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	copy(header.Nonce[:], hexutil.MustDecode("0x111111111111"))
 	header.Number = big.NewInt(int64(engine.config.Epoch))
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidNonce {
 		t.Errorf("error mismatch: have %v, want %v", err, errInvalidNonce)
-	}
-}
-
-func TestVerifySeal(t *testing.T) {
-	chain, engine := newBlockChain(1)
-	genesis := chain.Genesis()
-	// cannot verify genesis
-	err := engine.VerifySeal(chain, genesis.Header())
-	if err != errUnknownBlock {
-		t.Errorf("error mismatch: have %v, want %v", err, errUnknownBlock)
-	}
-
-	block := makeBlock(chain, engine, genesis)
-	// change block content
-	header := block.Header()
-	header.Number = big.NewInt(4)
-	block1 := block.WithSeal(header)
-	err = engine.VerifySeal(chain, block1.Header())
-	if err != errUnauthorized {
-		t.Errorf("error mismatch: have %v, want %v", err, errUnauthorized)
-	}
-
-	// unauthorized users but still can get correct signer address
-	engine.privateKey, _ = crypto.GenerateKey()
-	err = engine.VerifySeal(chain, block.Header())
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
+	}*/
 }
 
 func TestVerifyHeaders(t *testing.T) {
@@ -464,7 +454,7 @@ OUT3:
 	}
 }
 
-func TestPrepareExtra(t *testing.T) {
+func TestLegacyPrepareExtra(t *testing.T) {
 	validators := make([]common.Address, 4)
 	validators[0] = common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a"))
 	validators[1] = common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212"))
@@ -492,6 +482,37 @@ func TestPrepareExtra(t *testing.T) {
 	payload, err = prepareExtra(h, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
 		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
+	}
+}
+
+func TestPrepareExtra(t *testing.T) {
+	validators := make([]common.Address, 4)
+	validators[0] = common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a"))
+	validators[1] = common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212"))
+	validators[2] = common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6"))
+	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
+
+	vanity := make([]byte, types.IstanbulExtraVanity)
+	expectedResult := append(vanity, hexutil.MustDecode("0xf859f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080C0")...)
+
+	h := &types.Header{
+		Extra: vanity,
+	}
+
+	payload, err := qbftPrepareExtra(h, validators)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want: nil", err)
+	}
+	if !reflect.DeepEqual(payload, expectedResult) {
+		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
+	}
+
+	// append useless information to extra-data
+	h.Extra = append(vanity, make([]byte, 15)...)
+
+	_, err = qbftPrepareExtra(h, validators)
+	if err == nil {
+		t.Error("Expected error")
 	}
 }
 
@@ -538,7 +559,7 @@ func TestWriteSeal(t *testing.T) {
 	}
 }
 
-func TestWriteCommittedSeals(t *testing.T) {
+func TestLegacyWriteCommittedSeals(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
 	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
@@ -578,5 +599,117 @@ func TestWriteCommittedSeals(t *testing.T) {
 	err = writeCommittedSeals(h, [][]byte{unexpectedCommittedSeal})
 	if err != errInvalidCommittedSeals {
 		t.Errorf("error mismatch: have %v, want %v", err, errInvalidCommittedSeals)
+	}
+}
+
+func TestWriteCommittedSeals(t *testing.T) {
+	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+	istRawData := hexutil.MustDecode("0xf859f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
+	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
+	expectedIstExtra := &types.QbftExtra{
+		Validators: []common.Address{
+			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
+			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
+			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
+			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
+		},
+		CommittedSeal: [][]byte{expectedCommittedSeal},
+		Round:         big.NewInt(0),
+		Vote:          []*types.ValidatorVote{},
+	}
+	var expectedErr error
+
+	h := &types.Header{
+		Extra: append(vanity, istRawData...),
+	}
+
+	// normal case
+	err := writeQBFTCommittedSeals(h, [][]byte{expectedCommittedSeal})
+	if err != expectedErr {
+		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
+	}
+
+	// verify istanbul extra-data
+	istExtra, err := types.ExtractQbftExtra(h)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
+		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
+	}
+
+	// invalid seal
+	unexpectedCommittedSeal := append(expectedCommittedSeal, make([]byte, 1)...)
+	err = writeQBFTCommittedSeals(h, [][]byte{unexpectedCommittedSeal})
+	if err != errInvalidCommittedSeals {
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidCommittedSeals)
+	}
+}
+
+func TestWriteRoundNumber(t *testing.T) {
+	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+	istRawData := hexutil.MustDecode("0xf859f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
+	expectedIstExtra := &types.QbftExtra{
+		Validators: []common.Address{
+			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
+			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
+			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
+			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
+		},
+		CommittedSeal: [][]byte{},
+		Round:         big.NewInt(5),
+		Vote:          []*types.ValidatorVote{},
+	}
+	var expectedErr error
+
+	h := &types.Header{
+		Extra: append(vanity, istRawData...),
+	}
+
+	// normal case
+	err := writeRoundNumber(h, big.NewInt(5))
+	if err != expectedErr {
+		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
+	}
+
+	// verify istanbul extra-data
+	istExtra, err := types.ExtractQbftExtra(h)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
+		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
+	}
+}
+
+func TestWriteValidatorVote(t *testing.T) {
+	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+	istRawData := hexutil.MustDecode("0xf85af8549480c080c0")
+	vote := &types.ValidatorVote{RecipientAddress: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), VoteType: types.QbftAuthVote}
+	expectedIstExtra := &types.QbftExtra{
+		Validators:    []common.Address{},
+		CommittedSeal: [][]byte{},
+		Round:         big.NewInt(0),
+		Vote:          []*types.ValidatorVote{vote},
+	}
+	var expectedErr error
+
+	h := &types.Header{
+		Extra: append(vanity, istRawData...),
+	}
+
+	// normal case
+	err := writeValidatorVote(h, common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), types.QbftAuthVote)
+	if err != expectedErr {
+		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
+	}
+
+	// verify istanbul extra-data
+	istExtra, err := types.ExtractQbftExtra(h)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
+		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 }
