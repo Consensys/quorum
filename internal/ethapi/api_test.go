@@ -512,7 +512,11 @@ func (sb *StubBackend) CallTimeOut() time.Duration {
 	panic("implement me")
 }
 
-func (sb *StubBackend) RPCGasCap() *big.Int {
+func (sb *StubBackend) RPCTxFeeCap() float64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() uint64 {
 	panic("implement me")
 }
 

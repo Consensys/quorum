@@ -58,6 +58,7 @@ import (
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/metrics/exp"
 	"github.com/ethereum/go-ethereum/metrics/influxdb"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -83,8 +84,8 @@ var (
 {{if .cmd.Description}}{{.cmd.Description}}
 {{end}}{{if .cmd.Subcommands}}
 SUBCOMMANDS:
-	{{range .cmd.Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
-	{{end}}{{end}}{{if .categorizedFlags}}
+  {{range .cmd.Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
+  {{end}}{{end}}{{if .categorizedFlags}}
 {{range $idx, $categorized := .categorizedFlags}}{{$categorized.Name}} OPTIONS:
 {{range $categorized.Flags}}{{"\t"}}{{.}}
 {{end}}
@@ -94,10 +95,10 @@ SUBCOMMANDS:
 {{if .Description}}{{.Description}}
 {{end}}{{if .Subcommands}}
 SUBCOMMANDS:
-	{{range .Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
-	{{end}}{{end}}{{if .Flags}}
+  {{range .Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
+  {{end}}{{end}}{{if .Flags}}
 OPTIONS:
-{{range $.Flags}}{{"\t"}}{{.}}
+{{range $.Flags}}   {{.}}
 {{end}}
 {{end}}`
 )
@@ -488,7 +489,13 @@ var (
 	}
 	RPCGlobalGasCap = cli.Uint64Flag{
 		Name:  "rpc.gascap",
-		Usage: "Sets a cap on gas that can be used in eth_call/estimateGas",
+		Usage: "Sets a cap on gas that can be used in eth_call/estimateGas (0=infinite)",
+		Value: eth.DefaultConfig.RPCGasCap,
+	}
+	RPCGlobalTxFeeCap = cli.Float64Flag{
+		Name:  "rpc.txfeecap",
+		Usage: "Sets a cap on transaction fee (in ether) that can be sent via the RPC APIs (0 = no cap)",
+		Value: eth.DefaultConfig.RPCTxFeeCap,
 	}
 	// Logging and debug settings
 	EthStatsURLFlag = cli.StringFlag{
@@ -715,6 +722,21 @@ var (
 	MetricsEnabledExpensiveFlag = cli.BoolFlag{
 		Name:  "metrics.expensive",
 		Usage: "Enable expensive metrics collection and reporting",
+	}
+
+	// MetricsHTTPFlag defines the endpoint for a stand-alone metrics HTTP endpoint.
+	// Since the pprof service enables sensitive/vulnerable behavior, this allows a user
+	// to enable a public-OK metrics endpoint without having to worry about ALSO exposing
+	// other profiling behavior or information.
+	MetricsHTTPFlag = cli.StringFlag{
+		Name:  "metrics.addr",
+		Usage: "Enable stand-alone metrics HTTP server listening interface",
+		Value: "127.0.0.1",
+	}
+	MetricsPortFlag = cli.IntFlag{
+		Name:  "metrics.port",
+		Usage: "Metrics HTTP server listening port",
+		Value: 6060,
 	}
 	MetricsEnableInfluxDBFlag = cli.BoolFlag{
 		Name:  "metrics.influxdb",
@@ -1064,12 +1086,15 @@ func setNAT(ctx *cli.Context, cfg *p2p.Config) {
 
 // splitAndTrim splits input separated by a comma
 // and trims excessive white space from the substrings.
-func splitAndTrim(input string) []string {
-	result := strings.Split(input, ",")
-	for i, r := range result {
-		result[i] = strings.TrimSpace(r)
+func splitAndTrim(input string) (ret []string) {
+	l := strings.Split(input, ",")
+	for _, r := range l {
+		r = strings.TrimSpace(r)
+		if len(r) > 0 {
+			ret = append(ret, r)
+		}
 	}
-	return result
+	return ret
 }
 
 // setHTTP creates the HTTP RPC listener interface string from the set
@@ -1512,7 +1537,13 @@ func urlReader(u *url.URL) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("unsupported scheme %s", s)
 }
 
-func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
+func setGPO(ctx *cli.Context, cfg *gasprice.Config, light bool) {
+	// If we are running the light client, apply another group
+	// settings for gas oracle.
+	if light {
+		cfg.Blocks = eth.DefaultLightGPOConfig.Blocks
+		cfg.Percentile = eth.DefaultLightGPOConfig.Percentile
+	}
 	if ctx.GlobalIsSet(LegacyGpoBlocksFlag.Name) {
 		cfg.Blocks = ctx.GlobalInt(LegacyGpoBlocksFlag.Name)
 		log.Warn("The flag --gpoblocks is deprecated and will be removed in the future, please use --gpo.blocks")
@@ -1520,7 +1551,6 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	if ctx.GlobalIsSet(GpoBlocksFlag.Name) {
 		cfg.Blocks = ctx.GlobalInt(GpoBlocksFlag.Name)
 	}
-
 	if ctx.GlobalIsSet(LegacyGpoPercentileFlag.Name) {
 		cfg.Percentile = ctx.GlobalInt(LegacyGpoPercentileFlag.Name)
 		log.Warn("The flag --gpopercentile is deprecated and will be removed in the future, please use --gpo.percentile")
@@ -1629,10 +1659,10 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 		cfg.GasPrice = GlobalBig(ctx, MinerGasPriceFlag.Name)
 	}
 	if ctx.GlobalIsSet(MinerRecommitIntervalFlag.Name) {
-		cfg.Recommit = ctx.Duration(MinerRecommitIntervalFlag.Name)
+		cfg.Recommit = ctx.GlobalDuration(MinerRecommitIntervalFlag.Name)
 	}
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
-		cfg.Noverify = ctx.Bool(MinerNoVerfiyFlag.Name)
+		cfg.Noverify = ctx.GlobalBool(MinerNoVerfiyFlag.Name)
 	}
 	if ctx.GlobalIsSet(AllowedFutureBlockTimeFlag.Name) {
 		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
@@ -1753,7 +1783,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 		ks = keystores[0].(*keystore.KeyStore)
 	}
 	setEtherbase(ctx, ks, cfg)
-	setGPO(ctx, &cfg.GPO)
+	setGPO(ctx, &cfg.GPO, ctx.GlobalString(SyncModeFlag.Name) == "light")
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
 	setMiner(ctx, &cfg.Miner)
@@ -1817,7 +1847,15 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 		cfg.EVMInterpreter = ctx.GlobalString(EVMInterpreterFlag.Name)
 	}
 	if ctx.GlobalIsSet(RPCGlobalGasCap.Name) {
-		cfg.RPCGasCap = new(big.Int).SetUint64(ctx.GlobalUint64(RPCGlobalGasCap.Name))
+		cfg.RPCGasCap = ctx.GlobalUint64(RPCGlobalGasCap.Name)
+	}
+	if cfg.RPCGasCap != 0 {
+		log.Info("Set global gas cap", "cap", cfg.RPCGasCap)
+	} else {
+		log.Info("Global gas cap disabled")
+	}
+	if ctx.GlobalIsSet(RPCGlobalTxFeeCap.Name) {
+		cfg.RPCTxFeeCap = ctx.GlobalFloat64(RPCGlobalTxFeeCap.Name)
 	}
 	if ctx.GlobalIsSet(DNSDiscoveryFlag.Name) {
 		urls := ctx.GlobalString(DNSDiscoveryFlag.Name)
@@ -2078,6 +2116,7 @@ func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {
 func SetupMetrics(ctx *cli.Context) {
 	if metrics.Enabled {
 		log.Info("Enabling metrics collection")
+
 		var (
 			enableExport = ctx.GlobalBool(MetricsEnableInfluxDBFlag.Name)
 			endpoint     = ctx.GlobalString(MetricsInfluxDBEndpointFlag.Name)
@@ -2092,6 +2131,12 @@ func SetupMetrics(ctx *cli.Context) {
 			log.Info("Enabling metrics export to InfluxDB")
 
 			go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, endpoint, database, username, password, "geth.", tagsMap)
+		}
+
+		if ctx.GlobalIsSet(MetricsHTTPFlag.Name) {
+			address := fmt.Sprintf("%s:%d", ctx.GlobalString(MetricsHTTPFlag.Name), ctx.GlobalInt(MetricsPortFlag.Name))
+			log.Info("Enabling stand-alone metrics HTTP endpoint", "address", address)
+			exp.Setup(address)
 		}
 	}
 }

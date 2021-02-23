@@ -47,7 +47,7 @@ var (
 
 	// ErrAccountAlreadyExists is returned if an account attempted to import is
 	// already present in the keystore.
-	ErrAccountAlreadyExists = errors.New("account alreaady exists")
+	ErrAccountAlreadyExists = errors.New("account already exists")
 )
 
 // KeyStoreType is the reflect type of a keystore backend.

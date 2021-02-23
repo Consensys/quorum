@@ -61,6 +61,7 @@ type (
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
+		// Quorum
 		// Using CodeAddr is favour over contract.Address()
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
@@ -81,6 +82,8 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 			evm.pushAddress(address)
 		}
 		defer evm.popAddress()
+		// End Quorum
+
 		precompiles := PrecompiledContractsHomestead
 		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
@@ -525,7 +528,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	stateDb.AddBalance(addr, bigZero)
+	stateDb.AddBalance(addr, big.NewInt(0))
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally

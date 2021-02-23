@@ -843,7 +843,7 @@ type CallArgs struct {
 }
 
 // ToMessage converts CallArgs to the Message type used by the core evm
-func (args *CallArgs) ToMessage(globalGasCap *big.Int) types.Message {
+func (args *CallArgs) ToMessage(globalGasCap uint64) types.Message {
 	// Set sender address or use zero address if none specified.
 	var addr common.Address
 	if args.From != nil {
@@ -851,13 +851,16 @@ func (args *CallArgs) ToMessage(globalGasCap *big.Int) types.Message {
 	}
 
 	// Set default gas & gas price if none were set
-	gas := uint64(math.MaxUint64 / 2)
+	gas := globalGasCap
+	if gas == 0 {
+		gas = uint64(math.MaxUint64 / 2)
+	}
 	if args.Gas != nil {
 		gas = uint64(*args.Gas)
 	}
-	if globalGasCap != nil && globalGasCap.Uint64() < gas {
+	if globalGasCap != 0 && globalGasCap < gas {
 		log.Warn("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
-		gas = globalGasCap.Uint64()
+		gas = globalGasCap
 	}
 	gasPrice := new(big.Int)
 	if args.GasPrice != nil {
@@ -895,7 +898,7 @@ type account struct {
 // Quorum - Multitenancy
 // Before returning the result, we need to inspect the EVM and
 // perform verification check
-func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides map[common.Address]account, vmCfg vm.Config, timeout time.Duration, globalGasCap *big.Int) (*core.ExecutionResult, error) {
+func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides map[common.Address]account, vmCfg vm.Config, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -996,7 +999,10 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	if evm.Cancelled() {
 		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
-	return result, applyErr
+	if applyErr != nil {
+		return result, fmt.Errorf("err: %w (supplied gas %d)", applyErr, msg.Gas())
+	}
+	return result, nil
 }
 
 func newRevertError(result *core.ExecutionResult) *revertError {
@@ -1055,7 +1061,7 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOr
 	return result.Return(), result.Err
 }
 
-func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap *big.Int) (hexutil.Uint64, error) {
+func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap uint64) (hexutil.Uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
 		lo  uint64 = params.TxGas - 1
@@ -1103,9 +1109,9 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 		}
 	}
 	// Recap the highest gas allowance with specified gascap.
-	if gasCap != nil && hi > gasCap.Uint64() {
+	if gasCap != 0 && hi > gasCap {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
-		hi = gasCap.Uint64()
+		hi = gasCap
 	}
 	cap = hi
 
@@ -1115,7 +1121,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 
 		result, err := DoCall(ctx, b, args, blockNrOrHash, nil, vm.Config{}, 0, gasCap)
 		if err != nil {
-			if err == core.ErrIntrinsicGas {
+			if errors.Is(err, core.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit
 			}
 			return true, nil, err // Bail out
@@ -1129,7 +1135,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 
 		// If the error is not nil(consensus error), it means the provided message
 		// call or transaction will never be accepted no matter how much gas it is
-		// assigened. Return the error directly, don't struggle any more.
+		// assigned. Return the error directly, don't struggle any more.
 		if err != nil {
 			return 0, err
 		}
@@ -1784,6 +1790,14 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
 func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, privateFor []string, isRaw bool) (common.Hash, error) {
+	// If the transaction fee cap is already specified, ensure the
+	// fee of the given transaction is _reasonable_.
+	feeEth := new(big.Float).Quo(new(big.Float).SetInt(new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))), new(big.Float).SetInt(big.NewInt(params.Ether)))
+	feeFloat, _ := feeEth.Float64()
+	if b.RPCTxFeeCap() != 0 && feeFloat > b.RPCTxFeeCap() {
+		return common.Hash{}, fmt.Errorf("tx fee (%.2f ether) exceeds the configured cap (%.2f ether)", feeFloat, b.RPCTxFeeCap())
+	}
+	// Quorum
 	var signer types.Signer
 	if tx.IsPrivate() {
 		signer = types.QuorumPrivateTxSigner{}
@@ -1825,6 +1839,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 			return common.Hash{}, err
 		}
 	}
+	// End Quorum
 
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err

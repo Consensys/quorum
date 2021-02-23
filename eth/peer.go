@@ -132,17 +132,19 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, getPooledTx func(ha
 // broadcastBlocks is a write loop that multiplexes blocks and block accouncements
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
-func (p *peer) broadcastBlocks() {
+func (p *peer) broadcastBlocks(removePeer func(string)) {
 	for {
 		select {
 		case prop := <-p.queuedBlocks:
 			if err := p.SendNewBlock(prop.block, prop.td); err != nil {
+				removePeer(p.id)
 				return
 			}
 			p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash(), "td", prop.td)
 
 		case block := <-p.queuedBlockAnns:
 			if err := p.SendNewBlockHashes([]common.Hash{block.Hash()}, []uint64{block.NumberU64()}); err != nil {
+				removePeer(p.id)
 				return
 			}
 			p.Log().Trace("Announced block", "number", block.Number(), "hash", block.Hash())
@@ -156,7 +158,7 @@ func (p *peer) broadcastBlocks() {
 // broadcastTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
-func (p *peer) broadcastTransactions() {
+func (p *peer) broadcastTransactions(removePeer func(string)) {
 	var (
 		queue []common.Hash         // Queue of hashes to broadcast as full transactions
 		done  chan struct{}         // Non-nil if background broadcaster is running
@@ -207,6 +209,7 @@ func (p *peer) broadcastTransactions() {
 			done = nil
 
 		case <-fail:
+			removePeer(p.id)
 			return
 
 		case <-p.term:
@@ -218,7 +221,7 @@ func (p *peer) broadcastTransactions() {
 // announceTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
-func (p *peer) announceTransactions() {
+func (p *peer) announceTransactions(removePeer func(string)) {
 	var (
 		queue []common.Hash         // Queue of hashes to announce as transaction stubs
 		done  chan struct{}         // Non-nil if background announcer is running
@@ -269,6 +272,7 @@ func (p *peer) announceTransactions() {
 			done = nil
 
 		case <-fail:
+			removePeer(p.id)
 			return
 
 		case <-p.term:
@@ -332,12 +336,15 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 	p.knownTxs.Add(hash)
 }
 
+// Quorum
 // Quorum: this was added with the origin "istanbul" implementation.
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
 func (p *peer) Send(msgcode uint64, data interface{}) error {
 	return p2p.Send(p.rw, msgcode, data)
 }
+
+// End Quorum
 
 // SendTransactions64 sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
@@ -722,7 +729,7 @@ func newPeerSet() *peerSet {
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer, protoName string) error {
+func (ps *peerSet) Register(p *peer, removePeer func(string), protoName string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -734,12 +741,12 @@ func (ps *peerSet) Register(p *peer, protoName string) error {
 	}
 	ps.peers[p.id] = p
 
-	go p.broadcastBlocks()
-	go p.broadcastTransactions()
+	go p.broadcastBlocks(removePeer)
+	go p.broadcastTransactions(removePeer)
 	// Quorum passes in and checks the protoName to see if it is "eth"
 	// as it could also be a legacy protocol, e.g. "istanbul/99", protocolName is always set to "eth" for the eth service.
 	if p.version >= eth65 && protoName == protocolName {
-		go p.announceTransactions()
+		go p.announceTransactions(removePeer)
 	}
 	return nil
 }
@@ -760,6 +767,7 @@ func (ps *peerSet) Unregister(id string) error {
 	return nil
 }
 
+// Quorum
 // Peers returns all registered peers
 func (ps *peerSet) Peers() map[string]*peer {
 	ps.lock.RLock()
@@ -771,6 +779,8 @@ func (ps *peerSet) Peers() map[string]*peer {
 	}
 	return set
 }
+
+// End Quorum
 
 // Peer retrieves the registered peer with the given id.
 func (ps *peerSet) Peer(id string) *peer {

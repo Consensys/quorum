@@ -34,6 +34,18 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// DefaultFullGPOConfig contains default gasprice oracle settings for full node.
+var DefaultFullGPOConfig = gasprice.Config{
+	Blocks:     20,
+	Percentile: 60,
+}
+
+// DefaultLightGPOConfig contains default gasprice oracle settings for light client.
+var DefaultLightGPOConfig = gasprice.Config{
+	Blocks:     2,
+	Percentile: 60,
+}
+
 // DefaultConfig contains default settings for use on the Ethereum main net.
 var DefaultConfig = Config{
 	SyncMode: downloader.FastSync,
@@ -60,13 +72,12 @@ var DefaultConfig = Config{
 		GasPrice: big.NewInt(params.GWei),
 		Recommit: 3 * time.Second,
 	},
-	TxPool: core.DefaultTxPoolConfig,
-	GPO: gasprice.Config{
-		Blocks:     20,
-		Percentile: 60,
-	},
+	TxPool:      core.DefaultTxPoolConfig,
+	RPCGasCap:   25000000,
+	GPO:         DefaultFullGPOConfig,
+	RPCTxFeeCap: 1, // 1 ether
 
-	Istanbul: *istanbul.DefaultConfig,
+	Istanbul: *istanbul.DefaultConfig, // Quorum
 }
 
 func init() {
@@ -165,7 +176,11 @@ type Config struct {
 	EVMInterpreter string
 
 	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap *big.Int `toml:",omitempty"`
+	RPCGasCap uint64 `toml:",omitempty"`
+
+	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
+	// send-transction variants. The unit is ether.
+	RPCTxFeeCap float64 `toml:",omitempty"`
 
 	// Checkpoint is a hardcoded checkpoint which can be nil.
 	Checkpoint *params.TrustedCheckpoint `toml:",omitempty"`
@@ -173,6 +188,7 @@ type Config struct {
 	// CheckpointOracle is the configuration for checkpoint oracle.
 	CheckpointOracle *params.CheckpointOracleConfig `toml:",omitempty"`
 
+	// Quorum
 	// timeout value for call
 	EVMCallTimeOut time.Duration
 

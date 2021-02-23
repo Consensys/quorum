@@ -243,9 +243,13 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
+
+	// Quorum
 	if storedcfg.PrivacyEnhancementsBlock == nil {
 		checkAndPrintPrivacyEnhancementsWarning(newcfg)
 	}
+	// End Quorum
+
 	return newcfg, stored, nil
 }
 

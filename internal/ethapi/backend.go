@@ -48,7 +48,8 @@ type Backend interface {
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
 	CallTimeOut() time.Duration
-	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
+	RPCTxFeeCap() float64 // global tx fee cap for all transaction related APIs
+	RPCGasCap() uint64    // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
 	SetHead(number uint64)
@@ -88,6 +89,7 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
 
+	// Quorum
 	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 }
