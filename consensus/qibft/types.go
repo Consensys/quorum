@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package istanbul
+package qibft
 
 import (
+	"fmt"
 	"io"
 	"math/big"
 
@@ -37,4 +38,52 @@ type Proposal interface {
 	DecodeRLP(s *rlp.Stream) error
 
 	String() string
+}
+
+// View includes a round number and a sequence number.
+// Sequence is the block number we'd like to commit.
+// Each round has a number and is composed by 3 steps: preprepare, prepare and commit.
+//
+// If the given block is not accepted by validators, a round change will occur
+// and the validators start a new round with round+1.
+type View struct {
+	Round    *big.Int
+	Sequence *big.Int
+}
+
+// EncodeRLP serializes b into the Ethereum RLP format.
+func (v *View) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{v.Round, v.Sequence})
+}
+
+// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
+func (v *View) DecodeRLP(s *rlp.Stream) error {
+	var view struct {
+		Round    *big.Int
+		Sequence *big.Int
+	}
+
+	if err := s.Decode(&view); err != nil {
+		return err
+	}
+	v.Round, v.Sequence = view.Round, view.Sequence
+	return nil
+}
+
+func (v *View) String() string {
+	return fmt.Sprintf("{Round: %d, Sequence: %d}", v.Round.Uint64(), v.Sequence.Uint64())
+}
+
+// Cmp compares v and y and returns:
+//   -1 if v <  y
+//    0 if v == y
+//   +1 if v >  y
+func (v *View) Cmp(y *View) int {
+	if v.Sequence.Cmp(y.Sequence) != 0 {
+		return v.Sequence.Cmp(y.Sequence)
+	}
+	if v.Round.Cmp(y.Round) != 0 {
+		return v.Round.Cmp(y.Round)
+	}
+	return 0
 }

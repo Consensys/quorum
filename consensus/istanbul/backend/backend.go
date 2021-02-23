@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 	"math/big"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
+	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -119,19 +120,20 @@ func (sb *backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet 
 }
 
 // Broadcast implements istanbul.Backend.Broadcast
-func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error {
+func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	// send to others
-	sb.Gossip(valSet, payload)
+	sb.Gossip(valSet, code, payload)
 	// send to self
 	msg := istanbul.MessageEvent{
+		Code:    code,
 		Payload: payload,
 	}
 	go sb.istanbulEventMux.Post(msg)
 	return nil
 }
 
-// Broadcast implements istanbul.Backend.Gossip
-func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
+// Gossip implements istanbul.Backend.Gossip
+func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
@@ -158,7 +160,12 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-			go p.SendConsensus(istanbulMsg, payload)
+
+			var outboundCode uint64 = istanbulMsg
+			if _, ok := qibftMessage.MessageCodes()[code]; ok {
+				outboundCode = code
+			}
+			go p.SendConsensus(outboundCode, payload)
 		}
 	}
 	return nil
@@ -197,7 +204,7 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// update block's header
 	block = block.WithSeal(h)
 
-	sb.logger.Info("Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
+	sb.logger.Info("QBFT: Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
 	// - otherwise, we try to insert the block.

@@ -23,9 +23,7 @@ var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
 		Versions: []uint{Istanbul100, Istanbul99, Istanbul64},
-		// istanbul/100 has to have 18 message to be backwards compatible although at the p2p layer it only has
-		// 1 message with msg.Code 17
-		Lengths: map[uint]uint64{Istanbul100: 18, Istanbul99: 18, Istanbul64: 18},
+		Lengths: map[uint]uint64{Istanbul100: 22, Istanbul99: 18, Istanbul64: 18},
 	}
 
 	CliqueProtocol = Protocol{

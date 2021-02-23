@@ -17,94 +17,78 @@
 package core
 
 import (
-	"reflect"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func (c *core) sendCommit() {
-	sub := c.current.Subject()
-	c.broadcastCommit(sub)
-}
+func (c *core) broadcastCommit() {
+	var err error
 
-func (c *core) sendCommitForOldBlock(view *View, digest common.Hash) {
-	sub := &Subject{
-		View:   view,
-		Digest: digest,
-	}
-	c.broadcastCommit(sub)
-}
-
-func (c *core) broadcastCommit(sub *Subject) {
 	logger := c.logger.New("state", c.state)
 
-	encodedSubject, err := Encode(sub)
+	sub := c.current.Subject()
+
+	// Create Commit Seal
+	commitSeal, err := c.backend.Sign(PrepareCommittedSeal(sub.Digest))
 	if err != nil {
-		logger.Error("Failed to encode", "subject", sub)
+		logger.Error("QBFT: Failed to create commit seal", "sub", sub, "err", err)
 		return
 	}
-	c.broadcast(&message{
-		Code: msgCommit,
-		Msg:  encodedSubject,
-	})
+
+	commit := message.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
+	commit.SetSource(c.Address())
+
+	// Sign Message
+	encodedPayload, err := commit.EncodePayload()
+	if err != nil {
+		logger.Error("QBFT: Failed to encode payload of commit message", "msg", commit, "err", err)
+		return
+	}
+
+	signature, err := c.backend.Sign(encodedPayload)
+	if err != nil {
+		logger.Error("QBFT: Failed to sign commit message", "msg", commit, "err", err)
+		return
+	}
+	commit.SetSignature(signature)
+
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&commit)
+	if err != nil {
+		logger.Error("QBFT: Failed to encode commit message", "msg", commit, "err", err)
+		return
+	}
+
+	logger.Info("QBFT: broadcastCommitMsg", "m", sub, "payload", payload)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", commit, "err", err)
+		return
+	}
 }
 
-func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
-	// Decode COMMIT message
-	var commit *Subject
-	err := msg.Decode(&commit)
-	if err != nil {
-		return errFailedDecodeCommit
-	}
+func (c *core) handleCommitMsg(commit *message.Commit) error {
+	logger := c.logger.New("state", c.state)
 
-	if err := c.checkMessage(msgCommit, commit.View); err != nil {
-		return err
-	}
+	logger.Info("QBFT: handleCommitMsg", "msg", &commit)
 
-	// Check if a quorum of prepare message have been received corresponding to the commit digest. If not, then return a errInvalidMessage error
+	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
-		c.logger.Error("commit digest does not match proposal hash", "proposal", c.current.Proposal().Hash(), "commit", commit.Digest, "state", c.state)
+		logger.Error("QBFT: Failed to check digest")
 		return errInvalidMessage
 	}
 
-	if err := c.verifyCommit(commit, src); err != nil {
+	// Add to received msgs
+	if err := c.current.QBFTCommits.Add(commit); err != nil {
+		c.logger.Error("QBFT: Failed to save commit message", "msg", commit, "err", err)
 		return err
 	}
 
-	c.acceptCommit(msg, src)
-
-	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
-	//
-	// If we already have a proposal, we may have chance to speed up the consensus process
-	// by committing the proposal without PREPARE messages.
-	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(StateCommitted) < 0 {
-		c.commit()
-	}
-
-	return nil
-}
-
-// verifyCommit verifies if the received COMMIT message is equivalent to our subject
-func (c *core) verifyCommit(commit *Subject, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-
-	sub := c.current.Subject()
-	if !reflect.DeepEqual(commit.View, sub.View) || commit.Digest.Hex() != sub.Digest.Hex() {
-		logger.Warn("Inconsistent subjects between commit and proposal", "expected", sub, "got", commit)
-		return errInconsistentSubject
-	}
-
-	return nil
-}
-
-func (c *core) acceptCommit(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-
-	// Add the COMMIT message to current round state
-	if err := c.current.Commits.Add(msg); err != nil {
-		logger.Error("Failed to record commit message", "msg", msg, "err", err)
-		return err
+	logger.Info("QBFT: commit threshold", "commits", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
+	// Check threshold and decide
+	if c.current.QBFTCommits.Size() >= c.QuorumSize() {
+		logger.Info("QBFT: Reached commit threshold")
+		c.commitQBFT()
 	}
 
 	return nil

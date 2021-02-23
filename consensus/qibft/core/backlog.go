@@ -17,7 +17,8 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -25,9 +26,9 @@ var (
 	// msgPriority is defined for calculating processing priority to speedup consensus
 	// msgPreprepare > msgCommit > msgPrepare
 	msgPriority = map[uint64]int{
-		msgPreprepare: 1,
-		msgCommit:     2,
-		msgPrepare:    3,
+		message.PreprepareCode: 1,
+		message.CommitCode:     2,
+		message.PrepareCode:    3,
 	}
 )
 
@@ -35,12 +36,12 @@ var (
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
-func (c *core) checkMessage(msgCode uint64, view *View) error {
+func (c *core) checkMessage(msgCode uint64, view *qibft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
 
-	if msgCode == msgRoundChange {
+	if msgCode == message.RoundChangeCode {
 		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
 			return errFutureMessage
 		} else if view.Cmp(c.currentView()) < 0 {
@@ -61,23 +62,23 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 	case StateAcceptRequest:
 		// StateAcceptRequest only accepts msgPreprepare and msgRoundChange
 		// other messages are future messages
-		if msgCode > msgPreprepare {
+		if msgCode > message.PreprepareCode {
 			return errFutureMessage
 		}
 		return nil
 	case StatePreprepared:
 		// StatePreprepared only accepts msgPrepare and msgRoundChange
 		// message less than msgPrepare are invalid and greater are future messages
-		if msgCode < msgPrepare {
+		if msgCode < message.PrepareCode {
 			return errInvalidMessage
-		} else if msgCode > msgPrepare {
+		} else if msgCode > message.PrepareCode {
 			return errFutureMessage
 		}
 		return nil
 	case StatePrepared:
 		// StatePrepared only accepts msgCommit and msgRoundChange
 		// other messages are invalid messages
-		if msgCode < msgCommit {
+		if msgCode < message.CommitCode {
 			return errInvalidMessage
 		}
 		return nil
@@ -88,10 +89,11 @@ func (c *core) checkMessage(msgCode uint64, view *View) error {
 	return nil
 }
 
-func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
+func (c *core) storeQBFTBacklog(msg message.QBFTMessage) {
+	src := msg.Source()
 	logger := c.logger.New("from", src, "state", c.state)
 
-	if src.Address() == c.Address() {
+	if src == c.Address() {
 		logger.Warn("Backlog from self")
 		return
 	}
@@ -101,33 +103,14 @@ func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
 
-	logger.Debug("Retrieving backlog queue", "for", src.Address(), "backlogs_size", len(c.backlogs))
-	backlog := c.backlogs[src.Address()]
+	logger.Debug("Retrieving backlog queue", "for", src, "backlogs_size", len(c.backlogs))
+	backlog := c.backlogs[src]
 	if backlog == nil {
 		backlog = prque.New()
 	}
-	switch msg.Code {
-	case msgPreprepare:
-		var p *Preprepare
-		err := msg.Decode(&p)
-		if err == nil {
-			backlog.Push(msg, toPriority(msg.Code, p.View))
-		}
-	case msgRoundChange:
-		var p *RoundChangeMessage
-		err := msg.Decode(&p)
-		if err == nil {
-			backlog.Push(msg, toPriority(msg.Code, p.View))
-		}
-		// for msgPrepare and msgCommit cases
-	default:
-		var p *Subject
-		err := msg.Decode(&p)
-		if err == nil {
-			backlog.Push(msg, toPriority(msg.Code, p.View))
-		}
-	}
-	c.backlogs[src.Address()] = backlog
+	view := msg.View()
+	backlog.Push(msg, toPriority(msg.Code(), &view))
+	c.backlogs[src] = backlog
 }
 
 func (c *core) processBacklog() {
@@ -152,57 +135,38 @@ func (c *core) processBacklog() {
 		//   2. The first message in queue is a future message
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
-			msg := m.(*message)
-			var view *View
-			switch msg.Code {
-			case msgPreprepare:
-				var m *Preprepare
-				err := msg.Decode(&m)
-				if err == nil {
-					view = m.View
-				}
-			case msgRoundChange:
-				var rc *RoundChangeMessage
-				err := msg.Decode(&rc)
-				if err == nil {
-					view = rc.View
-				}
-				// for msgPrepare and msgCommit cases
-			default:
-				var sub *Subject
-				err := msg.Decode(&sub)
-				if err == nil {
-					view = sub.View
-				}
-			}
-			if view == nil {
-				logger.Debug("Nil view", "msg", msg)
-				continue
-			}
+
+			var code uint64
+			var view qibft.View
+			var event backlogEvent
+
+			msg := m.(message.QBFTMessage)
+			code = msg.Code()
+			view = msg.View()
+			event.msg = msg
+
 			// Push back if it's a future message
-			err := c.checkMessage(msg.Code, view)
+			err := c.checkMessage(code, &view)
 			if err != nil {
 				if err == errFutureMessage {
-					logger.Trace("Stop processing backlog", "msg", msg)
-					backlog.Push(msg, prio)
+					logger.Trace("Stop processing backlog", "msg", m)
+					backlog.Push(m, prio)
 					isFuture = true
 					break
 				}
-				logger.Trace("Skip the backlog event", "msg", msg, "err", err)
+				logger.Trace("Skip the backlog event", "msg", m, "err", err)
 				continue
 			}
-			logger.Trace("Post backlog event", "msg", msg)
+			logger.Trace("Post backlog event", "msg", m)
 
-			go c.sendEvent(backlogEvent{
-				src: src,
-				msg: msg,
-			})
+			event.src = src
+			go c.sendEvent(event)
 		}
 	}
 }
 
-func toPriority(msgCode uint64, view *View) float32 {
-	if msgCode == msgRoundChange {
+func toPriority(msgCode uint64, view *qibft.View) float32 {
+	if msgCode == message.RoundChangeCode {
 		// For msgRoundChange, set the message priority based on its sequence
 		return -float32(view.Sequence.Uint64() * 1000)
 	}

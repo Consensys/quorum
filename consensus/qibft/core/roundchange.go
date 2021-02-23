@@ -21,20 +21,23 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// sendNextRoundChange sends the ROUND CHANGE message with current round + 1
-func (c *core) sendNextRoundChange() {
+// broadcastNextRoundChange sends the ROUND CHANGE message with current round + 1
+func (c *core) broadcastNextRoundChange() {
 	cv := c.currentView()
-	c.sendRoundChange(new(big.Int).Add(cv.Round, common.Big1))
+	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
 // sendRoundChange sends the ROUND CHANGE message with the given round
-func (c *core) sendRoundChange(round *big.Int) {
+func (c *core) broadcastRoundChange(round *big.Int) {
 	logger := c.logger.New("state", c.state)
 
 	cv := c.currentView()
@@ -43,115 +46,104 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
-	var preparedBlockDigest common.Hash
-	if c.current.preparedBlock != nil {
-		preparedBlockDigest = c.current.preparedBlock.Hash()
-	}
+	roundChange := message.NewRoundChange(c.current.Sequence(), round, c.current.preparedRound, c.current.preparedBlock)
 
-	cv = c.currentView()
-	rc := &RoundChangeMessage{
-		View:                cv,
-		PreparedRound:       c.current.preparedRound,
-		PreparedBlockDigest: preparedBlockDigest,
-	}
-
-	payload, err := Encode(rc)
+	// Sign message
+	encodedPayload, err := roundChange.EncodePayload()
 	if err != nil {
-		logger.Error("Failed to encode ROUND CHANGE", "rc", rc, "err", err)
+		logger.Error("QBFT: Failed to encode round-change message", "msg", roundChange, "err", err)
+		return
+	}
+	signature, err := c.backend.Sign(encodedPayload)
+	if err != nil {
+		logger.Error("QBFT: Failed to sign round-change message", "msg", roundChange, "err", err)
+		return
+	}
+	roundChange.SetSignature(signature)
+
+	// Add justification
+	if c.QBFTPreparedPrepares != nil {
+		roundChange.Justification = c.QBFTPreparedPrepares
+		logger.Info("QBFT: On RoundChange", "justification", roundChange.Justification)
+	}
+
+	// RLP-encode message
+	data, err := rlp.EncodeToBytes(roundChange)
+	if err != nil {
+		logger.Error("QBFT: Failed to encode round-change message", "msg", roundChange, "err", err)
 		return
 	}
 
-	var piggybackMsgPayload []byte
-	if c.PreparedRoundPrepares != nil {
-		piggybackMsg := &PiggybackMessages{PreparedMessages: c.PreparedRoundPrepares, RCMessages: newMessageSet(c.valSet), Proposal: c.current.preparedBlock}
-		piggybackMsgPayload, err = Encode(piggybackMsg)
-		if err != nil {
-			logger.Error("Failed to encode Piggyback messages accompanying ROUND CHANGE", "err", err)
-			return
-		}
+	logger.Info("QBFT: broadcast round-change message", "msg", roundChange)
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
+		logger.Error("QBFT: Failed to broadcast message", "msg", roundChange, "err", err)
+		return
 	}
-
-	c.broadcast(&message{
-		Code:          msgRoundChange,
-		Msg:           payload,
-		PiggybackMsgs: piggybackMsgPayload,
-	})
-
 }
 
-func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
+func (c *core) handleRoundChange(roundChange *message.RoundChange) error {
+	logger := c.logger.New("state", c.state)
 
-	// Decode ROUND CHANGE message
-	var rc *RoundChangeMessage
-	if err := msg.Decode(&rc); err != nil {
-		logger.Error("Failed to decode ROUND CHANGE", "err", err)
-		return errFailedDecodeRoundChange
-	}
+	logger.Info("QBFT: handleRoundChange", "m", roundChange)
 
-	// Decode Prepare messages and Prepared block that piggyback Round Change message
-	var piggybackMsgs *PiggybackMessages
-	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
-		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggybackMsgs); err != nil {
-			logger.Error("Failed to decode ROUND CHANGE Piggyback messages", "err", err)
-			return errFailedDecodePiggybackMsgs
-		}
-	}
-
-	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
-		return err
-	}
-
-	cv := c.currentView()
-	roundView := rc.View
+	view := roundChange.View()
+	currentRound := c.currentView().Round
 
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
-	if roundView.Round.Cmp(cv.Round) >= 0 {
-		pr := rc.PreparedRound
-		var pb istanbul.Proposal
-		var preparedMessages *messageSet
-		if piggybackMsgs == nil || piggybackMsgs.Proposal == nil {
-			pb = nil
-			pr = nil
-			preparedMessages = nil
-		} else {
-			preparedMessages = piggybackMsgs.PreparedMessages
-			pb = piggybackMsgs.Proposal
+	if view.Round.Cmp(currentRound) >= 0 {
+		var prepareMessages []*message.SignedPreparePayload = nil
+		var pr *big.Int = nil
+		var pb *types.Block = nil
+		if roundChange.PreparedRound != nil && roundChange.PreparedBlock != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
+			prepareMessages = roundChange.Justification
+			pr = roundChange.PreparedRound
+			pb = roundChange.PreparedBlock
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, preparedMessages, c.QuorumSize())
+		err := c.roundChangeSet.Add(view.Round, roundChange, pr, pb, prepareMessages, c.QuorumSize())
 		if err != nil {
-			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
+			logger.Warn("Failed to add round change message", "msg", roundChange, "err", err)
 			return err
 		}
 	}
 
-	num := c.roundChangeSet.higherRoundMessages(cv.Round)
-	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(cv.Round)
+	num := c.roundChangeSet.higherRoundMessages(currentRound)
+	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
+	log.Info("QBFT: handleRoundChange count", "higherRoundMsgs", num, "currentRoundMsgs", currentRoundMessages)
 	if num == c.valSet.F()+1 {
-		newRound := c.roundChangeSet.getMinRoundChange(cv.Round)
+		newRound := c.roundChangeSet.getMinRoundChange(currentRound)
 		logger.Trace("Starting new Round", "round", newRound)
 		c.startNewRound(newRound)
-		c.sendRoundChange(newRound)
-	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(cv.Round) < 0 {
-		_, proposal := c.highestPrepared(cv.Round)
+		c.broadcastRoundChange(newRound)
+	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
+		_, proposal := c.highestPrepared(currentRound)
 		if proposal == nil {
 			proposal = c.current.pendingRequest.Proposal
 		}
 
-		roundChangeMessages := c.roundChangeSet.roundChanges[cv.Round.Uint64()]
-		prepareMessages := c.roundChangeSet.prepareMessages[cv.Round.Uint64()]
+		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
+		prepareMessages := c.roundChangeSet.prepareMessages[currentRound.Uint64()]
 
-		if !justify(proposal, roundChangeMessages, prepareMessages, c.QuorumSize()) {
+		// Justification
+		rcSignedPayloads := make([]*message.SignedRoundChangePayload, 0)
+		for _, m := range roundChangeMessages.Values() {
+			rcMsg := m.(*message.RoundChange)
+			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
+		}
+
+		if !justify(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()) {
+			logger.Info("QBFT: Justification of ROUND-CHANGE messages failed")
 			return nil
 		}
 
+		log.Info("QBFT: handleRoundChange - broadcasting pre-prepare")
 		r := &Request{
 			Proposal:        proposal,
 			RCMessages:      roundChangeMessages,
 			PrepareMessages: prepareMessages,
 		}
-		c.sendPreprepare(r)
+		c.sendPreprepareMsg(r)
 	}
 	return nil
 }
@@ -166,8 +158,8 @@ func (c *core) highestPrepared(round *big.Int) (*big.Int, istanbul.Proposal) {
 func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
 		validatorSet:         valSet,
-		roundChanges:         make(map[uint64]*messageSet),
-		prepareMessages:      make(map[uint64]*messageSet),
+		roundChanges:         make(map[uint64]*qbftMsgSet),
+		prepareMessages:      make(map[uint64][]*message.SignedPreparePayload),
 		highestPreparedRound: make(map[uint64]*big.Int),
 		highestPreparedBlock: make(map[uint64]istanbul.Proposal),
 		mu:                   new(sync.Mutex),
@@ -176,8 +168,8 @@ func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 
 type roundChangeSet struct {
 	validatorSet         istanbul.ValidatorSet
-	roundChanges         map[uint64]*messageSet
-	prepareMessages      map[uint64]*messageSet
+	roundChanges         map[uint64]*qbftMsgSet
+	prepareMessages      map[uint64][]*message.SignedPreparePayload
 	highestPreparedRound map[uint64]*big.Int
 	highestPreparedBlock map[uint64]istanbul.Proposal
 	mu                   *sync.Mutex
@@ -187,29 +179,30 @@ func (rcs *roundChangeSet) NewRound(r *big.Int) {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 	round := r.Uint64()
-	rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
-	rcs.prepareMessages[round] = newMessageSet(rcs.validatorSet)
+	if rcs.roundChanges[round] == nil {
+		rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
+	}
+	if rcs.prepareMessages[round] == nil {
+		rcs.prepareMessages[round] = make([]*message.SignedPreparePayload, 0)
+	}
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages *messageSet, quorumSize int) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg message.QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*message.SignedPreparePayload, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 
 	round := r.Uint64()
 	if rcs.roundChanges[round] == nil {
-		rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
+		rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
 	}
 	if err := rcs.roundChanges[round].Add(msg); err != nil {
 		return err
 	}
 
 	if preparedRound != nil && (rcs.highestPreparedRound[round] == nil || preparedRound.Cmp(rcs.highestPreparedRound[round]) > 0) {
-		var roundChangeMessage *RoundChangeMessage
-		if err := msg.Decode(&roundChangeMessage); err != nil {
-			return err
-		}
-		if hasMatchingRoundChangeAndPrepares(roundChangeMessage, prepareMessages, quorumSize) {
+		roundChange := msg.(*message.RoundChange)
+		if hasMatchingRoundChangeAndPrepares(roundChange, prepareMessages, quorumSize) {
 			rcs.highestPreparedRound[round] = preparedRound
 			rcs.highestPreparedBlock[round] = preparedBlock
 			rcs.prepareMessages[round] = prepareMessages
@@ -295,17 +288,4 @@ func (rcs *roundChangeSet) MaxRound(num int) *big.Int {
 		}
 	}
 	return maxRound
-}
-
-// NilBlock represents a nil block and is sent in RoundChangeMessage if PreparedBlockDigest is nil
-func NilBlock() *types.Block {
-	header := &types.Header{
-		Difficulty: big.NewInt(0),
-		Number:     big.NewInt(0),
-		GasLimit:   0,
-		GasUsed:    0,
-		Time:       0,
-	}
-	block := &types.Block{}
-	return block.WithSeal(header)
 }

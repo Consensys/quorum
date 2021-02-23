@@ -23,6 +23,9 @@ import (
 	"sync"
 	"time"
 
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -95,7 +98,7 @@ type core struct {
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
 
-	PreparedRoundPrepares *messageSet
+	QBFTPreparedPrepares []*message.SignedPreparePayload
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
@@ -109,59 +112,8 @@ type core struct {
 	consensusTimer metrics.Timer
 }
 
-func (c *core) finalizeMessage(msg *message) ([]byte, error) {
-	var err error
-	// Add sender address
-	msg.Address = c.Address()
-
-	// Add proof of consensus
-	msg.CommittedSeal = []byte{}
-	// Assign the CommittedSeal if it's a COMMIT message and proposal is not nil
-	if msg.Code == msgCommit && c.current.Proposal() != nil {
-		seal := PrepareCommittedSeal(c.current.Proposal().Hash())
-		msg.CommittedSeal, err = c.backend.Sign(seal)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Sign message
-	data, err := msg.PayloadNoSig()
-	if err != nil {
-		return nil, err
-	}
-	msg.Signature, err = c.backend.Sign(data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to payload
-	payload, err := msg.Payload()
-	if err != nil {
-		return nil, err
-	}
-
-	return payload, nil
-}
-
-func (c *core) broadcast(msg *message) {
-	logger := c.logger.New("state", c.state)
-
-	payload, err := c.finalizeMessage(msg)
-	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "err", err)
-		return
-	}
-
-	// Broadcast payload
-	if err = c.backend.Broadcast(c.valSet, payload); err != nil {
-		logger.Error("Failed to broadcast message", "msg", msg, "err", err)
-		return
-	}
-}
-
-func (c *core) currentView() *View {
-	return &View{
+func (c *core) currentView() *istanbul2.View {
+	return &istanbul2.View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
@@ -179,19 +131,21 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
-func (c *core) commit() {
+func (c *core) commitQBFT() {
 	c.setState(StateCommitted)
 
 	proposal := c.current.Proposal()
 	if proposal != nil {
-		committedSeals := make([][]byte, c.current.Commits.Size())
-		for i, v := range c.current.Commits.Values() {
+		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
+		for i, msg := range c.current.QBFTCommits.Values() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			copy(committedSeals[i][:], v.CommittedSeal[:])
+			commitMsg := msg.(*message.Commit)
+			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
 		}
 
 		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
-			c.sendNextRoundChange()
+			log.Error("QBFT: Error committing", "err", err)
+			c.broadcastNextRoundChange()
 			return
 		}
 	}
@@ -235,14 +189,14 @@ func (c *core) startNewRound(round *big.Int) {
 		return
 	}
 
-	var newView *View
+	var newView *istanbul2.View
 	if roundChange {
-		newView = &View{
+		newView = &istanbul2.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		newView = &View{
+		newView = &istanbul2.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
@@ -264,7 +218,7 @@ func (c *core) startNewRound(round *big.Int) {
 
 	// Update RoundChangeSet by deleting older round messages
 	if round.Uint64() == 0 {
-		c.PreparedRoundPrepares = nil
+		c.QBFTPreparedPrepares = nil
 		c.roundChangeSet = newRoundChangeSet(c.valSet)
 	} else {
 		// Clear earlier round messages
@@ -278,11 +232,11 @@ func (c *core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *View, validatorSet istanbul.ValidatorSet, roundChange bool) {
+func (c *core) updateRoundState(view *istanbul2.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
-		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
+		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
-		c.current = newRoundState(view, validatorSet, nil, nil, c.backend.HasBadProposal)
+		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
@@ -322,6 +276,7 @@ func (c *core) newRoundChangeTimer() {
 	if round > 0 {
 		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
 	}
+	c.logger.Info("QBFT: New Round Timer", "timeout", timeout)
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})
@@ -344,6 +299,7 @@ func (c *core) QuorumSize() int {
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
 	buf.Write(hash.Bytes())
+	var msgCommit uint64 = 2 // Legacy commit code for backwards compatibility
 	buf.Write([]byte{byte(msgCommit)})
 	return buf.Bytes()
 }

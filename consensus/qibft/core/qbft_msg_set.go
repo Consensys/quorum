@@ -23,55 +23,54 @@ import (
 	"strings"
 	"sync"
 
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Construct a new message set to accumulate messages for given sequence/view number.
-func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
-	return &messageSet{
-		view: &View{
+func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
+	return &qbftMsgSet{
+		view: &istanbul2.View{
 			Round:    new(big.Int),
 			Sequence: new(big.Int),
 		},
 		messagesMu: new(sync.Mutex),
-		messages:   make(map[common.Address]*message),
+		messages:   make(map[common.Address]message.QBFTMessage),
 		valSet:     valSet,
 	}
 }
 
 // ----------------------------------------------------------------------------
 
-type messageSet struct {
-	view       *View
+type qbftMsgSet struct {
+	view       *istanbul2.View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
-	messages   map[common.Address]*message
+	messages   map[common.Address]message.QBFTMessage
 }
 
-// messageMapAsStruct is a temporary holder struct to convert messages map to a slice when Encoding and Decoding messageSet
-type messageMapAsStruct struct {
+// qbftMsgMapAsStruct is a temporary holder struct to convert messages map to a slice when Encoding and Decoding qbftMsgSet
+type qbftMsgMapAsStruct struct {
 	Address common.Address
-	Msg     *message
+	Msg     message.QBFTMessage
 }
 
-func (ms *messageSet) View() *View {
+func (ms *qbftMsgSet) View() *istanbul2.View {
 	return ms.view
 }
 
-func (ms *messageSet) Add(msg *message) error {
+func (ms *qbftMsgSet) Add(msg message.QBFTMessage) error {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
-
-	if err := ms.verify(msg); err != nil {
-		return err
-	}
-
-	return ms.addVerifiedMessage(msg)
+	ms.messages[msg.Source()] = msg
+	return nil
 }
 
-func (ms *messageSet) Values() (result []*message) {
+func (ms *qbftMsgSet) Values() (result []message.QBFTMessage) {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -82,13 +81,13 @@ func (ms *messageSet) Values() (result []*message) {
 	return result
 }
 
-func (ms *messageSet) Size() int {
+func (ms *qbftMsgSet) Size() int {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	return len(ms.messages)
 }
 
-func (ms *messageSet) Get(addr common.Address) *message {
+func (ms *qbftMsgSet) Get(addr common.Address) message.QBFTMessage {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	return ms.messages[addr]
@@ -96,35 +95,19 @@ func (ms *messageSet) Get(addr common.Address) *message {
 
 // ----------------------------------------------------------------------------
 
-func (ms *messageSet) verify(msg *message) error {
-	// verify if the message comes from one of the validators
-	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
-		return istanbul.ErrUnauthorizedAddress
-	}
-
-	// TODO: check view number and sequence number
-
-	return nil
-}
-
-func (ms *messageSet) addVerifiedMessage(msg *message) error {
-	ms.messages[msg.Address] = msg
-	return nil
-}
-
-func (ms *messageSet) String() string {
+func (ms *qbftMsgSet) String() string {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	addresses := make([]string, 0, len(ms.messages))
 	for _, v := range ms.messages {
-		addresses = append(addresses, v.Address.String())
+		addresses = append(addresses, v.Source().String())
 	}
 	return fmt.Sprintf("[%v]", strings.Join(addresses, ", "))
 }
 
-// EncodeRLP serializes messageSet into Ethereum RLP format
+// EncodeRLP serializes qbftMsgSet into Ethereum RLP format
 // valSet is currently not being encoded.
-func (ms *messageSet) EncodeRLP(w io.Writer) error {
+func (ms *qbftMsgSet) EncodeRLP(w io.Writer) error {
 	if ms == nil {
 		return nil
 	}
@@ -132,9 +115,9 @@ func (ms *messageSet) EncodeRLP(w io.Writer) error {
 	defer ms.messagesMu.Unlock()
 
 	// maps cannot be RLP encoded, convert the map into a slice of struct and then encode it
-	var messagesAsSlice []messageMapAsStruct
+	var messagesAsSlice []qbftMsgMapAsStruct
 	for k, v := range ms.messages {
-		msgMapAsStruct := messageMapAsStruct{
+		msgMapAsStruct := qbftMsgMapAsStruct{
 			Address: k,
 			Msg:     v,
 		}
@@ -143,30 +126,29 @@ func (ms *messageSet) EncodeRLP(w io.Writer) error {
 
 	return rlp.Encode(w, []interface{}{
 		ms.view,
-		//		ms.valSet,
 		messagesAsSlice,
 	})
 }
 
-// DecodeRLP deserializes rlp stream into messageSet
+// DecodeRLP deserializes rlp stream into qbftMsgSet
 // valSet is currently not being decoded
-func (ms *messageSet) DecodeRLP(stream *rlp.Stream) error {
-	// Don't decode messageSet if the size of the stream is 0
+func (ms *qbftMsgSet) DecodeRLP(stream *rlp.Stream) error {
+	// Don't decode qbftMsgSet if the size of the stream is 0
 	_, size, _ := stream.Kind()
 	if size == 0 {
 		return nil
 	}
 	var msgSet struct {
-		MsgView *View
+		MsgView *istanbul2.View
 		//		valSet        istanbul.ValidatorSet
-		MessagesSlice []messageMapAsStruct
+		MessagesSlice []qbftMsgMapAsStruct
 	}
 	if err := stream.Decode(&msgSet); err != nil {
 		return err
 	}
 
 	// convert the messages struct slice back to map
-	messages := make(map[common.Address]*message)
+	messages := make(map[common.Address]message.QBFTMessage)
 	for _, msgStruct := range msgSet.MessagesSlice {
 		messages[msgStruct.Address] = msgStruct.Msg
 	}

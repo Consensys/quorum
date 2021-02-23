@@ -1,10 +1,15 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -92,9 +97,9 @@ func testParameterizedCase(
 	}
 
 	// ROUND-CHANGE messages
-	roundChangeMessages := newMessageSet(validatorSet)
+	roundChangeMessages := make([]*message.SignedRoundChangePayload, 0)
 	for index, validator := range validatorSet.List() {
-		var m *message
+		var m *message.SignedRoundChangePayload
 		if index < rcForNil {
 			m = createRoundChangeMessage(validator.Address(), round, 0, nil)
 		} else if index >= rcForNil && index < rcForNil+rcEqualToTargetRound {
@@ -106,13 +111,13 @@ func testParameterizedCase(
 		} else {
 			break
 		}
-		roundChangeMessages.Add(m)
+		roundChangeMessages = append(roundChangeMessages, m)
 	}
 
 	// PREPARE messages
-	prepareMessages := newMessageSet(validatorSet)
+	prepareMessages := make([]*message.SignedPreparePayload, 0)
 	for index, validator := range validatorSet.List() {
-		var m *message
+		var m *message.SignedPreparePayload
 		if index < preparesForTargetRound {
 			m = createPrepareMessage(validator.Address(), targetPreparedRound, block)
 		} else if index >= preparesForTargetRound && index < preparesForTargetRound+preparesNotForTargetRound {
@@ -124,9 +129,16 @@ func testParameterizedCase(
 		} else {
 			break
 		}
-		prepareMessages.Add(m)
+		prepareMessages = append(prepareMessages, m)
 	}
 
+	for _, m := range roundChangeMessages {
+		fmt.Printf("RC %v\n", m)
+	}
+	for _, m := range prepareMessages {
+		fmt.Printf("PR %v\n", m)
+	}
+	fmt.Println("roundChangeMessages", roundChangeMessages, len(roundChangeMessages))
 	if justify(block, roundChangeMessages, prepareMessages, quorumSize) != isJustified {
 		t.Errorf("quorumSize = %v, rcForNil = %v, rcEqualToTargetRound = %v, rcLowerThanTargetRound = %v, rcHigherThanTargetRound = %v, preparesForTargetRound = %v, preparesNotForTargetRound = %v (Expected: %v, Actual: %v)",
 			quorumSize, rcForNil, rcEqualToTargetRound, rcLowerThanTargetRound, rcHigherThanTargetRound, preparesForTargetRound, preparesNotForTargetRound, isJustified, !isJustified)
@@ -134,33 +146,33 @@ func testParameterizedCase(
 	}
 }
 
-func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *message {
-	var preparedBlockHash common.Hash
-	if preparedBlock != nil {
-		preparedBlockHash = preparedBlock.Hash()
-	}
-	m, _ := Encode(&RoundChangeMessage{
-		View:                &View{big.NewInt(round), big.NewInt(1)},
-		PreparedRound:       big.NewInt(preparedRound),
-		PreparedBlockDigest: preparedBlockHash,
-	})
-
-	return &message{
-		Code:    msgRoundChange,
-		Msg:     m,
-		Address: from,
-	}
+func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *message.SignedRoundChangePayload {
+	m := message.NewRoundChange(big.NewInt(1), big.NewInt(1), big.NewInt(preparedRound), preparedBlock)
+	m.SetSource(from)
+	return &m.SignedRoundChangePayload
 }
 
-func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message {
-	m, _ := Encode(&Subject{
-		View:   &View{big.NewInt(round), big.NewInt(1)},
-		Digest: preparedBlock.Hash(),
-	})
+func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message.SignedPreparePayload {
+	return message.NewSignedPreparePayload(big.NewInt(1), big.NewInt(round), preparedBlock.Hash(), nil, from)
+}
 
-	return &message{
-		Code:    msgPrepare,
-		Msg:     m,
-		Address: from,
+func generateValidators(n int) []common.Address {
+	vals := make([]common.Address, 0)
+	for i := 0; i < n; i++ {
+		privateKey, _ := crypto.GenerateKey()
+		vals = append(vals, crypto.PubkeyToAddress(privateKey.PublicKey))
 	}
+	return vals
+}
+
+func makeBlock(number int64) *types.Block {
+	header := &types.Header{
+		Difficulty: big.NewInt(0),
+		Number:     big.NewInt(number),
+		GasLimit:   0,
+		GasUsed:    0,
+		Time:       0,
+	}
+	block := &types.Block{}
+	return block.WithSeal(header)
 }
