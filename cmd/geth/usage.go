@@ -30,6 +30,7 @@ import (
 
 // Quorum
 var quorumAccountFlagGroup = "QUORUM ACCOUNT"
+
 // End Quorum
 
 // AppHelpFlagGroups is the application flags, grouped by functionality.
