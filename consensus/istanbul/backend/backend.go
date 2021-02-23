@@ -344,7 +344,6 @@ func (sb *backend) Close() error {
 
 // IsQIBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQIBFTConsensus() bool {
-	return true
 	// If qibftBlock is not defined in genesis, then use legacy ibft
 	if sb.config.QibftBlock == nil {
 		return false

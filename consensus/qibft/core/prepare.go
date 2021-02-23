@@ -63,11 +63,6 @@ func (c *core) handlePrepare(prepare *message.Prepare) error {
 
 	logger.Info("QBFT: handlePrepare", "msg", &prepare)
 
-	// For testing of round changes!!!!
-	if prepare.Sequence.Int64() % 4 == 2 && prepare.Round.Int64() == 0 {
-		return nil
-	}
-
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
 		logger.Error("QBFT: Failed to check digest")
