@@ -311,25 +311,16 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 	if err != nil {
 		return err
 	}
-	/*
-	for i, addr := range committers {
-		log.Warn("QBFT: COMMITTER", "i", i, "addr", addr)
-	}
-	for i, val := range validators.List() {
-		log.Warn("QBFT: VALIDATOR", "i", i, "addr", val.Address())
-	}*/
 	for _, addr := range committers {
 		if validators.RemoveValidator(addr) {
 			validSeal++
 			continue
 		}
-		//log.Error("QBFT: errInvalidCommittedSeals 1")
 		return errInvalidCommittedSeals
 	}
 
 	// The length of validSeal should be larger than number of faulty node + 1
 	if validSeal <= snap.ValSet.F() {
-		//log.Error("QBFT: errInvalidCommittedSeals 2")
 		return errInvalidCommittedSeals
 	}
 
