@@ -18,6 +18,7 @@ package eth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -388,6 +389,14 @@ func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 		return false, err
 	}
 	return auth, nil
+}
+
+func (b *EthAPIBackend) QuorumUsingPrivacyMarkerTransactions() bool {
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+}
+
+func (b *EthAPIBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
+	return b.eth.config.QuorumPrivacyMarkerSigningKey
 }
 
 // used by Quorum

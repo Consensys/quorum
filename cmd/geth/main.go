@@ -171,6 +171,8 @@ var (
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
+		utils.QuorumDisablePrivacyMarker,
+		utils.QuorumPrivacyMarkerSigningKeyFile,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,
 		utils.QuorumPTMTimeoutFlag,

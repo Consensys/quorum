@@ -18,6 +18,7 @@ package les
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"math/big"
 	"time"
@@ -305,4 +306,12 @@ func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 		return false, err
 	}
 	return auth, nil
+}
+
+func (b *LesApiBackend) QuorumUsingPrivacyMarkerTransactions() bool {
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+}
+
+func (b *LesApiBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
+	return b.eth.config.QuorumPrivacyMarkerSigningKey
 }

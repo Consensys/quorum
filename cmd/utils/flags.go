@@ -880,6 +880,16 @@ var (
 		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
 	}
 
+	QuorumDisablePrivacyMarker = cli.BoolFlag{
+		Name:  "privacymarker.disable",
+		Usage: "If specified, then privacy marker transactions are disabled.",
+	}
+
+	QuorumPrivacyMarkerSigningKeyFile = cli.StringFlag{
+		Name:  "privacymarker.signingkeyfile",
+		Usage: "Key file to use for signing privacy marker transactions (else uses a random key).",
+	}
+
 	// Quorum Private Transaction Manager connection options
 	QuorumPTMUnixSocketFlag = DirectoryFlag{
 		Name:  "ptm.socket",
@@ -1610,11 +1620,33 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
 }
 
-func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+
+	cfg.QuorumPrivacyMarkerTransactionsEnabled = true
+	if ctx.GlobalIsSet(QuorumDisablePrivacyMarker.Name) {
+		cfg.QuorumPrivacyMarkerTransactionsEnabled = false
+	}
+
+	if ctx.GlobalIsSet(QuorumPrivacyMarkerSigningKeyFile.Name) {
+		key, err := crypto.LoadECDSA(ctx.GlobalString(QuorumPrivacyMarkerSigningKeyFile.Name))
+		if err != nil {
+			return fmt.Errorf("failed to load private key specified in %v: %v", QuorumPrivacyMarkerSigningKeyFile.Name, err)
+		}
+		cfg.QuorumPrivacyMarkerSigningKey = key
+	} else {
+		key, err := crypto.GenerateKey()
+		if err != nil {
+			return fmt.Errorf("failed to generate private key for signing privacy marker transactions: %v", err)
+		}
+		cfg.QuorumPrivacyMarkerSigningKey = key
+	}
+
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
+
+	return nil
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1691,7 +1723,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setLes(ctx, cfg)
 
 	// Quorum
-	setQuorumConfig(ctx, cfg)
+	if err := setQuorumConfig(ctx, cfg); err != nil {
+		Fatalf(err.Error())
+	}
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)

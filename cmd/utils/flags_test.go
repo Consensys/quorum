@@ -22,14 +22,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/urfave/cli.v1"
 )
+
+var privateKeyData = `4087a65ecc0ccde73e750763388a0f0f2d4d425b4010469b95d18d3b17fcb120`
 
 func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
@@ -54,7 +59,7 @@ func TestSetPlugins_whenInvalidFlagsCombination(t *testing.T) {
 
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSkipVerifyFlag.Name, "false"))
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginLocalVerifyFlag.Name, "false"))
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitry value"))
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitrary value"))
 
 	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "--plugins.localverify is required for setting --plugins.publickey")
 }
@@ -76,15 +81,6 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumImmutabilityThreshold.Name, strconv.Itoa(100000)))
 	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name), "immutability threshold flag not set")
 	assert.Equal(t, 100000, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name), "immutability threshold value not set")
-}
-
-func TestSetTimeOutForCall(t *testing.T) {
-	fs := &flag.FlagSet{}
-	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
-	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(10)))
-	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "timeoutforcall flag not set")
-	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(EVMCallTimeOutFlag.Name), "timeoutforcall value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {
@@ -154,4 +150,47 @@ func Test_SplitTagsFlag(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuorumConfigFlags(t *testing.T) {
+	privateKeyFile := filepath.Join(os.TempDir(), "privateKeyFile.key")
+	if err := ioutil.WriteFile(privateKeyFile, []byte(privateKeyData), 0600); err != nil {
+		t.Fatalf("Failed to create privacy marker transaction key file for unit test, error: %v", err)
+	}
+	defer os.Remove(privateKeyFile)
+
+	fs := &flag.FlagSet{}
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryEthConfig := &eth.Config{}
+
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(12)))
+	fs.Bool(MultitenancyFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(MultitenancyFlag.Name, "true"))
+	fs.Bool(QuorumDisablePrivacyMarker.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumDisablePrivacyMarker.Name, "true"))
+	fs.String(QuorumPrivacyMarkerSigningKeyFile.Name, "", "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumPrivacyMarkerSigningKeyFile.Name, privateKeyFile))
+	fs.Uint64(IstanbulRequestTimeoutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulRequestTimeoutFlag.Name, "23"))
+	fs.Uint64(IstanbulBlockPeriodFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulBlockPeriodFlag.Name, "34"))
+	fs.Bool(RaftModeFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
+
+	if !assert.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig)) {
+		t.FailNow()
+	}
+
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "EVMCallTimeOutFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(MultitenancyFlag.Name), "MultitenancyFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(RaftModeFlag.Name), "RaftModeFlag not set")
+
+	assert.Equal(t, 12*time.Second, arbitraryEthConfig.EVMCallTimeOut, "EVMCallTimeOut value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.EnableMultitenancy, "MultitenancyFlag value is incorrect")
+	assert.Equal(t, false, arbitraryEthConfig.QuorumPrivacyMarkerTransactionsEnabled, "QuorumDisablePrivacyMarker value is incorrect")
+	//assert.Equal(t, need key value here, arbitraryEthConfig.QuorumPrivacyMarkerSigningKey, "QuorumPrivacyMarkerSigningKey value is incorrect")
+	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
+	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
 }

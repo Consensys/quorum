@@ -272,6 +272,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
 			utils.MultitenancyFlag,
+			utils.QuorumDisablePrivacyMarker,
+			utils.QuorumPrivacyMarkerSigningKeyFile,
 		},
 	},
 	{

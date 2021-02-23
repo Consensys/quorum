@@ -90,6 +90,9 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		if p := precompiles[address]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
 		}
+		if p := QuorumPrecompiledContracts[address]; p != nil {
+			return QuorumRunPrecompiledContract(evm, p, input, contract)
+		}
 	}
 	for _, interpreter := range evm.interpreters {
 		if interpreter.CanRun(contract.Code) {
@@ -364,7 +367,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		if evm.chainRules.IsIstanbul {
 			precompiles = PrecompiledContractsIstanbul
 		}
-		if precompiles[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
+		if precompiles[addr] == nil && QuorumPrecompiledContracts[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if evm.vmConfig.Debug && evm.depth == 0 {
 				evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)

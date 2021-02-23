@@ -19,6 +19,7 @@ package ethapi
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math/big"
 	"time"
 
@@ -90,6 +91,9 @@ type Backend interface {
 
 	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+
+	QuorumUsingPrivacyMarkerTransactions() bool
+	QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

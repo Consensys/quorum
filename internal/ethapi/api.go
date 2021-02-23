@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -1741,6 +1742,15 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		}
 	}
 
+	// If privacy marker transactions are enabled then replace any transaction which calls a private contract,
+	// with a new one, masking the 'To' address by replacing it with the address of the precompile
+	if tx.IsPrivate() && tx.To() != nil && b.QuorumUsingPrivacyMarkerTransactions() {
+		tx, err = buildPrivacyMarkerTransaction(ctx, b, tx, b.QuorumPrivacyMarkerSigningKey(), types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number()))
+		if err != nil {
+			return common.Hash{}, err
+		}
+	}
+
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
@@ -1906,6 +1916,33 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 		}
 	}
 	return evm, err
+}
+
+// Quorum
+//
+// Create a privacy marker transaction
+func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, tx *types.Transaction, signingKey *ecdsa.PrivateKey, signer types.Signer) (*types.Transaction, error) {
+
+	// TODO: there must be an easier way to get the 'from' address for the signing key
+	// dummy sign transaction to get the address of the signing key...
+	dummyTx, err := types.SignTx(tx, signer, signingKey)
+	from := dummyTx.From()
+
+	nonce, err := b.GetPoolNonce(ctx, from)
+	if err != nil {
+		log.Error("Failed to calculate nonce for privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data())
+
+	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
+	if err != nil {
+		log.Error("Failed to sign privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	return signedPrivacyMarkerTx, nil
 }
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the

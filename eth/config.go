@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"os"
 	"os/user"
@@ -177,4 +178,7 @@ type Config struct {
 	OverrideMuirGlacier *big.Int `toml:",omitempty"`
 
 	EnableMultitenancy bool
+
+	QuorumPrivacyMarkerTransactionsEnabled bool
+	QuorumPrivacyMarkerSigningKey          *ecdsa.PrivateKey
 }

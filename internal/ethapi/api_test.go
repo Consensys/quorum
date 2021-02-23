@@ -2,6 +2,7 @@ package ethapi
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math/big"
 	"os"
 	"testing"
@@ -34,9 +35,10 @@ import (
 var (
 	arbitraryCtx         = context.Background()
 	arbitraryPrivateFrom = "arbitrary private from"
+	arbitraryPrivateFor  = []string{"arbitrary party 1", "arbitrary party 2"}
 	privateTxArgs        = &PrivateTxArgs{
 		PrivateFrom: arbitraryPrivateFrom,
-		PrivateFor:  []string{"arbitrary party 1", "arbitrary party 2"},
+		PrivateFor:  arbitraryPrivateFor,
 	}
 	arbitraryFrom = common.BytesToAddress([]byte("arbitrary address"))
 
@@ -445,13 +447,52 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 }
 
+func TestSubmitPrivateTransaction(t *testing.T) {
+	assert := assert.New(t)
+
+	stbBackend := &StubBackend{}
+	stbBackend.multitenancySupported = false
+	stbBackend.quorumPrivacyMarkerTransactionsEnabled = false
+
+	key, _ := crypto.GenerateKey()
+	signedPrivateTx, _ := types.SignTx(standardPrivateSimpleStorageContractMessageCallTx, types.QuorumPrivateTxSigner{}, key)
+	_, err := SubmitTransaction(arbitraryCtx, stbBackend, signedPrivateTx, arbitraryPrivateFrom, arbitraryPrivateFor, false)
+
+	assert.NoError(err)
+	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
+	assert.True(stbBackend.txThatWasSent.IsPrivate(), "must be a private transaction")
+}
+
+func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
+	assert := assert.New(t)
+
+	stbBackend := &StubBackend{}
+	stbBackend.multitenancySupported = false
+	stbBackend.quorumPrivacyMarkerTransactionsEnabled = true
+
+	key, _ := crypto.GenerateKey()
+	signedPrivateTx, _ := types.SignTx(standardPrivateSimpleStorageContractMessageCallTx, types.QuorumPrivateTxSigner{}, key)
+	_, err := SubmitTransaction(arbitraryCtx, stbBackend, signedPrivateTx, arbitraryPrivateFrom, arbitraryPrivateFor, false)
+
+	assert.NoError(err)
+	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
+	assert.True(stbBackend.quorumPrivacyMarkerSigningKeyCalled, "privacy marker transaction signing key was not used")
+	assert.False(stbBackend.txThatWasSent.IsPrivate(), "transaction was private, instead of privacy marker transaction (public)")
+	assert.Equal(vm.PrivacyMarkerAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' field should be privacy marker precompile")
+}
+
 type StubBackend struct {
-	getEVMCalled                    bool
-	mockAccountExtraDataStateGetter *vm.MockAccountExtraDataStateGetter
+	getEVMCalled                           bool
+	quorumPrivacyMarkerSigningKeyCalled    bool
+	sendTxCalled                           bool
+	txThatWasSent                          *types.Transaction
+	mockAccountExtraDataStateGetter        *vm.MockAccountExtraDataStateGetter
+	multitenancySupported                  bool
+	quorumPrivacyMarkerTransactionsEnabled bool
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	panic("implement me")
+	return nil, sb.multitenancySupported
 }
 
 func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
@@ -573,7 +614,9 @@ func (sb *StubBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) ev
 }
 
 func (sb *StubBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	panic("implement me")
+	sb.sendTxCalled = true
+	sb.txThatWasSent = signedTx
+	return nil
 }
 
 func (sb *StubBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
@@ -630,6 +673,19 @@ func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 
 func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	panic("implement me")
+}
+
+func (sb *StubBackend) QuorumUsingPrivacyMarkerTransactions() bool {
+	return sb.quorumPrivacyMarkerTransactionsEnabled
+}
+
+func (sb *StubBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
+	sb.quorumPrivacyMarkerSigningKeyCalled = true
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		panic("could not generate a random key")
+	}
+	return key
 }
 
 type StubMinimalApiState struct {
