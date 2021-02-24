@@ -2185,22 +2185,22 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 		gas := (hexutil.Uint64)(90000)
 		args.Gas = &gas
 	}
-	// /Quorum
+	// End Quorum
+
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-	//TODO ricardolyn: evaluate if this change affects Quorum 0 gas price
-	// Before actually sign the transaction, ensure the transaction fee is reasonable.
 	if err := checkTxFee(args.GasPrice.ToInt(), uint64(*args.Gas), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
+
 	// Quorum
 	toSign := args.toTransaction()
-
 	if args.IsPrivate() {
 		toSign.SetPrivate()
 	}
-	// /Quorum
+	// End Quorum
+
 	tx, err := s.sign(args.From, toSign)
 	if err != nil {
 		return nil, err
