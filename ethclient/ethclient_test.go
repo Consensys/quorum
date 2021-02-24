@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/assert"
 )
 
 // Verify that Client implements the ethereum interfaces.
@@ -350,4 +351,32 @@ func TestChainID(t *testing.T) {
 	if id == nil || id.Cmp(params.AllEthashProtocolChanges.ChainID) != 0 {
 		t.Fatalf("ChainID returned wrong number: %+v", id)
 	}
+}
+
+func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
+	testObject := NewClient(nil)
+
+	_, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.Error(t, err)
+}
+
+func TestClient_PreparePrivateTransaction_whenClientIsConfigured(t *testing.T) {
+	expectedData := []byte("arbitrary payload")
+	expectedDataEPH := common.BytesToEncryptedPayloadHash(expectedData)
+	testObject := NewClient(nil)
+	testObject.pc = &privateTransactionManagerStubClient{expectedData}
+
+	actualData, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataEPH, actualData)
+}
+
+type privateTransactionManagerStubClient struct {
+	expectedData []byte
+}
+
+func (s *privateTransactionManagerStubClient) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.BytesToEncryptedPayloadHash(data), nil
 }

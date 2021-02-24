@@ -132,6 +132,10 @@ func startClient(t *testing.T, name string) *gethrpc {
 }
 
 func TestPriorityClient(t *testing.T) {
+	// Quorum
+	t.Skip("skipping test in Quorum (no support for light sync mode).")
+	// End Quorum
+
 	lightServer := startLightServer(t)
 	defer lightServer.killAndWait()
 

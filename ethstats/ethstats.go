@@ -406,7 +406,9 @@ func (s *Service) login(conn *websocket.Conn) error {
 	infos := s.server.NodeInfo()
 
 	var network, protocol string
-	if info := infos.Protocols["eth"]; info != nil {
+	//must pass engine protocol name for quorum
+	p := s.engine.Protocol()
+	if info := infos.Protocols[p.Name]; info != nil {
 		network = fmt.Sprintf("%d", info.(*eth.NodeInfo).Network)
 		protocol = fmt.Sprintf("eth/%d", eth.ProtocolVersions[0])
 	} else {
