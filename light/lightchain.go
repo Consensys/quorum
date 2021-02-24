@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
@@ -72,6 +74,9 @@ type LightChain struct {
 	running          int32 // whether LightChain is running or stopped
 	procInterrupt    int32 // interrupts chain insert
 	disableCheckFreq int32 // disables header verification
+
+	// Quorum
+	isMultitenant bool
 }
 
 // NewLightChain returns a fully initialised light chain using information
@@ -118,6 +123,15 @@ func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.
 	return bc, nil
 }
 
+func NewMultitenantLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.Engine, checkpoint *params.TrustedCheckpoint) (*LightChain, error) {
+	bc, err := NewLightChain(odr, config, engine, checkpoint)
+	if err != nil {
+		return nil, err
+	}
+	bc.isMultitenant = true
+	return bc, nil
+}
+
 // AddTrustedCheckpoint adds a trusted checkpoint to the blockchain
 func (lc *LightChain) AddTrustedCheckpoint(cp *params.TrustedCheckpoint) {
 	if lc.odr.ChtIndexer() != nil {
@@ -143,6 +157,11 @@ func (lc *LightChain) Odr() OdrBackend {
 	return lc.odr
 }
 
+// HeaderChain returns the underlying header chain.
+func (lc *LightChain) HeaderChain() *core.HeaderChain {
+	return lc.hc
+}
+
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
 func (lc *LightChain) loadLastState() error {
@@ -154,7 +173,6 @@ func (lc *LightChain) loadLastState() error {
 			lc.hc.SetCurrentHeader(header)
 		}
 	}
-
 	// Issue a status log and return
 	header := lc.hc.CurrentHeader()
 	headerTd := lc.GetTd(header.Hash(), header.Number.Uint64())
@@ -193,9 +211,13 @@ func (lc *LightChain) ResetWithGenesisBlock(genesis *types.Block) {
 	defer lc.chainmu.Unlock()
 
 	// Prepare the genesis block and reinitialise the chain
-	rawdb.WriteTd(lc.chainDb, genesis.Hash(), genesis.NumberU64(), genesis.Difficulty())
-	rawdb.WriteBlock(lc.chainDb, genesis)
-
+	batch := lc.chainDb.NewBatch()
+	rawdb.WriteTd(batch, genesis.Hash(), genesis.NumberU64(), genesis.Difficulty())
+	rawdb.WriteBlock(batch, genesis)
+	rawdb.WriteHeadHeaderHash(batch, genesis.Hash())
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed to reset genesis block", "err", err)
+	}
 	lc.genesisBlock = genesis
 	lc.hc.SetGenesis(lc.genesisBlock.Header())
 	lc.hc.SetCurrentHeader(lc.genesisBlock.Header())
@@ -306,10 +328,16 @@ func (lc *LightChain) Stop() {
 		return
 	}
 	close(lc.quit)
-	atomic.StoreInt32(&lc.procInterrupt, 1)
-
+	lc.StopInsert()
 	lc.wg.Wait()
-	log.Info("Blockchain manager stopped")
+	log.Info("Blockchain stopped")
+}
+
+// StopInsert interrupts all insertion methods, causing them to return
+// errInsertionInterrupted as soon as possible. Insertion is permanently disabled after
+// calling this method.
+func (lc *LightChain) StopInsert() {
+	atomic.StoreInt32(&lc.procInterrupt, 1)
 }
 
 // Rollback is designed to remove a chain of links from the database that aren't
@@ -318,12 +346,21 @@ func (lc *LightChain) Rollback(chain []common.Hash) {
 	lc.chainmu.Lock()
 	defer lc.chainmu.Unlock()
 
+	batch := lc.chainDb.NewBatch()
 	for i := len(chain) - 1; i >= 0; i-- {
 		hash := chain[i]
 
+		// Degrade the chain markers if they are explicitly reverted.
+		// In theory we should update all in-memory markers in the
+		// last step, however the direction of rollback is from high
+		// to low, so it's safe the update in-memory markers directly.
 		if head := lc.hc.CurrentHeader(); head.Hash() == hash {
+			rawdb.WriteHeadHeaderHash(batch, head.ParentHash)
 			lc.hc.SetCurrentHeader(lc.GetHeader(head.ParentHash, head.Number.Uint64()-1))
 		}
+	}
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed to rollback light chain", "error", err)
 	}
 }
 
@@ -488,6 +525,7 @@ func (lc *LightChain) SyncCheckpoint(ctx context.Context, checkpoint *params.Tru
 		// Ensure the chain didn't move past the latest block while retrieving it
 		if lc.hc.CurrentHeader().Number.Uint64() < header.Number.Uint64() {
 			log.Info("Updated latest header based on CHT", "number", header.Number, "hash", header.Hash(), "age", common.PrettyAge(time.Unix(int64(header.Time), 0)))
+			rawdb.WriteHeadHeaderHash(lc.chainDb, header.Hash())
 			lc.hc.SetCurrentHeader(header)
 		}
 		return true
@@ -541,4 +579,8 @@ func (lc *LightChain) DisableCheckFreq() {
 // EnableCheckFreq enables header validation.
 func (lc *LightChain) EnableCheckFreq() {
 	atomic.StoreInt32(&lc.disableCheckFreq, 0)
+}
+
+func (lc *LightChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, lc.isMultitenant
 }

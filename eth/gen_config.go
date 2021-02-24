@@ -3,7 +3,6 @@
 package eth
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -22,8 +21,10 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		Genesis                 *core.Genesis `toml:",omitempty"`
 		NetworkId               uint64
 		SyncMode                downloader.SyncMode
+		DiscoveryURLs           []string
 		NoPruning               bool
 		NoPrefetch              bool
+		TxLookupLimit           uint64                 `toml:",omitempty"`
 		Whitelist               map[uint64]common.Hash `toml:"-"`
 		LightServ               int                    `toml:",omitempty"`
 		LightIngress            int                    `toml:",omitempty"`
@@ -39,6 +40,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TrieCleanCache          int
 		TrieDirtyCache          int
 		TrieTimeout             time.Duration
+		SnapshotCache           int
 		Miner                   miner.Config
 		Ethash                  ethash.Config
 		TxPool                  core.TxPoolConfig
@@ -48,7 +50,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		DocRoot                 string `toml:"-"`
 		EWASMInterpreter        string
 		EVMInterpreter          string
-		RPCGasCap               *big.Int                       `toml:",omitempty"`
+		RPCGasCap               uint64                         `toml:",omitempty"`
+		RPCTxFeeCap             float64                        `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
 	}
@@ -56,8 +59,10 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.Genesis = c.Genesis
 	enc.NetworkId = c.NetworkId
 	enc.SyncMode = c.SyncMode
+	enc.DiscoveryURLs = c.DiscoveryURLs
 	enc.NoPruning = c.NoPruning
 	enc.NoPrefetch = c.NoPrefetch
+	enc.TxLookupLimit = c.TxLookupLimit
 	enc.Whitelist = c.Whitelist
 	enc.LightServ = c.LightServ
 	enc.LightIngress = c.LightIngress
@@ -73,6 +78,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TrieCleanCache = c.TrieCleanCache
 	enc.TrieDirtyCache = c.TrieDirtyCache
 	enc.TrieTimeout = c.TrieTimeout
+	enc.SnapshotCache = c.SnapshotCache
 	enc.Miner = c.Miner
 	enc.Ethash = c.Ethash
 	enc.TxPool = c.TxPool
@@ -83,6 +89,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.EWASMInterpreter = c.EWASMInterpreter
 	enc.EVMInterpreter = c.EVMInterpreter
 	enc.RPCGasCap = c.RPCGasCap
+	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.Checkpoint = c.Checkpoint
 	enc.CheckpointOracle = c.CheckpointOracle
 	return &enc, nil
@@ -94,8 +101,10 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		Genesis                 *core.Genesis `toml:",omitempty"`
 		NetworkId               *uint64
 		SyncMode                *downloader.SyncMode
+		DiscoveryURLs           []string
 		NoPruning               *bool
 		NoPrefetch              *bool
+		TxLookupLimit           *uint64                `toml:",omitempty"`
 		Whitelist               map[uint64]common.Hash `toml:"-"`
 		LightServ               *int                   `toml:",omitempty"`
 		LightIngress            *int                   `toml:",omitempty"`
@@ -111,6 +120,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TrieCleanCache          *int
 		TrieDirtyCache          *int
 		TrieTimeout             *time.Duration
+		SnapshotCache           *int
 		Miner                   *miner.Config
 		Ethash                  *ethash.Config
 		TxPool                  *core.TxPoolConfig
@@ -120,7 +130,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		DocRoot                 *string `toml:"-"`
 		EWASMInterpreter        *string
 		EVMInterpreter          *string
-		RPCGasCap               *big.Int                       `toml:",omitempty"`
+		RPCGasCap               *uint64                        `toml:",omitempty"`
+		RPCTxFeeCap             *float64                       `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
 	}
@@ -137,11 +148,17 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.SyncMode != nil {
 		c.SyncMode = *dec.SyncMode
 	}
+	if dec.DiscoveryURLs != nil {
+		c.DiscoveryURLs = dec.DiscoveryURLs
+	}
 	if dec.NoPruning != nil {
 		c.NoPruning = *dec.NoPruning
 	}
 	if dec.NoPrefetch != nil {
 		c.NoPrefetch = *dec.NoPrefetch
+	}
+	if dec.TxLookupLimit != nil {
+		c.TxLookupLimit = *dec.TxLookupLimit
 	}
 	if dec.Whitelist != nil {
 		c.Whitelist = dec.Whitelist
@@ -188,6 +205,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.TrieTimeout != nil {
 		c.TrieTimeout = *dec.TrieTimeout
 	}
+	if dec.SnapshotCache != nil {
+		c.SnapshotCache = *dec.SnapshotCache
+	}
 	if dec.Miner != nil {
 		c.Miner = *dec.Miner
 	}
@@ -216,7 +236,10 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		c.EVMInterpreter = *dec.EVMInterpreter
 	}
 	if dec.RPCGasCap != nil {
-		c.RPCGasCap = dec.RPCGasCap
+		c.RPCGasCap = *dec.RPCGasCap
+	}
+	if dec.RPCTxFeeCap != nil {
+		c.RPCTxFeeCap = *dec.RPCTxFeeCap
 	}
 	if dec.Checkpoint != nil {
 		c.Checkpoint = dec.Checkpoint

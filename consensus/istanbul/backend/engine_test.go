@@ -49,7 +49,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	// set the qibft consensus enabled to true
 	b.qibftConsensusEnabled = true
 	genesis.MustCommit(memDB)
-	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil)
+	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -410,7 +410,6 @@ OUT1:
 	}
 	_, results = engine.VerifyHeaders(chain, headers, nil)
 	timeout = time.NewTimer(timeoutDura)
-	index = 0
 OUT2:
 	for {
 		select {
@@ -479,7 +478,7 @@ func TestLegacyPrepareExtra(t *testing.T) {
 	// append useless information to extra-data
 	h.Extra = append(vanity, make([]byte, 15)...)
 
-	payload, err = prepareExtra(h, validators)
+	payload, _ = prepareExtra(h, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
 		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}

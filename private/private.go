@@ -1,30 +1,122 @@
 package private
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
-	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	http2 "github.com/ethereum/go-ethereum/common/http"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
-
-	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
+	"github.com/ethereum/go-ethereum/private/engine/tessera"
 )
 
+var (
+	// global variable to be accessed by other packages
+	// singleton gateway to interact with private transaction manager
+	P                PrivateTransactionManager
+	isPrivacyEnabled = false
+)
+
+type Identifiable interface {
+	Name() string
+	HasFeature(f engine.PrivateTransactionManagerFeature) bool
+}
+
+// Interacting with Private Transaction Manager APIs
 type PrivateTransactionManager interface {
-	Send(data []byte, from string, to []string) ([]byte, error)
-	StoreRaw(data []byte, from string) ([]byte, error)
-	SendSignedTx(data []byte, to []string) ([]byte, error)
-	Receive(data []byte) ([]byte, error)
+	Identifiable
+
+	Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error)
+	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
+	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) (string, []string, []byte, error)
+	// Returns nil payload if not found
+	Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error)
+	// Returns nil payload if not found
+	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error)
+	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
+	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
+	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
+	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 }
 
-func FromEnvironmentOrNil(name string) PrivateTransactionManager {
+// This loads any config specified via the legacy environment variable
+func GetLegacyEnvironmentConfig() (http2.Config, error) {
+	return FromEnvironmentOrNil("PRIVATE_CONFIG")
+}
+
+func FromEnvironmentOrNil(name string) (http2.Config, error) {
 	cfgPath := os.Getenv(name)
-	if cfgPath == "" {
-		return nil
+	cfg, err := http2.FetchConfigOrIgnore(cfgPath)
+	if err != nil {
+		return http2.Config{}, err
 	}
-	if strings.EqualFold(cfgPath, "ignore") {
-		return &notinuse.PrivateTransactionManager{}
-	}
-	return privatetransactionmanager.MustNew(cfgPath)
+
+	return cfg, nil
 }
 
-var P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+func InitialiseConnection(cfg http2.Config) error {
+	var err error
+	P, err = NewPrivateTxManager(cfg)
+	return err
+}
+
+func IsQuorumPrivacyEnabled() bool {
+	return isPrivacyEnabled
+}
+
+func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {
+
+	if cfg.ConnectionType == http2.NoConnection {
+		log.Info("Running with private transaction manager disabled - quorum private transactions will not be supported")
+		return &notinuse.PrivateTransactionManager{}, nil
+	}
+
+	client, err := http2.CreateClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create connection to private tx manager due to: %s", err)
+	}
+
+	ptm, err := selectPrivateTxManager(client)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to private tx manager due to: %s", err)
+	}
+
+	isPrivacyEnabled = true
+	return ptm, nil
+}
+
+// First call /upcheck to make sure the private tx manager is up
+// Then call /version to decide which private tx manager client implementation to be used
+func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, error) {
+	res, err := client.Get("/upcheck")
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, engine.ErrPrivateTxManagerNotReady
+	}
+	res, err = client.Get("/version")
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	version, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	var privateTxManager PrivateTransactionManager
+	defer func() {
+		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", string(version))
+	}()
+	if res.StatusCode != 200 {
+		// Constellation doesn't have /version endpoint
+		privateTxManager = constellation.New(client)
+	} else {
+		privateTxManager = tessera.New(client, []byte(tessera.RetrieveTesseraAPIVersion(client)))
+	}
+	return privateTxManager, nil
+}

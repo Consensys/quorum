@@ -60,7 +60,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/params"
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -164,7 +164,6 @@ func main() {
 	if blob, err = ioutil.ReadFile(*accPassFlag); err != nil {
 		log.Crit("Failed to read account password contents", "file", *accPassFlag, "err", err)
 	}
-	// Delete trailing newline in password
 	pass := strings.TrimSuffix(string(blob), "\n")
 
 	ks := keystore.NewKeyStore(filepath.Join(os.Getenv("HOME"), ".faucet", "keys"), keystore.StandardScryptN, keystore.StandardScryptP)
@@ -172,11 +171,12 @@ func main() {
 		log.Crit("Failed to read account key contents", "file", *accJSONFlag, "err", err)
 	}
 	acc, err := ks.Import(blob, pass, pass)
-	if err != nil {
+	if err != nil && err != keystore.ErrAccountAlreadyExists {
 		log.Crit("Failed to import faucet signer account", "err", err)
 	}
-	ks.Unlock(acc, pass)
-
+	if err := ks.Unlock(acc, pass); err != nil {
+		log.Crit("Failed to unlock faucet signer account", "err", err)
+	}
 	// Assemble and start the faucet light service
 	faucet, err := newFaucet(genesis, *ethPortFlag, enodes, *netFlag, *statsFlag, ks, website.Bytes())
 	if err != nil {
@@ -298,8 +298,7 @@ func (f *faucet) listenAndServe(port int) error {
 	go f.loop()
 
 	http.HandleFunc("/", f.webHandler)
-	http.Handle("/api", websocket.Handler(f.apiHandler))
-
+	http.HandleFunc("/api", f.apiHandler)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
 
@@ -310,7 +309,13 @@ func (f *faucet) webHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // apiHandler handles requests for Ether grants and transaction statuses.
-func (f *faucet) apiHandler(conn *websocket.Conn) {
+func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
 	// Start tracking the connection and drop at the end
 	defer conn.Close()
 
@@ -333,7 +338,6 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 		head    *types.Header
 		balance *big.Int
 		nonce   uint64
-		err     error
 	)
 	for head == nil || balance == nil {
 		// Retrieve the current stats cached by the faucet
@@ -349,6 +353,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 
 		if head == nil || balance == nil {
 			// Report the faucet offline until initial stats are ready
+			//lint:ignore ST1005 This error is to be displayed in the browser
 			if err = sendError(conn, errors.New("Faucet offline")); err != nil {
 				log.Warn("Failed to send faucet error to client", "err", err)
 				return
@@ -357,11 +362,14 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 		}
 	}
 	// Send over the initial stats and the latest header
+	f.lock.RLock()
+	reqs := f.reqs
+	f.lock.RUnlock()
 	if err = send(conn, map[string]interface{}{
 		"funds":    new(big.Int).Div(balance, ether),
 		"funded":   nonce,
 		"peers":    f.stack.Server().PeerCount(),
-		"requests": f.reqs,
+		"requests": reqs,
 	}, 3*time.Second); err != nil {
 		log.Warn("Failed to send initial stats to client", "err", err)
 		return
@@ -378,7 +386,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			Tier    uint   `json:"tier"`
 			Captcha string `json:"captcha"`
 		}
-		if err = websocket.JSON.Receive(conn, &msg); err != nil {
+		if err = conn.ReadJSON(&msg); err != nil {
 			return
 		}
 		if !*noauthFlag && !strings.HasPrefix(msg.URL, "https://gist.github.com/") && !strings.HasPrefix(msg.URL, "https://twitter.com/") &&
@@ -390,6 +398,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			continue
 		}
 		if msg.Tier >= uint(*tiersFlag) {
+			//lint:ignore ST1005 This error is to be displayed in the browser
 			if err = sendError(conn, errors.New("Invalid funding tier requested")); err != nil {
 				log.Warn("Failed to send tier error to client", "err", err)
 				return
@@ -427,6 +436,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			}
 			if !result.Success {
 				log.Warn("Captcha verification failed", "err", string(result.Errors))
+				//lint:ignore ST1005 it's funny and the robot won't mind
 				if err = sendError(conn, errors.New("Beep-bop, you're a robot!")); err != nil {
 					log.Warn("Failed to send captcha failure to client", "err", err)
 					return
@@ -448,6 +458,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			}
 			continue
 		case strings.HasPrefix(msg.URL, "https://plus.google.com/"):
+			//lint:ignore ST1005 Google is a company name and should be capitalized.
 			if err = sendError(conn, errors.New("Google+ authentication discontinued as the service was sunset")); err != nil {
 				log.Warn("Failed to send Google+ deprecation to client", "err", err)
 				return
@@ -460,6 +471,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 		case *noauthFlag:
 			username, avatar, address, err = authNoAuth(msg.URL)
 		default:
+			//lint:ignore ST1005 This error is to be displayed in the browser
 			err = errors.New("Something funky happened, please open an issue at https://github.com/ethereum/go-ethereum/issues")
 		}
 		if err != nil {
@@ -518,7 +530,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 
 		// Send an error if too frequent funding, othewise a success
 		if !fund {
-			if err = sendError(conn, fmt.Errorf("%s left until next allowance", common.PrettyDuration(timeout.Sub(time.Now())))); err != nil { // nolint: gosimple
+			if err = sendError(conn, fmt.Errorf("%s left until next allowance", common.PrettyDuration(time.Until(timeout)))); err != nil { // nolint: gosimple
 				log.Warn("Failed to send funding error to client", "err", err)
 				return
 			}
@@ -659,7 +671,7 @@ func send(conn *websocket.Conn, value interface{}, timeout time.Duration) error 
 		timeout = 60 * time.Second
 	}
 	conn.SetWriteDeadline(time.Now().Add(timeout))
-	return websocket.JSON.Send(conn, value)
+	return conn.WriteJSON(value)
 }
 
 // sendError transmits an error to the remote end of the websocket, also setting
@@ -680,11 +692,15 @@ func authTwitter(url string) (string, string, common.Address, error) {
 	// Ensure the user specified a meaningful URL, no fancy nonsense
 	parts := strings.Split(url, "/")
 	if len(parts) < 4 || parts[len(parts)-2] != "status" {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("Invalid Twitter status URL")
 	}
 	// Twitter's API isn't really friendly with direct links. Still, we don't
-	// want to do ask read permissions from users, so just load the public posts and
-	// scrape it for the Ethereum address and profile URL.
+	// want to do ask read permissions from users, so just load the public posts
+	// and scrape it for the Ethereum address and profile URL. We need to load
+	// the mobile page though since the main page loads tweet contents via JS.
+	url = strings.Replace(url, "https://twitter.com/", "https://mobile.twitter.com/", 1)
+
 	res, err := http.Get(url)
 	if err != nil {
 		return "", "", common.Address{}, err
@@ -694,6 +710,7 @@ func authTwitter(url string) (string, string, common.Address, error) {
 	// Resolve the username from the final redirect, no intermediate junk
 	parts = strings.Split(res.Request.URL.String(), "/")
 	if len(parts) < 4 || parts[len(parts)-2] != "status" {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("Invalid Twitter status URL")
 	}
 	username := parts[len(parts)-3]
@@ -704,6 +721,7 @@ func authTwitter(url string) (string, string, common.Address, error) {
 	}
 	address := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").Find(body)))
 	if address == (common.Address{}) {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	var avatar string
@@ -719,6 +737,7 @@ func authFacebook(url string) (string, string, common.Address, error) {
 	// Ensure the user specified a meaningful URL, no fancy nonsense
 	parts := strings.Split(url, "/")
 	if len(parts) < 4 || parts[len(parts)-2] != "posts" {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("Invalid Facebook post URL")
 	}
 	username := parts[len(parts)-3]
@@ -738,6 +757,7 @@ func authFacebook(url string) (string, string, common.Address, error) {
 	}
 	address := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").Find(body)))
 	if address == (common.Address{}) {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	var avatar string
@@ -753,6 +773,7 @@ func authFacebook(url string) (string, string, common.Address, error) {
 func authNoAuth(url string) (string, string, common.Address, error) {
 	address := common.HexToAddress(regexp.MustCompile("0x[0-9a-fA-F]{40}").FindString(url))
 	if address == (common.Address{}) {
+		//lint:ignore ST1005 This error is to be displayed in the browser
 		return "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	return address.Hex() + "@noauth", "", address, nil

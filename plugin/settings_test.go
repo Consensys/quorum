@@ -4,30 +4,29 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/naoina/toml"
 	testifyassert "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestPluginDefinition_ReadConfig_whenConfigEmbeddedAsArray(t *testing.T) {
+func TestReadMultiFormatConfig_whenConfigEmbeddedAsArray(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	av1 := "arbitrary value1"
 	av2 := "arbitrary value2"
 
-	testObject := &PluginDefinition{
-		Config: []string{av1, av2},
-	}
-
-	cfg, err := testObject.ReadConfig()
+	cfg, err := ReadMultiFormatConfig([]string{av1, av2})
 
 	assert.NoError(err)
 	assert.Contains(string(cfg), av1)
 	assert.Contains(string(cfg), av2)
 }
 
-func TestPluginDefinition_ReadConfig_whenConfigEmbeddedAsFile(t *testing.T) {
+func TestReadMultiFormatConfig_whenConfigEmbeddedAsFile(t *testing.T) {
 	tmpFile, err := ioutil.TempFile("", "q-")
 	if err != nil {
 		t.Fatal(err)
@@ -43,48 +42,36 @@ func TestPluginDefinition_ReadConfig_whenConfigEmbeddedAsFile(t *testing.T) {
 	t.Log("wrote tmp file: " + tmpFile.Name())
 	assert := testifyassert.New(t)
 
-	testObject := &PluginDefinition{
-		Config: "file://" + tmpFile.Name(),
-	}
-
-	cfg, err := testObject.ReadConfig()
+	cfg, err := ReadMultiFormatConfig("file://" + tmpFile.Name())
 
 	assert.NoError(err)
 	assert.Equal(av1, string(cfg))
 }
 
-func TestPluginDefinition_ReadConfig_whenConfigEmbeddedAsString(t *testing.T) {
+func TestReadMultiFormatConfig_whenConfigEmbeddedAsString(t *testing.T) {
 	av1 := "arbitrary value1"
 	assert := testifyassert.New(t)
 
-	testObject := &PluginDefinition{
-		Config: av1,
-	}
-
-	cfg, err := testObject.ReadConfig()
+	cfg, err := ReadMultiFormatConfig(av1)
 
 	assert.NoError(err)
 	assert.Equal(av1, string(cfg))
 }
 
-func TestPluginDefinition_ReadConfig_whenFromEnvVariable(t *testing.T) {
+func TestReadMultiFormatConfig_whenFromEnvVariable(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	arbitraryString := "arbitrary config string"
 	if err := os.Setenv("KEY1", arbitraryString); err != nil {
 		t.Fatal(err)
 	}
-	testObject := &PluginDefinition{
-		Config: "env://KEY1",
-	}
-
-	cfg, err := testObject.ReadConfig()
+	cfg, err := ReadMultiFormatConfig("env://KEY1")
 
 	assert.NoError(err)
 	assert.Equal(arbitraryString, string(cfg))
 }
 
-func TestPluginDefinition_ReadConfig_whenFromEnvFile(t *testing.T) {
+func TestReadMultiFormatConfig_whenFromEnvFile(t *testing.T) {
 	tmpFile, err := ioutil.TempFile("", "q-")
 	if err != nil {
 		t.Fatal(err)
@@ -103,16 +90,10 @@ func TestPluginDefinition_ReadConfig_whenFromEnvFile(t *testing.T) {
 	}
 
 	assert := testifyassert.New(t)
-
-	testObject := &PluginDefinition{
-		Config: "env://KEY1?type=file",
-	}
-
-	cfg, err := testObject.ReadConfig()
+	cfg, err := ReadMultiFormatConfig("env://KEY1?type=file")
 
 	assert.NoError(err)
 	assert.Equal(av1, string(cfg))
-	assert.Equal(tmpFile.Name(), testObject.Config)
 }
 
 func TestEnvironmentAwaredValue_UnmarshalJSON_whenValueFromEnvVariable(t *testing.T) {
@@ -205,6 +186,91 @@ func TestPluginInterfaceName_UnmarshalJSON_whenTypical(t *testing.T) {
 	}
 }
 `), &value))
-	assert.Contains(value.MyMap, PluginInterfaceName("Foo"))
-	assert.Contains(value.MyMap, PluginInterfaceName("BAR"))
+	assert.Contains(value.MyMap, PluginInterfaceName("foo"))
+	assert.Contains(value.MyMap, PluginInterfaceName("bar"))
+}
+
+func TestAccountAPIProviderFunc_OnlyExposeAccountCreationAPI(t *testing.T) {
+	pm, err := NewPluginManager(
+		"arbitraryName",
+		&Settings{
+			Providers: map[PluginInterfaceName]PluginDefinition{
+				AccountPluginInterfaceName: {
+					Name:    "arbitrary-account",
+					Version: "1.0.0",
+					Config:  "arbitrary config",
+				},
+			},
+		},
+		false,
+		false,
+		"",
+	)
+	require.NoError(t, err)
+
+	provider, ok := pluginProviders[AccountPluginInterfaceName]
+	require.True(t, ok)
+
+	api, err := provider.apiProviderFunc("namespace", pm)
+	require.NoError(t, err)
+	require.Len(t, api, 1)
+	require.Equal(t, "namespace", api[0].Namespace)
+	require.Implements(t, (*account.CreatorService)(nil), api[0].Service)
+
+	_, ok = api[0].Service.(account.Service)
+	require.False(t, ok)
+}
+
+func TestSettings_CheckSettingsAreSupported_AllSupported(t *testing.T) {
+	s := Settings{
+		Providers: map[PluginInterfaceName]PluginDefinition{
+			AccountPluginInterfaceName:    {},
+			HelloWorldPluginInterfaceName: {},
+		},
+	}
+	supported := []PluginInterfaceName{AccountPluginInterfaceName, HelloWorldPluginInterfaceName}
+
+	err := s.CheckSettingsAreSupported(supported)
+
+	require.NoError(t, err)
+}
+
+func TestSettings_CheckSettingsAreSupported_NoneSupported(t *testing.T) {
+	s := Settings{
+		Providers: map[PluginInterfaceName]PluginDefinition{
+			AccountPluginInterfaceName:    {},
+			HelloWorldPluginInterfaceName: {},
+		},
+	}
+	supported := []PluginInterfaceName{}
+
+	err := s.CheckSettingsAreSupported(supported)
+
+	require.Error(t, err)
+
+	wantMsgPattern := regexp.MustCompile(`^unsupported plugins configured: \[(account|helloworld) (account|helloworld)\]$`)
+	matches := wantMsgPattern.FindStringSubmatch(err.Error())
+
+	// make sure the msg matches the pattern and the same plugin is not listed twice
+	require.Regexp(t, wantMsgPattern, err.Error())
+
+	require.NotNil(t, matches, "error message did not match wanted pattern")
+	require.Len(t, matches, 3)
+	require.NotEmpty(t, matches[1])
+	require.NotEmpty(t, matches[2])
+	require.NotEqualf(t, matches[1], matches[2], "\"%v\" listed twice", matches[1])
+}
+
+func TestSettings_CheckSettingsAreSupported_SomeSupported(t *testing.T) {
+	s := Settings{
+		Providers: map[PluginInterfaceName]PluginDefinition{
+			AccountPluginInterfaceName:    {},
+			HelloWorldPluginInterfaceName: {},
+		},
+	}
+	supported := []PluginInterfaceName{AccountPluginInterfaceName}
+
+	err := s.CheckSettingsAreSupported(supported)
+
+	require.EqualError(t, err, "unsupported plugins configured: [helloworld]")
 }

@@ -34,15 +34,29 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// DefaultFullGPOConfig contains default gasprice oracle settings for full node.
+var DefaultFullGPOConfig = gasprice.Config{
+	Blocks:     20,
+	Percentile: 60,
+}
+
+// DefaultLightGPOConfig contains default gasprice oracle settings for light client.
+var DefaultLightGPOConfig = gasprice.Config{
+	Blocks:     2,
+	Percentile: 60,
+}
+
 // DefaultConfig contains default settings for use on the Ethereum main net.
 var DefaultConfig = Config{
 	SyncMode: downloader.FastSync,
 	Ethash: ethash.Config{
-		CacheDir:       "ethash",
-		CachesInMem:    2,
-		CachesOnDisk:   3,
-		DatasetsInMem:  1,
-		DatasetsOnDisk: 2,
+		CacheDir:         "ethash",
+		CachesInMem:      2,
+		CachesOnDisk:     3,
+		CachesLockMmap:   false,
+		DatasetsInMem:    1,
+		DatasetsOnDisk:   2,
+		DatasetsLockMmap: false,
 	},
 	NetworkId:          1337,
 	LightPeers:         100,
@@ -51,19 +65,19 @@ var DefaultConfig = Config{
 	TrieCleanCache:     256,
 	TrieDirtyCache:     256,
 	TrieTimeout:        60 * time.Minute,
+	SnapshotCache:      256,
 	Miner: miner.Config{
 		GasFloor: params.MinGasLimit,
 		GasCeil:  params.GenesisGasLimit,
 		GasPrice: big.NewInt(params.GWei),
 		Recommit: 3 * time.Second,
 	},
-	TxPool: core.DefaultTxPoolConfig,
-	GPO: gasprice.Config{
-		Blocks:     20,
-		Percentile: 60,
-	},
+	TxPool:      core.DefaultTxPoolConfig,
+	RPCGasCap:   25000000,
+	GPO:         DefaultFullGPOConfig,
+	RPCTxFeeCap: 1, // 1 ether
 
-	Istanbul: *istanbul.DefaultConfig,
+	Istanbul: *istanbul.DefaultConfig, // Quorum
 }
 
 func init() {
@@ -98,8 +112,14 @@ type Config struct {
 	NetworkId uint64 // Network ID to use for selecting peers to connect to
 	SyncMode  downloader.SyncMode
 
+	// This can be set to list of enrtree:// URLs which will be queried for
+	// for nodes to connect to.
+	DiscoveryURLs []string
+
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on demand
+
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
 	// Whitelist of required block number -> hash values to accept
 	Whitelist map[uint64]common.Hash `toml:"-"`
@@ -124,6 +144,7 @@ type Config struct {
 	TrieCleanCache int
 	TrieDirtyCache int
 	TrieTimeout    time.Duration
+	SnapshotCache  int
 
 	// Mining options
 	Miner miner.Config
@@ -146,8 +167,7 @@ type Config struct {
 	Istanbul istanbul.Config
 
 	// Miscellaneous options
-	DocRoot                string `toml:"-"`
-	AllowedFutureBlockTime uint64 //Quorum
+	DocRoot string `toml:"-"`
 
 	// Type of the EWASM interpreter ("" for default)
 	EWASMInterpreter string
@@ -156,7 +176,11 @@ type Config struct {
 	EVMInterpreter string
 
 	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap *big.Int `toml:",omitempty"`
+	RPCGasCap uint64 `toml:",omitempty"`
+
+	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
+	// send-transction variants. The unit is ether.
+	RPCTxFeeCap float64 `toml:",omitempty"`
 
 	// Checkpoint is a hardcoded checkpoint which can be nil.
 	Checkpoint *params.TrustedCheckpoint `toml:",omitempty"`
@@ -164,6 +188,10 @@ type Config struct {
 	// CheckpointOracle is the configuration for checkpoint oracle.
 	CheckpointOracle *params.CheckpointOracleConfig `toml:",omitempty"`
 
-	// Istanbul block override (TODO: remove after the fork)
-	OverrideIstanbul *big.Int
+	// Quorum
+	// timeout value for call
+	EVMCallTimeOut time.Duration
+
+	// Quorum
+	EnableMultitenancy bool
 }

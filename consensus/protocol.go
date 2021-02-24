@@ -13,6 +13,7 @@ import (
 const (
 	eth63      = 63
 	eth64      = 64
+	eth65      = 65
 	Istanbul64 = 64
 	Istanbul99 = 99
 	// this istanbul subprotocol will be registered in addition to "eth"
@@ -23,20 +24,22 @@ var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
 		Versions: []uint{Istanbul100, Istanbul99, Istanbul64},
+		// istanbul/100 has to have 18 message to be backwards compatible although at the p2p layer it only has
+		// 1 message with msg.Code 17
 		Lengths: map[uint]uint64{Istanbul100: 22, Istanbul99: 18, Istanbul64: 18},
 	}
 
 	CliqueProtocol = Protocol{
 		Name:     "eth",
-		Versions: []uint{eth64, eth63},
-		Lengths:  map[uint]uint64{eth64: 17, eth63: 17},
+		Versions: []uint{eth65, eth64, eth63},
+		Lengths:  map[uint]uint64{eth65: 17, eth64: 17, eth63: 17},
 	}
 
 	// Default: Keep up-to-date with eth/protocol.go
 	EthProtocol = Protocol{
 		Name:     "eth",
-		Versions: []uint{eth64, eth63},
-		Lengths:  map[uint]uint64{eth64: 17, eth63: 17},
+		Versions: []uint{eth65, eth64, eth63},
+		Lengths:  map[uint]uint64{eth65: 17, eth64: 17, eth63: 17},
 	}
 
 	NorewardsProtocol = Protocol{

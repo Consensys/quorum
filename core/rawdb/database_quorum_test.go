@@ -17,7 +17,11 @@
 package rawdb
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 )
 
 // Tests that setting the flag for Quorum EIP155 activation read values correctly
@@ -30,10 +34,120 @@ func TestIsQuorumEIP155Active(t *testing.T) {
 	}
 
 	dbSet := NewMemoryDatabase()
-	WriteQuorumEIP155Activation(dbSet)
+	err := WriteQuorumEIP155Activation(dbSet)
+
+	if err != nil {
+		t.Fatal("unable to write quorum EIP155 activation")
+	}
 
 	isQuorumEIP155ActiveAfterSetting := GetIsQuorumEIP155Activated(dbSet)
 	if !isQuorumEIP155ActiveAfterSetting {
 		t.Fatal("Quorum EIP155 active read to be unset, but was set beforehand")
+	}
+}
+
+func TestAccountExtraDataLinker_whenLinkingEmptyRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+
+	linker := NewAccountExtraDataLinker(db)
+
+	err := linker.Link(psr, emptyRoot)
+
+	if err != nil {
+		t.Fatal("unable to store the link")
+	}
+
+	value, _ := db.Get(append(stateRootToExtraDataRootPrefix, psr[:]...))
+
+	if value != nil {
+		t.Fatal("the mapping should not have been stored")
+	}
+}
+
+func TestAccountExtraDataLinker_whenLinkingRoots(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	linker := NewAccountExtraDataLinker(db)
+
+	err := linker.Link(psr, pmr)
+
+	if err != nil {
+		t.Fatal("unable to store the link")
+	}
+
+	value, _ := db.Get(append(stateRootToExtraDataRootPrefix, psr[:]...))
+
+	if value == nil {
+		t.Fatal("the mapping should have been stored")
+	}
+
+	valueHash := common.BytesToHash(value)
+
+	if pmr != valueHash {
+		t.Fatal("the privacy metadata root does not have the expected value")
+	}
+}
+
+var errReadOnly = errors.New("unable to write")
+
+type ReadOnlyDB struct {
+	memorydb.Database
+}
+
+func (t *ReadOnlyDB) Put(key []byte, value []byte) error {
+	return errReadOnly
+}
+
+func TestAccountExtraDataLinker_whenError(t *testing.T) {
+	db := NewDatabase(&ReadOnlyDB{})
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	linker := NewAccountExtraDataLinker(db)
+
+	err := linker.Link(psr, pmr)
+
+	if err == nil {
+		t.Fatal("expecting a read only error to be returned")
+	}
+
+	if err != errReadOnly {
+		t.Fatal("expecting the read only error to be returned")
+	}
+}
+
+func TestAccountExtraDataLinker_whenFinding(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	err := db.Put(append(stateRootToExtraDataRootPrefix, psr[:]...), pmr[:])
+
+	if err != nil {
+		t.Fatal("unable to write to db")
+	}
+
+	pml := NewAccountExtraDataLinker(db)
+
+	pmrRetrieved := pml.GetAccountExtraDataRoot(psr)
+
+	if pmrRetrieved != pmr {
+		t.Fatal("the mapping should have been retrieved")
+	}
+}
+
+func TestAccountExtraDataLinker_whenNotFound(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+
+	pml := NewAccountExtraDataLinker(db)
+
+	pmrRetrieved := pml.GetAccountExtraDataRoot(psr)
+
+	if !common.EmptyHash(pmrRetrieved) {
+		t.Fatal("the retrieved privacy metadata root should be the empty hash")
 	}
 }

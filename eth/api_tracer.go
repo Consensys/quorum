@@ -150,6 +150,9 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 	// Ensure we have a valid starting state before doing any work
 	origin := start.NumberU64()
 	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16) // Chain tracing will probably start at genesis
+	// Quorum
+	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// End Quorum
 
 	if number := start.NumberU64(); number > 0 {
 		start = api.eth.blockchain.GetBlock(start.ParentHash(), start.NumberU64()-1)
@@ -157,7 +160,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	statedb, privateStateDb, err := api.eth.blockchain.StateAt(start.Root())
+	statedb, privateStateDb, err := state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil)
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -170,8 +173,9 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-			statedb, privateStateDb, err = api.eth.blockchain.StateAt(start.Root())
-			if err == nil {
+
+			// Quorum - use NewDual(...) to create private state too
+			if statedb, privateStateDb, err = state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
 				break
 			}
 		}
@@ -211,7 +215,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 					msg, _ := tx.AsMessage(signer)
 					vmctx := core.NewEVMContext(msg, task.block.Header(), api.eth.blockchain, nil)
 
-					res, err := api.traceTx(ctx, msg, vmctx, task.statedb, task.privateStateDb, config)
+					res, err := api.traceTx(ctx, msg, tx, vmctx, task.statedb, task.privateStateDb, config)
 					if err != nil {
 						task.results[i] = &txTraceResult{Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -493,10 +497,11 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
-				msg, _ := txs[task.index].AsMessage(signer)
+				txn := txs[task.index]
+				msg, _ := txn.AsMessage(signer)
 				vmctx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 
-				res, err := api.traceTx(ctx, msg, vmctx, task.statedb, task.privateStateDb, config)
+				res, err := api.traceTx(ctx, msg, txn, vmctx, task.statedb, task.privateStateDb, config)
 				if err != nil {
 					results[task.index] = &txTraceResult{Error: err.Error()}
 					continue
@@ -519,8 +524,13 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		msg, _ := tx.AsMessage(signer)
 		vmctx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 
-		vmenv := vm.NewEVM(vmctx, statedb, privateStateDb, api.eth.blockchain.Config(), vm.Config{})
-		if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
+		// /Quorum
+
+		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
 			failed = err
 			break
 		}
@@ -615,8 +625,13 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 			}
 		}
 		// Execute the transaction and flush any traces to disk
-		vmenv := vm.NewEVM(vmctx, statedb, privateStateDb, api.eth.blockchain.Config(), vmConf)
-		_, _, _, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vmConf)
+		vmenv.SetCurrentTX(tx)
+		// /Quorum
+
+		_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 		if writer != nil {
 			writer.Flush()
 		}
@@ -662,14 +677,18 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
 	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// Quorum
+	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
+	// End Quorum
 
 	for i := uint64(0); i < reexec; i++ {
 		block = api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 		if block == nil {
 			break
 		}
-		statedb, privateStateDb, err = api.eth.blockchain.StateAt(block.Root())
-		if err == nil {
+
+		// Quorum - use NewDual(...) to create private state too
+		if statedb, privateStateDb, err = state.NewDual(block.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
 			break
 		}
 	}
@@ -744,13 +763,13 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, vmctx, statedb, privateStateDb, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateStateDb, config)
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.Context, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, tx *types.Transaction, vmctx vm.Context, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer vm.Tracer
@@ -784,25 +803,35 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 		tracer = vm.NewStructLogger(config.LogConfig)
 	}
 
+	// Quorum
 	// Set the private state to public state if it is not a private message
-	if msg, ok := message.(core.PrivateMessage); !ok || !api.eth.blockchain.Config().IsQuorum || !msg.IsPrivate() {
-		privateStateDb = statedb
+	isPrivate := false
+	if msg, ok := message.(core.PrivateMessage); ok && msg.IsPrivate() {
+		isPrivate = true
 	}
+	privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, isPrivate, statedb, privateStateDb)
 
 	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, statedb, privateStateDb, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
+	vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
+	vmenv.SetCurrentTX(tx)
+	// /Quorum
 
-	ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
+	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
 	}
 	// Depending on the tracer type, format and return the output
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
+		// If the result contains a revert reason, return it.
+		returnVal := fmt.Sprintf("%x", result.Return())
+		if len(result.Revert()) > 0 {
+			returnVal = fmt.Sprintf("%x", result.Revert())
+		}
 		return &ethapi.ExecutionResult{
-			Gas:         gas,
-			Failed:      failed,
-			ReturnValue: fmt.Sprintf("%x", ret),
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: returnVal,
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
@@ -838,6 +867,9 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
 
 	for idx, tx := range block.Transactions() {
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		// /Quorum
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
 		context := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
@@ -845,8 +877,9 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 			return msg, context, statedb, privateStateDb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, statedb, privateStateDb, api.eth.blockchain.Config(), vm.Config{})
-		if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+		vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
+		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.Context{}, nil, nil, fmt.Errorf("tx %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state

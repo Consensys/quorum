@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -88,7 +89,7 @@ func TestQuorumSize(t *testing.T) {
 
 	valSet := c.valSet
 	for i := 1; i <= 1000; i++ {
-		valSet.AddValidator(common.StringToAddress(string(i)))
+		valSet.AddValidator(common.StringToAddress(fmt.Sprint(i)))
 		if 2*c.QuorumSize() <= (valSet.Size()+valSet.F()) || 2*c.QuorumSize() > (valSet.Size()+valSet.F()+2) {
 			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size())
 		}

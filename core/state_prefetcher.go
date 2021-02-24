@@ -54,6 +54,7 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb, privatest *state
 		gaspool = new(GasPool).AddGas(block.GasLimit())
 	)
 	// Iterate over and process the individual transactions
+	byzantium := p.config.IsByzantium(block.Number())
 	for i, tx := range block.Transactions() {
 		// If block precaching was interrupted, abort
 		if interrupt != nil && atomic.LoadUint32(interrupt) == 1 {
@@ -64,6 +65,14 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb, privatest *state
 		if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privatest, header, tx, cfg); err != nil {
 			return // Ugh, something went horribly wrong, bail out
 		}
+		// If we're pre-byzantium, pre-load trie nodes for the intermediate root
+		if !byzantium {
+			statedb.IntermediateRoot(true)
+		}
+	}
+	// If were post-byzantium, pre-load trie nodes for the final root hash
+	if byzantium {
+		statedb.IntermediateRoot(true)
 	}
 }
 
@@ -78,8 +87,13 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	}
 	// Create the EVM and execute the transaction
 	context := NewEVMContext(msg, header, bc, author)
-	vm := vm.NewEVM(context, statedb, privatest, config, cfg)
+	// Quorum decide on the privatestateDB to use for EVM
+	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privatest)
 
-	_, _, _, err = ApplyMessage(vm, msg, gaspool)
+	vm := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
+	vm.SetCurrentTX(tx)
+	// /Quorum
+
+	_, err = ApplyMessage(vm, msg, gaspool)
 	return err
 }

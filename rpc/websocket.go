@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -25,6 +26,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
@@ -32,18 +34,13 @@ import (
 )
 
 const (
-	wsReadBuffer  = 1024
-	wsWriteBuffer = 1024
+	wsReadBuffer       = 1024
+	wsWriteBuffer      = 1024
+	wsPingInterval     = 60 * time.Second
+	wsPingWriteTimeout = 5 * time.Second
 )
 
 var wsBufferPool = new(sync.Pool)
-
-// NewWSServer creates a new websocket RPC server around an API provider.
-//
-// Deprecated: use Server.WebsocketHandler
-func NewWSServer(allowedOrigins []string, srv *Server) *http.Server {
-	return &http.Server{Handler: srv.WebsocketHandler(allowedOrigins)}
-}
 
 // WebsocketHandler returns a handler that serves JSON-RPC to WebSocket connections.
 //
@@ -63,7 +60,8 @@ func (s *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 			return
 		}
 		codec := newWebsocketCodec(conn)
-		s.ServeCodec(codec, OptionMethodInvocation|OptionSubscriptions)
+		s.authenticateHttpRequest(r, codec)
+		s.ServeCodec(codec, 0)
 	})
 }
 
@@ -85,8 +83,10 @@ func wsHandshakeValidator(allowedOrigins []string) func(*http.Request) bool {
 	// allow localhost if no allowedOrigins are specified.
 	if len(origins.ToSlice()) == 0 {
 		origins.Add("http://localhost")
+		origins.Add("https://localhost")
 		if hostname, err := os.Hostname(); err == nil {
 			origins.Add("http://" + strings.ToLower(hostname))
+			origins.Add("https://" + strings.ToLower(hostname))
 		}
 	}
 	log.Debug(fmt.Sprintf("Allowed origin(s) for WS RPC interface %v", origins.ToSlice()))
@@ -124,22 +124,48 @@ func (e wsHandshakeError) Error() string {
 	return s
 }
 
-// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
-// that is listening on the given endpoint.
+// DialWebsocketWithDialer creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint using the provided dialer.
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
-	endpoint, header, err := wsClientHeaders(endpoint, origin)
-	if err != nil {
-		return nil, err
-	}
+func DialWebsocketWithDialer(ctx context.Context, endpoint, origin string, dialer websocket.Dialer) (*Client, error) {
+	return DialWebsocketWithCustomTLS(ctx, endpoint, origin, nil)
+}
+
+// Quorum
+//
+// DialWebsocketWithCustomTLS creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint.
+// At the same time, allowing to customize TLSClientConfig of the dialer
+//
+// The context is used for the initial connection establishment. It does not
+// affect subsequent interactions with the client.
+func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tlsConfig *tls.Config) (*Client, error) {
 	dialer := websocket.Dialer{
 		ReadBufferSize:  wsReadBuffer,
 		WriteBufferSize: wsWriteBuffer,
 		WriteBufferPool: wsBufferPool,
 	}
+
+	endpoint, header, err := wsClientHeaders(endpoint, origin)
+	if err != nil {
+		return nil, err
+	}
+	if tlsConfig != nil {
+		dialer.TLSClientConfig = tlsConfig
+	}
+
+	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
+		if hasCredProviderFunc {
+			token, err := credProviderFunc(ctx)
+			if err != nil {
+				log.Warn("unable to obtain credentials from provider", "err", err)
+			} else {
+				header.Set(HttpAuthorizationHeader, token)
+			}
+		}
 		conn, resp, err := dialer.DialContext(ctx, endpoint, header)
 		if err != nil {
 			hErr := wsHandshakeError{err: err}
@@ -150,6 +176,20 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 		}
 		return newWebsocketCodec(conn), nil
 	})
+}
+
+// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint.
+//
+// The context is used for the initial connection establishment. It does not
+// affect subsequent interactions with the client.
+func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+	dialer := websocket.Dialer{
+		ReadBufferSize:  wsReadBuffer,
+		WriteBufferSize: wsWriteBuffer,
+		WriteBufferPool: wsBufferPool,
+	}
+	return DialWebsocketWithDialer(ctx, endpoint, origin, dialer)
 }
 
 func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {
@@ -163,13 +203,70 @@ func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {
 	}
 	if endpointURL.User != nil {
 		b64auth := base64.StdEncoding.EncodeToString([]byte(endpointURL.User.String()))
-		header.Add("authorization", "Basic "+b64auth)
+		header.Add(HttpAuthorizationHeader, "Basic "+b64auth)
 		endpointURL.User = nil
 	}
 	return endpointURL.String(), header, nil
 }
 
+type websocketCodec struct {
+	*jsonCodec
+	conn *websocket.Conn
+
+	wg        sync.WaitGroup
+	pingReset chan struct{}
+}
+
 func newWebsocketCodec(conn *websocket.Conn) ServerCodec {
 	conn.SetReadLimit(maxRequestContentLength)
-	return newCodec(conn, conn.WriteJSON, conn.ReadJSON)
+	wc := &websocketCodec{
+		jsonCodec: NewFuncCodec(conn, conn.WriteJSON, conn.ReadJSON).(*jsonCodec),
+		conn:      conn,
+		pingReset: make(chan struct{}, 1),
+	}
+	wc.wg.Add(1)
+	go wc.pingLoop()
+	return wc
+}
+
+func (wc *websocketCodec) close() {
+	wc.jsonCodec.close()
+	wc.wg.Wait()
+}
+
+func (wc *websocketCodec) writeJSON(ctx context.Context, v interface{}) error {
+	err := wc.jsonCodec.writeJSON(ctx, v)
+	if err == nil {
+		// Notify pingLoop to delay the next idle ping.
+		select {
+		case wc.pingReset <- struct{}{}:
+		default:
+		}
+	}
+	return err
+}
+
+// pingLoop sends periodic ping frames when the connection is idle.
+func (wc *websocketCodec) pingLoop() {
+	var timer = time.NewTimer(wsPingInterval)
+	defer wc.wg.Done()
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-wc.closed():
+			return
+		case <-wc.pingReset:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(wsPingInterval)
+		case <-timer.C:
+			wc.jsonCodec.encMu.Lock()
+			wc.conn.SetWriteDeadline(time.Now().Add(wsPingWriteTimeout))
+			wc.conn.WriteMessage(websocket.PingMessage, nil)
+			wc.jsonCodec.encMu.Unlock()
+			timer.Reset(wsPingInterval)
+		}
+	}
 }

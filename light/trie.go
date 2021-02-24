@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/rawdb"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -30,7 +32,7 @@ import (
 )
 
 func NewState(ctx context.Context, head *types.Header, odr OdrBackend) *state.StateDB {
-	state, _ := state.New(head.Root, NewStateDatabase(ctx, head, odr))
+	state, _ := state.New(head.Root, NewStateDatabase(ctx, head, odr), nil)
 	return state
 }
 
@@ -87,6 +89,25 @@ func (db *odrDatabase) ContractCodeSize(addrHash, codeHash common.Hash) (int, er
 
 func (db *odrDatabase) TrieDB() *trie.Database {
 	return nil
+}
+
+type stubAccountExtraDataLinker struct {
+}
+
+func newAccountExtraDataLinkerStub() rawdb.AccountExtraDataLinker {
+	return &stubAccountExtraDataLinker{}
+}
+
+func (pml *stubAccountExtraDataLinker) GetAccountExtraDataRoot(_ common.Hash) common.Hash {
+	return common.Hash{}
+}
+
+func (pml *stubAccountExtraDataLinker) Link(_, _ common.Hash) error {
+	return nil
+}
+
+func (db *odrDatabase) AccountExtraDataLinker() rawdb.AccountExtraDataLinker {
+	return newAccountExtraDataLinkerStub()
 }
 
 type odrTrie struct {

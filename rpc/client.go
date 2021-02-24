@@ -117,7 +117,7 @@ func (c *Client) newClientConn(conn ServerCodec) *clientConn {
 
 func (cc *clientConn) close(err error, inflightReq *requestOp) {
 	cc.handler.close(err, inflightReq)
-	cc.codec.Close()
+	cc.codec.close()
 }
 
 type readOp struct {
@@ -276,6 +276,9 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	if result != nil && reflect.TypeOf(result).Kind() != reflect.Ptr {
+		return fmt.Errorf("call result parameter must be pointer or nil interface: %v", result)
+	}
 	msg, err := c.newMessage(method, args...)
 	if err != nil {
 		return err
@@ -484,7 +487,7 @@ func (c *Client) write(ctx context.Context, msg interface{}, retry bool) error {
 			return err
 		}
 	}
-	err := c.writeConn.Write(ctx, msg)
+	err := c.writeConn.writeJSON(ctx, msg)
 	if err != nil {
 		c.writeConn = nil
 		if !retry {
@@ -514,7 +517,7 @@ func (c *Client) reconnect(ctx context.Context) error {
 		c.writeConn = newconn
 		return nil
 	case <-c.didClose:
-		newconn.Close()
+		newconn.close()
 		return ErrClientQuit
 	}
 }
@@ -558,10 +561,11 @@ func (c *Client) dispatch(codec ServerCodec) {
 			conn.handler.log.Debug("RPC connection read error", "err", err)
 			conn.close(err, lastOp)
 			reading = false
+			c.writeConn = nil
 
 		// Reconnect:
 		case newcodec := <-c.reconnected:
-			log.Debug("RPC client reconnected", "reading", reading, "conn", newcodec.RemoteAddr())
+			log.Debug("RPC client reconnected", "reading", reading, "conn", newcodec.remoteAddr())
 			if reading {
 				// Wait for the previous read loop to exit. This is a rare case which
 				// happens if this loop isn't notified in time after the connection breaks.
@@ -615,9 +619,9 @@ func (c *Client) drainRead() {
 // read decodes RPC messages from a codec, feeding them into dispatch.
 func (c *Client) read(codec ServerCodec) {
 	for {
-		msgs, batch, err := codec.Read()
+		msgs, batch, err := codec.readBatch()
 		if _, ok := err.(*json.SyntaxError); ok {
-			codec.Write(context.Background(), errorMessage(&parseError{err.Error()}))
+			codec.writeJSON(context.Background(), errorMessage(&parseError{err.Error()}))
 		}
 		if err != nil {
 			c.readErr <- err
@@ -625,4 +629,19 @@ func (c *Client) read(codec ServerCodec) {
 		}
 		c.readOp <- readOp{msgs, batch}
 	}
+}
+
+// Quorum
+//
+// Secure HTTP requests with authorization header
+// Do nothing if transport is not HTTP
+func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) (*Client, error) {
+	if !c.isHTTP {
+		return c, nil
+	}
+	// usually c.isHTTP check is sufficient, the below enforces the defensive check
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.credentialsProvider = providerFunc
+	}
+	return c, nil
 }

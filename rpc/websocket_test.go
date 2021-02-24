@@ -39,7 +39,7 @@ func TestWebsocketClientHeaders(t *testing.T) {
 	if endpoint != "wss://example.com:1234" {
 		t.Fatal("User should have been stripped from the URL")
 	}
-	if header.Get("authorization") != "Basic dGVzdHVzZXI6dGVzdC1QQVNTXzAx" {
+	if header.Get(HttpAuthorizationHeader) != "Basic dGVzdHVzZXI6dGVzdC1QQVNTXzAx" {
 		t.Fatal("Basic auth header is incorrect")
 	}
 	if header.Get("origin") != "https://example.com" {
@@ -96,7 +96,7 @@ func TestWebsocketLargeCall(t *testing.T) {
 	defer client.Close()
 
 	// This call sends slightly less than the limit and should work.
-	var result Result
+	var result echoResult
 	arg := strings.Repeat("x", maxRequestContentLength-200)
 	if err := client.Call(&result, "test_echo", arg, 1); err != nil {
 		t.Fatalf("valid call didn't work: %v", err)
@@ -142,6 +142,7 @@ func TestClientWebsocketPing(t *testing.T) {
 
 	// Wait for the subscription result.
 	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
 	for {
 		select {
 		case err := <-sub.Err():
@@ -227,9 +228,11 @@ func wsPingTestHandler(t *testing.T, conn *websocket.Conn, shutdown, sendPing <-
 
 	// Write messages.
 	var (
-		sendResponse <-chan time.Time
-		wantPong     string
+		wantPong string
+		timer    = time.NewTimer(0)
 	)
+	defer timer.Stop()
+	<-timer.C
 	for {
 		select {
 		case _, open := <-sendPing:
@@ -246,11 +249,10 @@ func wsPingTestHandler(t *testing.T, conn *websocket.Conn, shutdown, sendPing <-
 				t.Errorf("got pong with wrong data %q", data)
 			}
 			wantPong = ""
-			sendResponse = time.NewTimer(200 * time.Millisecond).C
-		case <-sendResponse:
+			timer.Reset(200 * time.Millisecond)
+		case <-timer.C:
 			t.Logf("server sending response")
 			conn.WriteMessage(websocket.TextMessage, []byte(subNotify))
-			sendResponse = nil
 		case <-shutdown:
 			conn.Close()
 			return

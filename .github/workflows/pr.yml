@@ -6,11 +6,11 @@ on:
       - '**.md'
       - .gitignore
 env:
-  GO_VERSION: 1.13
+  GO_VERSION: 1.15.5
 jobs:
   lint:
     name: 'Code linters'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
         uses: actions/setup-go@v1
@@ -22,16 +22,16 @@ jobs:
           submodules: false
       - name: 'Prepare environment'
         run: |
-          echo "::add-path::$(go env GOPATH)/bin"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: 'Run code linters'
         run: |
-          GO111MODULE=off make lint
+          GO111MODULE=on make lint
   unit-tests:
     name: 'Unit tests in ${{ matrix.os }}'
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest"]
+        os: ["ubuntu-18.04"]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -49,13 +49,13 @@ jobs:
           # https://github.com/actions/virtual-environments/issues/798
           sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
-          echo "::add-path::$(go env GOPATH)/bin"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: 'Run unit tests'
         run: |
           make test
   docker-build:
     name: 'Build Docker image'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
@@ -87,7 +87,7 @@ jobs:
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v1

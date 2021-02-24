@@ -19,16 +19,16 @@ package types
 import (
 	"container/heap"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
-
-	fmt "fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -38,6 +38,7 @@ var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 )
 
+// Quorum
 // deriveSigner makes a *best* guess about which signer to use.
 func deriveSigner(V *big.Int) Signer {
 	// joel: this is one of the two places we used a wrong signer to print txes
@@ -50,12 +51,20 @@ func deriveSigner(V *big.Int) Signer {
 	}
 }
 
+// End Quorum
+
 type Transaction struct {
 	data txdata
 	// caches
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	privacyMetadata *PrivacyMetadata
+}
+
+type PrivacyMetadata struct {
+	PrivacyFlag engine.PrivacyFlagType
 }
 
 type txdata struct {
@@ -118,6 +127,19 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 
 	return &Transaction{data: d}
 }
+
+// Quorum
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		PrivacyFlag: privacyFlag,
+	}
+}
+
+func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
+	tx.privacyMetadata = pm
+}
+
+// End Quorum
 
 // ChainId returns which chain id this transaction was signed for (if at all)
 func (tx *Transaction) ChainId() *big.Int {
@@ -191,9 +213,16 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
 func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
 func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
-func (tx *Transaction) Value() *big.Int    { return new(big.Int).Set(tx.data.Amount) }
-func (tx *Transaction) Nonce() uint64      { return tx.data.AccountNonce }
-func (tx *Transaction) CheckNonce() bool   { return true }
+func (tx *Transaction) GasPriceCmp(other *Transaction) int {
+	return tx.data.Price.Cmp(other.data.Price)
+}
+func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
+	return tx.data.Price.Cmp(other)
+}
+func (tx *Transaction) Value() *big.Int                   { return new(big.Int).Set(tx.data.Amount) }
+func (tx *Transaction) Nonce() uint64                     { return tx.data.AccountNonce }
+func (tx *Transaction) CheckNonce() bool                  { return true }
+func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
 
 // To returns the recipient address of the transaction.
 // It returns nil if the transaction is a contract creation.
@@ -500,6 +529,7 @@ func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
 
+// Quorum
 func (m Message) IsPrivate() bool {
 	return m.isPrivate
 }
@@ -529,3 +559,5 @@ func (tx *Transaction) SetPrivate() {
 		tx.data.V.SetUint64(37)
 	}
 }
+
+// End Quorum

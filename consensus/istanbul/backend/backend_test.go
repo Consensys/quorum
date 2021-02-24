@@ -40,7 +40,7 @@ func TestSign(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	//Check signature recover
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	pubkey, _ := crypto.Ecrecover(hashData, sig)
 	var signer common.Address
 	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
@@ -52,7 +52,7 @@ func TestSign(t *testing.T) {
 func TestCheckSignature(t *testing.T) {
 	key, _ := generatePrivateKey()
 	data := []byte("Here is a string....")
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	sig, _ := crypto.Sign(hashData, key)
 	b := newBackend()
 	a := getAddress()
@@ -72,7 +72,7 @@ func TestCheckValidatorSignature(t *testing.T) {
 
 	// 1. Positive test: sign with validator's key should succeed
 	data := []byte("dummy data")
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	for i, k := range keys {
 		// Sign
 		sig, err := crypto.Sign(hashData, k)

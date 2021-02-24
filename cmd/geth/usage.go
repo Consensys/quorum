@@ -21,7 +21,6 @@ package main
 import (
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -61,6 +60,8 @@ type flagGroup struct {
 	Flags []cli.Flag
 }
 
+var quorumAccountFlagGroup = "QUORUM ACCOUNT"
+
 // AppHelpFlagGroups is the application flags, grouped by functionality.
 var AppHelpFlagGroups = []flagGroup{
 	{
@@ -73,12 +74,14 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NoUSBFlag,
 			utils.SmartCardDaemonPathFlag,
 			utils.NetworkIdFlag,
-			utils.TestnetFlag,
-			utils.RinkebyFlag,
 			utils.GoerliFlag,
+			utils.RinkebyFlag,
+			utils.YoloV1Flag,
+			utils.RopstenFlag,
 			utils.SyncModeFlag,
 			utils.ExitWhenSyncedFlag,
 			utils.GCModeFlag,
+			utils.TxLookupLimitFlag,
 			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
 			utils.LightKDFFlag,
@@ -110,21 +113,13 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.EthashCacheDirFlag,
 			utils.EthashCachesInMemoryFlag,
 			utils.EthashCachesOnDiskFlag,
+			utils.EthashCachesLockMmapFlag,
 			utils.EthashDatasetDirFlag,
 			utils.EthashDatasetsInMemoryFlag,
 			utils.EthashDatasetsOnDiskFlag,
+			utils.EthashDatasetsLockMmapFlag,
 		},
 	},
-	//{
-	//	Name: "DASHBOARD",
-	//	Flags: []cli.Flag{
-	//		utils.DashboardEnabledFlag,
-	//		utils.DashboardAddrFlag,
-	//		utils.DashboardPortFlag,
-	//		utils.DashboardRefreshFlag,
-	//		utils.DashboardAssetsFlag,
-	//	},
-	//},
 	{
 		Name: "TRANSACTION POOL",
 		Flags: []cli.Flag{
@@ -148,6 +143,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CacheDatabaseFlag,
 			utils.CacheTrieFlag,
 			utils.CacheGCFlag,
+			utils.CacheSnapshotFlag,
 			utils.CacheNoPrefetchFlag,
 		},
 	},
@@ -165,13 +161,12 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.IPCDisabledFlag,
 			utils.IPCPathFlag,
-			utils.RPCEnabledFlag,
-			utils.RPCListenAddrFlag,
-			utils.RPCPortFlag,
-			utils.RPCApiFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCCORSDomainFlag,
-			utils.RPCVirtualHostsFlag,
+			utils.HTTPEnabledFlag,
+			utils.HTTPListenAddrFlag,
+			utils.HTTPPortFlag,
+			utils.HTTPApiFlag,
+			utils.HTTPCORSDomainFlag,
+			utils.HTTPVirtualHostsFlag,
 			utils.WSEnabledFlag,
 			utils.WSListenAddrFlag,
 			utils.WSPortFlag,
@@ -182,17 +177,25 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.GraphQLPortFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
+			utils.RPCGlobalGasCap,
+			utils.RPCGlobalTxFeeCap,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			utils.RPCClientToken,
+			utils.RPCClientTLSInsecureSkipVerify,
+			utils.RPCClientTLSCert,
+			utils.RPCClientTLSCaCert,
+			utils.RPCClientTLSCipherSuites,
 		},
 	},
 	{
 		Name: "NETWORKING",
 		Flags: []cli.Flag{
 			utils.BootnodesFlag,
-			utils.BootnodesV4Flag,
-			utils.BootnodesV5Flag,
+			utils.LegacyBootnodesV4Flag,
+			utils.LegacyBootnodesV5Flag,
+			utils.DNSDiscoveryFlag,
 			utils.ListenPortFlag,
 			utils.MaxPeersFlag,
 			utils.MaxPendingPeersFlag,
@@ -232,6 +235,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.VMEnableDebugFlag,
 			utils.EVMInterpreterFlag,
 			utils.EWASMInterpreterFlag,
+			// Quorum - timout for calls
+			utils.EVMCallTimeOutFlag,
 		},
 	},
 	{
@@ -250,16 +255,21 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: whisperFlags,
 	},
 	{
-		Name: "DEPRECATED",
-		Flags: []cli.Flag{
-			utils.LightLegacyServFlag,
-			utils.LightLegacyPeersFlag,
-			utils.MinerLegacyThreadsFlag,
-			utils.MinerLegacyGasTargetFlag,
-			utils.MinerLegacyGasPriceFlag,
-			utils.MinerLegacyEtherbaseFlag,
-			utils.MinerLegacyExtraDataFlag,
-		},
+		Name: "ALIASED (deprecated)",
+		Flags: append([]cli.Flag{
+			utils.LegacyRPCEnabledFlag,
+			utils.LegacyRPCListenAddrFlag,
+			utils.LegacyRPCPortFlag,
+			utils.LegacyRPCCORSDomainFlag,
+			utils.LegacyRPCVirtualHostsFlag,
+			utils.LegacyRPCApiFlag,
+			utils.LegacyWSListenAddrFlag,
+			utils.LegacyWSPortFlag,
+			utils.LegacyWSAllowedOriginsFlag,
+			utils.LegacyWSApiFlag,
+			utils.LegacyGpoBlocksFlag,
+			utils.LegacyGpoPercentileFlag,
+		}, debug.DeprecatedFlags...),
 	},
 	// QUORUM
 	{
@@ -272,6 +282,30 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
+			utils.MultitenancyFlag,
+		},
+	},
+	{
+		Name: "QUORUM PRIVATE TRANSACTION MANAGER",
+		Flags: []cli.Flag{
+			utils.QuorumPTMUnixSocketFlag,
+			utils.QuorumPTMUrlFlag,
+			utils.QuorumPTMTimeoutFlag,
+			utils.QuorumPTMDialTimeoutFlag,
+			utils.QuorumPTMHttpIdleTimeoutFlag,
+			utils.QuorumPTMHttpWriteBufferSizeFlag,
+			utils.QuorumPTMHttpReadBufferSizeFlag,
+			utils.QuorumPTMTlsModeFlag,
+			utils.QuorumPTMTlsRootCaFlag,
+			utils.QuorumPTMTlsClientCertFlag,
+			utils.QuorumPTMTlsClientKeyFlag,
+			utils.QuorumPTMTlsInsecureSkipVerify,
+		},
+	},
+	{
+		Name: quorumAccountFlagGroup,
+		Flags: []cli.Flag{
+			utils.AccountPluginNewAccountConfigFlag,
 		},
 	},
 	{
@@ -294,6 +328,10 @@ var AppHelpFlagGroups = []flagGroup{
 	// END QUORUM
 	{
 		Name: "MISC",
+		Flags: []cli.Flag{
+			utils.SnapshotFlag,
+			cli.HelpFlag,
+		},
 	},
 }
 
@@ -351,13 +389,17 @@ func init() {
 					categorized[flag.String()] = struct{}{}
 				}
 			}
+			deprecated := make(map[string]struct{})
+			for _, flag := range utils.DeprecatedFlags {
+				deprecated[flag.String()] = struct{}{}
+			}
+			// Only add uncategorized flags if they are not deprecated
 			var uncategorized []cli.Flag
 			for _, flag := range data.(*cli.App).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
-					if strings.HasPrefix(flag.GetName(), "dashboard") {
-						continue
+					if _, ok := deprecated[flag.String()]; !ok {
+						uncategorized = append(uncategorized, flag)
 					}
-					uncategorized = append(uncategorized, flag)
 				}
 			}
 			if len(uncategorized) > 0 {
@@ -370,6 +412,14 @@ func init() {
 					AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags = AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags[:miscs]
 				}()
 			}
+
+			// remove the Quorum account options from the main app usage as these should only be used by the geth account sub commands
+			for i, group := range AppHelpFlagGroups {
+				if group.Name == quorumAccountFlagGroup {
+					AppHelpFlagGroups = append(AppHelpFlagGroups[:i], AppHelpFlagGroups[i+1:]...)
+				}
+			}
+
 			// Render out custom usage screen
 			originalHelpPrinter(w, tmpl, helpData{data, AppHelpFlagGroups})
 		} else if tmpl == utils.CommandHelpTemplate {

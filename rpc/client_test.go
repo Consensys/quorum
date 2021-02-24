@@ -32,6 +32,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClientRequest(t *testing.T) {
@@ -40,12 +41,56 @@ func TestClientRequest(t *testing.T) {
 	client := DialInProc(server)
 	defer client.Close()
 
-	var resp Result
-	if err := client.Call(&resp, "test_echo", "hello", 10, &Args{"world"}); err != nil {
+	var resp echoResult
+	if err := client.Call(&resp, "test_echo", "hello", 10, &echoArgs{"world"}); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(resp, Result{"hello", 10, &Args{"world"}}) {
+	if !reflect.DeepEqual(resp, echoResult{"hello", 10, &echoArgs{"world"}}) {
 		t.Errorf("incorrect result %#v", resp)
+	}
+}
+
+func TestClientResponseType(t *testing.T) {
+	server := newTestServer()
+	defer server.Stop()
+	client := DialInProc(server)
+	defer client.Close()
+
+	if err := client.Call(nil, "test_echo", "hello", 10, &echoArgs{"world"}); err != nil {
+		t.Errorf("Passing nil as result should be fine, but got an error: %v", err)
+	}
+	var resultVar echoResult
+	// Note: passing the var, not a ref
+	err := client.Call(resultVar, "test_echo", "hello", 10, &echoArgs{"world"})
+	if err == nil {
+		t.Error("Passing a var as result should be an error")
+	}
+}
+
+// This test checks that server-returned errors with code and data come out of Client.Call.
+func TestClientErrorData(t *testing.T) {
+	server := newTestServer()
+	defer server.Stop()
+	client := DialInProc(server)
+	defer client.Close()
+
+	var resp interface{}
+	err := client.Call(&resp, "test_returnError")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	// Check code.
+	if e, ok := err.(Error); !ok {
+		t.Fatalf("client did not return rpc.Error, got %#v", e)
+	} else if e.ErrorCode() != (testError{}.ErrorCode()) {
+		t.Fatalf("wrong error code %d, want %d", e.ErrorCode(), testError{}.ErrorCode())
+	}
+	// Check data.
+	if e, ok := err.(DataError); !ok {
+		t.Fatalf("client did not return rpc.DataError, got %#v", e)
+	} else if e.ErrorData() != (testError{}.ErrorData()) {
+		t.Fatalf("wrong error data %#v, want %#v", e.ErrorData(), testError{}.ErrorData())
 	}
 }
 
@@ -58,13 +103,13 @@ func TestClientBatchRequest(t *testing.T) {
 	batch := []BatchElem{
 		{
 			Method: "test_echo",
-			Args:   []interface{}{"hello", 10, &Args{"world"}},
-			Result: new(Result),
+			Args:   []interface{}{"hello", 10, &echoArgs{"world"}},
+			Result: new(echoResult),
 		},
 		{
 			Method: "test_echo",
-			Args:   []interface{}{"hello2", 11, &Args{"world"}},
-			Result: new(Result),
+			Args:   []interface{}{"hello2", 11, &echoArgs{"world"}},
+			Result: new(echoResult),
 		},
 		{
 			Method: "no_such_method",
@@ -78,13 +123,13 @@ func TestClientBatchRequest(t *testing.T) {
 	wantResult := []BatchElem{
 		{
 			Method: "test_echo",
-			Args:   []interface{}{"hello", 10, &Args{"world"}},
-			Result: &Result{"hello", 10, &Args{"world"}},
+			Args:   []interface{}{"hello", 10, &echoArgs{"world"}},
+			Result: &echoResult{"hello", 10, &echoArgs{"world"}},
 		},
 		{
 			Method: "test_echo",
-			Args:   []interface{}{"hello2", 11, &Args{"world"}},
-			Result: &Result{"hello2", 11, &Args{"world"}},
+			Args:   []interface{}{"hello2", 11, &echoArgs{"world"}},
+			Result: &echoResult{"hello2", 11, &echoArgs{"world"}},
 		},
 		{
 			Method: "no_such_method",
@@ -104,7 +149,7 @@ func TestClientNotify(t *testing.T) {
 	client := DialInProc(server)
 	defer client.Close()
 
-	if err := client.Notify(context.Background(), "test_echo", "hello", 10, &Args{"world"}); err != nil {
+	if err := client.Notify(context.Background(), "test_echo", "hello", 10, &echoArgs{"world"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -162,7 +207,7 @@ func testClientCancel(transport string, t *testing.T) {
 	var (
 		wg       sync.WaitGroup
 		nreqs    = 10
-		ncallers = 6
+		ncallers = 10
 	)
 	caller := func(index int) {
 		defer wg.Done()
@@ -183,14 +228,16 @@ func testClientCancel(transport string, t *testing.T) {
 				// deadline.
 				ctx, cancel = context.WithTimeout(context.Background(), timeout)
 			}
+
 			// Now perform a call with the context.
 			// The key thing here is that no call will ever complete successfully.
-			sleepTime := maxContextCancelTimeout + 20*time.Millisecond
-			err := client.CallContext(ctx, nil, "test_sleep", sleepTime)
-			if err != nil {
-				log.Debug(fmt.Sprint("got expected error:", err))
-			} else {
-				t.Errorf("no error for call with %v wait time", timeout)
+			err := client.CallContext(ctx, nil, "test_block")
+			switch {
+			case err == nil:
+				_, hasDeadline := ctx.Deadline()
+				t.Errorf("no error for call with %v wait time (deadline: %v)", timeout, hasDeadline)
+				// default:
+				// 	t.Logf("got expected error with %v wait time: %v", timeout, err)
 			}
 			cancel()
 		}
@@ -280,7 +327,7 @@ func TestClientSubscribeClose(t *testing.T) {
 
 	var (
 		nc   = make(chan int)
-		errc = make(chan error)
+		errc = make(chan error, 1)
 		sub  *ClientSubscription
 		err  error
 	)
@@ -380,7 +427,7 @@ func TestClientNotificationStorm(t *testing.T) {
 	}
 
 	doTest(8000, false)
-	doTest(25000, true)
+	doTest(23000, true)
 }
 
 func TestClientHTTP(t *testing.T) {
@@ -393,16 +440,15 @@ func TestClientHTTP(t *testing.T) {
 
 	// Launch concurrent requests.
 	var (
-		results    = make([]Result, 100)
-		errc       = make(chan error)
-		wantResult = Result{"a", 1, new(Args)}
+		results    = make([]echoResult, 100)
+		errc       = make(chan error, len(results))
+		wantResult = echoResult{"a", 1, new(echoArgs)}
 	)
 	defer client.Close()
 	for i := range results {
 		i := i
 		go func() {
-			errc <- client.Call(&results[i], "test_echo",
-				wantResult.String, wantResult.Int, wantResult.Args)
+			errc <- client.Call(&results[i], "test_echo", wantResult.String, wantResult.Int, wantResult.Args)
 		}()
 	}
 
@@ -450,7 +496,7 @@ func TestClientReconnect(t *testing.T) {
 	}
 
 	// Perform a call. This should work because the server is up.
-	var resp Result
+	var resp echoResult
 	if err := client.CallContext(ctx, &resp, "test_echo", "", 1, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +524,7 @@ func TestClientReconnect(t *testing.T) {
 	for i := 0; i < cap(errors); i++ {
 		go func() {
 			<-start
-			var resp Result
+			var resp echoResult
 			errors <- client.CallContext(ctx, &resp, "test_echo", "", 3, nil)
 		}()
 	}
@@ -566,4 +612,56 @@ func (l *flakeyListener) Accept() (net.Conn, error) {
 		})
 	}
 	return c, err
+}
+
+func TestClient_withCredentials_whenTargetingHTTP(t *testing.T) {
+	server := newTestServer()
+	server.authenticationManager = &stubAuthenticationManager{isEnabled: true}
+	defer server.Stop()
+	fl := &flakeyListener{
+		maxAcceptDelay: 1 * time.Second,
+		maxKillTimeout: 600 * time.Millisecond,
+	}
+	hs := httptest.NewUnstartedServer(server)
+	fl.Listener = hs.Listener
+	hs.Listener = fl
+	// Connect the client.
+	hs.Start()
+	defer hs.Close()
+
+	c, err := Dial("http://" + hs.Listener.Addr().String())
+	assert.NoError(t, err)
+	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+		return "Bearer arbitrary_token", nil
+	}
+	authenticatedClient, err := c.WithHTTPCredentials(f)
+	assert.NoError(t, err)
+
+	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
+	assert.EqualError(t, err, "arbitrary_call - access denied")
+}
+
+func TestClient_withCredentials_whenTargetingWS(t *testing.T) {
+	server := newTestServer()
+	server.authenticationManager = &stubAuthenticationManager{isEnabled: true}
+	defer server.Stop()
+	fl := &flakeyListener{
+		maxAcceptDelay: 1 * time.Second,
+		maxKillTimeout: 600 * time.Millisecond,
+	}
+	hs := httptest.NewUnstartedServer(server.WebsocketHandler([]string{"*"}))
+	fl.Listener = hs.Listener
+	hs.Listener = fl
+	// Connect the client.
+	hs.Start()
+	defer hs.Close()
+	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+		return "Bearer arbitrary_token", nil
+	}
+	ctx := context.WithValue(context.Background(), CtxCredentialsProvider, f)
+	authenticatedClient, err := DialContext(ctx, "ws://"+hs.Listener.Addr().String())
+	assert.NoError(t, err)
+
+	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
+	assert.EqualError(t, err, "arbitrary_call - access denied")
 }
