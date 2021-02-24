@@ -133,7 +133,7 @@ func setup() {
 		},
 	}
 
-	_, err = eth.New(stack, ethConf, &core.DefaultPrivateStateMetadataResolver{})
+	_, err = eth.New(stack, ethConf)
 	if err != nil {
 		t.Fatalf("failed to register Ethereum protocol: %v", err)
 	}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -69,7 +68,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 		privateState = publicState
 	}
 	// TODO(joel): can we just pass nil instead of bc?
-	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
 	context := NewEVMContext(msg, &cg.header, bc, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	sender := vm.AccountRef(msg.From())

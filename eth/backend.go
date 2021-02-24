@@ -25,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/core/psmr"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -96,7 +98,7 @@ type Ethereum struct {
 
 // New creates a new Ethereum object (including the
 // initialisation of the common Ethereum object)
-func New(stack *node.Node, config *Config, psmr core.PrivateStateMetadataResolver) (*Ethereum, error) {
+func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	// Ensure configuration values are compatible and sane
 	if config.SyncMode == downloader.LightSync {
 		return nil, errors.New("can't run eth.Ethereum in light sync mode, use les.LightEthereum")
@@ -174,6 +176,7 @@ func New(stack *node.Node, config *Config, psmr core.PrivateStateMetadataResolve
 		quorumConsensusProtocolVersions = quorumProtocol.Versions
 		quorumConsensusProtocolLengths = quorumProtocol.Lengths
 	}
+	config.EnableMPS = config.EnableMPS && chainConfig.IsMPS
 
 	// force to set the istanbul etherbase to node key address
 	if chainConfig.Istanbul != nil {
@@ -218,9 +221,17 @@ func New(stack *node.Node, config *Config, psmr core.PrivateStateMetadataResolve
 	if config.EnableMultitenancy {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
-	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, psmr)
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
+	}
+	// Quorum: decorate blockchain with PrivateStateMetadataResolver using Tessera
+	if config.EnableMPS {
+		r, err := psmr.NewTesseraPrivateStateMetadataResolver()
+		if err != nil {
+			return nil, err
+		}
+		eth.blockchain.SetPSMR(r)
 	}
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {

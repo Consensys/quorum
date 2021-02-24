@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -532,7 +531,7 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 		}
 	}
 	// Create a checkpoint aware protocol manager
-	blockchain, err := core.NewBlockChain(db, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+	blockchain, err := core.NewBlockChain(db, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
@@ -619,7 +618,7 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 		gspec   = &core.Genesis{Config: config}
 		genesis = gspec.MustCommit(db)
 	)
-	blockchain, err := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+	blockchain, err := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
@@ -683,7 +682,7 @@ func TestBroadcastMalformedBlock(t *testing.T) {
 		gspec   = &core.Genesis{Config: config}
 		genesis = gspec.MustCommit(db)
 	)
-	blockchain, err := core.NewBlockChain(db, nil, config, engine, vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+	blockchain, err := core.NewBlockChain(db, nil, config, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}

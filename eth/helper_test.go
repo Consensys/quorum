@@ -37,7 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -68,7 +67,7 @@ func newTestProtocolManager(mode downloader.SyncMode, blocks int, generator func
 			Alloc:  core.GenesisAlloc{testBank: {Balance: big.NewInt(1000000)}},
 		}
 		genesis       = gspec.MustCommit(db)
-		blockchain, _ = core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+		blockchain, _ = core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil)
 	)
 	chain, _ := core.GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, blocks, generator)
 	if _, err := blockchain.InsertChain(chain); err != nil {
@@ -100,7 +99,7 @@ func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.
 			Alloc:  core.GenesisAlloc{testBank: {Balance: big.NewInt(1000000)}},
 		}
 		genesis       = gspec.MustCommit(db)
-		blockchain, _ = core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
+		blockchain, _ = core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil)
 	)
 	chain, _ := core.GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, blocks, nil)
 	if _, err := blockchain.InsertChain(chain); err != nil {
