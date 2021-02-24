@@ -579,12 +579,12 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 		return len(task.receipts) == 0
 	}
 	for i := 0; i < 5; i++ {
-		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).Times(3)
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).Times(1)
+		mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).Times(1)
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).Times(1)
+		mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).Times(1)
+		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).Times(1)
 		mockptm.EXPECT().Receive(gomock.Any()).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).Times(1)
-		gomock.InOrder(
-			mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).Times(1),
-			mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).Times(1),
-		)
 		randomPrivateTx := b.newRandomTx(true, true)
 		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
 		b.txPool.AddLocal(randomPrivateTx)
