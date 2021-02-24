@@ -79,17 +79,10 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	// Quorum
 	if contract.CodeAddr != nil {
-
 		// Using CodeAddr is favour over contract.Address()
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
-		// during simulation/eth_call, when contract code is empty, there's no execution hence the
-		// multitenancy check will not happen in captureOperationMode().
-		// This additional check to ensure we capture this case
-		if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(contract.Code) == 0 {
-			return nil, multitenancy.ErrNotAuthorized
-		}
-		if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+		if err := validateMultitenancy(evm, contract.Code, address); err != nil {
 			return nil, err
 		}
 		// When delegatecall, need to capture the operation mode in the context of contract.Address()
@@ -406,7 +399,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		// The contract is a scoped environment for this execution context only.
 		code := evm.StateDB.GetCode(addr)
 		if len(code) == 0 {
-			ret, err = nil, nil // gas is unchanged
+			// Quorum - If the account has no code, we still check for multitenancy
+			ret, err = nil, validateMultitenancy(evm, code, addr) // gas is unchanged
 		} else {
 			addrCopy := addr
 			// If the account has no code, we can abort here
@@ -444,8 +438,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, nil
 	}
 
+	// Quorum
 	evm.Push(getDualState(evm, addr))
 	defer func() { evm.Pop() }()
+	// End Quorum
 
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -491,8 +487,10 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		return nil, gas, nil
 	}
 
+	// Quorum
 	evm.Push(getDualState(evm, addr))
 	defer func() { evm.Pop() }()
+	// End Quorum
 
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -625,11 +623,15 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
+
+	// Quorum
 	if evm.SupportsMultitenancy && evm.AuthorizeCreateFunc != nil {
 		if authorized := evm.AuthorizeCreateFunc(); !authorized {
 			return nil, common.Address{}, gas, multitenancy.ErrNotAuthorized
 		}
 	}
+	// End Quorum
+
 	evm.StateDB.CreateAccount(address)
 	evm.affectedContracts[address] = newAffectedType(Creation, ModeWrite|ModeRead)
 	if evm.chainRules.IsEIP158 {
@@ -961,6 +963,8 @@ func (evm *EVM) AffectedContracts() []common.Address {
 	return addr[:]
 }
 
+// Quorum
+//
 // Return MerkleRoot of all affected contracts (due to both creation and message call)
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 	combined := new(trie.Trie)
@@ -974,4 +978,20 @@ func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 		}
 	}
 	return combined.Hash(), nil
+}
+
+// Quorum
+//
+// validateMultitenancy - validates if multitenancy is authorized for this execution
+func validateMultitenancy(evm *EVM, code []byte, address common.Address) error {
+	// during simulation/eth_call, when contract code is empty, there's no execution hence the
+	// multitenancy check will not happen in captureOperationMode().
+	// This additional check to ensure we capture this case
+	if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(code) == 0 {
+		return multitenancy.ErrNotAuthorized
+	}
+	if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+		return err
+	}
+	return nil
 }
