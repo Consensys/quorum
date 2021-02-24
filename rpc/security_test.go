@@ -227,19 +227,19 @@ func TestResolvePSIProvider_whenTypicalEndpoints(t *testing.T) {
 	}{
 		{
 			endpoint:    "http://aritraryhost?PSI=PS1",
-			expectedPSI: types.PrivateStateIdentifier("PS1"),
+			expectedPSI: types.ToPrivateStateIdentifier("PS1"),
 		},
 		{
 			endpoint:    "https://aritraryhost?PSI=PS2",
-			expectedPSI: types.PrivateStateIdentifier("PS2"),
+			expectedPSI: types.ToPrivateStateIdentifier("PS2"),
 		},
 		{
 			endpoint:    "ws://aritraryhost?PSI=PS3",
-			expectedPSI: types.PrivateStateIdentifier("PS3"),
+			expectedPSI: types.ToPrivateStateIdentifier("PS3"),
 		},
 		{
 			endpoint:    "wss://aritraryhost?PSI=PS4",
-			expectedPSI: types.PrivateStateIdentifier("PS4"),
+			expectedPSI: types.ToPrivateStateIdentifier("PS4"),
 		},
 	}
 	for _, tc := range testCases {
@@ -266,7 +266,7 @@ func TestResolvePSIProvider_whenEnvVariableTakesPrecedence(t *testing.T) {
 	testifyassert.True(t, ok)
 	actualPSI, err := f(context.Background())
 	testifyassert.NoError(t, err)
-	testifyassert.Equal(t, types.PrivateStateIdentifier("ENV_PS1"), actualPSI)
+	testifyassert.Equal(t, types.ToPrivateStateIdentifier("ENV_PS1"), actualPSI)
 }
 
 func TestResolvePSIProvider_whenNoPSI(t *testing.T) {

@@ -801,7 +801,7 @@ func TestClient_whenProvidingPSIViaEnvVar(t *testing.T) {
 }
 
 func TestClient_IPC_whenSetupPSIExplicitly(t *testing.T) {
-	expectedPSI := types.PrivateStateIdentifier("arbitrary_psi")
+	expectedPSI := types.ToPrivateStateIdentifier("arbitrary_psi")
 	server := newTestServer()
 	defer server.Stop()
 
@@ -815,7 +815,7 @@ func TestClient_IPC_whenSetupPSIExplicitly(t *testing.T) {
 }
 
 func TestClient_InProc_whenSetupPSIExplicitly(t *testing.T) {
-	expectedPSI := types.PrivateStateIdentifier("arbitrary_psi")
+	expectedPSI := types.ToPrivateStateIdentifier("arbitrary_psi")
 	server := newTestServer()
 	defer server.Stop()
 

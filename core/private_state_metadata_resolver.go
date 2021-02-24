@@ -44,7 +44,7 @@ func (psm *PrivateStateMetadata) HasAnyAddress(addresses []string) bool {
 }
 
 var EmptyPrivateStateMetadata = PrivateStateMetadata{
-	ID:          types.PrivateStateIdentifier("empty"),
+	ID:          types.ToPrivateStateIdentifier("empty"),
 	Name:        "empty",
 	Description: "empty state",
 	Type:        Resident,

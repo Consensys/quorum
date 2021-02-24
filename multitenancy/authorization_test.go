@@ -166,7 +166,7 @@ func TestExtractPSI_whenTypical(t *testing.T) {
 	}))
 
 	assert.NoError(t, err)
-	assert.Equal(t, types.PrivateStateIdentifier("arbitrary.psi1"), psi)
+	assert.Equal(t, types.ToPrivateStateIdentifier("arbitrary.psi1"), psi)
 }
 
 func TestExtractPSI_whenNotFound(t *testing.T) {

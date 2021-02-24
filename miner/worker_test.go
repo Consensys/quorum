@@ -597,20 +597,20 @@ var PSI2PSM = core.PrivateStateMetadata{
 // 			}
 //
 // 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
-// 			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("empty"))
+// 			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
 // 			assert.True(t, privDb.Exist(expectedContractAddress))
 // 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 // 			//contract should exist on both psi states and not be empty
-// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("psi1"))
+// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi1"))
 // 			assert.True(t, privDb.Exist(expectedContractAddress))
 // 			assert.False(t, privDb.Empty(expectedContractAddress))
 // 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
-// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("psi2"))
+// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi2"))
 // 			assert.True(t, privDb.Exist(expectedContractAddress))
 // 			assert.False(t, privDb.Empty(expectedContractAddress))
 // 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 // 			//contract should exist on random state (delegated to emptystate) but no contract code
-// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("other"))
+// 			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
 // 			assert.True(t, privDb.Exist(expectedContractAddress))
 // 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 // 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
@@ -636,8 +636,8 @@ var PSI2PSM = core.PrivateStateMetadata{
 // 	case logs := <-logsChan:
 // 		assert.Len(t, logs, 3)
 // 		assert.Equal(t, types.PrivateStateIdentifier(""), logs[0].PSI)
-// 		assert.Equal(t, types.PrivateStateIdentifier("psi1"), logs[1].PSI)
-// 		assert.Equal(t, types.PrivateStateIdentifier("psi2"), logs[2].PSI)
+// 		assert.Equal(t, types.ToPrivateStateIdentifier("psi1"), logs[1].PSI)
+// 		assert.Equal(t, types.ToPrivateStateIdentifier("psi2"), logs[2].PSI)
 // 	case <-time.NewTimer(3 * time.Second).C:
 // 		t.Error("timeout")
 // 	}
@@ -710,7 +710,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//only "private" state on legacy psm
-			_, _, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("other"))
+			_, _, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
 			assert.Error(t, err, "Only the 'private' psi is supported by the legacy private state manager")
 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
 			t.Fatalf("timeout")
