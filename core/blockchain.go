@@ -1509,7 +1509,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	// Explicit commit for privateStateTriedb
 	privateTriedb := bc.privateStateCache.TrieDB()
-	// TODO ricardolyn: check if nil argument is fine
 	if err := privateTriedb.Commit(privateRoot, false, nil); err != nil {
 		return NonStatTy, err
 	}
