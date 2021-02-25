@@ -2,7 +2,6 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -55,11 +54,11 @@ type ManagedState struct {
 // * a managed state in a multiple private state environment will NOT have the same state root as the private state in
 // a standalone quorum (due to the empty contracts not being part of the actual state in the multiple private states env)
 func (psm *MultiplePrivateStateManager) GetDefaultState() (*state.StateDB, error) {
-	return psm.GetPrivateState(psmr.EmptyPrivateStateMetadata.ID)
+	return psm.GetPrivateState(EmptyPrivateStateMetadata.ID)
 }
 
-func (psm *MultiplePrivateStateManager) GetDefaultStateMetadata() psmr.PrivateStateMetadata {
-	return psmr.EmptyPrivateStateMetadata
+func (psm *MultiplePrivateStateManager) GetDefaultStateMetadata() PrivateStateMetadata {
+	return EmptyPrivateStateMetadata
 }
 
 func (psm *MultiplePrivateStateManager) IsMPS() bool {
@@ -80,7 +79,7 @@ func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateId
 	if err != nil {
 		return nil, err
 	}
-	if psi != psmr.EmptyPrivateStateMetadata.ID {
+	if psi != EmptyPrivateStateMetadata.ID {
 		emptyState, err := psm.GetDefaultState()
 		if err != nil {
 			return nil, err
@@ -170,7 +169,7 @@ func (psm *MultiplePrivateStateManager) MergeReceipts(pub, priv types.Receipts) 
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
 		publicReceipt.MTVersions = make(map[types.PrivateStateIdentifier]*types.Receipt)
-		publicReceipt.MTVersions[psmr.EmptyPrivateStateMetadata.ID] = receipt
+		publicReceipt.MTVersions[EmptyPrivateStateMetadata.ID] = receipt
 		for psi, mtReceipt := range receipt.MTVersions {
 			publicReceipt.MTVersions[psi] = mtReceipt
 		}

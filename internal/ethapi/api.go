@@ -2401,7 +2401,10 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	if private.P == nil {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
-	psm, _ := s.b.PSMR().ResolveForUserContext(ctx)
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	if len(digestHex) < 3 {
 		return "", fmt.Errorf("Invalid digest hex")
 	}
@@ -2419,7 +2422,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	if err != nil {
 		return "", err
 	}
-	if !psm.HasAnyAddress(managedParties) {
+	if s.b.PSMR().NotIncludeAny(psm, managedParties...) {
 		return "0x", nil
 	}
 	return fmt.Sprintf("0x%x", data), nil

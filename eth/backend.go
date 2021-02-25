@@ -231,6 +231,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Info("Using Tessera to resolve PrivateStateMetadata")
 		eth.blockchain.SetPSMR(r)
 	}
 	// Rewind the chain in case of an incompatible config upgrade.
