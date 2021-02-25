@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -80,7 +81,7 @@ type SimulatedBackend struct {
 func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
 	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
 	genesis.MustCommit(database)
-	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil, nil, &core.DefaultPrivateStateMetadataResolver{})
+	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
 
 	backend := &SimulatedBackend{
 		database:   database,
@@ -744,7 +745,7 @@ type filterBackend struct {
 }
 
 func (fb *filterBackend) ChainDb() ethdb.Database                 { return fb.db }
-func (fb *filterBackend) PSMR() core.PrivateStateMetadataResolver { return fb.bc.PSMR() }
+func (fb *filterBackend) PSMR() psmr.PrivateStateMetadataResolver { return fb.bc.PSMR() }
 
 func (fb *filterBackend) EventMux() *event.TypeMux { panic("not supported") }
 

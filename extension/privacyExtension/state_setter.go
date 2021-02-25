@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
@@ -17,7 +17,7 @@ var DefaultExtensionHandler *ExtensionHandler
 
 type ExtensionHandler struct {
 	ptm           private.PrivateTransactionManager
-	psmr          core.PrivateStateMetadataResolver
+	psmr          psmr.PrivateStateMetadataResolver
 	isMultitenant bool
 }
 
@@ -33,7 +33,7 @@ func (handler *ExtensionHandler) SupportMultitenancy(b bool) {
 	handler.isMultitenant = b
 }
 
-func (handler *ExtensionHandler) SetPSMR(psmr core.PrivateStateMetadataResolver) {
+func (handler *ExtensionHandler) SetPSMR(psmr psmr.PrivateStateMetadataResolver) {
 	handler.psmr = psmr
 }
 

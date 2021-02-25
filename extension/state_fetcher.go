@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -27,7 +28,7 @@ type ChainAccessor interface {
 // Only extract required methods from ethService.APIBackend
 type APIBackendHelper interface {
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
-	PSMR() core.PrivateStateMetadataResolver
+	PSMR() psmr.PrivateStateMetadataResolver
 	CurrentBlock() *types.Block
 }
 

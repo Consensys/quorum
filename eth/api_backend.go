@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -65,7 +66,7 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 }
 
 // PSMR returns the private state metadata resolver.
-func (b *EthAPIBackend) PSMR() core.PrivateStateMetadataResolver {
+func (b *EthAPIBackend) PSMR() psmr.PrivateStateMetadataResolver {
 	return b.eth.blockchain.PSMR()
 }
 

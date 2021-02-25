@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,8 +52,8 @@ func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
 }
 
-func (b *LesApiBackend) PSMR() core.PrivateStateMetadataResolver {
-	return &core.DefaultPrivateStateMetadataResolver{}
+func (b *LesApiBackend) PSMR() psmr.PrivateStateMetadataResolver {
+	return &psmr.DefaultPrivateStateMetadataResolver{}
 }
 
 func (b *LesApiBackend) CurrentBlock() *types.Block {

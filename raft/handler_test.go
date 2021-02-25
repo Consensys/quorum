@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/log"
@@ -161,7 +162,7 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 
 	e, err := eth.New(stack, &eth.Config{
 		Genesis: &core.Genesis{Config: params.QuorumTestChainConfig},
-	}, &core.DefaultPrivateStateMetadataResolver{})
+	}, &psmr.DefaultPrivateStateMetadataResolver{})
 	if err != nil {
 		return nil, err
 	}

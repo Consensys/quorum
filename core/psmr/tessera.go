@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
@@ -13,11 +12,11 @@ import (
 )
 
 type TesseraPrivateStateMetadataResolver struct {
-	residentGroupByKey map[string]*core.PrivateStateMetadata
-	privacyGroupById   map[types.PrivateStateIdentifier]*core.PrivateStateMetadata
+	residentGroupByKey map[string]*PrivateStateMetadata
+	privacyGroupById   map[types.PrivateStateIdentifier]*PrivateStateMetadata
 }
 
-func (t *TesseraPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*core.PrivateStateMetadata, error) {
+func (t *TesseraPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
 	psm, found := t.residentGroupByKey[managedParty]
 	if !found {
 		return nil, fmt.Errorf("unable to find private state metadata for managed party %s", managedParty)
@@ -25,7 +24,7 @@ func (t *TesseraPrivateStateMetadataResolver) ResolveForManagedParty(managedPart
 	return psm, nil
 }
 
-func (t *TesseraPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*core.PrivateStateMetadata, error) {
+func (t *TesseraPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
 	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
@@ -45,13 +44,13 @@ func (t *TesseraPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentif
 	return psis
 }
 
-func NewTesseraPrivateStateMetadataResolver() (core.PrivateStateMetadataResolver, error) {
+func NewTesseraPrivateStateMetadataResolver() (PrivateStateMetadataResolver, error) {
 	groups, err := private.P.Groups()
 	if err != nil {
 		return nil, err
 	}
-	residentGroupByKey := make(map[string]*core.PrivateStateMetadata)
-	privacyGroupById := make(map[types.PrivateStateIdentifier]*core.PrivateStateMetadata)
+	residentGroupByKey := make(map[string]*PrivateStateMetadata)
+	privacyGroupById := make(map[types.PrivateStateIdentifier]*PrivateStateMetadata)
 	convertedGroups := make([]engine.PrivacyGroup, 0)
 	for _, group := range groups {
 		if group.Type == "RESIDENT" {
@@ -86,8 +85,8 @@ func NewTesseraPrivateStateMetadataResolver() (core.PrivateStateMetadataResolver
 	}, nil
 }
 
-func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *core.PrivateStateMetadata {
-	return &core.PrivateStateMetadata{
+func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *PrivateStateMetadata {
+	return &PrivateStateMetadata{
 		ID:          types.PrivateStateIdentifier(group.PrivacyGroupId),
 		Name:        group.Name,
 		Description: group.Description,
@@ -96,12 +95,12 @@ func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *core.Private
 	}
 }
 
-func strTypeToPrivateStateType(strType string) core.PrivateStateType {
+func strTypeToPrivateStateType(strType string) PrivateStateType {
 	if strType == "LEGACY" {
-		return core.Legacy
+		return Legacy
 	}
 	if strType == "PANTHEON" {
-		return core.Pantheon
+		return Pantheon
 	}
-	return core.Resident
+	return Resident
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -101,7 +102,7 @@ type testWorkerBackend struct {
 	uncleBlock *types.Block
 }
 
-func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int, psmr core.PrivateStateMetadataResolver) *testWorkerBackend {
+func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int, psmr psmr.PrivateStateMetadataResolver) *testWorkerBackend {
 	var gspec = core.Genesis{
 		Config: chainConfig,
 		Alloc:  core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
@@ -184,7 +185,7 @@ func (b *testWorkerBackend) newRandomTx(creation bool, private bool) *types.Tran
 	return tx
 }
 
-func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int, psmr core.PrivateStateMetadataResolver) (*worker, *testWorkerBackend) {
+func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int, psmr psmr.PrivateStateMetadataResolver) (*worker, *testWorkerBackend) {
 	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks, psmr)
 	backend.txPool.AddLocals(pendingTxs)
 	w := newWorker(testConfig, chainConfig, engine, backend, new(event.TypeMux), nil, false)
@@ -215,13 +216,13 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 		engine = ethash.NewFaker()
 	}
 
-	w, b := newTestWorker(t, chainConfig, engine, db, 0, &core.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, engine, db, 0, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	// This test chain imports the mined blocks.
 	db2 := rawdb.NewMemoryDatabase()
 	b.genesis.MustCommit(db2)
-	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil, &core.DefaultPrivateStateMetadataResolver{})
+	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer chain.Stop()
 
 	// Ignore empty commit here for less noise.
@@ -264,7 +265,7 @@ func TestEmptyWorkClique(t *testing.T) {
 func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var (
@@ -310,7 +311,7 @@ func TestStreamUncleBlock(t *testing.T) {
 	ethash := ethash.NewFaker()
 	defer ethash.Close()
 
-	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1, &core.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -368,7 +369,7 @@ func TestRegenerateMiningBlockClique(t *testing.T) {
 func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -428,7 +429,7 @@ func TestAdjustIntervalClique(t *testing.T) {
 func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &core.DefaultPrivateStateMetadataResolver{})
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	w.skipSealHook = func(task *task) bool {
@@ -511,19 +512,19 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 }
 
-var PSI1PSM = core.PrivateStateMetadata{
+var PSI1PSM = psmr.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
 	Description: "private state 1",
-	Type:        core.Resident,
+	Type:        psmr.Resident,
 	Addresses:   nil,
 }
 
-var PSI2PSM = core.PrivateStateMetadata{
+var PSI2PSM = psmr.PrivateStateMetadata{
 	ID:          "psi2",
 	Name:        "psi2",
 	Description: "private state 2",
-	Type:        core.Resident,
+	Type:        psmr.Resident,
 	Addresses:   nil,
 }
 
@@ -546,7 +547,7 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	defer func() { chainConfig.IsQuorum = false }()
 	defer func() { chainConfig.IsMPS = false }()
 
-	mockpsmr := core.NewMockPrivateStateMetadataResolver(mockCtrl)
+	mockpsmr := psmr.NewMockPrivateStateMetadataResolver(mockCtrl)
 
 	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, mockpsmr)
 	defer w.close()
@@ -655,7 +656,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 	chainConfig.IsMPS = false
 	defer func() { chainConfig.IsQuorum = false }()
 
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, &core.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, &psmr.DefaultPrivateStateMetadataResolver{})
 	defer w.close()
 
 	newBlock := make(chan *types.Block)

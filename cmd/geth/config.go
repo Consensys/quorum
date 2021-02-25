@@ -26,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
@@ -254,7 +253,7 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	quorumValidateMPS(ethereum)
 }
 
-func quorumInitPSMR() core.PrivateStateMetadataResolver {
+func quorumInitPSMR() psmr.PrivateStateMetadataResolver {
 	if private.P.HasFeature(engine.MultiplePrivateStates) {
 		privateStateMetadataResolver, err := psmr.NewTesseraPrivateStateMetadataResolver()
 		if err != nil {
@@ -262,7 +261,7 @@ func quorumInitPSMR() core.PrivateStateMetadataResolver {
 		}
 		return privateStateMetadataResolver
 	} else {
-		return &core.DefaultPrivateStateMetadataResolver{}
+		return &psmr.DefaultPrivateStateMetadataResolver{}
 	}
 }
 
