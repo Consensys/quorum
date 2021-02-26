@@ -6,11 +6,114 @@ package mps
 
 import (
 	context "context"
-	"github.com/ethereum/go-ethereum/core/types"
 	reflect "reflect"
 
+	common "github.com/ethereum/go-ethereum/common"
+	state "github.com/ethereum/go-ethereum/core/state"
+	types "github.com/ethereum/go-ethereum/core/types"
 	gomock "github.com/golang/mock/gomock"
 )
+
+// MockPrivateStateManager is a mock of PrivateStateManager interface.
+type MockPrivateStateManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockPrivateStateManagerMockRecorder
+}
+
+// MockPrivateStateManagerMockRecorder is the mock recorder for MockPrivateStateManager.
+type MockPrivateStateManagerMockRecorder struct {
+	mock *MockPrivateStateManager
+}
+
+// NewMockPrivateStateManager creates a new mock instance.
+func NewMockPrivateStateManager(ctrl *gomock.Controller) *MockPrivateStateManager {
+	mock := &MockPrivateStateManager{ctrl: ctrl}
+	mock.recorder = &MockPrivateStateManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPrivateStateManager) EXPECT() *MockPrivateStateManagerMockRecorder {
+	return m.recorder
+}
+
+// ResolveForManagedParty mocks base method.
+func (m *MockPrivateStateManager) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveForManagedParty", managedParty)
+	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveForManagedParty indicates an expected call of ResolveForManagedParty.
+func (mr *MockPrivateStateManagerMockRecorder) ResolveForManagedParty(managedParty interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveForManagedParty", reflect.TypeOf((*MockPrivateStateManager)(nil).ResolveForManagedParty), managedParty)
+}
+
+// ResolveForUserContext mocks base method.
+func (m *MockPrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveForUserContext", ctx)
+	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveForUserContext indicates an expected call of ResolveForUserContext.
+func (mr *MockPrivateStateManagerMockRecorder) ResolveForUserContext(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveForUserContext", reflect.TypeOf((*MockPrivateStateManager)(nil).ResolveForUserContext), ctx)
+}
+
+// PSIs mocks base method.
+func (m *MockPrivateStateManager) PSIs() []types.PrivateStateIdentifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PSIs")
+	ret0, _ := ret[0].([]types.PrivateStateIdentifier)
+	return ret0
+}
+
+// PSIs indicates an expected call of PSIs.
+func (mr *MockPrivateStateManagerMockRecorder) PSIs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PSIs", reflect.TypeOf((*MockPrivateStateManager)(nil).PSIs))
+}
+
+// NotIncludeAny mocks base method.
+func (m *MockPrivateStateManager) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{psm}
+	for _, a := range managedParties {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "NotIncludeAny", varargs...)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// NotIncludeAny indicates an expected call of NotIncludeAny.
+func (mr *MockPrivateStateManagerMockRecorder) NotIncludeAny(psm interface{}, managedParties ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{psm}, managedParties...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateManager)(nil).NotIncludeAny), varargs...)
+}
+
+// GetPrivateStateRepository mocks base method.
+func (m *MockPrivateStateManager) GetPrivateStateRepository(blockHash common.Hash) (PrivateStateRepository, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPrivateStateRepository", blockHash)
+	ret0, _ := ret[0].(PrivateStateRepository)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPrivateStateRepository indicates an expected call of GetPrivateStateRepository.
+func (mr *MockPrivateStateManagerMockRecorder) GetPrivateStateRepository(blockHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateStateRepository", reflect.TypeOf((*MockPrivateStateManager)(nil).GetPrivateStateRepository), blockHash)
+}
 
 // MockPrivateStateMetadataResolver is a mock of PrivateStateMetadataResolver interface.
 type MockPrivateStateMetadataResolver struct {
@@ -96,4 +199,141 @@ func (mr *MockPrivateStateMetadataResolverMockRecorder) NotIncludeAny(psm interf
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{psm}, managedParties...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).NotIncludeAny), varargs...)
+}
+
+// MockPrivateStateRepository is a mock of PrivateStateRepository interface.
+type MockPrivateStateRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockPrivateStateRepositoryMockRecorder
+}
+
+// MockPrivateStateRepositoryMockRecorder is the mock recorder for MockPrivateStateRepository.
+type MockPrivateStateRepositoryMockRecorder struct {
+	mock *MockPrivateStateRepository
+}
+
+// NewMockPrivateStateRepository creates a new mock instance.
+func NewMockPrivateStateRepository(ctrl *gomock.Controller) *MockPrivateStateRepository {
+	mock := &MockPrivateStateRepository{ctrl: ctrl}
+	mock.recorder = &MockPrivateStateRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPrivateStateRepository) EXPECT() *MockPrivateStateRepositoryMockRecorder {
+	return m.recorder
+}
+
+// GetPrivateState mocks base method.
+func (m *MockPrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPrivateState", psi)
+	ret0, _ := ret[0].(*state.StateDB)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPrivateState indicates an expected call of GetPrivateState.
+func (mr *MockPrivateStateRepositoryMockRecorder) GetPrivateState(psi interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateState", reflect.TypeOf((*MockPrivateStateRepository)(nil).GetPrivateState), psi)
+}
+
+// CommitAndWrite mocks base method.
+func (m *MockPrivateStateRepository) CommitAndWrite(block *types.Block) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommitAndWrite", block)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CommitAndWrite indicates an expected call of CommitAndWrite.
+func (mr *MockPrivateStateRepositoryMockRecorder) CommitAndWrite(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitAndWrite", reflect.TypeOf((*MockPrivateStateRepository)(nil).CommitAndWrite), block)
+}
+
+// Commit mocks base method.
+func (m *MockPrivateStateRepository) Commit(block *types.Block) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Commit", block)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Commit indicates an expected call of Commit.
+func (mr *MockPrivateStateRepositoryMockRecorder) Commit(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockPrivateStateRepository)(nil).Commit), block)
+}
+
+// Reset mocks base method.
+func (m *MockPrivateStateRepository) Reset() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reset")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reset indicates an expected call of Reset.
+func (mr *MockPrivateStateRepositoryMockRecorder) Reset() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockPrivateStateRepository)(nil).Reset))
+}
+
+// GetDefaultState mocks base method.
+func (m *MockPrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultState")
+	ret0, _ := ret[0].(*state.StateDB)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDefaultState indicates an expected call of GetDefaultState.
+func (mr *MockPrivateStateRepositoryMockRecorder) GetDefaultState() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultState", reflect.TypeOf((*MockPrivateStateRepository)(nil).GetDefaultState))
+}
+
+// GetDefaultStateMetadata mocks base method.
+func (m *MockPrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultStateMetadata")
+	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	return ret0
+}
+
+// GetDefaultStateMetadata indicates an expected call of GetDefaultStateMetadata.
+func (mr *MockPrivateStateRepositoryMockRecorder) GetDefaultStateMetadata() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultStateMetadata", reflect.TypeOf((*MockPrivateStateRepository)(nil).GetDefaultStateMetadata))
+}
+
+// IsMPS mocks base method.
+func (m *MockPrivateStateRepository) IsMPS() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsMPS")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsMPS indicates an expected call of IsMPS.
+func (mr *MockPrivateStateRepositoryMockRecorder) IsMPS() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsMPS", reflect.TypeOf((*MockPrivateStateRepository)(nil).IsMPS))
+}
+
+// MergeReceipts mocks base method.
+func (m *MockPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MergeReceipts", pub, priv)
+	ret0, _ := ret[0].(types.Receipts)
+	return ret0
+}
+
+// MergeReceipts indicates an expected call of MergeReceipts.
+func (mr *MockPrivateStateRepositoryMockRecorder) MergeReceipts(pub, priv interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergeReceipts", reflect.TypeOf((*MockPrivateStateRepository)(nil).MergeReceipts), pub, priv)
 }

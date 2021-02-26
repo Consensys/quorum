@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -102,7 +103,7 @@ type testWorkerBackend struct {
 	uncleBlock *types.Block
 }
 
-func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int, psmr mps.PrivateStateMetadataResolver) *testWorkerBackend {
+func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int) *testWorkerBackend {
 	var gspec = core.Genesis{
 		Config: chainConfig,
 		Alloc:  core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
@@ -122,7 +123,6 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	genesis := gspec.MustCommit(db)
 
 	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil)
-	chain.SetPSMR(psmr)
 	txpool := core.NewTxPool(testTxPoolConfig, chainConfig, chain)
 
 	// Generate a small n-block chain and an uncle block for it
@@ -186,8 +186,8 @@ func (b *testWorkerBackend) newRandomTx(creation bool, private bool) *types.Tran
 	return tx
 }
 
-func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int, psmr mps.PrivateStateMetadataResolver) (*worker, *testWorkerBackend) {
-	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks, psmr)
+func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int) (*worker, *testWorkerBackend) {
+	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks)
 	backend.txPool.AddLocals(pendingTxs)
 	w := newWorker(testConfig, chainConfig, engine, backend, new(event.TypeMux), nil, false)
 	w.setEtherbase(testBankAddress)
@@ -217,7 +217,7 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 		engine = ethash.NewFaker()
 	}
 
-	w, b := newTestWorker(t, chainConfig, engine, db, 0, &mps.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, engine, db, 0)
 	defer w.close()
 
 	// This test chain imports the mined blocks.
@@ -266,7 +266,7 @@ func TestEmptyWorkClique(t *testing.T) {
 func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &mps.DefaultPrivateStateMetadataResolver{})
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
 	defer w.close()
 
 	var (
@@ -312,7 +312,7 @@ func TestStreamUncleBlock(t *testing.T) {
 	ethash := ethash.NewFaker()
 	defer ethash.Close()
 
-	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1, &mps.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, ethashChainConfig, ethash, rawdb.NewMemoryDatabase(), 1)
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -370,7 +370,7 @@ func TestRegenerateMiningBlockClique(t *testing.T) {
 func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &mps.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
 	defer w.close()
 
 	var taskCh = make(chan struct{})
@@ -430,7 +430,7 @@ func TestAdjustIntervalClique(t *testing.T) {
 func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
 	defer engine.Close()
 
-	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0, &mps.DefaultPrivateStateMetadataResolver{})
+	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
 	defer w.close()
 
 	w.skipSealHook = func(task *task) bool {
@@ -545,13 +545,17 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	chainConfig := params.AllCliqueProtocolChanges
 	chainConfig.IsQuorum = true
 	chainConfig.IsMPS = true
+	cache := state.NewDatabase(db)
 	defer func() { chainConfig.IsQuorum = false }()
 	defer func() { chainConfig.IsMPS = false }()
 
-	mockpsmr := mps.NewMockPrivateStateMetadataResolver(mockCtrl)
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
 
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, mockpsmr)
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
 	defer w.close()
+
+	mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(chainConfig, db, cache, b.BlockChain().CurrentBlock().ParentHash())).AnyTimes()
+	b.BlockChain().SetPrivateStateManager(mockpsm)
 
 	newBlock := make(chan *types.Block)
 	listenNewBlock := func() {
@@ -583,8 +587,8 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		randomPrivateTx := b.newRandomTx(true, true)
 		mockptm.EXPECT().Receive(common.BytesToEncryptedPayloadHash(randomPrivateTx.Data())).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
-		mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
-		mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
+		mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
+		mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 		mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
 		b.txPool.AddLocal(randomPrivateTx)
@@ -597,7 +601,8 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 			}
 
 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
-			_, privDb, _ := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
+			_, privDb, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
+			assert.NoError(t, err)
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//contract should exist on both psi states and not be empty
@@ -657,7 +662,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 	chainConfig.IsMPS = false
 	defer func() { chainConfig.IsQuorum = false }()
 
-	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0, &mps.DefaultPrivateStateMetadataResolver{})
+	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
 	defer w.close()
 
 	newBlock := make(chan *types.Block)
@@ -707,7 +712,7 @@ func TestPrivateLegacyStateCreated(t *testing.T) {
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//only "private" state on legacy psm
 			_, _, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
-			assert.Error(t, err, "Only the 'private' psi is supported by the legacy private state manager")
+			assert.Error(t, err, "Only the 'private' psi is supported by the default private state manager")
 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
 			t.Fatalf("timeout")
 		}

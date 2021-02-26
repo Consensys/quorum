@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -277,7 +278,7 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 }
 
 type mockPSMR struct {
-	mps.DefaultPrivateStateMetadataResolver
+	core.DefaultPrivateStateManager
 	returns map[string][]interface{}
 }
 

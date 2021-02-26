@@ -35,7 +35,6 @@ import (
 	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -226,12 +225,11 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	}
 	// Quorum: decorate blockchain with PrivateStateMetadataResolver using Tessera
 	if config.EnableMPS {
-		r, err := mps.NewTesseraPrivateStateMetadataResolver()
+		psm, err := core.NewMultiplePrivateStateManager(eth.blockchain)
 		if err != nil {
 			return nil, err
 		}
-		log.Info("Using Tessera to resolve PrivateStateMetadata")
-		eth.blockchain.SetPSMR(r)
+		eth.blockchain.SetPrivateStateManager(psm)
 	}
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {

@@ -159,7 +159,7 @@ func (b *testBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.B
 }
 
 func (b *testBackend) PSMR() mps.PrivateStateMetadataResolver {
-	return &mps.DefaultPrivateStateMetadataResolver{}
+	return &core.DefaultPrivateStateManager{}
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.

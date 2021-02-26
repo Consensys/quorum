@@ -32,7 +32,7 @@ var (
 	testAddress = crypto.PubkeyToAddress(testKey.PublicKey)
 )
 
-func buildTestChain(n int, config *params.ChainConfig, psmr psmr.PrivateStateMetadataResolver) ([]*types.Block, map[common.Hash]*types.Block, *BlockChain) {
+func buildTestChain(n int, config *params.ChainConfig) ([]*types.Block, map[common.Hash]*types.Block, *BlockChain) {
 	testdb := rawdb.NewMemoryDatabase()
 	genesis := GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
 	blocks, _ := GenerateChain(params.QuorumMPSTestChainConfig, genesis, ethash.NewFaker(), testdb, n, func(i int, block *BlockGen) {
@@ -55,66 +55,8 @@ func buildTestChain(n int, config *params.ChainConfig, psmr psmr.PrivateStateMet
 		blockm[b.Hash()] = b
 	}
 
-	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil, psmr)
+	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil)
 	return blocks, blockm, blockchain
-}
-
-//Tests GetDefaultState, GetPrivateState, CommitAndWrite
-func TestDefaultPSMRStateCreated(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
-
-	saved := private.P
-	defer func() {
-		private.P = saved
-	}()
-	private.P = mockptm
-
-	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
-	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
-
-	blocks, blockmap, blockchain := buildTestChain(5, params.QuorumMPSTestChainConfig, &psmr.DefaultPrivateStateMetadataResolver{})
-
-	for _, block := range blocks {
-		parent := blockmap[block.ParentHash()]
-		statedb, _ := state.New(parent.Root(), blockchain.stateCache, nil)
-		psManager, _ := NewPrivateStateManager(blockchain, parent.Root())
-
-		_, privateReceipts, _, _, _ := blockchain.processor.Process(block, statedb, psManager, vm.Config{})
-
-		for _, privateReceipt := range privateReceipts {
-			expectedContractAddress := privateReceipt.ContractAddress
-
-			assert.True(t, psManager.IsMPS())
-			emptyState, _ := psManager.GetDefaultState()
-			assert.True(t, emptyState.Exist(expectedContractAddress))
-			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
-			privateState, _ := psManager.GetPrivateState(types.DefaultPrivateStateIdentifier)
-			assert.True(t, privateState.Exist(expectedContractAddress))
-			assert.NotEqual(t, privateState.GetCodeSize(expectedContractAddress), 0)
-
-		}
-		//CommitAndWrite to db
-		psManager.CommitAndWrite(block)
-
-		for _, privateReceipt := range privateReceipts {
-			expectedContractAddress := privateReceipt.ContractAddress
-			latestBlockRoot := block.Root()
-			_, privDb, _ := blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			//contract exists on default state
-			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.DefaultPrivateStateIdentifier)
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			//contract should exist on random state (delegated to emptystate) but no contract code
-			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
-			assert.True(t, privDb.Exist(expectedContractAddress))
-			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
-		}
-	}
 }
 
 func TestMultiplePSMRStateCreated(t *testing.T) {
@@ -129,39 +71,40 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	}()
 	private.P = mockptm
 
-	mockpsmr := mps.NewMockPrivateStateMetadataResolver(mockCtrl)
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 
-	mockpsmr.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
-	mockpsmr.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
+	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
+	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 
-	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig, mockpsmr)
+	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
+	blockchain.SetPrivateStateManager(mockpsm)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
-		statedb, _ := state.New(parent.Root(), blockchain.stateCache, nil)
-		psManager, _ := NewPrivateStateManager(blockchain, parent.Root())
+		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
+		privateStateRepo, _ := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
 
-		_, privateReceipts, _, _, _ := blockchain.processor.Process(block, statedb, psManager, vm.Config{})
+		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 
-			emptyState, _ := psManager.GetDefaultState()
+			emptyState, _ := privateStateRepo.GetDefaultState()
 			assert.True(t, emptyState.Exist(expectedContractAddress))
 			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
-			ps1, _ := psManager.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			ps1, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
 			assert.True(t, ps1.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps1.GetCodeSize(expectedContractAddress), 0)
-			ps2, _ := psManager.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			ps2, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
 			assert.True(t, ps2.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps2.GetCodeSize(expectedContractAddress), 0)
 
 		}
 		//CommitAndWrite to db
-		psManager.CommitAndWrite(block)
+		privateStateRepo.CommitAndWrite(block)
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress

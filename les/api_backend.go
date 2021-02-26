@@ -53,7 +53,7 @@ func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 }
 
 func (b *LesApiBackend) PSMR() mps.PrivateStateMetadataResolver {
-	return &mps.DefaultPrivateStateMetadataResolver{}
+	panic("not supported")
 }
 
 func (b *LesApiBackend) CurrentBlock() *types.Block {

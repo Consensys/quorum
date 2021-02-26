@@ -148,11 +148,11 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		mtService, mtServiceErr := NewPrivateStateManager(blockchain, block.ParentHash())
-		if mtServiceErr != nil {
-			return mtServiceErr
+		privateStateRepo, repoErr := blockchain.PrivateStateManager().GetPrivateStateRepository(block.ParentHash())
+		if repoErr != nil {
+			return repoErr
 		}
-		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, mtService, vm.Config{})
+		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err

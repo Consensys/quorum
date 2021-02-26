@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -670,7 +671,7 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // computeStateDB retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, core.PrivateStateManager, error) {
+func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, error) {
 	// If we have the state fully available, use that
 	statedb, psManager, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {

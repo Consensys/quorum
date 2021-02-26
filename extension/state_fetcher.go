@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -19,9 +18,9 @@ import (
 type ChainAccessor interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
-	StateAt(root common.Hash) (*state.StateDB, core.PrivateStateManager, error)
+	StateAt(root common.Hash) (*state.StateDB, mps.PrivateStateRepository, error)
 	StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error)
-	State() (*state.StateDB, core.PrivateStateManager, error)
+	State() (*state.StateDB, mps.PrivateStateRepository, error)
 	CurrentBlock() *types.Block
 }
 

@@ -1,37 +1,41 @@
-package core
+package mps
 
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // manages a number of state DB objects identified by their PSI (private state identifier)
-type MultiplePrivateStateManager struct {
+type MultiplePrivateStateRepository struct {
+	chainConfig *params.ChainConfig
+	db          ethdb.Database
+	// trie of private states cache
+	repoCache state.Database
+
 	// the trie of private states
 	// key - the private state identifier
 	// value - the root hash of the private state
 	trie state.Trie
 
-	bc *BlockChain // Canonical block chain
-
-	// not sure if relevant - maybe remove
-	previousBlockHash common.Hash
-
 	// managed states map
 	managedStates map[types.PrivateStateIdentifier]*ManagedState
 }
 
-func NewMultiplePrivateStateManager(bc *BlockChain, previousBlockHash common.Hash) (PrivateStateManager, error) {
-	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(bc.db, previousBlockHash)
-	tr, err := bc.psManagerCache.OpenTrie(privateStatesTrieRoot)
+func NewMultiplePrivateStateRepository(chainConfig *params.ChainConfig, db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*MultiplePrivateStateRepository, error) {
+	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, previousBlockHash)
+	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
 	}
-	return &MultiplePrivateStateManager{
+	return &MultiplePrivateStateRepository{
+		chainConfig:   chainConfig,
+		db:            db,
+		repoCache:     cache,
 		trie:          tr,
-		bc:            bc,
 		managedStates: make(map[types.PrivateStateIdentifier]*ManagedState)}, nil
 }
 
@@ -53,19 +57,19 @@ type ManagedState struct {
 // State delegate consequences:
 // * a managed state in a multiple private state environment will NOT have the same state root as the private state in
 // a standalone quorum (due to the empty contracts not being part of the actual state in the multiple private states env)
-func (psm *MultiplePrivateStateManager) GetDefaultState() (*state.StateDB, error) {
+func (psm *MultiplePrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
 	return psm.GetPrivateState(types.EmptyPrivateStateMetadata.ID)
 }
 
-func (psm *MultiplePrivateStateManager) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+func (psm *MultiplePrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
 	return types.EmptyPrivateStateMetadata
 }
 
-func (psm *MultiplePrivateStateManager) IsMPS() bool {
+func (psm *MultiplePrivateStateRepository) IsMPS() bool {
 	return true
 }
 
-func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+func (psm *MultiplePrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	managedState, found := psm.managedStates[psi]
 	if found {
 		return managedState.stateDb, nil
@@ -74,7 +78,7 @@ func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateId
 	if err != nil {
 		return nil, err
 	}
-	stateCache := state.NewDatabase(psm.bc.db)
+	stateCache := state.NewDatabase(psm.db)
 	statedb, err := state.New(common.BytesToHash(privateStatesTrieRoot), stateCache, nil)
 	if err != nil {
 		return nil, err
@@ -93,7 +97,7 @@ func (psm *MultiplePrivateStateManager) GetPrivateState(psi types.PrivateStateId
 	return statedb, nil
 }
 
-func (psm *MultiplePrivateStateManager) Reset() error {
+func (psm *MultiplePrivateStateRepository) Reset() error {
 	for psi, managedState := range psm.managedStates {
 		root, err := psm.trie.TryGet([]byte(psi))
 		if err != nil {
@@ -108,10 +112,10 @@ func (psm *MultiplePrivateStateManager) Reset() error {
 }
 
 // commitAndWrite- commits all private states, updates the trie of private states, writes to disk
-func (psm *MultiplePrivateStateManager) CommitAndWrite(block *types.Block) error {
+func (psm *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) error {
 	for psi, managedState := range psm.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(psm.bc.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(psm.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
@@ -130,20 +134,20 @@ func (psm *MultiplePrivateStateManager) CommitAndWrite(block *types.Block) error
 	if err != nil {
 		return err
 	}
-	err = rawdb.WritePrivateStatesTrieRoot(psm.bc.db, block.Root(), mtRoot)
+	err = rawdb.WritePrivateStatesTrieRoot(psm.db, block.Root(), mtRoot)
 	if err != nil {
 		return err
 	}
-	privateTriedb := psm.bc.psManagerCache.TrieDB()
+	privateTriedb := psm.repoCache.TrieDB()
 	err = privateTriedb.Commit(mtRoot, false)
 	return err
 }
 
 // commit - commits all private states, updates the trie of private states only
-func (psm *MultiplePrivateStateManager) Commit(block *types.Block) error {
+func (psm *MultiplePrivateStateRepository) Commit(block *types.Block) error {
 	for psi, managedState := range psm.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(psm.bc.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(psm.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
@@ -161,7 +165,7 @@ func (psm *MultiplePrivateStateManager) Commit(block *types.Block) error {
 	return err
 }
 
-func (psm *MultiplePrivateStateManager) MergeReceipts(pub, priv types.Receipts) types.Receipts {
+func (psm *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
 		m[receipt.TxHash] = receipt

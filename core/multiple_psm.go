@@ -1,54 +1,28 @@
-package mps
+package core
 
 import (
 	"context"
 	"encoding/base64"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type TesseraPrivateStateMetadataResolver struct {
+type MultiplePrivateStateManager struct {
+	bc                     *BlockChain
+	privateStatesTrieCache state.Database
+
 	residentGroupByKey map[string]*types.PrivateStateMetadata
 	privacyGroupById   map[types.PrivateStateIdentifier]*types.PrivateStateMetadata
 }
 
-func (t *TesseraPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
-	psm, found := t.residentGroupByKey[managedParty]
-	if !found {
-		return nil, fmt.Errorf("unable to find private state metadata for managed party %s", managedParty)
-	}
-	return psm, nil
-}
-
-func (t *TesseraPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
-	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
-	if !ok {
-		psi = types.DefaultPrivateStateIdentifier
-	}
-	psm, found := t.privacyGroupById[psi]
-	if !found {
-		return nil, fmt.Errorf("unable to find private state for context psi %s", psi)
-	}
-	return psm, nil
-}
-
-func (t *TesseraPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentifier {
-	psis := make([]types.PrivateStateIdentifier, 0, len(t.privacyGroupById))
-	for psi := range t.privacyGroupById {
-		psis = append(psis, psi)
-	}
-	return psis
-}
-
-func (t *TesseraPrivateStateMetadataResolver) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
-	return psm.NotIncludeAny(managedParties...)
-}
-
-func NewTesseraPrivateStateMetadataResolver() (PrivateStateMetadataResolver, error) {
+func NewMultiplePrivateStateManager(bc *BlockChain) (*MultiplePrivateStateManager, error) {
 	groups, err := private.P.Groups()
 	if err != nil {
 		return nil, err
@@ -82,11 +56,48 @@ func NewTesseraPrivateStateMetadataResolver() (PrivateStateMetadataResolver, err
 		}
 		convertedGroups = append(convertedGroups, group)
 	}
-
-	return &TesseraPrivateStateMetadataResolver{
-		residentGroupByKey: residentGroupByKey,
-		privacyGroupById:   privacyGroupById,
+	return &MultiplePrivateStateManager{
+		bc:                     bc,
+		privateStatesTrieCache: state.NewDatabase(bc.db),
+		residentGroupByKey:     residentGroupByKey,
+		privacyGroupById:       privacyGroupById,
 	}, nil
+}
+
+func (m *MultiplePrivateStateManager) GetPrivateStateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
+	return mps.NewMultiplePrivateStateRepository(m.bc.chainConfig, m.bc.db, m.privateStatesTrieCache, blockHash)
+}
+
+func (m *MultiplePrivateStateManager) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+	psm, found := m.residentGroupByKey[managedParty]
+	if !found {
+		return nil, fmt.Errorf("unable to find private state metadata for managed party %s", managedParty)
+	}
+	return psm, nil
+}
+
+func (m *MultiplePrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
+	if !ok {
+		psi = types.DefaultPrivateStateIdentifier
+	}
+	psm, found := m.privacyGroupById[psi]
+	if !found {
+		return nil, fmt.Errorf("unable to find private state for context psi %s", psi)
+	}
+	return psm, nil
+}
+
+func (m *MultiplePrivateStateManager) PSIs() []types.PrivateStateIdentifier {
+	psis := make([]types.PrivateStateIdentifier, 0, len(m.privacyGroupById))
+	for psi := range m.privacyGroupById {
+		psis = append(psis, psi)
+	}
+	return psis
+}
+
+func (m *MultiplePrivateStateManager) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+	return psm.NotIncludeAny(managedParties...)
 }
 
 func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *types.PrivateStateMetadata {

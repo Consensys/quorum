@@ -33,27 +33,27 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
-		statedb, _ := state.New(parent.Root(), blockchain.stateCache, nil)
-		psManager, _ := NewPrivateStateManager(blockchain, parent.Root())
+		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
+		privateStateRepo, _ := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
 
-		_, privateReceipts, _, _, _ := blockchain.processor.Process(block, statedb, psManager, vm.Config{})
+		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 
-			assert.False(t, psManager.IsMPS())
-			privateState, _ := psManager.GetDefaultState()
+			assert.False(t, privateStateRepo.IsMPS())
+			privateState, _ := privateStateRepo.GetDefaultState()
 			assert.True(t, privateState.Exist(expectedContractAddress))
 			assert.NotEqual(t, privateState.GetCodeSize(expectedContractAddress), 0)
-			defaultPrivateState, _ := psManager.GetPrivateState(types.DefaultPrivateStateIdentifier)
+			defaultPrivateState, _ := privateStateRepo.GetPrivateState(types.DefaultPrivateStateIdentifier)
 			assert.True(t, defaultPrivateState.Exist(expectedContractAddress))
 			assert.NotEqual(t, defaultPrivateState.GetCodeSize(expectedContractAddress), 0)
-			_, err := psManager.GetPrivateState(types.PrivateStateIdentifier("empty"))
-			assert.Error(t, err, "only the 'private' psi is supported by the legacy private state manager")
+			_, err := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("empty"))
+			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 
 		}
 		//CommitAndWrite to db
-		psManager.CommitAndWrite(block)
+		privateStateRepo.CommitAndWrite(block)
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
@@ -64,10 +64,10 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//legacy psm doesnt have concept of emptystate
 			_, _, err := blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
-			assert.Error(t, err, "only the 'private' psi is supported by the legacy private state manager")
+			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 			//legacy psm doesnt support other private states
 			_, _, err = blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
-			assert.Error(t, err, "only the 'private' psi is supported by the legacy private state manager")
+			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 		}
 	}
 }

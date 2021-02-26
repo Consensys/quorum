@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -96,7 +97,7 @@ type environment struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateStateManager core.PrivateStateManager
+	privateStateManager mps.PrivateStateRepository
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -108,7 +109,7 @@ type task struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateStateManager core.PrivateStateManager
+	privateStateManager mps.PrivateStateRepository
 }
 
 const (
