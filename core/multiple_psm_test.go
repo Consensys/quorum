@@ -135,6 +135,68 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	}
 }
 
+func TestMPSReset(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = mockptm
+
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
+
+	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+
+	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
+	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
+
+	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
+	cache := state.NewDatabase(blockchain.db)
+	blockchain.SetPrivateStateManager(mockpsm)
+
+	for _, block := range blocks {
+		parent := blockmap[block.ParentHash()]
+		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
+		mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.chainConfig, blockchain.db, cache, parent.Root())).AnyTimes()
+
+		privateStateRepo, err := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		assert.NoError(t, err)
+
+		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
+
+		for _, privateReceipt := range privateReceipts {
+			expectedContractAddress := privateReceipt.ContractAddress
+
+			emptyState, _ := privateStateRepo.GetDefaultState()
+			assert.True(t, emptyState.Exist(expectedContractAddress))
+			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
+			ps1, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			assert.True(t, ps1.Exist(expectedContractAddress))
+			assert.NotEqual(t, ps1.GetCodeSize(expectedContractAddress), 0)
+			ps2, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			assert.True(t, ps2.Exist(expectedContractAddress))
+			assert.NotEqual(t, ps2.GetCodeSize(expectedContractAddress), 0)
+
+			privateStateRepo.Reset()
+
+			emptyState, _ = privateStateRepo.GetDefaultState()
+			assert.False(t, emptyState.Exist(expectedContractAddress))
+			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
+			ps1, _ = privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			assert.False(t, ps1.Exist(expectedContractAddress))
+			assert.Equal(t, ps1.GetCodeSize(expectedContractAddress), 0)
+			ps2, _ = privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			assert.False(t, ps2.Exist(expectedContractAddress))
+			assert.Equal(t, ps2.GetCodeSize(expectedContractAddress), 0)
+		}
+	}
+}
+
 var PSI1PSM = types.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
