@@ -853,42 +853,34 @@ func prepareExtra(header *types.Header, vals []common.Address) ([]byte, error) {
 	return append(buf.Bytes(), payload...), nil
 }
 
-// qbftPrepareExtra returns a extra-data of the given header and validators
+// qbftPrepareExtra returns a extra-data of the validators and vanity
 func qbftPrepareExtra(header *types.Header, vals []common.Address) ([]byte, error) {
-	var buf bytes.Buffer
 	var qbftExtra *types.QbftExtra
 
-	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
+	var vanity []byte
 	if len(header.Extra) < types.IstanbulExtraVanity {
-		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
-	} else if len(header.Extra) > types.IstanbulExtraVanity {
-		// In case of extradata containing validator vote, the length of extradata will be more then vanity
-		var err error
-		qbftExtra, err = types.ExtractQbftExtra(header)
-		if err != nil {
-			return nil, err
-		}
-	}
+		// In this scenario, the header extradata only contains client specific information, hence create a new qbftExtra and set both vanity and validators
+		vanity = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
 
-	buf.Write(header.Extra[:types.IstanbulExtraVanity])
-	// If Validator vote is already present, just add the validators, if not create a new istanbulExtra struct and add validators
-	if qbftExtra != nil {
-		qbftExtra.Validators = vals
-	} else {
 		qbftExtra = &types.QbftExtra{
+			VanityData:    vanity,
 			Validators:    vals,
 			CommittedSeal: [][]byte{},
 			Round:         nil,
 			Vote:          []*types.ValidatorVote{},
 		}
+	} else {
+		// This is the case when validator voting has happened, just update the validators
+		var err error
+		qbftExtra, err = types.ExtractQbftExtra(header)
+		if err != nil {
+			log.Error("Error extracting qbftExtra", "err", err)
+			return nil, err
+		}
+		qbftExtra.Validators = vals
 	}
 
-	payload, err := rlp.EncodeToBytes(&qbftExtra)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(buf.Bytes(), payload...), nil
+	return rlp.EncodeToBytes(&qbftExtra)
 }
 
 // writeSeal writes the extra-data field of the given header with the given seals.
@@ -967,7 +959,7 @@ func writeQBFTCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 		return err
 	}
 
-	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
+	h.Extra = payload
 	return nil
 }
 
@@ -984,7 +976,7 @@ func writeRoundNumber(h *types.Header, round *big.Int) error {
 		return err
 	}
 
-	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
+	h.Extra = payload
 	return nil
 
 }
@@ -992,12 +984,13 @@ func writeRoundNumber(h *types.Header, round *big.Int) error {
 // writeValidatorVote writes the extra-data field of a block header with given validator vote information.
 func writeValidatorVote(h *types.Header, address common.Address, voteType byte) error {
 	// Add empty bytes to match the vanity
+	vanity := h.Extra
 	if len(h.Extra) < types.IstanbulExtraVanity {
-		h.Extra = append(h.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(h.Extra))...)
+		vanity = append(h.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(h.Extra))...)
 	}
-
 	vote := &types.ValidatorVote{RecipientAddress: address, VoteType: voteType}
 	ist := &types.QbftExtra{
+		VanityData:    vanity,
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},
 		Round:         nil,
@@ -1009,6 +1002,6 @@ func writeValidatorVote(h *types.Header, address common.Address, voteType byte) 
 		return err
 	}
 
-	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
+	h.Extra = payload
 	return nil
 }

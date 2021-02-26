@@ -34,7 +34,7 @@ var (
 	IstanbulExtraSeal   = 65 // Fixed number of extra-data bytes reserved for validator seal
 
 	QbftAuthVote = byte(0xFF) // Magic number to vote on adding a new validator
-    QbftDropVote = byte(0x00) // Magic number to vote on removing a validator.
+	QbftDropVote = byte(0x00) // Magic number to vote on removing a validator.
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid istanbul header extra-data")
@@ -126,6 +126,7 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 
 // QbftExtra represents header extradata for qbft protocol
 type QbftExtra struct {
+	VanityData    []byte
 	Validators    []common.Address
 	Vote          []*ValidatorVote
 	Round         *big.Int
@@ -140,6 +141,7 @@ type ValidatorVote struct {
 // EncodeRLP serializes qist into the Ethereum RLP format.
 func (qst *QbftExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
+		qst.VanityData,
 		qst.Validators,
 		qst.Vote,
 		qst.Round,
@@ -150,6 +152,7 @@ func (qst *QbftExtra) EncodeRLP(w io.Writer) error {
 // DecodeRLP implements rlp.Decoder, and load the QbftIstanbulExtra fields from a RLP stream.
 func (qst *QbftExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
+		VanityData    []byte
 		Validators    []common.Address
 		Vote          []*ValidatorVote
 		Round         *big.Int
@@ -158,7 +161,7 @@ func (qst *QbftExtra) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&qbftExtra); err != nil {
 		return err
 	}
-	qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal = qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal
+	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal = qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal
 
 	return nil
 }
@@ -188,12 +191,8 @@ func (vv *ValidatorVote) DecodeRLP(s *rlp.Stream) error {
 // error if the length of the given extra-data is less than 32 bytes or the extra-data can not
 // be decoded.
 func ExtractQbftExtra(h *Header) (*QbftExtra, error) {
-	if len(h.Extra) < IstanbulExtraVanity {
-		return nil, ErrInvalidIstanbulHeaderExtra
-	}
-
 	var qbftExtra *QbftExtra
-	err := rlp.DecodeBytes(h.Extra[IstanbulExtraVanity:], &qbftExtra)
+	err := rlp.DecodeBytes(h.Extra[:], &qbftExtra)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +209,7 @@ func QbftFilteredHeader(h *Header) *Header {
 		return nil
 	}
 
+	qbftExtra.VanityData = []byte{}
 	qbftExtra.CommittedSeal = [][]byte{}
 	qbftExtra.Round = nil
 	qbftExtra.Vote = nil
@@ -219,7 +219,7 @@ func QbftFilteredHeader(h *Header) *Header {
 		return nil
 	}
 
-	newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+	newHeader.Extra = payload
 
 	return newHeader
 }
