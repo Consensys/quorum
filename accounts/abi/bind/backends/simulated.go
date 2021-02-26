@@ -33,7 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/psmr"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -744,8 +744,8 @@ type filterBackend struct {
 	bc *core.BlockChain
 }
 
-func (fb *filterBackend) ChainDb() ethdb.Database                 { return fb.db }
-func (fb *filterBackend) PSMR() psmr.PrivateStateMetadataResolver { return fb.bc.PSMR() }
+func (fb *filterBackend) ChainDb() ethdb.Database                { return fb.db }
+func (fb *filterBackend) PSMR() mps.PrivateStateMetadataResolver { return fb.bc.PSMR() }
 
 func (fb *filterBackend) EventMux() *event.TypeMux { panic("not supported") }
 

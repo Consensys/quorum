@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/psmr"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -277,7 +277,7 @@ func Test_setManagedPartiesInvalidHash(t *testing.T) {
 }
 
 type mockPSMR struct {
-	psmr.DefaultPrivateStateMetadataResolver
+	mps.DefaultPrivateStateMetadataResolver
 	returns map[string][]interface{}
 }
 
@@ -286,14 +286,14 @@ type mockPrivateTransactionManager struct {
 	returns map[string][]interface{}
 }
 
-func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*psmr.PrivateStateMetadata, error) {
+func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*mps.PrivateStateMetadata, error) {
 	values := mpsmr.returns["ResolveForManagedParty"]
 	var (
-		r1 *psmr.PrivateStateMetadata
+		r1 *mps.PrivateStateMetadata
 		r2 error
 	)
 	if values[0] != nil {
-		r1 = values[0].(*psmr.PrivateStateMetadata)
+		r1 = values[0].(*mps.PrivateStateMetadata)
 	}
 	if values[1] != nil {
 		r2 = values[1].(error)

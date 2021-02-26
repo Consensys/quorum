@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/psmr"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -129,7 +129,7 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	}()
 	private.P = mockptm
 
-	mockpsmr := psmr.NewMockPrivateStateMetadataResolver(mockCtrl)
+	mockpsmr := mps.NewMockPrivateStateMetadataResolver(mockCtrl)
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
@@ -188,18 +188,18 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	}
 }
 
-var PSI1PSM = psmr.PrivateStateMetadata{
+var PSI1PSM = mps.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
 	Description: "private state 1",
-	Type:        psmr.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }
 
-var PSI2PSM = psmr.PrivateStateMetadata{
+var PSI2PSM = mps.PrivateStateMetadata{
 	ID:          "psi2",
 	Name:        "psi2",
 	Description: "private state 2",
-	Type:        psmr.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }

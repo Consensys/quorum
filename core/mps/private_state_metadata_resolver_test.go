@@ -1,4 +1,4 @@
-package core
+package mps
 
 import (
 	"testing"

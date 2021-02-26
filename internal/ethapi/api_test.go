@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/psmr"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -647,7 +647,7 @@ func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.S
 	panic("implement me")
 }
 
-func (sb *StubBackend) PSMR() psmr.PrivateStateMetadataResolver {
+func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
 	panic("implement me")
 }
 

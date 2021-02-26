@@ -25,8 +25,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethereum/go-ethereum/core/psmr"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,6 +35,7 @@ import (
 	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -227,7 +226,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	}
 	// Quorum: decorate blockchain with PrivateStateMetadataResolver using Tessera
 	if config.EnableMPS {
-		r, err := psmr.NewTesseraPrivateStateMetadataResolver()
+		r, err := mps.NewTesseraPrivateStateMetadataResolver()
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -12,7 +13,7 @@ type PrivateStateManager interface {
 	Commit(block *types.Block) error
 	Reset() error
 	GetDefaultState() (*state.StateDB, error)
-	GetDefaultStateMetadata() PrivateStateMetadata
+	GetDefaultStateMetadata() *mps.PrivateStateMetadata
 	IsMPS() bool
 	MergeReceipts(pub, priv types.Receipts) types.Receipts
 } // with two implementations: MultiplePrivateStateManager and LegacyPrivateStateManager

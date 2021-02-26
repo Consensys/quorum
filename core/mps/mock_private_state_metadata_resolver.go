@@ -2,7 +2,7 @@
 // Source: github.com/ethereum/go-ethereum/core (interfaces: PrivateStateMetadataResolver)
 
 // Package psmr is a generated GoMock package.
-package psmr
+package mps
 
 import (
 	context "context"

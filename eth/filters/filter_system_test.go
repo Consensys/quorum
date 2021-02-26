@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/psmr"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -158,8 +158,8 @@ func (b *testBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.B
 	return nil, nil
 }
 
-func (b *testBackend) PSMR() psmr.PrivateStateMetadataResolver {
-	return &psmr.DefaultPrivateStateMetadataResolver{}
+func (b *testBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return &mps.DefaultPrivateStateMetadataResolver{}
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.

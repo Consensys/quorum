@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -217,7 +218,7 @@ type BlockChain struct {
 
 	psManagerCache state.Database
 	isMultitenant  bool // if this blockchain supports multitenancy
-	psmr           PrivateStateMetadataResolver
+	psmr           mps.PrivateStateMetadataResolver
 }
 
 // function pointer for updating private state
@@ -230,15 +231,6 @@ func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState 
 	if bc.setPrivateState != nil {
 		bc.setPrivateState(txLogs, privateState, psi)
 	}
-}
-
-// PSMR returns the private state metadata resolver.
-func (bc *BlockChain) PSMR() PrivateStateMetadataResolver {
-	return bc.psmr
-}
-
-func (bc *BlockChain) SetPSMR(r PrivateStateMetadataResolver) {
-	bc.psmr = r
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -274,7 +266,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		badBlocks:      badBlocks,
 		psManagerCache: state.NewDatabase(db),
-		psmr:           &DefaultPrivateStateMetadataResolver{},
+		psmr:           &mps.DefaultPrivateStateMetadataResolver{},
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -411,6 +403,15 @@ func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chain
 	}
 	bc.isMultitenant = true
 	return bc, err
+}
+
+// PSMR returns the private state metadata resolver.
+func (bc *BlockChain) PSMR() mps.PrivateStateMetadataResolver {
+	return bc.psmr
+}
+
+func (bc *BlockChain) SetPSMR(r mps.PrivateStateMetadataResolver) {
+	bc.psmr = r
 }
 
 // End Quorum
