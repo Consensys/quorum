@@ -80,12 +80,16 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
+	cache := state.NewDatabase(blockchain.db)
 	blockchain.SetPrivateStateManager(mockpsm)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		privateStateRepo, _ := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.chainConfig, blockchain.db, cache, parent.Root())).AnyTimes()
+
+		privateStateRepo, err := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		assert.NoError(t, err)
 
 		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 
