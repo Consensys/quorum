@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -982,7 +983,66 @@ func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("two")) {
 		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
 	}
+}
 
+func setupEmptyStateTests() (*StateDB, *StateDB, common.Address, common.Address) {
+	db := rawdb.NewMemoryDatabase()
+	privateState, _ := New(common.Hash{}, NewDatabase(db), nil)
+	emptyState, _ := New(common.Hash{}, NewDatabase(db), nil)
+
+	//add empty account to emptyState
+	addr1 := common.Address{1}
+	emptyState.CreateAccount(addr1)
+	emptyState.SetNonce(addr1, uint64(1))
+
+	//add different account to emptyState and privateState
+	addr2 := common.Address{2}
+	emptyState.CreateAccount(addr2)
+	emptyState.SetNonce(addr2, uint64(1))
+	privateState.CreateAccount(addr2)
+	privateState.SetNonce(addr2, uint64(1))
+
+	emptyState.Commit(false)
+	privateState.Commit(false)
+
+	return emptyState, privateState, addr1, addr2
+}
+
+func TestEmptyStateNotSet(t *testing.T) {
+	emptyState, privateState, addr1, addr2 := setupEmptyStateTests()
+
+	assert.True(t, emptyState.Exist(addr1))
+	assert.True(t, emptyState.Exist(addr2))
+	assert.False(t, emptyState.Empty(addr1))
+	assert.False(t, emptyState.Empty(addr2))
+	assert.Equal(t, uint64(0x1), emptyState.GetNonce(addr1))
+	assert.Equal(t, uint64(0x1), emptyState.GetNonce(addr2))
+
+	assert.False(t, privateState.Exist(addr1))
+	assert.True(t, privateState.Exist(addr2))
+	assert.True(t, privateState.Empty(addr1))
+	assert.False(t, privateState.Empty(addr2))
+	assert.Equal(t, uint64(0x0), privateState.GetNonce(addr1))
+	assert.Equal(t, uint64(0x1), privateState.GetNonce(addr2))
+}
+
+func TestEmptyStateSet(t *testing.T) {
+	emptyState, privateState, addr1, addr2 := setupEmptyStateTests()
+	privateState.SetEmptyState(emptyState)
+
+	assert.True(t, emptyState.Exist(addr1))
+	assert.True(t, emptyState.Exist(addr2))
+	assert.False(t, emptyState.Empty(addr1))
+	assert.False(t, emptyState.Empty(addr2))
+	assert.Equal(t, uint64(0x1), emptyState.GetNonce(addr1))
+	assert.Equal(t, uint64(0x1), emptyState.GetNonce(addr2))
+
+	assert.True(t, privateState.Exist(addr1))
+	assert.True(t, privateState.Exist(addr2))
+	assert.False(t, privateState.Empty(addr1))
+	assert.False(t, privateState.Empty(addr2))
+	assert.Equal(t, uint64(0x1), privateState.GetNonce(addr1))
+	assert.Equal(t, uint64(0x1), privateState.GetNonce(addr2))
 }
 
 // End Quorum - Privacy Enhancements
