@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -168,7 +169,7 @@ func securityErrorMessage(forMsg *jsonrpcMessage, err error) *jsonrpcMessage {
 	return msg
 }
 
-// try to extract the PSI from the HTTP Header then the URL
+// extractPSI tries to extract the PSI from the HTTP Header then the URL
 // otherwise return the default value but still signal the caller
 // that user doesn't provide PSI
 func extractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
@@ -209,4 +210,32 @@ func resolvePSIProvider(ctx context.Context, endpoint string) (newCtx context.Co
 		newCtx = context.WithValue(ctx, CtxPSIProvider, f)
 	}
 	return
+}
+
+// encodePSI includes counter and PSI value in an JSON message ID.
+// i.e.: <counter> becomes "<psi>/32"
+func encodePSI(idCounterBytes []byte, psi types.PrivateStateIdentifier) json.RawMessage {
+	if len(psi) == 0 {
+		return idCounterBytes
+	}
+	newID := make([]byte, len(idCounterBytes)+len(psi)+3) // including 2 double quotes and '@'
+	newID[0], newID[len(newID)-1] = '"', '"'
+	copy(newID[1:len(psi)+1], psi)
+	copy(newID[len(psi)+1:], append([]byte("/"), idCounterBytes...))
+	return newID
+}
+
+// decodePSI extracts PSI value from an encoded JSON message ID. Return DefaultPrivateStateIdentifier
+// if not found
+// i.e.: "<counter>/<psi>" returns <psi>
+func decodePSI(id json.RawMessage) types.PrivateStateIdentifier {
+	idStr := string(id)
+	if !strings.HasPrefix(idStr, "\"") || !strings.HasSuffix(idStr, "\"") {
+		return types.DefaultPrivateStateIdentifier
+	}
+	sepIdx := strings.Index(idStr, "/")
+	if sepIdx == -1 {
+		return types.DefaultPrivateStateIdentifier
+	}
+	return types.PrivateStateIdentifier(id[1:sepIdx])
 }

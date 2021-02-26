@@ -513,19 +513,19 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 }
 
-var PSI1PSM = mps.PrivateStateMetadata{
+var PSI1PSM = types.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
 	Description: "private state 1",
-	Type:        mps.Resident,
+	Type:        types.Resident,
 	Addresses:   nil,
 }
 
-var PSI2PSM = mps.PrivateStateMetadata{
+var PSI2PSM = types.PrivateStateMetadata{
 	ID:          "psi2",
 	Name:        "psi2",
 	Description: "private state 2",
-	Type:        mps.Resident,
+	Type:        types.Resident,
 	Addresses:   nil,
 }
 

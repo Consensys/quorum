@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -274,4 +275,38 @@ func TestResolvePSIProvider_whenNoPSI(t *testing.T) {
 	actualCtx := resolvePSIProvider(context.Background(), endpoint)
 
 	testifyassert.Nil(t, actualCtx.Value(CtxPSIProvider))
+}
+
+func TestEncodePSI_whenTypical(t *testing.T) {
+	actual := encodePSI(strconv.AppendUint(nil, 32, 10), "ARBITRARY")
+
+	testifyassert.Equal(t, "\"ARBITRARY/32\"", string(actual))
+}
+
+func TestEncodePSI_whenNoPSI(t *testing.T) {
+	actual := encodePSI(strconv.AppendUint(nil, 32, 10), "")
+
+	testifyassert.Equal(t, "32", string(actual))
+}
+
+func TestDecodePSI_whenTypical(t *testing.T) {
+	input := "\"ARBITRARY/1\""
+
+	psi := decodePSI([]byte(input))
+
+	testifyassert.Equal(t, types.PrivateStateIdentifier("ARBITRARY"), psi)
+}
+
+func TestDecodePSI_whenNoPSI(t *testing.T) {
+	inputs := []string{
+		"1",
+		"\"1",
+		"1\"",
+		"\"xyz\"",
+	}
+	for _, input := range inputs {
+		psi := decodePSI([]byte(input))
+
+		testifyassert.Equal(t, types.DefaultPrivateStateIdentifier, psi, "input: %s", input)
+	}
 }

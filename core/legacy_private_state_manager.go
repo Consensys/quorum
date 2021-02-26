@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -41,8 +40,8 @@ func (psm *LegacyPrivateStateManager) GetDefaultState() (*state.StateDB, error) 
 	return psm.stateDB, nil
 }
 
-func (psm *LegacyPrivateStateManager) GetDefaultStateMetadata() *mps.PrivateStateMetadata {
-	return mps.DefaultPrivateStateMetadata
+func (psm *LegacyPrivateStateManager) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+	return types.DefaultPrivateStateMetadata
 }
 
 func (psm *LegacyPrivateStateManager) IsMPS() bool {

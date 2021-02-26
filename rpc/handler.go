@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -334,7 +333,7 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 	// try to extract the PSI from the request ID if it is not already there in the context.
 	// this is mainly to serve IPC and InProc transport
 	if cp.ctx.Value(CtxPrivateStateIdentifier) == nil {
-		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, types.DecodePSI(msg.ID))
+		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, decodePSI(msg.ID))
 	}
 
 	if msg.isSubscribe() {

@@ -249,7 +249,7 @@ func (c *Client) nextID() json.RawMessage {
 				log.Warn("Generate regular ID without PSI", "err", err)
 				return idBytes
 			}
-			idBytes = types.EncodePSI(idBytes, psi)
+			idBytes = encodePSI(idBytes, psi)
 		}
 	}
 	return idBytes

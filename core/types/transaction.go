@@ -587,4 +587,10 @@ func (tx *Transaction) SetPrivate() {
 	}
 }
 
+// PrivacyMetadata encapsulates privacy information to be attached
+// to a transaction being processed
+type PrivacyMetadata struct {
+	PrivacyFlag engine.PrivacyFlagType
+}
+
 // End Quorum
