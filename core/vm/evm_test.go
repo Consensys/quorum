@@ -30,7 +30,7 @@ func TestAffectedMode_Update_whenTypical(t *testing.T) {
 	}
 }
 
-func TestCall_shouldReturnErrorNotAuthorized_whenNoCodeAndSupportsMultitenancy(t *testing.T) {
+func TestCall_NoContractCodeAndIsMultitenancy_ErrorNotAuthorized(t *testing.T) {
 	address := common.BytesToAddress([]byte("contract"))
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
