@@ -63,8 +63,6 @@ func (n *proofList) Delete(key []byte) error {
 // * Contracts
 // * Accounts
 type StateDB struct {
-	emptyStateDB *StateDB
-
 	db   Database
 	trie Trie
 
@@ -117,6 +115,16 @@ type StateDB struct {
 	SnapshotAccountReads time.Duration
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
+
+	// Quorum
+	//
+	// The empty state is the private state where all private transactions are executed "as if" the private state is not a party.
+	// ALL private transactions are being applied to this state (with empty private transaction payload). It allows the public
+	// state to progress as usual (increasing the public state nonce when transactions are sent/contracts are created).
+	// The empty state also allows us not to execute the non party transactions for each of the managed private states.
+	//
+	// emptyStateDB in the empty state is nil
+	emptyStateDB *StateDB
 }
 
 // New creates a new state from a given trie.

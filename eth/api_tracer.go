@@ -159,7 +159,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 		}
 	}
 	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	statedb, mtService, err := api.eth.blockchain.StateAt(start.Root())
+	statedb, privateStateRepo, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -172,7 +172,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-			statedb, mtService, err = api.eth.blockchain.StateAt(start.Root())
+			statedb, privateStateRepo, err = api.eth.blockchain.StateAt(start.Root())
 			if err == nil {
 				break
 			}
@@ -286,7 +286,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-				privateState, _ := mtService.GetPrivateState(psm.ID)
+				privateState, _ := privateStateRepo.GetPrivateState(psm.ID)
 				select {
 				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
@@ -295,7 +295,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				traced += uint64(len(txs))
 			}
 			// Generate the next state snapshot fast without tracing
-			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, mtService, vm.Config{})
+			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 			if err != nil {
 				failed = err
 				break
@@ -311,12 +311,12 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				break
 			}
 
-			err = mtService.Commit(block)
+			err = privateStateRepo.Commit(block)
 			if err != nil {
 				failed = err
 				break
 			}
-			if err := mtService.Reset(); err != nil {
+			if err := privateStateRepo.Reset(); err != nil {
 				failed = err
 				break
 			}
@@ -471,9 +471,9 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
 	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
+	privateStateDb, _ := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -573,9 +573,9 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
 	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	privateStateDb, _ := mtService.GetPrivateState(psm.ID)
+	privateStateDb, _ := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -673,9 +673,9 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // attempted to be reexecuted to generate the desired state.
 func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, error) {
 	// If we have the state fully available, use that
-	statedb, psManager, err := api.eth.blockchain.StateAt(block.Root())
+	statedb, privateStateRepo, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
-		return statedb, psManager, nil
+		return statedb, privateStateRepo, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
@@ -686,7 +686,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block == nil {
 			break
 		}
-		statedb, psManager, err = api.eth.blockchain.StateAt(block.Root())
+		statedb, privateStateRepo, err = api.eth.blockchain.StateAt(block.Root())
 		if err == nil {
 			break
 		}
@@ -715,7 +715,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block = api.eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
 			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, psManager, vm.Config{})
+		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
@@ -727,11 +727,11 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if err := statedb.Reset(root); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
-		err = psManager.Commit(block)
+		err = privateStateRepo.Commit(block)
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := psManager.Reset(); err != nil {
+		if err := privateStateRepo.Reset(); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		database.TrieDB().Reference(root, common.Hash{})
@@ -742,7 +742,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	}
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
-	return statedb, psManager, nil
+	return statedb, privateStateRepo, nil
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM
@@ -853,12 +853,12 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 	if parent == nil {
 		return nil, vm.Context{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
-	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}
 	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	privateStateDb, err := mtService.GetPrivateState(psm.ID)
+	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// PrivateStateManager interface separates
 type PrivateStateManager interface {
 	PrivateStateMetadataResolver
 	GetPrivateStateRepository(blockHash common.Hash) (PrivateStateRepository, error)

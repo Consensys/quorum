@@ -12,7 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// manages a number of state DB objects identified by their PSI (private state identifier)
+// DefaultPrivateStateRepository acts as the single private state in the original
+// Quorum design.
 type DefaultPrivateStateRepository struct {
 	chainConfig *params.ChainConfig
 	db          ethdb.Database
@@ -43,52 +44,52 @@ func NewDefaultPrivateStateRepository(chainConfig *params.ChainConfig, db ethdb.
 	}, nil
 }
 
-func (psm *DefaultPrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
-	return psm.stateDB, nil
+func (dpsr *DefaultPrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
+	return dpsr.stateDB, nil
 }
 
-func (psm *DefaultPrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+func (dpsr *DefaultPrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
 	return types.DefaultPrivateStateMetadata
 }
 
-func (psm *DefaultPrivateStateRepository) IsMPS() bool {
+func (dpsr *DefaultPrivateStateRepository) IsMPS() bool {
 	return false
 }
 
-func (psm *DefaultPrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+func (dpsr *DefaultPrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	if psi != types.DefaultPrivateStateIdentifier {
 		return nil, fmt.Errorf("only the 'private' psi is supported by the default private state manager")
 	}
-	return psm.stateDB, nil
+	return dpsr.stateDB, nil
 }
 
-func (psm *DefaultPrivateStateRepository) Reset() error {
+func (dpsr *DefaultPrivateStateRepository) Reset() error {
 	// TODO - see if we need to  store the original root
-	return psm.stateDB.Reset(psm.root)
+	return dpsr.stateDB.Reset(dpsr.root)
 }
 
-// commitAndWrite- commits all private states, updates the trie of private states, writes to disk
-func (psm *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) error {
-	privateRoot, err := psm.stateDB.Commit(psm.chainConfig.IsEIP158(block.Number()))
+// commitAndWrite- commits all private states, updates the state trie and writes to disk
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) error {
+	privateRoot, err := dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
 		return err
 	}
 
-	if err := rawdb.WritePrivateStateRoot(psm.db, block.Root(), privateRoot); err != nil {
+	if err := rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot); err != nil {
 		log.Error("Failed writing private state root", "err", err)
 		return err
 	}
-	return psm.stateCache.TrieDB().Commit(privateRoot, false)
+	return dpsr.stateCache.TrieDB().Commit(privateRoot, false)
 }
 
 // commit - commits all private states, updates the trie of private states only
-func (psm *DefaultPrivateStateRepository) Commit(block *types.Block) error {
+func (dpsr *DefaultPrivateStateRepository) Commit(block *types.Block) error {
 	var err error
-	psm.root, err = psm.stateDB.Commit(psm.chainConfig.IsEIP158(block.Number()))
+	dpsr.root, err = dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
 	return err
 }
 
-func (psm *DefaultPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
+func (dpsr *DefaultPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
 		m[receipt.TxHash] = receipt

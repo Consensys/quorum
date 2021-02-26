@@ -76,7 +76,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 		MTVersions := make(map[types.PrivateStateIdentifier]*types.Receipt)
 		privateLogs := make([]*types.Log, 0)
 
-		if tx.IsPrivate() && psManager.IsMPS() {
+		if tx.IsPrivate() && privateStateRepo.IsMPS() {
 			_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 			// it may happen that two of the managed parties belong to the same private state
 			var appliedOnPrivateState = make(map[types.PrivateStateIdentifier]struct{})
@@ -86,7 +86,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 				if _, found := appliedOnPrivateState[psm.ID]; found {
 					continue
 				}
-				mtPrivateState, err := psManager.GetPrivateState(psm.ID)
+				mtPrivateState, err := privateStateRepo.GetPrivateState(psm.ID)
 				if err != nil {
 					return nil, nil, nil, 0, err
 				}
@@ -113,7 +113,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 		}
 
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		privateState, _ := psManager.GetDefaultState()
+		privateState, _ := privateStateRepo.GetDefaultState()
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
 		// TODO - Review carefully and see if the emptyState optimisation is OK. The alternative is to execute every
@@ -121,7 +121,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 		//
 		// We have to reverse the order of executing transactions (empty state must be last or we get contract address
 		// collisions from the empty state)
-		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg, psManager.IsMPS())
+		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg, privateStateRepo.IsMPS())
 
 		if err != nil {
 			return nil, nil, nil, 0, err
@@ -133,7 +133,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState, psManager.GetDefaultStateMetadata().ID)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState, privateStateRepo.GetDefaultStateMetadata().ID)
 			if len(MTVersions) > 0 {
 				privateReceipt.MTVersions = MTVersions
 			}

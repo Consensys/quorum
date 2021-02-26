@@ -216,7 +216,8 @@ type BlockChain struct {
 	terminateInsert func(common.Hash, uint64) bool                                   // Testing hook used to terminate ancient receipt chain insertion.
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
-	isMultitenant       bool // if this blockchain supports multitenancy
+	isMultitenant bool // if this blockchain supports multitenancy
+	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
 }
 
@@ -698,10 +699,14 @@ func (bc *BlockChain) State() (*state.StateDB, mps.PrivateStateRepository, error
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
+// StatePSI returns a new mutable public state and a mutable private state for given PSI,
+// based on the current HEAD block.
 func (bc *BlockChain) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
 	return bc.StateAtPSI(bc.CurrentBlock().Root(), psi)
 }
 
+// StatePSI returns a new mutable public state and a mutable private state for the given PSI,
+// based on a particular point in time.
 func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
 	publicStateDb, privateStateRepo, err := bc.StateAt(root)
 	if err != nil {
@@ -716,7 +721,9 @@ func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentif
 	return publicStateDb, privateStateDb, nil
 }
 
-// StateAt returns a new mutable state based on a particular point in time.
+// StateAt returns a new mutable public state and a new mutable private state repo
+// based on a particular point in time. The returned private state repo can be used
+// to obtain a mutable private state for a given PSI
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, mps.PrivateStateRepository, error) {
 	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
 	if publicStateDbErr != nil {
