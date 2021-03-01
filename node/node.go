@@ -17,6 +17,8 @@
 package node
 
 import (
+	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,6 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -58,6 +62,12 @@ type Node struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	databases map[*closeTrackingDB]struct{} // All open databases
+
+	// Quorum
+	isHttps          bool
+	isWss          bool
+	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
+	// End Quorum
 }
 
 const (
@@ -247,6 +257,21 @@ func (n *Node) doClose(errs []error) error {
 	}
 }
 
+// TODO ricadolyn: missing from old Start()
+/**
+
+n.serverConfig.EnableNodePermission = n.config.EnableNodePermission
+	n.serverConfig.DataDir = n.config.DataDir
+
+
+	// Retrieve PluginManager service if configured
+	if pm, hasPluginManager := services[reflect.TypeOf(&plugin.PluginManager{})]; hasPluginManager {
+		n.pluginManager = pm.(*plugin.PluginManager)
+	} else {
+		n.pluginManager = plugin.NewEmptyPluginManager()
+	}
+ */
+
 // startNetworking starts all network endpoints.
 func (n *Node) startNetworking() error {
 	n.log.Info("Starting peer-to-peer node", "instance", n.server.Name)
@@ -352,6 +377,8 @@ func (n *Node) startRPC() error {
 		}
 	}
 
+
+
 	// Configure WebSocket.
 	if n.config.WSHost != "" {
 		server := n.wsServerForPort(n.config.WSPort)
@@ -371,6 +398,20 @@ func (n *Node) startRPC() error {
 		return err
 	}
 	return n.ws.start()
+}
+
+func (n *Node) httpScheme() string {
+	if n.isHttps {
+		return "https"
+	}
+	return "http"
+}
+
+func (n *Node) wsScheme() string {
+	if n.isWss {
+		return "wss"
+	}
+	return "ws"
 }
 
 func (n *Node) wsServerForPort(port int) *httpServer {
@@ -394,7 +435,7 @@ func (n *Node) startInProc() error {
 			return err
 		}
 	}
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
@@ -622,4 +663,29 @@ func (n *Node) closeDatabases() (errors []error) {
 		}
 	}
 	return errors
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
+}
+
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) PluginManager() *plugin.PluginManager {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return n.pluginManager
 }

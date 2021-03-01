@@ -39,6 +39,9 @@ var (
 	ErrGasUintOverflow          = errors.New("gas uint64 overflow")
 	ErrInvalidRetsub            = errors.New("invalid retsub")
 	ErrReturnStackExceeded      = errors.New("return stack limit reached")
+
+	ErrReadOnlyValueTransfer   = errors.New("VM in read-only mode. Value transfer prohibited.")
+	ErrNoCompatibleInterpreter = errors.New("no compatible interpreter")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

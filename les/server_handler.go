@@ -481,7 +481,8 @@ func (h *serverHandler) handleMsg(p *clientPeer, wg *sync.WaitGroup) error {
 						p.bumpInvalid()
 						continue
 					}
-					triedb := h.blockchain.StateCache().TrieDB()
+					statedb, _ := h.blockchain.StateCache()
+					triedb := statedb.TrieDB()
 
 					account, err := h.getAccount(triedb, header.Root, common.BytesToHash(request.AccKey))
 					if err != nil {
@@ -627,7 +628,7 @@ func (h *serverHandler) handleMsg(p *clientPeer, wg *sync.WaitGroup) error {
 						continue
 					}
 					// Open the account or storage trie for the request
-					statedb := h.blockchain.StateCache()
+					statedb, _ := h.blockchain.StateCache()
 
 					switch len(request.AccKey) {
 					case 0:

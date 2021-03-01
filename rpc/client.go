@@ -574,6 +574,7 @@ func (c *Client) dispatch(codec ServerCodec) {
 			conn.handler.log.Debug("RPC connection read error", "err", err)
 			conn.close(err, lastOp)
 			reading = false
+			c.writeConn = nil
 
 		// Reconnect:
 		case newcodec := <-c.reconnected:
@@ -641,4 +642,19 @@ func (c *Client) read(codec ServerCodec) {
 		}
 		c.readOp <- readOp{msgs, batch}
 	}
+}
+
+// Quorum
+//
+// Secure HTTP requests with authorization header
+// Do nothing if transport is not HTTP
+func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) (*Client, error) {
+	if !c.isHTTP {
+		return c, nil
+	}
+	// usually c.isHTTP check is sufficient, the below enforces the defensive check
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.credentialsProvider = providerFunc
+	}
+	return c, nil
 }

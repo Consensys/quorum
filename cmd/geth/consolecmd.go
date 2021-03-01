@@ -17,7 +17,13 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -26,13 +32,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"gopkg.in/urfave/cli.v1"
 )
 
 var (
-	consoleFlags = []cli.Flag{utils.JSpathFlag, utils.ExecFlag, utils.PreloadJSFlag}
+	consoleFlags   = []cli.Flag{utils.JSpathFlag, utils.ExecFlag, utils.PreloadJSFlag}
+	rpcClientFlags = []cli.Flag{utils.RPCClientToken, utils.RPCClientTLSCert, utils.RPCClientTLSCaCert, utils.RPCClientTLSCipherSuites, utils.RPCClientTLSInsecureSkipVerify}
 
 	consoleCommand = cli.Command{
 		Action:   utils.MigrateFlags(localConsole),
@@ -51,7 +60,7 @@ See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
 		Name:      "attach",
 		Usage:     "Start an interactive JavaScript environment (connect to node)",
 		ArgsUsage: "[endpoint]",
-		Flags:     append(consoleFlags, utils.DataDirFlag),
+		Flags:     append(append(consoleFlags, utils.DataDirFlag), rpcClientFlags...),
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The Geth console is an interactive shell for the JavaScript runtime environment
@@ -72,6 +81,74 @@ The JavaScript VM exposes a node admin interface as well as the Ðapp
 JavaScript API. See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console`,
 	}
 )
+
+// Quorum
+//
+// read tls client configuration from command line arguments
+//
+// only for HTTPS or WSS
+func readTLSClientConfig(endpoint string, ctx *cli.Context) (*tls.Config, bool, error) {
+	if !strings.HasPrefix(endpoint, "https://") && !strings.HasPrefix(endpoint, "wss://") {
+		return nil, false, nil
+	}
+	hasCustomTls := false
+	insecureSkipVerify := ctx.Bool(utils.RPCClientTLSInsecureSkipVerify.Name)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+	var certFile, caFile string
+	if !insecureSkipVerify {
+		var certPem, caPem []byte
+		certFile, caFile = ctx.String(utils.RPCClientTLSCert.Name), ctx.String(utils.RPCClientTLSCaCert.Name)
+		var err error
+		if certFile != "" {
+			if certPem, err = ioutil.ReadFile(certFile); err != nil {
+				return nil, true, err
+			}
+		}
+		if caFile != "" {
+			if caPem, err = ioutil.ReadFile(caFile); err != nil {
+				return nil, true, err
+			}
+		}
+		if len(certPem) != 0 || len(caPem) != 0 {
+			certPool, err := x509.SystemCertPool()
+			if err != nil {
+				certPool = x509.NewCertPool()
+			}
+			if len(certPem) != 0 {
+				certPool.AppendCertsFromPEM(certPem)
+			}
+			if len(caPem) != 0 {
+				certPool.AppendCertsFromPEM(caPem)
+			}
+			tlsConfig.RootCAs = certPool
+			hasCustomTls = true
+		}
+	} else {
+		hasCustomTls = true
+	}
+	cipherSuitesInput := ctx.String(utils.RPCClientTLSCipherSuites.Name)
+	cipherSuitesStrings := strings.FieldsFunc(cipherSuitesInput, func(r rune) bool {
+		return r == ','
+	})
+	if len(cipherSuitesStrings) > 0 {
+		cipherSuiteList := make(security.CipherSuiteList, len(cipherSuitesStrings))
+		for i, s := range cipherSuitesStrings {
+			cipherSuiteList[i] = security.CipherSuite(strings.TrimSpace(s))
+		}
+		cipherSuites, err := cipherSuiteList.ToUint16Array()
+		if err != nil {
+			return nil, true, err
+		}
+		tlsConfig.CipherSuites = cipherSuites
+		hasCustomTls = true
+	}
+	if !hasCustomTls {
+		return nil, false, nil
+	}
+	return tlsConfig, hasCustomTls, nil
+}
 
 // localConsole starts a new geth node, attaching a JavaScript console to it at the
 // same time.
@@ -142,7 +219,7 @@ func remoteConsole(ctx *cli.Context) error {
 		}
 		endpoint = fmt.Sprintf("%s/geth.ipc", path)
 	}
-	client, err := dialRPC(endpoint)
+	client, err := dialRPC(endpoint, ctx)
 	if err != nil {
 		utils.Fatalf("Unable to attach to remote geth: %v", err)
 	}
@@ -153,20 +230,20 @@ func remoteConsole(ctx *cli.Context) error {
 		Preload: utils.MakeConsolePreloads(ctx),
 	}
 
-	console, err := console.New(config)
+	consl, err := console.New(config)
 	if err != nil {
 		utils.Fatalf("Failed to start the JavaScript console: %v", err)
 	}
-	defer console.Stop(false)
+	defer consl.Stop(false)
 
 	if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
-		console.Evaluate(script)
+		consl.Evaluate(script)
 		return nil
 	}
 
 	// Otherwise print the welcome screen and enter interactive mode
-	console.Welcome()
-	console.Interactive()
+	consl.Welcome()
+	consl.Interactive()
 
 	return nil
 }
@@ -174,7 +251,11 @@ func remoteConsole(ctx *cli.Context) error {
 // dialRPC returns a RPC client which connects to the given endpoint.
 // The check for empty endpoint implements the defaulting logic
 // for "geth attach" and "geth monitor" with no argument.
-func dialRPC(endpoint string) (*rpc.Client, error) {
+//
+// Quorum: passing the cli context to build security-aware client:
+// 1. Custom TLS configuration
+// 2. Access Token awareness via rpc.HttpCredentialsProviderFunc
+func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 	if endpoint == "" {
 		endpoint = node.DefaultIPCEndpoint(clientIdentifier)
 	} else if strings.HasPrefix(endpoint, "rpc:") || strings.HasPrefix(endpoint, "ipc:") {
@@ -182,7 +263,47 @@ func dialRPC(endpoint string) (*rpc.Client, error) {
 		// these prefixes.
 		endpoint = endpoint[4:]
 	}
-	return rpc.Dial(endpoint)
+	var (
+		client  *rpc.Client
+		err     error
+		dialCtx = context.Background()
+	)
+	tlsConfig, hasCustomTls, tlsReadErr := readTLSClientConfig(endpoint, ctx)
+	if tlsReadErr != nil {
+		return nil, tlsReadErr
+	}
+	if token := ctx.String(utils.RPCClientToken.Name); token != "" {
+		var f rpc.HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+			return token, nil
+		}
+		// it's important that f MUST BE OF TYPE rpc.HttpCredentialsProviderFunc
+		dialCtx = context.WithValue(dialCtx, rpc.CtxCredentialsProvider, f)
+	}
+	if hasCustomTls {
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		switch u.Scheme {
+		case "https":
+			customHttpClient := &http.Client{
+				Transport: http.DefaultTransport,
+			}
+			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
+			client, _ = rpc.DialHTTPWithClient(endpoint, customHttpClient)
+		case "wss":
+			client, _ = rpc.DialWebsocketWithCustomTLS(dialCtx, endpoint, "", tlsConfig)
+		default:
+			log.Warn("unsupported scheme for custom TLS which is only for HTTPS/WSS", "scheme", u.Scheme)
+			client, _ = rpc.DialContext(dialCtx, endpoint)
+		}
+	} else {
+		client, err = rpc.DialContext(dialCtx, endpoint)
+	}
+	if f, ok := dialCtx.Value(rpc.CtxCredentialsProvider).(rpc.HttpCredentialsProviderFunc); ok && err == nil {
+		client, err = client.WithHTTPCredentials(f)
+	}
+	return client, err
 }
 
 // ephemeralConsole starts a new geth node, attaches an ephemeral JavaScript

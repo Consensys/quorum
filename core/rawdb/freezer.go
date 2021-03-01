@@ -131,6 +131,7 @@ func newFreezer(datadir string, namespace string) (*freezer, error) {
 // Close terminates the chain freezer, unmapping all the data files.
 func (f *freezer) Close() error {
 	var errs []error
+	// TODO ricardolyn: validate unit tests that was checking it was closed only once. errors.New("freezer DB process already stopped") was removed
 	f.closeOnce.Do(func() {
 		f.quit <- struct{}{}
 		for _, table := range f.tables {
@@ -291,12 +292,12 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			backoff = true
 			continue
 
-		case *number < params.FullImmutabilityThreshold:
-			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.FullImmutabilityThreshold)
+		case *number < uint64(params.GetImmutabilityThreshold()):
+			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.GetImmutabilityThreshold())
 			backoff = true
 			continue
 
-		case *number-params.FullImmutabilityThreshold <= f.frozen:
+		case *number-uint64(params.GetImmutabilityThreshold()) <= f.frozen:
 			log.Debug("Ancient blocks frozen already", "number", *number, "hash", hash, "frozen", f.frozen)
 			backoff = true
 			continue
@@ -308,7 +309,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		// Seems we have data ready to be frozen, process in usable batches
-		limit := *number - params.FullImmutabilityThreshold
+		limit := *number - uint64(params.GetImmutabilityThreshold())
 		if limit-f.frozen > freezerBatchLimit {
 			limit = f.frozen + freezerBatchLimit
 		}
