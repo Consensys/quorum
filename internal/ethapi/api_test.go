@@ -2,6 +2,7 @@ package ethapi
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/consensus"
 	"math/big"
 	"os"
 	"testing"
@@ -448,6 +449,14 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 type StubBackend struct {
 	getEVMCalled                    bool
 	mockAccountExtraDataStateGetter *vm.MockAccountExtraDataStateGetter
+}
+
+func (sb *StubBackend) CurrentHeader() *types.Header {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Engine() consensus.Engine {
+	panic("implement me")
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
