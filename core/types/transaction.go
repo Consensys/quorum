@@ -547,18 +547,12 @@ func (m Message) IsPrivate() bool {
 	return m.isPrivate
 }
 
-func (m Message) CloneWithEmptyData() Message {
-	return Message{
-		to:         m.to,
-		from:       m.from,
-		nonce:      m.nonce,
-		amount:     m.amount,
-		gasLimit:   m.gasLimit,
-		gasPrice:   m.gasPrice,
-		data:       common.EncryptedPayloadHash{}.Bytes(),
-		checkNonce: m.checkNonce,
-		isPrivate:  m.isPrivate,
+// overriding msg.data so that when tesseera.receive is invoked we get nothing back
+func (m Message) WithEmptyPrivateData(b bool) Message {
+	if b {
+		m.data = common.EncryptedPayloadHash{}.Bytes()
 	}
+	return m
 }
 
 func (tx *Transaction) IsPrivate() bool {

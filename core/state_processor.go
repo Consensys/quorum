@@ -56,7 +56,13 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psManager mps.PrivateStateRepository, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
+//
+// Quorum: Private transactions are handled for the following:
+//
+// 1. On original single private state (SPS) design
+// 2. On multiple private states (MPS) design
+// 3. Contract extension callback (p.bc.CheckAndSetPrivateState)
+func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
 
 	var (
 		receipts types.Receipts
@@ -73,56 +79,25 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		MTVersions := make(map[types.PrivateStateIdentifier]*types.Receipt)
-		privateLogs := make([]*types.Log, 0)
-
-		if tx.IsPrivate() && privateStateRepo.IsMPS() {
-			_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
-			// it may happen that two of the managed parties belong to the same private state
-			var appliedOnPrivateState = make(map[types.PrivateStateIdentifier]struct{})
-			for _, managedParty := range managedParties {
-				psm, _ := p.bc.PSMR().ResolveForManagedParty(managedParty)
-				// if we already handled this private state skip it
-				if _, found := appliedOnPrivateState[psm.ID]; found {
-					continue
-				}
-				mtPrivateState, err := privateStateRepo.GetPrivateState(psm.ID)
-				if err != nil {
-					return nil, nil, nil, 0, err
-				}
-				mtPrivateState.Prepare(tx.Hash(), block.Hash(), i)
-				publicStateDBCopy := statedb.Copy()
-				publicStateDBCopy.Prepare(tx.Hash(), block.Hash(), i)
-				// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-				_, mtPrivateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, publicStateDBCopy, mtPrivateState, header, tx, usedGas, cfg, false)
-				if err != nil {
-					return nil, nil, nil, 0, err
-				}
-				// set the PSI for each log (so that the filter system knows for what private state they are)
-				for _, log := range mtPrivateReceipt.Logs {
-					log.PSI = psm.ID
-				}
-				MTVersions[psm.ID] = mtPrivateReceipt
-
-				privateLogs = append(privateLogs, mtPrivateReceipt.Logs...)
-
-				p.bc.CheckAndSetPrivateState(mtPrivateReceipt.Logs, mtPrivateState, psm.ID)
-
-				appliedOnPrivateState[psm.ID] = struct{}{}
-			}
+		mpsReceipt, err := p.handleMPS(i, tx, block, gp, usedGas, cfg, statedb, privateStateRepo)
+		if err != nil {
+			return nil, nil, nil, 0, err
 		}
-
-		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		privateState, _ := privateStateRepo.GetDefaultState()
-		privateState.Prepare(tx.Hash(), block.Hash(), i)
-
-		// TODO - Review carefully and see if the emptyState optimisation is OK. The alternative is to execute every
-		// private transaction for every managed private state - with the appropriate value for forceNonParty.
+		// handling transaction in 2 scenarios:
+		// 1. For MPS, the target private state being applied would be the EmptyPrivateState.
+		//    This must be last to avoid contract address collisions.
+		// 2. For orignal SPS design, the target private state is the single private state
 		//
-		// We have to reverse the order of executing transactions (empty state must be last or we get contract address
-		// collisions from the empty state)
-		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg, privateStateRepo.IsMPS())
+		// in both cases, privateStateRepo is responsible to return the appropriate
+		// private state for execution and a bool flag to enable the privacy execution
+		privateStateDB, err := privateStateRepo.GetDefaultState()
+		if err != nil {
+			return nil, nil, nil, 0, err
+		}
+		privateStateDB.Prepare(tx.Hash(), block.Hash(), i)
+		statedb.Prepare(tx.Hash(), block.Hash(), i)
 
+		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, cfg, privateStateRepo.IsMPS())
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -133,17 +108,15 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, psM
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState, privateStateRepo.GetDefaultStateMetadata().ID)
-			if len(MTVersions) > 0 {
-				privateReceipt.MTVersions = MTVersions
-			}
 			privateReceipts = append(privateReceipts, privateReceipt)
-			if len(privateReceipt.Logs) > 0 {
-				privateLogs = append(privateReceipt.Logs, privateLogs...)
+			allLogs = append(allLogs, privateReceipt.Logs...)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.GetDefaultStateMetadata().ID)
+			// handling the auxiliary receipt from MPS execution
+			if mpsReceipt != nil {
+				privateReceipt.MTVersions = mpsReceipt.MTVersions
+				allLogs = append(allLogs, mpsReceipt.Logs...)
 			}
-			allLogs = append(allLogs, privateLogs...)
 		}
-
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
@@ -160,15 +133,87 @@ func PrivateStateDBForTxn(isQuorum, isPrivate bool, stateDb, privateStateDB *sta
 	return privateStateDB
 }
 
+// handling MPS scenario for a private transaction
+//
+// handleMPS returns the auxiliary receipt and not the standard receipt
+func (p *StateProcessor) handleMPS(ti int, tx *types.Transaction, block *types.Block, gp *GasPool, usedGas *uint64, cfg vm.Config, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository) (mpsReceipt *types.Receipt, err error) {
+	if tx.IsPrivate() && privateStateRepo.IsMPS() {
+		publicStateDBFactory := func() *state.StateDB {
+			db := statedb.Copy()
+			db.Prepare(tx.Hash(), block.Hash(), ti)
+			return db
+		}
+		privateStateDBFactory := func(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+			db, err := privateStateRepo.GetPrivateState(psi)
+			if err != nil {
+				return nil, err
+			}
+			db.Prepare(tx.Hash(), block.Hash(), ti)
+			return db, nil
+		}
+		mpsReceipt, err = applyTransactionOnMPS(p.config, p.bc, nil, gp, publicStateDBFactory, privateStateDBFactory, block.Header(), tx, usedGas, cfg)
+	}
+	return
+}
+
+// applyTransactionOnMPS runs the transaction on multiple private states which
+// the transaction is designated to.
+//
+// For each designated private state, the transaction is ran only ONCE.
+//
+// applyTransactionOnMPS returns the auxiliary receipt which is mainly used to capture
+// multiple private receipts and logs array. Logs are decorated with types.PrivateStateIdentifier
+func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool,
+	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
+	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+	mpsReceipt := &types.Receipt{
+		MTVersions: make(map[types.PrivateStateIdentifier]*types.Receipt),
+		Logs:       make([]*types.Log, 0),
+	}
+	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+	if err != nil {
+		return nil, err
+	}
+	for _, managedParty := range managedParties {
+		psMetadata, err := bc.PSMR().ResolveForManagedParty(managedParty)
+		if err != nil {
+			return nil, err
+		}
+		// if we already handled this private state skip it
+		if _, found := mpsReceipt.MTVersions[psMetadata.ID]; found {
+			continue
+		}
+		privateStateDB, err := privateStateDBFactory(psMetadata.ID)
+		if err != nil {
+			return nil, err
+		}
+		publicStateDB := publicStateDBFactory()
+		// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
+		_, receipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, false)
+		if err != nil {
+			return nil, err
+		}
+		// set the PSI for each log (so that the filter system knows for what private state they are)
+		for _, log := range receipt.Logs {
+			log.PSI = psMetadata.ID
+			mpsReceipt.Logs = append(mpsReceipt.Logs, log)
+		}
+		mpsReceipt.MTVersions[psMetadata.ID] = receipt
+
+		bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psMetadata.ID)
+	}
+	return mpsReceipt, nil
+}
+
 // /Quorum
 
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
 	// Quorum - decide the privateStateDB to use
-	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
+	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
 	// /Quorum
 
 	// Quorum - check for account permissions to execute the transaction
@@ -186,11 +231,8 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO - we may need to find a more elegant solution to say that this tx needs to be applied as if we were not a party
-	if forceNonParty && tx.IsPrivate() {
-		//TODO - !HACK! overriding msg.data so that when tesseera.receive is invoked we get nothing back
-		msg = msg.CloneWithEmptyData()
-	}
+	// Quorum: this tx needs to be applied as if we were not a party
+	msg = msg.WithEmptyPrivateData(forceNonParty && tx.IsPrivate())
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
@@ -236,9 +278,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	if config.IsQuorum && tx.IsPrivate() {
 		var privateRoot []byte
 		if config.IsByzantium(header.Number) {
-			privateState.Finalise(true)
+			privateStateDB.Finalise(true)
 		} else {
-			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+			privateRoot = privateStateDB.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 		}
 		privateReceipt = types.NewReceipt(privateRoot, result.Failed(), *usedGas)
 		privateReceipt.TxHash = tx.Hash()
@@ -247,7 +289,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 		}
 
-		privateReceipt.Logs = privateState.GetLogs(tx.Hash())
+		privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
 
