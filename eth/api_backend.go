@@ -218,8 +218,8 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	psiReceipts := make([]*types.Receipt, len(receipts))
 	for i := 0; i < len(receipts); i++ {
 		psiReceipts[i] = receipts[i]
-		if receipts[i].MTVersions != nil {
-			mtReceipt, found := receipts[i].MTVersions[psm.ID]
+		if receipts[i].PSIToReceipt != nil {
+			mtReceipt, found := receipts[i].PSIToReceipt[psm.ID]
 			if found {
 				psiReceipts[i] = mtReceipt
 			}

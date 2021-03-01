@@ -67,8 +67,13 @@ type Receipt struct {
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
 
-	// multi states
-	MTVersions map[PrivateStateIdentifier]*Receipt
+	// Quorum
+	//
+	// this is to support execution of a private transaction on multiple private states
+	// in which receipts are produced per PSI.
+	//
+	// This nested structure would not have more than 2 levels.
+	PSIToReceipt map[PrivateStateIdentifier]*Receipt
 }
 
 type receiptMarshaling struct {
@@ -88,15 +93,16 @@ type receiptRLP struct {
 	Logs              []*Log
 }
 
-// storedReceiptRLP is the storage encoding of a receipt.
-type mtStoredReceiptRLP struct {
+// storedMPSReceiptRLP is the storage encoding of a receipt which contains
+// receipts per PSI
+type storedMPSReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
-	MTVersions        []mtStoredReceiptMapEntry
+	PSIToReceipt      []storedPSIToReceiptMapEntry
 }
 
-type mtStoredReceiptMapEntry struct {
+type storedPSIToReceiptMapEntry struct {
 	Key   PrivateStateIdentifier
 	Value storedReceiptRLP
 }
@@ -201,20 +207,20 @@ func (r *Receipt) Size() common.StorageSize {
 type ReceiptForStorage Receipt
 
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
-	if r.MTVersions == nil {
+	if r.PSIToReceipt == nil {
 		return r.EncodeRLPOrig(w)
 	}
-	enc := &mtStoredReceiptRLP{
+	enc := &storedMPSReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
 		CumulativeGasUsed: r.CumulativeGasUsed,
 		Logs:              make([]*LogForStorage, len(r.Logs)),
-		MTVersions:        make([]mtStoredReceiptMapEntry, len(r.MTVersions)),
+		PSIToReceipt:      make([]storedPSIToReceiptMapEntry, len(r.PSIToReceipt)),
 	}
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
 	}
 	idx := 0
-	for key, val := range r.MTVersions {
+	for key, val := range r.PSIToReceipt {
 		rec := storedReceiptRLP{
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
@@ -223,7 +229,7 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)
 		}
-		enc.MTVersions[idx] = mtStoredReceiptMapEntry{Key: key, Value: rec}
+		enc.PSIToReceipt[idx] = storedPSIToReceiptMapEntry{Key: key, Value: rec}
 		idx++
 	}
 	return rlp.Encode(w, enc)
@@ -254,7 +260,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	// Try decoding from the newest format for future proofness, then the older one
 	// for old nodes that just upgraded. V4 was an intermediate unreleased format so
 	// we do need to decode it, but it's not common (try last).
-	if err := decodeMTStoredReceiptRLP(r, blob); err == nil {
+	if err := decodeStoredMPSReceiptRLP(r, blob); err == nil {
 		return nil
 	}
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
@@ -266,8 +272,8 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	return decodeV4StoredReceiptRLP(r, blob)
 }
 
-func decodeMTStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
-	var stored mtStoredReceiptRLP
+func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
+	var stored storedMPSReceiptRLP
 	if err := rlp.DecodeBytes(blob, &stored); err != nil {
 		return err
 	}
@@ -281,9 +287,9 @@ func decodeMTStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	}
 	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
 
-	if len(stored.MTVersions) > 0 {
-		r.MTVersions = make(map[PrivateStateIdentifier]*Receipt)
-		for _, entry := range stored.MTVersions {
+	if len(stored.PSIToReceipt) > 0 {
+		r.PSIToReceipt = make(map[PrivateStateIdentifier]*Receipt)
+		for _, entry := range stored.PSIToReceipt {
 			rec := &Receipt{}
 			if err := rec.setStatus(entry.Value.PostStateOrStatus); err != nil {
 				return err
@@ -295,7 +301,7 @@ func decodeMTStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 				rec.Logs[i].PSI = entry.Key
 			}
 			rec.Bloom = CreateBloom(Receipts{rec})
-			r.MTVersions[entry.Key] = rec
+			r.PSIToReceipt[entry.Key] = rec
 		}
 	}
 
@@ -399,9 +405,9 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 			continue
 		}
 
-		//this is a private tx
+		// this is a private tx
 		// add the PSI version of the receipt to all the relevant PSI arrays
-		for psi, privateReceipt := range receipt.MTVersions {
+		for psi, privateReceipt := range receipt.PSIToReceipt {
 			//does it exist
 			if _, ok := allReceipts[psi]; !ok {
 				allReceipts[psi] = append(make([]*Receipt, 0), allPublic...)
@@ -409,7 +415,7 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 			allReceipts[psi] = append(allReceipts[psi], privateReceipt)
 		}
 		// add the empty receipt to all the currently tracked PSIs
-		emptyReceipt := receipt.MTVersions["empty"]
+		emptyReceipt := receipt.PSIToReceipt[EmptyPrivateStateIdentifier]
 		for psi := range allReceipts {
 			if len(allReceipts[psi]) < i+1 {
 				allReceipts[psi] = append(allReceipts[psi], emptyReceipt)
@@ -434,13 +440,13 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	tmp := make([]*Receipt, len(r))
 	for i := 0; i < len(r); i++ {
 		tmp[i] = allPublic[i]
-		oldPsis := tmp[i].MTVersions
-		tmp[i].MTVersions = nil
+		oldPsis := tmp[i].PSIToReceipt
+		tmp[i].PSIToReceipt = nil
 		if txs[i].IsPrivate() {
-			tmp[i].MTVersions = make(map[PrivateStateIdentifier]*Receipt)
+			tmp[i].PSIToReceipt = make(map[PrivateStateIdentifier]*Receipt)
 		}
 		for psi := range oldPsis {
-			tmp[i].MTVersions[psi] = allReceipts[psi][i]
+			tmp[i].PSIToReceipt[psi] = allReceipts[psi][i]
 		}
 	}
 

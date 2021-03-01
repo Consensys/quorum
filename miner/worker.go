@@ -658,7 +658,7 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 
-				for _, mtReceipt := range receipt.MTVersions {
+				for _, mtReceipt := range receipt.PSIToReceipt {
 					// add block location fields
 					mtReceipt.BlockHash = hash
 					mtReceipt.BlockNumber = block.Number()
@@ -797,7 +797,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	snap := w.current.state.Snapshot()
 	txnStart := time.Now()
 
-	MTVersions := make(map[types.PrivateStateIdentifier]*types.Receipt)
+	psiToReceipt := make(map[types.PrivateStateIdentifier]*types.Receipt)
 	privateLogs := make([]*types.Log, 0)
 	privateStateSnaphots := make(map[types.PrivateStateIdentifier]int)
 
@@ -830,7 +830,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 			for _, log := range mtPrivateReceipt.Logs {
 				log.PSI = psm.ID
 			}
-			MTVersions[psm.ID] = mtPrivateReceipt
+			psiToReceipt[psm.ID] = mtPrivateReceipt
 
 			privateLogs = append(privateLogs, mtPrivateReceipt.Logs...)
 
@@ -862,8 +862,8 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 	if privateReceipt != nil {
 		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateState, w.current.privateStateRepo.GetDefaultStateMetadata().ID)
-		if len(MTVersions) > 0 {
-			privateReceipt.MTVersions = MTVersions
+		if len(psiToReceipt) > 0 {
+			privateReceipt.PSIToReceipt = psiToReceipt
 		}
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
 		if len(privateReceipt.Logs) > 0 {

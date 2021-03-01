@@ -113,7 +113,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.GetDefaultStateMetadata().ID)
 			// handling the auxiliary receipt from MPS execution
 			if mpsReceipt != nil {
-				privateReceipt.MTVersions = mpsReceipt.MTVersions
+				privateReceipt.PSIToReceipt = mpsReceipt.PSIToReceipt
 				allLogs = append(allLogs, mpsReceipt.Logs...)
 			}
 		}
@@ -167,8 +167,8 @@ func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
 	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
 	mpsReceipt := &types.Receipt{
-		MTVersions: make(map[types.PrivateStateIdentifier]*types.Receipt),
-		Logs:       make([]*types.Log, 0),
+		PSIToReceipt: make(map[types.PrivateStateIdentifier]*types.Receipt),
+		Logs:         make([]*types.Log, 0),
 	}
 	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if err != nil {
@@ -180,7 +180,7 @@ func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			return nil, err
 		}
 		// if we already handled this private state skip it
-		if _, found := mpsReceipt.MTVersions[psMetadata.ID]; found {
+		if _, found := mpsReceipt.PSIToReceipt[psMetadata.ID]; found {
 			continue
 		}
 		privateStateDB, err := privateStateDBFactory(psMetadata.ID)
@@ -198,7 +198,7 @@ func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			log.PSI = psMetadata.ID
 			mpsReceipt.Logs = append(mpsReceipt.Logs, log)
 		}
-		mpsReceipt.MTVersions[psMetadata.ID] = receipt
+		mpsReceipt.PSIToReceipt[psMetadata.ID] = receipt
 
 		bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psMetadata.ID)
 	}

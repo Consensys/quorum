@@ -172,10 +172,10 @@ func (psm *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipt
 	}
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
-		publicReceipt.MTVersions = make(map[types.PrivateStateIdentifier]*types.Receipt)
-		publicReceipt.MTVersions[types.EmptyPrivateStateMetadata.ID] = receipt
-		for psi, mtReceipt := range receipt.MTVersions {
-			publicReceipt.MTVersions[psi] = mtReceipt
+		publicReceipt.PSIToReceipt = make(map[types.PrivateStateIdentifier]*types.Receipt)
+		publicReceipt.PSIToReceipt[types.EmptyPrivateStateMetadata.ID] = receipt
+		for psi, mtReceipt := range receipt.PSIToReceipt {
+			publicReceipt.PSIToReceipt[psi] = mtReceipt
 		}
 	}
 
