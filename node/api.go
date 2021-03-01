@@ -204,13 +204,19 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
+	//TODO ricardolyn: should be a pointer to the tls/auth?
+	tls, auth, err := api.node.getSecuritySupports()
+	if err != nil {
+		return false, err
+	}
+
 	if err := api.node.http.setListenAddr(*host, *port); err != nil {
 		return false, err
 	}
-	if err := api.node.http.enableRPC(api.node.rpcAPIs, config); err != nil {
+	if err := api.node.http.enableRPC(api.node.rpcAPIs, config, auth); err != nil {
 		return false, err
 	}
-	if err := api.node.http.start(); err != nil {
+	if err := api.node.http.start(tls); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -258,15 +264,21 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
+	//TODO ricardolyn: should be a pointer to the tls/auth?
+	tls, auth, err := api.node.getSecuritySupports()
+	if err != nil {
+		return false, err
+	}
+
 	// Enable WebSocket on the server.
 	server := api.node.wsServerForPort(*port)
 	if err := server.setListenAddr(*host, *port); err != nil {
 		return false, err
 	}
-	if err := server.enableWS(api.node.rpcAPIs, config); err != nil {
+	if err := server.enableWS(api.node.rpcAPIs, config,auth); err != nil {
 		return false, err
 	}
-	if err := server.start(); err != nil {
+	if err := server.start(tls); err != nil {
 		return false, err
 	}
 	api.node.http.log.Info("WebSocket endpoint opened", "url", api.node.WSEndpoint())

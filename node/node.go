@@ -63,8 +63,6 @@ type Node struct {
 	databases map[*closeTrackingDB]struct{} // All open databases
 
 	// Quorum
-	isHttps       bool                  // TODO ricardolyn: missing implementation on new changes
-	isWss         bool                  // TODO ricardolyn: missing implementation on new changes
 	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
 	// End Quorum
 }
@@ -352,6 +350,12 @@ func (n *Node) startRPC() error {
 		}
 	}
 
+	//TODO ricardolyn: should be a pointer to the tls/auth?
+	tls, auth, err := n.getSecuritySupports()
+	if err != nil {
+		return err
+	}
+
 	// Configure HTTP.
 	if n.config.HTTPHost != "" {
 		config := httpConfig{
@@ -362,7 +366,7 @@ func (n *Node) startRPC() error {
 		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
 		}
-		if err := n.http.enableRPC(n.rpcAPIs, config); err != nil {
+		if err := n.http.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
@@ -377,15 +381,15 @@ func (n *Node) startRPC() error {
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
 		}
-		if err := server.enableWS(n.rpcAPIs, config); err != nil {
+		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
 
-	if err := n.http.start(); err != nil {
+	if err := n.http.start(tls); err != nil {
 		return err
 	}
-	return n.ws.start()
+	return n.ws.start(tls)
 }
 
 func (n *Node) wsServerForPort(port int) *httpServer {
@@ -637,22 +641,6 @@ func (n *Node) closeDatabases() (errors []error) {
 		}
 	}
 	return errors
-}
-
-// Quorum
-func (n *Node) httpScheme() string {
-	if n.isHttps {
-		return "https"
-	}
-	return "http"
-}
-
-// Quorum
-func (n *Node) wsScheme() string {
-	if n.isWss {
-		return "wss"
-	}
-	return "ws"
 }
 
 // Quorum
