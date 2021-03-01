@@ -22,6 +22,8 @@ github.com/Azure/go-autorest/tracing v0.5.0 h1:TRn4WjSnkcSy5AEG3pnbtFSwNtwzjr4VY
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20210223160031-6e8585c2a9ad h1:04hKIfJWbJFYtNFeI77cRzfiEpNT9f44KNdHhB6sGOw=
+github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20210223160031-6e8585c2a9ad/go.mod h1:mrsI3XgXEfdgdT37sIJiqEha0aOBGreMcc1fbu7aDEw=
 github.com/Consensys/etcd v3.3.13-quorum197+incompatible h1:ZBM9sH4QEufgaShSyNNhffuZv6Zhl5kyD2b/NHViByM=
 github.com/Consensys/etcd v3.3.13-quorum197+incompatible/go.mod h1:wz4o/jwsTgMkSZUY9DmwVEIL3b2JX3t+tCDdy/J5ilY=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
@@ -155,8 +157,6 @@ github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go v0.0.0-20200210211148-
 github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go v0.0.0-20200210211148-57f99f69eeb3/go.mod h1:xZOd/PmBeJkF1X+VLaIkCsQq1nqlr2DiekzGMpBDZq0=
 github.com/jpmorganchase/quorum-security-plugin-sdk-go v0.0.0-20200714173835-22a319bb78ce h1:N0BFCITB+CS2fwTlnYuwr9KslnVWxpz7rs8xyyhS1xA=
 github.com/jpmorganchase/quorum-security-plugin-sdk-go v0.0.0-20200714173835-22a319bb78ce/go.mod h1:Zq2sOjX+LZrNoV+cyvS/4Xsy69v8HOFKHtCLkiXQ3Kk=
-github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487 h1:xEt7bIjWO384fz4pz9ZcS3CMG2hUgPwgLb180jeqLzs=
-github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487/go.mod h1:w+wA+9W4bxqH3Jg8upYxYo8MYlQL0UOXJfKVSr+45Ok=
 github.com/julienschmidt/httprouter v1.1.1-0.20170430222011-975b5c4c7c21 h1:F/iKcka0K2LgnKy/fgSBf235AETtm1n1TvBzqu40LE0=
 github.com/julienschmidt/httprouter v1.1.1-0.20170430222011-975b5c4c7c21/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/karalabe/usb v0.0.0-20190919080040-51dc0efba356 h1:I/yrLt2WilKxlQKCM52clh5rGzTKpVctGT1lH4Dc8Jw=
