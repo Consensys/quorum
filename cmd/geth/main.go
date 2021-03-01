@@ -462,7 +462,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 
 	// Quorum
 	var ethService *eth.Ethereum
-	if err := stack.Service(&ethService); err != nil {
+	if err := stack.Lifecycle(&ethService); err != nil {
 		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
 	}
 	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
@@ -542,7 +542,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
 		if stack.IsPermissionEnabled() {
 			var permissionService *permission.PermissionCtrl
-			if err := stack.Service(&permissionService); err != nil {
+			if err := stack.Lifecycle(&permissionService); err != nil {
 				utils.Fatalf("Permission service not runnning: %v", err)
 			}
 			if err := permissionService.AfterStart(); err != nil {

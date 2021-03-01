@@ -365,7 +365,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 	}
 }
 
-func (service *PrivacyService) Start(p2pServer *p2p.Server) error {
+func (service *PrivacyService) Start() error {
 	log.Debug("extension service: starting")
 	return nil
 }

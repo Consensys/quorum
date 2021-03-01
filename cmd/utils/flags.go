@@ -20,7 +20,6 @@ package utils
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -75,7 +74,6 @@ import (
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/raft"
-	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	"gopkg.in/urfave/cli.v1"
@@ -1938,7 +1936,8 @@ func setDNSDiscoveryDefaults(cfg *eth.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config) ethapi.Backend { // TODO ricardolyn: chan *eth.Ethereum {
+// Quorum => returns also the ethereum service which is used by the raft service
+func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth.Ethereum) { // TODO ricardolyn: chan *eth.Ethereum {
 	// TODO ricadolyn: what do we do about the channel?
 	// Quorum: raft service listens to this channel to get Ethereum backend
 	//nodeChan := make(chan *eth.Ethereum, 1)
@@ -1947,7 +1946,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) ethapi.Backend { // T
 		if err != nil {
 			Fatalf("Failed to register the Ethereum service: %v", err)
 		}
-		return backend.ApiBackend
+		return backend.ApiBackend, nil
 	} else {
 		backend, err := eth.New(stack, cfg)
 		if err != nil {
@@ -1961,7 +1960,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) ethapi.Backend { // T
 		}
 		// TODO ricadolyn: what do we do about the channel?
 		//nodeChan <- backend
-		return backend.APIBackend
+		return backend.APIBackend, backend
 	}
 }
 
@@ -1994,93 +1993,104 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 	if err := cfg.ResolvePluginBaseDir(); err != nil {
 		Fatalf("plugins: unable to resolve plugin base dir due to %s", err)
 	}
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return plugin.NewPluginManager(cfg.UserIdent, cfg.Plugins, skipVerify, localVerify, publicKey)
-	}); err != nil {
+	// TODO ricardolyn: should be refactored to the new architecture
+	pluginManager, err := plugin.NewPluginManager(cfg.UserIdent, cfg.Plugins, skipVerify, localVerify, publicKey)
+	if err != nil {
 		Fatalf("plugins: Failed to register the Plugins service: %v", err)
 	}
+	stack.RegisterLifecycle(pluginManager)
+	stack.RegisterProtocols(pluginManager.Protocols())
+	stack.RegisterAPIs(pluginManager.APIs())
+	stack.SetPluginManager(pluginManager)
 }
 
 // Configure smart-contract-based permissioning service
 func RegisterPermissionService(stack *node.Node, useDns bool) {
-	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
-		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
-		if err != nil {
-			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
-		}
-		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
-		}
-		return pc, nil
-	}); err != nil {
-		Fatalf("Failed to register the permission service: %v", err)
+	// TODO ricardolyn: should be refactored to the new architecture
+	permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
+	if err != nil {
+		Fatalf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}
+	// start the permissions management service
+	pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
+	if err != nil {
+		Fatalf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
+	}
+
+	stack.RegisterLifecycle(pc)
+	stack.RegisterProtocols(pc.Protocols())
+	stack.RegisterAPIs(pc.APIs())
+	stack.RegisterAPIs(pc.APIs())
 	log.Info("permission service registered")
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethService *eth.Ethereum) {
+	// TODO ricardolyn: should be refactored to the new architecture
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
 
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		privkey := nodeCfg.NodeKey()
-		strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
-		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
-		peers := nodeCfg.StaticNodes()
+	privkey := nodeCfg.NodeKey()
+	strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
+	blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+	peers := nodeCfg.StaticNodes()
 
-		var myId uint16
-		var joinExisting bool
+	var myId uint16
+	var joinExisting bool
 
-		if joinExistingId > 0 {
-			myId = uint16(joinExistingId)
-			joinExisting = true
-		} else if len(peers) == 0 {
-			Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
-		} else {
-			peerIds := make([]string, len(peers))
+	if joinExistingId > 0 {
+		myId = uint16(joinExistingId)
+		joinExisting = true
+	} else if len(peers) == 0 {
+		Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+	} else {
+		peerIds := make([]string, len(peers))
 
-			for peerIdx, peer := range peers {
-				if !peer.HasRaftPort() {
-					Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
-				}
-
-				peerId := peer.ID().String()
-				peerIds[peerIdx] = peerId
-				if peerId == strId {
-					myId = uint16(peerIdx) + 1
-				}
+		for peerIdx, peer := range peers {
+			if !peer.HasRaftPort() {
+				Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
 			}
 
-			if myId == 0 {
-				Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+			peerId := peer.ID().String()
+			peerIds[peerIdx] = peerId
+			if peerId == strId {
+				myId = uint16(peerIdx) + 1
 			}
 		}
 
-		ethereum := <-ethChan
-		ethChan <- ethereum
-		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
-	}); err != nil {
-		Fatalf("Failed to register the Raft service: %v", err)
+		if myId == 0 {
+			Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+		}
 	}
+
+	raftService, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, datadir, useDns)
+	if err != nil {
+		Fatalf("raft: Failed to register the Raft service: %v", err)
+	}
+
+	stack.RegisterLifecycle(raftService)
+	stack.RegisterProtocols(raftService.Protocols())
+	stack.RegisterAPIs(raftService.APIs())
+
 	log.Info("raft service registered")
 }
 
-func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {
-	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		factory, err := extension.NewServicesFactory(stack, private.P, <-ethChan)
-		if err != nil {
-			return nil, err
-		}
-		return factory.BackendService(), nil
-	}
-	if err := stack.Register(registerFunc); err != nil {
+func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
+	factory, err := extension.NewServicesFactory(stack, private.P, ethService)
+	if err != nil {
 		Fatalf("Failed to register the Extension service: %v", err)
 	}
+
+	service := factory.BackendService()
+
+	stack.RegisterLifecycle(service)
+	stack.RegisterProtocols(service.Protocols())
+	stack.RegisterAPIs(service.APIs())
+
+	log.Info("extension service registered")
+
 }
 
 func SetupMetrics(ctx *cli.Context) {

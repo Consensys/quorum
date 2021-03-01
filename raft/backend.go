@@ -38,23 +38,23 @@ type RaftService struct {
 	calcGasLimitFunc func(block *types.Block) uint64
 }
 
-func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
+func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
 	service := &RaftService{
-		eventMux:         ctx.EventMux,
+		eventMux:         stack.EventMux(),
 		chainDb:          e.ChainDb(),
 		blockchain:       e.BlockChain(),
 		txPool:           e.TxPool(),
 		accountManager:   e.AccountManager(),
 		downloader:       e.Downloader(),
 		startPeers:       startPeers,
-		nodeKey:          ctx.NodeKey(),
+		nodeKey:          stack.GetNodeKey(),
 		calcGasLimitFunc: e.CalcGasLimit,
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader, useDns); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader, useDns, stack.Server()); err != nil {
 		return nil, err
 	}
 
@@ -86,8 +86,8 @@ func (service *RaftService) APIs() []rpc.API {
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
-func (service *RaftService) Start(p2pServer *p2p.Server) error {
-	service.raftProtocolManager.Start(p2pServer)
+func (service *RaftService) Start() error {
+	service.raftProtocolManager.Start()
 	return nil
 }
 

@@ -153,7 +153,8 @@ func enableWhisper(ctx *cli.Context) bool {
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 
-	backend := utils.RegisterEthService(stack, &cfg.Eth)
+	// Quorum - using the `ethService` for the Raft and extension service
+	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
 	// TODO ricardolyn: it returns direcly the backend. maybe we don't need the channel?
 	//ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
@@ -169,11 +170,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
-		utils.RegisterExtensionService(stack, ethChan)
+		utils.RegisterExtensionService(stack, ethService)
 	}
 	// End Quorum
 
@@ -236,7 +237,7 @@ func dumpConfig(ctx *cli.Context) error {
 func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
-	err := stack.Service(&ethereum)
+	err := stack.Lifecycle(&ethereum)
 	if err != nil {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}

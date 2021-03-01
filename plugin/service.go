@@ -40,7 +40,7 @@ func (s *PluginManager) APIs() []rpc.API {
 	}, s.delegateAPIs()...)
 }
 
-func (s *PluginManager) Start(_ *p2p.Server) (err error) {
+func (s *PluginManager) Start() (err error) {
 	log.Info("Starting all plugins", "count", len(s.initializedPlugins))
 	startedPlugins := make([]managedPlugin, 0, len(s.initializedPlugins))
 	for _, p := range s.initializedPlugins {

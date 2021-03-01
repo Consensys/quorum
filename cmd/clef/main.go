@@ -790,7 +790,7 @@ func startPluginManager(c *cli.Context) (*plugin.PluginManager, *plugin.Settings
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := pm.Start(nil); err != nil {
+	if err := pm.Start(); err != nil {
 		return nil, nil, err
 	}
 	return pm, pluginConf, nil

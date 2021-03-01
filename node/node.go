@@ -17,7 +17,6 @@
 package node
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -35,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/plugin"
-	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -64,8 +62,8 @@ type Node struct {
 	databases map[*closeTrackingDB]struct{} // All open databases
 
 	// Quorum
-	isHttps          bool
-	isWss          bool
+	isHttps       bool                  // TODO ricardolyn: missing implementation on new changes
+	isWss         bool                  // TODO ricardolyn: missing implementation on new changes
 	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
 	// End Quorum
 }
@@ -113,6 +111,7 @@ func New(conf *Config) (*Node, error) {
 		stop:          make(chan struct{}),
 		server:        &p2p.Server{Config: conf.P2P},
 		databases:     make(map[*closeTrackingDB]struct{}),
+		pluginManager: plugin.NewEmptyPluginManager(),
 	}
 
 	// Register built-in APIs.
@@ -144,6 +143,11 @@ func New(conf *Config) (*Node, error) {
 	if node.server.Config.NodeDatabase == "" {
 		node.server.Config.NodeDatabase = node.config.NodeDB()
 	}
+
+	// Quorum
+	node.server.Config.EnableNodePermission = node.config.EnableNodePermission
+	node.server.Config.DataDir = node.config.DataDir
+	// End Quorum
 
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
@@ -257,21 +261,6 @@ func (n *Node) doClose(errs []error) error {
 	}
 }
 
-// TODO ricadolyn: missing from old Start()
-/**
-
-n.serverConfig.EnableNodePermission = n.config.EnableNodePermission
-	n.serverConfig.DataDir = n.config.DataDir
-
-
-	// Retrieve PluginManager service if configured
-	if pm, hasPluginManager := services[reflect.TypeOf(&plugin.PluginManager{})]; hasPluginManager {
-		n.pluginManager = pm.(*plugin.PluginManager)
-	} else {
-		n.pluginManager = plugin.NewEmptyPluginManager()
-	}
- */
-
 // startNetworking starts all network endpoints.
 func (n *Node) startNetworking() error {
 	n.log.Info("Starting peer-to-peer node", "instance", n.server.Name)
@@ -376,8 +365,6 @@ func (n *Node) startRPC() error {
 			return err
 		}
 	}
-
-
 
 	// Configure WebSocket.
 	if n.config.WSHost != "" {
@@ -679,13 +666,40 @@ func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
 	return n.config.NodeKey()
 }
 
-
 // Quorum
 //
 // This can be used to inspect plugins used in the current node
 func (n *Node) PluginManager() *plugin.PluginManager {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
 	return n.pluginManager
+}
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) SetPluginManager(pm *plugin.PluginManager) {
+	n.pluginManager = pm
+}
+
+// Quorum
+//
+// Lifecycle retrieves a currently lifecycle registered of a specific type.
+func (n *Node) Lifecycle(lifecycleType interface{}) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// Short circuit if the node's not running
+	if n.server == nil {
+		return ErrNodeStopped
+	}
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(lifecycleType).Elem()
+	for _, lifecycle := range n.lifecycles {
+		lElem := reflect.ValueOf(lifecycle).Elem()
+		if lElem == element {
+			element.Set(reflect.ValueOf(lifecycle))
+			return nil
+		}
+	}
+
+	return ErrServiceUnknown
 }

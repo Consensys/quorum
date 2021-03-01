@@ -91,7 +91,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, 
 	return p, nil
 }
 
-func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
+func (p *PermissionCtrl) Start() error {
 	log.Info("permission service: starting")
 	go func() {
 		log.Info("permission service: starting async")
