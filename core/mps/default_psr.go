@@ -68,7 +68,7 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 	return dpsr.stateDB.Reset(dpsr.root)
 }
 
-// commitAndWrite- commits all private states, updates the state trie and writes to disk
+// commitAndWrite- commits the private state and writes to disk
 func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) error {
 	privateRoot, err := dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
@@ -82,7 +82,7 @@ func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) er
 	return dpsr.stateCache.TrieDB().Commit(privateRoot, false)
 }
 
-// commit - commits all private states, updates the trie of private states only
+// commit - commits the private state only
 func (dpsr *DefaultPrivateStateRepository) Commit(block *types.Block) error {
 	var err error
 	dpsr.root, err = dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))

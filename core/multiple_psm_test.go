@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/base64"
 	"math/big"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -91,8 +93,9 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 		privateStateRepo, err := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
 		assert.NoError(t, err)
 
-		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
+		publicReceipts, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 
+		//managed states tests
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 
@@ -110,6 +113,7 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 		//CommitAndWrite to db
 		privateStateRepo.CommitAndWrite(block)
 
+		//managed states test
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 			latestBlockRoot := block.Root()
@@ -131,6 +135,24 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
+		}
+
+		//mergeReceipts test
+		for _, pubReceipt := range publicReceipts {
+			assert.Equal(t, 0, len(pubReceipt.MTVersions))
+		}
+		for _, privReceipt := range privateReceipts {
+			assert.Equal(t, 2, len(privReceipt.MTVersions))
+			assert.NotEqual(t, nil, privReceipt.MTVersions["psi1"])
+			assert.NotEqual(t, nil, privReceipt.MTVersions["psi2"])
+		}
+
+		allReceipts := privateStateRepo.MergeReceipts(publicReceipts, privateReceipts)
+		for _, receipt := range allReceipts {
+			assert.Equal(t, 3, len(receipt.MTVersions))
+			assert.NotEqual(t, nil, receipt.MTVersions["empty"])
+			assert.NotEqual(t, nil, receipt.MTVersions["psi1"])
+			assert.NotEqual(t, nil, receipt.MTVersions["psi2"])
 		}
 	}
 }
@@ -197,6 +219,38 @@ func TestMPSReset(t *testing.T) {
 	}
 }
 
+func TestPrivateStateMetadataResolver(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = mockptm
+
+	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"AAA", "CCC"}, common.FromHex(testCode), nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+	mockptm.EXPECT().Groups().Return(PrivacyGroups, nil).AnyTimes()
+
+	_, _, blockchain := buildTestChain(1, params.QuorumMPSTestChainConfig)
+
+	mpsm, err := NewMultiplePrivateStateManager(blockchain)
+	assert.NoError(t, err)
+	blockchain.SetPrivateStateManager(mpsm)
+
+	psm1, _ := mpsm.ResolveForManagedParty("AAA")
+	psm2, _ := mpsm.ResolveForManagedParty("CCC")
+	_, err = mpsm.ResolveForManagedParty("TEST")
+	assert.Equal(t, privacyGroupToPrivateStateMetadata(PG1), psm1)
+	assert.Equal(t, privacyGroupToPrivateStateMetadata(PG2), psm2)
+	assert.Error(t, err, "unable to find private state metadata for managed party TEST")
+
+	assert.Equal(t, mpsm.PSIs(), []types.PrivateStateIdentifier{"RG1", "RG2", "LEGACY1"})
+}
+
 var PSI1PSM = types.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
@@ -211,4 +265,49 @@ var PSI2PSM = types.PrivateStateMetadata{
 	Description: "private state 2",
 	Type:        types.Resident,
 	Addresses:   nil,
+}
+
+var PG1 = engine.PrivacyGroup{
+	Type:           "RESIDENT",
+	Name:           "RG1",
+	PrivacyGroupId: "RG1",
+	Description:    "Resident Group 1",
+	From:           "",
+	Members:        []string{"AAA", "BBB"},
+}
+
+var PG2 = engine.PrivacyGroup{
+	Type:           "RESIDENT",
+	Name:           "RG2",
+	PrivacyGroupId: "RG2",
+	Description:    "Resident Group 2",
+	From:           "",
+	Members:        []string{"CCC", "DDD"},
+}
+
+var PrivacyGroups = []engine.PrivacyGroup{
+	{
+		Type:           "RESIDENT",
+		Name:           "RG1",
+		PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte("RG1")),
+		Description:    "Resident Group 1",
+		From:           "",
+		Members:        []string{"AAA", "BBB"},
+	},
+	{
+		Type:           "RESIDENT",
+		Name:           "RG2",
+		PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte("RG2")),
+		Description:    "Resident Group 2",
+		From:           "",
+		Members:        []string{"CCC", "DDD"},
+	},
+	{
+		Type:           "LEGACY",
+		Name:           "LEGACY1",
+		PrivacyGroupId: "LEGACY1",
+		Description:    "Legacy Group 1",
+		From:           "",
+		Members:        []string{"LEG1", "LEG2"},
+	},
 }
