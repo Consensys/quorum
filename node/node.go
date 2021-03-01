@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -387,20 +388,6 @@ func (n *Node) startRPC() error {
 	return n.ws.start()
 }
 
-func (n *Node) httpScheme() string {
-	if n.isHttps {
-		return "https"
-	}
-	return "http"
-}
-
-func (n *Node) wsScheme() string {
-	if n.isWss {
-		return "wss"
-	}
-	return "ws"
-}
-
 func (n *Node) wsServerForPort(port int) *httpServer {
 	if n.config.HTTPHost == "" || n.http.port == port {
 		return n.http
@@ -653,6 +640,41 @@ func (n *Node) closeDatabases() (errors []error) {
 }
 
 // Quorum
+func (n *Node) httpScheme() string {
+	if n.isHttps {
+		return "https"
+	}
+	return "http"
+}
+
+// Quorum
+func (n *Node) wsScheme() string {
+	if n.isWss {
+		return "wss"
+	}
+	return "ws"
+}
+
+// Quorum
+func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
+			return
+		}
+		if tlsConfigSource, err = sp.TLSConfigurationSource(); err != nil {
+			return
+		}
+		if authManager, err = sp.AuthenticationManager(); err != nil {
+			return
+		}
+	} else {
+		log.Info("Security Plugin is not enabled")
+	}
+	return
+}
+
+// Quorum
 //
 // delegate call to node.Config
 func (n *Node) IsPermissionEnabled() bool {
@@ -675,7 +697,7 @@ func (n *Node) PluginManager() *plugin.PluginManager {
 
 // Quorum
 //
-// This can be used to inspect plugins used in the current node
+// This can be used to set the plugin manager in the node (replacing the default Empty one)
 func (n *Node) SetPluginManager(pm *plugin.PluginManager) {
 	n.pluginManager = pm
 }
