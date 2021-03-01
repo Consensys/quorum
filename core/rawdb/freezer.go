@@ -131,7 +131,6 @@ func newFreezer(datadir string, namespace string) (*freezer, error) {
 // Close terminates the chain freezer, unmapping all the data files.
 func (f *freezer) Close() error {
 	var errs []error
-	// TODO ricardolyn: validate unit tests that was checking it was closed only once. errors.New("freezer DB process already stopped") was removed
 	f.closeOnce.Do(func() {
 		f.quit <- struct{}{}
 		for _, table := range f.tables {
