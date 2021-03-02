@@ -89,7 +89,7 @@ func TestDefaultResolver(t *testing.T) {
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 
-	_, _, blockchain := buildTestChain(1, params.QuorumMPSTestChainConfig)
+	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
 	mpsm := NewDefaultPrivateStateManager(blockchain)
 

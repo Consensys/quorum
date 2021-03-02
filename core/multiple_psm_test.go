@@ -259,7 +259,9 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 	_, err = mpsm.ResolveForUserContext(context.Background())
 	assert.Error(t, err, "unable to find private state for context psi private")
 
-	assert.Equal(t, mpsm.PSIs(), []types.PrivateStateIdentifier{"RG1", "RG2", "LEGACY1"})
+	assert.Contains(t, mpsm.PSIs(), types.PrivateStateIdentifier("RG1"))
+	assert.Contains(t, mpsm.PSIs(), types.PrivateStateIdentifier("RG2"))
+	assert.Contains(t, mpsm.PSIs(), types.PrivateStateIdentifier("LEGACY1"))
 }
 
 var PSI1PSM = types.PrivateStateMetadata{
