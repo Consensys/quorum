@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/base64"
 	"math/big"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -139,20 +141,20 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 		//mergeReceipts test
 		for _, pubReceipt := range publicReceipts {
-			assert.Equal(t, 0, len(pubReceipt.MTVersions))
+			assert.Equal(t, 0, len(pubReceipt.PSIToReceipt))
 		}
 		for _, privReceipt := range privateReceipts {
-			assert.Equal(t, 2, len(privReceipt.MTVersions))
-			assert.NotEqual(t, nil, privReceipt.MTVersions["psi1"])
-			assert.NotEqual(t, nil, privReceipt.MTVersions["psi2"])
+			assert.Equal(t, 2, len(privReceipt.PSIToReceipt))
+			assert.NotEqual(t, nil, privReceipt.PSIToReceipt["psi1"])
+			assert.NotEqual(t, nil, privReceipt.PSIToReceipt["psi2"])
 		}
 
 		allReceipts := privateStateRepo.MergeReceipts(publicReceipts, privateReceipts)
 		for _, receipt := range allReceipts {
-			assert.Equal(t, 3, len(receipt.MTVersions))
-			assert.NotEqual(t, nil, receipt.MTVersions["empty"])
-			assert.NotEqual(t, nil, receipt.MTVersions["psi1"])
-			assert.NotEqual(t, nil, receipt.MTVersions["psi2"])
+			assert.Equal(t, 3, len(receipt.PSIToReceipt))
+			assert.NotEqual(t, nil, receipt.PSIToReceipt["empty"])
+			assert.NotEqual(t, nil, receipt.PSIToReceipt["psi1"])
+			assert.NotEqual(t, nil, receipt.PSIToReceipt["psi2"])
 		}
 	}
 }
@@ -244,9 +246,18 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 	psm1, _ := mpsm.ResolveForManagedParty("AAA")
 	psm2, _ := mpsm.ResolveForManagedParty("CCC")
 	_, err = mpsm.ResolveForManagedParty("TEST")
-	assert.Equal(t, privacyGroupToPrivateStateMetadata(PG1), psm1)
-	assert.Equal(t, privacyGroupToPrivateStateMetadata(PG2), psm2)
+	assert.Equal(t, psm1, privacyGroupToPrivateStateMetadata(PG1))
+	assert.Equal(t, psm2, privacyGroupToPrivateStateMetadata(PG2))
 	assert.Error(t, err, "unable to find private state metadata for managed party TEST")
+
+	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("RG1"))
+	psm1, _ = mpsm.ResolveForUserContext(ctx)
+	assert.Equal(t, psm1, privacyGroupToPrivateStateMetadata(PG1))
+	ctx = context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("OTHER"))
+	_, err = mpsm.ResolveForUserContext(ctx)
+	assert.Error(t, err, "unable to find private state for context psi OTHER")
+	_, err = mpsm.ResolveForUserContext(context.Background())
+	assert.Error(t, err, "unable to find private state for context psi private")
 
 	assert.Equal(t, mpsm.PSIs(), []types.PrivateStateIdentifier{"RG1", "RG2", "LEGACY1"})
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -70,4 +72,35 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 		}
 	}
+}
+
+func TestDefaultResolver(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = mockptm
+
+	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{}, common.FromHex(testCode), nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+
+	_, _, blockchain := buildTestChain(1, params.QuorumMPSTestChainConfig)
+
+	mpsm := NewDefaultPrivateStateManager(blockchain)
+
+	psm1, _ := mpsm.ResolveForManagedParty("TEST")
+	assert.Equal(t, psm1, types.DefaultPrivateStateMetadata)
+
+	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("private"))
+	psm1, _ = mpsm.ResolveForUserContext(ctx)
+	assert.Equal(t, psm1, &types.PrivateStateMetadata{ID: "private", Type: types.Resident})
+	psm1, _ = mpsm.ResolveForUserContext(context.Background())
+	assert.Equal(t, psm1, &types.PrivateStateMetadata{ID: "private", Type: types.Resident})
+
+	assert.Equal(t, mpsm.PSIs(), []types.PrivateStateIdentifier{types.DefaultPrivateStateIdentifier})
 }
