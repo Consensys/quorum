@@ -149,10 +149,16 @@ func (p *SignedRoundChangePayload) encodePayloadInternal() ([]byte, error) {
 }
 
 func (p *SignedRoundChangePayload) EncodePayloadForSigning() ([]byte, error) {
+	var encodedPayload rlp.RawValue
+	encodedPayload, err := p.encodePayloadInternal()
+	if err != nil {
+		return nil, err
+	}
+	
 	return rlp.EncodeToBytes(
 		[]interface{}{
 			p.Code(),
-			p.encodePayloadInternal(),
+			encodedPayload,
 		})
 }
 
