@@ -213,6 +213,8 @@ Password: {{.InputLine "foobar"}}
 	}
 }
 
+// TODO ricardlyn: add test to check if RAFT shutsdown well
+
 func TestGethDoesntStartWithoutConfiguredConsensus(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 

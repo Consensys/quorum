@@ -693,7 +693,7 @@ func (n *Node) SetPluginManager(pm *plugin.PluginManager) {
 // Quorum
 //
 // Lifecycle retrieves a currently lifecycle registered of a specific type.
-func (n *Node) Lifecycle(lifecycleType interface{}) error {
+func (n *Node) Lifecycle(lifecycle interface{}) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -702,11 +702,11 @@ func (n *Node) Lifecycle(lifecycleType interface{}) error {
 		return ErrNodeStopped
 	}
 	// Otherwise try to find the service to return
-	element := reflect.ValueOf(lifecycleType).Elem()
-	for _, lifecycle := range n.lifecycles {
-		lElem := reflect.ValueOf(lifecycle).Elem()
-		if lElem == element {
-			element.Set(reflect.ValueOf(lifecycle))
+	element := reflect.ValueOf(lifecycle).Elem()
+	for _, runningLifecycle := range n.lifecycles {
+		lElem := reflect.TypeOf(runningLifecycle)
+		if lElem == element.Type() {
+			element.Set(reflect.ValueOf(runningLifecycle))
 			return nil
 		}
 	}

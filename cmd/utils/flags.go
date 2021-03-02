@@ -1310,7 +1310,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setBootstrapNodesV5(ctx, cfg)
 
 	lightClient := ctx.GlobalString(SyncModeFlag.Name) == "light"
-	lightServer := (ctx.GlobalInt(LegacyLightServFlag.Name) != 0 || ctx.GlobalInt(LightServeFlag.Name) != 0)
+	lightServer := ctx.GlobalInt(LegacyLightServFlag.Name) != 0 || ctx.GlobalInt(LightServeFlag.Name) != 0
 
 	lightPeers := ctx.GlobalInt(LegacyLightPeersFlag.Name)
 	if ctx.GlobalIsSet(LightMaxPeersFlag.Name) {
@@ -2076,6 +2076,8 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 
 	log.Info("raft service registered")
 }
+
+//TODO ricardolyn: f err := n.startRPC(services); err != nil { was in the Start() of node. what happens now?
 
 func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
 	factory, err := extension.NewServicesFactory(stack, private.P, ethService)
