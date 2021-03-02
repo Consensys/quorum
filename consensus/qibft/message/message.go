@@ -29,7 +29,7 @@ type QBFTMessage interface {
 	View() qibft.View
 	Source() common.Address
 	SetSource(address common.Address)
-	EncodePayload() ([]byte, error)
+	EncodePayloadForSigning() ([]byte, error)
 	Signature() []byte
 	SetSignature(signature []byte)
 }

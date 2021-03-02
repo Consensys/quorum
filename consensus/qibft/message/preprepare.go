@@ -27,9 +27,12 @@ func NewPreprepare(sequence *big.Int, round *big.Int, proposal qibft.Proposal) *
 	}
 }
 
-func (m *Preprepare) EncodePayload() ([]byte, error) {
+func (m *Preprepare) EncodePayloadForSigning() ([]byte, error) {
 	return rlp.EncodeToBytes(
-		[]interface{}{m.Sequence, m.Round, m.Proposal})
+		[]interface{}{
+			m.Code(),
+			[]interface{}{m.Sequence, m.Round, m.Proposal},
+		})
 }
 
 func (m *Preprepare) EncodeRLP(w io.Writer) error {
@@ -65,6 +68,7 @@ func (m *Preprepare) DecodeRLP(stream *rlp.Stream) error {
 	if err := stream.Decode(&message); err != nil {
 		return err
 	}
+	m.code = PreprepareCode
 	m.Sequence = message.SignedPayload.Payload.Sequence
 	m.Round = message.SignedPayload.Payload.Round
 	m.Proposal = message.SignedPayload.Payload.Proposal

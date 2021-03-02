@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/pkg/errors"
 )
 
 // ROUND-CHANGE
@@ -55,7 +54,7 @@ func (p *SignedRoundChangePayload) String() string {
 
 func (p *SignedRoundChangePayload) EncodeRLP(w io.Writer) error {
 	var encodedPayload rlp.RawValue
-	encodedPayload, err := p.EncodePayload()
+	encodedPayload, err := p.encodePayloadInternal()
 	if err != nil {
 		return err
 	}
@@ -137,7 +136,7 @@ func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 	return nil
 }
 
-func (p *SignedRoundChangePayload) EncodePayload() ([]byte, error) {
+func (p *SignedRoundChangePayload) encodePayloadInternal() ([]byte, error) {
 	var prepared = []interface{}{}
 	if p.PreparedRound != nil && !p.PreparedDigest.IsEmpty() {
 		prepared = []interface{}{p.PreparedRound, p.PreparedDigest}
@@ -149,17 +148,26 @@ func (p *SignedRoundChangePayload) EncodePayload() ([]byte, error) {
 			prepared})
 }
 
+func (p *SignedRoundChangePayload) EncodePayloadForSigning() ([]byte, error) {
+	return rlp.EncodeToBytes(
+		[]interface{}{
+			p.Code(),
+			p.encodePayloadInternal(),
+		})
+}
+
 func (m *RoundChange) EncodeRLP(w io.Writer) error {
-	var prepared = []interface{}{}
-	if m.PreparedRound != nil && !m.PreparedDigest.IsEmpty() {
-		prepared = []interface{}{m.PreparedRound, m.PreparedDigest}
+	var encodedPayload rlp.RawValue
+	encodedPayload, err := m.encodePayloadInternal()
+	if err != nil {
+		return err
 	}
 
 	return rlp.Encode(
 		w,
 		[]interface{}{
 			[]interface{}{
-				[]interface{}{m.Sequence, m.Round, prepared},
+				encodedPayload,
 				m.signature,
 			},
 			m.PreparedBlock, m.Justification,
@@ -253,8 +261,7 @@ func (m *RoundChange) DecodeRLP(stream *rlp.Stream) error {
 		}
 		if m.PreparedBlock.Hash() != m.PreparedDigest {
 			log.Error("QBFT: Error m.PreparedDigest.Hash() != digest")
-
-			return errors.Wrap(ErrFailedDecodePreprepare, "digest does not match block in payload of justification PREPARE")
+			return ErrFailedDecodePreprepare
 		}
 	}
 
@@ -278,6 +285,8 @@ func (m *RoundChange) DecodeRLP(stream *rlp.Stream) error {
 	if err = stream.ListEnd(); err != nil {
 		return err
 	}
+
+	m.code = RoundChangeCode
 
 	return nil
 }

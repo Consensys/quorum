@@ -31,7 +31,7 @@ func (c *core) broadcastPrepare() {
 	prepare.SetSource(c.Address())
 
 	// Sign Message
-	encodedPayload, err := prepare.EncodePayload()
+	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
 		logger.Error("QBFT: Failed to encode payload of prepare message", "msg", prepare, "err", err)
 		return

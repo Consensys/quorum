@@ -27,25 +27,12 @@ func NewCommit(sequence *big.Int, round *big.Int, digest common.Hash, seal []byt
 	}
 }
 
-func (m *Commit) EncodePayload() ([]byte, error) {
-	return rlp.EncodeToBytes([]interface{}{m.Sequence, m.Round, m.Digest, m.CommitSeal})
-}
-
-func (m *Commit) decodePayload(stream *rlp.Stream) error {
-	var payload struct {
-		Sequence   *big.Int
-		Round      *big.Int
-		Digest     common.Hash
-		CommitSeal []byte
-	}
-	if err := stream.Decode(&payload); err != nil {
-		return err
-	}
-	m.Sequence = payload.Sequence
-	m.Round = payload.Round
-	m.Digest = payload.Digest
-	m.CommitSeal = payload.CommitSeal
-	return nil
+func (m *Commit) EncodePayloadForSigning() ([]byte, error) {
+	return rlp.EncodeToBytes(
+		[]interface{}{
+			m.Code(),
+			[]interface{}{m.Sequence, m.Round, m.Digest, m.CommitSeal},
+		})
 }
 
 func (m *Commit) EncodeRLP(w io.Writer) error {
@@ -67,6 +54,7 @@ func (m *Commit) DecodeRLP(stream *rlp.Stream) error {
 	if err := stream.Decode(&message); err != nil {
 		return err
 	}
+	m.code = CommitCode
 	m.Sequence = message.Payload.Sequence
 	m.Round = message.Payload.Round
 	m.Digest = message.Payload.Digest

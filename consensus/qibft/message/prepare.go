@@ -47,8 +47,12 @@ func (p *SignedPreparePayload) String() string {
 	return fmt.Sprintf("Prepare {seq=%v, round=%v, digest=%v}", p.Sequence, p.Round, p.Digest.Hex())
 }
 
-func (p *SignedPreparePayload) EncodePayload() ([]byte, error) {
-	return rlp.EncodeToBytes([]interface{}{p.Sequence, p.Round, p.Digest})
+func (p *SignedPreparePayload) EncodePayloadForSigning() ([]byte, error) {
+	return rlp.EncodeToBytes(
+		[]interface{}{
+			p.Code(),
+			[]interface{}{p.Sequence, p.Round, p.Digest},
+		})
 }
 
 func (signedPayload *SignedPreparePayload) EncodeRLP(w io.Writer) error {

@@ -49,7 +49,7 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	roundChange := message.NewRoundChange(c.current.Sequence(), round, c.current.preparedRound, c.current.preparedBlock)
 
 	// Sign message
-	encodedPayload, err := roundChange.EncodePayload()
+	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
 		logger.Error("QBFT: Failed to encode round-change message", "msg", roundChange, "err", err)
 		return
