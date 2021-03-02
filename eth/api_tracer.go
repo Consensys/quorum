@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -158,7 +159,10 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	statedb, privateStateRepo, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
@@ -211,6 +215,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer)
+					msg = api.clearMessageDataIfNonParty(msg, psm)
 					vmctx := core.NewEVMContext(msg, task.block.Header(), api.eth.blockchain, nil)
 
 					res, err := api.traceTx(ctx, msg, tx, vmctx, task.statedb, task.privateStateDb, config)
@@ -472,8 +477,14 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		reexec = *config.Reexec
 	}
 	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
-	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	privateStateDb, _ := privateStateRepo.GetPrivateState(psm.ID)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -500,6 +511,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 			for task := range jobs {
 				txn := txs[task.index]
 				msg, _ := txn.AsMessage(signer)
+				msg = api.clearMessageDataIfNonParty(msg, psm)
 				vmctx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 
 				res, err := api.traceTx(ctx, msg, txn, vmctx, task.statedb, task.privateStateDb, config)
@@ -529,6 +541,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
 		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
 		vmenv.SetCurrentTX(tx)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
 		// /Quorum
 
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
@@ -574,8 +587,14 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		reexec = *config.Reexec
 	}
 	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
-	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
-	privateStateDb, _ := privateStateRepo.GetPrivateState(psm.ID)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -632,6 +651,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
 		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vmConf)
 		vmenv.SetCurrentTX(tx)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
 		// /Quorum
 
 		_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
@@ -842,6 +862,16 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	}
 }
 
+func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *types.PrivateStateMetadata) types.Message {
+	if msg.IsPrivate() {
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
+		if api.eth.blockchain.PSMR().NotIncludeAny(psm, managedParties...) {
+			return msg.WithEmptyPrivateData(true)
+		}
+	}
+	return msg
+}
+
 // computeTxEnv returns the execution environment of a certain transaction.
 func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.Hash, txIndex int, reexec uint64) (core.Message, vm.Context, *state.StateDB, *state.StateDB, error) {
 	// Create the parent state database
@@ -857,7 +887,10 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}
-	psm, _ := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, vm.Context{}, nil, nil, err
+	}
 	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
@@ -876,6 +909,7 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 		// /Quorum
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
 		context := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 		if idx == txIndex {
 			return msg, context, statedb, privateStateDb, nil
