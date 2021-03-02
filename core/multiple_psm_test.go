@@ -141,20 +141,20 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 		//mergeReceipts test
 		for _, pubReceipt := range publicReceipts {
-			assert.Equal(t, 0, len(pubReceipt.PSIToReceipt))
+			assert.Equal(t, 0, len(pubReceipt.PSReceipts))
 		}
 		for _, privReceipt := range privateReceipts {
-			assert.Equal(t, 2, len(privReceipt.PSIToReceipt))
-			assert.NotEqual(t, nil, privReceipt.PSIToReceipt["psi1"])
-			assert.NotEqual(t, nil, privReceipt.PSIToReceipt["psi2"])
+			assert.Equal(t, 2, len(privReceipt.PSReceipts))
+			assert.NotEqual(t, nil, privReceipt.PSReceipts["psi1"])
+			assert.NotEqual(t, nil, privReceipt.PSReceipts["psi2"])
 		}
 
 		allReceipts := privateStateRepo.MergeReceipts(publicReceipts, privateReceipts)
 		for _, receipt := range allReceipts {
-			assert.Equal(t, 3, len(receipt.PSIToReceipt))
-			assert.NotEqual(t, nil, receipt.PSIToReceipt["empty"])
-			assert.NotEqual(t, nil, receipt.PSIToReceipt["psi1"])
-			assert.NotEqual(t, nil, receipt.PSIToReceipt["psi2"])
+			assert.Equal(t, 3, len(receipt.PSReceipts))
+			assert.NotEqual(t, nil, receipt.PSReceipts["empty"])
+			assert.NotEqual(t, nil, receipt.PSReceipts["psi1"])
+			assert.NotEqual(t, nil, receipt.PSReceipts["psi2"])
 		}
 	}
 }

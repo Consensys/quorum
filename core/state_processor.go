@@ -113,7 +113,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.GetDefaultStateMetadata().ID)
 			// handling the auxiliary receipt from MPS execution
 			if mpsReceipt != nil {
-				privateReceipt.PSIToReceipt = mpsReceipt.PSIToReceipt
+				privateReceipt.PSReceipts = mpsReceipt.PSReceipts
 				allLogs = append(allLogs, mpsReceipt.Logs...)
 			}
 		}
@@ -151,24 +151,24 @@ func (p *StateProcessor) handleMPS(ti int, tx *types.Transaction, block *types.B
 			db.Prepare(tx.Hash(), block.Hash(), ti)
 			return db, nil
 		}
-		mpsReceipt, err = applyTransactionOnMPS(p.config, p.bc, nil, gp, publicStateDBFactory, privateStateDBFactory, block.Header(), tx, usedGas, cfg)
+		mpsReceipt, err = ApplyTransactionOnMPS(p.config, p.bc, nil, gp, publicStateDBFactory, privateStateDBFactory, block.Header(), tx, usedGas, cfg)
 	}
 	return
 }
 
-// applyTransactionOnMPS runs the transaction on multiple private states which
+// ApplyTransactionOnMPS runs the transaction on multiple private states which
 // the transaction is designated to.
 //
 // For each designated private state, the transaction is ran only ONCE.
 //
-// applyTransactionOnMPS returns the auxiliary receipt which is mainly used to capture
+// ApplyTransactionOnMPS returns the auxiliary receipt which is mainly used to capture
 // multiple private receipts and logs array. Logs are decorated with types.PrivateStateIdentifier
-func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool,
+func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool,
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
 	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
 	mpsReceipt := &types.Receipt{
-		PSIToReceipt: make(map[types.PrivateStateIdentifier]*types.Receipt),
-		Logs:         make([]*types.Log, 0),
+		PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
+		Logs:       make([]*types.Log, 0),
 	}
 	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if err != nil {
@@ -180,7 +180,7 @@ func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			return nil, err
 		}
 		// if we already handled this private state skip it
-		if _, found := mpsReceipt.PSIToReceipt[psMetadata.ID]; found {
+		if _, found := mpsReceipt.PSReceipts[psMetadata.ID]; found {
 			continue
 		}
 		privateStateDB, err := privateStateDBFactory(psMetadata.ID)
@@ -198,7 +198,7 @@ func applyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			log.PSI = psMetadata.ID
 			mpsReceipt.Logs = append(mpsReceipt.Logs, log)
 		}
-		mpsReceipt.PSIToReceipt[psMetadata.ID] = receipt
+		mpsReceipt.PSReceipts[psMetadata.ID] = receipt
 
 		bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psMetadata.ID)
 	}

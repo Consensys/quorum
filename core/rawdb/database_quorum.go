@@ -88,8 +88,8 @@ func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Rec
 	var flattenedReceipts []*types.Receipt
 	for _, privReceipt := range receipts {
 		flattenedReceipts = append(flattenedReceipts, privReceipt)
-		for _, psiReceipt := range privReceipt.PSIToReceipt {
-			flattenedReceipts = append(flattenedReceipts, psiReceipt)
+		for _, psReceipt := range privReceipt.PSReceipts {
+			flattenedReceipts = append(flattenedReceipts, psReceipt)
 		}
 	}
 

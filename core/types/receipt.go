@@ -73,7 +73,7 @@ type Receipt struct {
 	// in which receipts are produced per PSI.
 	//
 	// This nested structure would not have more than 2 levels.
-	PSIToReceipt map[PrivateStateIdentifier]*Receipt
+	PSReceipts map[PrivateStateIdentifier]*Receipt
 }
 
 type receiptMarshaling struct {
@@ -99,7 +99,7 @@ type storedMPSReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
-	PSIToReceipt      []storedPSIToReceiptMapEntry
+	PSReceipts        []storedPSIToReceiptMapEntry
 }
 
 type storedPSIToReceiptMapEntry struct {
@@ -207,20 +207,20 @@ func (r *Receipt) Size() common.StorageSize {
 type ReceiptForStorage Receipt
 
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
-	if r.PSIToReceipt == nil {
+	if r.PSReceipts == nil {
 		return r.EncodeRLPOrig(w)
 	}
 	enc := &storedMPSReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
 		CumulativeGasUsed: r.CumulativeGasUsed,
 		Logs:              make([]*LogForStorage, len(r.Logs)),
-		PSIToReceipt:      make([]storedPSIToReceiptMapEntry, len(r.PSIToReceipt)),
+		PSReceipts:        make([]storedPSIToReceiptMapEntry, len(r.PSReceipts)),
 	}
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
 	}
 	idx := 0
-	for key, val := range r.PSIToReceipt {
+	for key, val := range r.PSReceipts {
 		rec := storedReceiptRLP{
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
@@ -229,7 +229,7 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)
 		}
-		enc.PSIToReceipt[idx] = storedPSIToReceiptMapEntry{Key: key, Value: rec}
+		enc.PSReceipts[idx] = storedPSIToReceiptMapEntry{Key: key, Value: rec}
 		idx++
 	}
 	return rlp.Encode(w, enc)
@@ -287,9 +287,9 @@ func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	}
 	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
 
-	if len(stored.PSIToReceipt) > 0 {
-		r.PSIToReceipt = make(map[PrivateStateIdentifier]*Receipt)
-		for _, entry := range stored.PSIToReceipt {
+	if len(stored.PSReceipts) > 0 {
+		r.PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
+		for _, entry := range stored.PSReceipts {
 			rec := &Receipt{}
 			if err := rec.setStatus(entry.Value.PostStateOrStatus); err != nil {
 				return err
@@ -301,7 +301,7 @@ func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 				rec.Logs[i].PSI = entry.Key
 			}
 			rec.Bloom = CreateBloom(Receipts{rec})
-			r.PSIToReceipt[entry.Key] = rec
+			r.PSReceipts[entry.Key] = rec
 		}
 	}
 
@@ -407,7 +407,7 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 
 		// this is a private tx
 		// add the PSI version of the receipt to all the relevant PSI arrays
-		for psi, privateReceipt := range receipt.PSIToReceipt {
+		for psi, privateReceipt := range receipt.PSReceipts {
 			//does it exist
 			if _, ok := allReceipts[psi]; !ok {
 				allReceipts[psi] = append(make([]*Receipt, 0), allPublic...)
@@ -415,7 +415,7 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 			allReceipts[psi] = append(allReceipts[psi], privateReceipt)
 		}
 		// add the empty receipt to all the currently tracked PSIs
-		emptyReceipt := receipt.PSIToReceipt[EmptyPrivateStateIdentifier]
+		emptyReceipt := receipt.PSReceipts[EmptyPrivateStateIdentifier]
 		for psi := range allReceipts {
 			if len(allReceipts[psi]) < i+1 {
 				allReceipts[psi] = append(allReceipts[psi], emptyReceipt)
@@ -440,13 +440,13 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	tmp := make([]*Receipt, len(r))
 	for i := 0; i < len(r); i++ {
 		tmp[i] = allPublic[i]
-		oldPsis := tmp[i].PSIToReceipt
-		tmp[i].PSIToReceipt = nil
+		oldPsis := tmp[i].PSReceipts
+		tmp[i].PSReceipts = nil
 		if txs[i].IsPrivate() {
-			tmp[i].PSIToReceipt = make(map[PrivateStateIdentifier]*Receipt)
+			tmp[i].PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
 		}
 		for psi := range oldPsis {
-			tmp[i].PSIToReceipt[psi] = allReceipts[psi][i]
+			tmp[i].PSReceipts[psi] = allReceipts[psi][i]
 		}
 	}
 
