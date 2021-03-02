@@ -159,10 +159,7 @@ func (s *Snapshot) uncast(address common.Address, authorize bool) bool {
 
 // apply creates a new authorization snapshot by applying the given headers to
 // the original one.
-func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool) (*Snapshot, error) {
-	if isQBFTConsensus {
-		return s.qbftApply(headers)
-	}
+func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool, qbftBlockNumber uint64) (*Snapshot, error) {
 	// Allow passing in no headers for cleaner code
 	if len(headers) == 0 {
 		return s, nil
@@ -180,78 +177,16 @@ func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool) (*Snapsh
 	snap := s.copy()
 
 	for _, header := range headers {
-		// Remove any votes on checkpoint blocks
-		number := header.Number.Uint64()
-		if number%s.Epoch == 0 {
-			snap.Votes = nil
-			snap.Tally = make(map[common.Address]Tally)
-		}
-		// Resolve the authorization key and check against validators
-		validator, err := ecrecoverFromSignedHeader(header)
-		if err != nil {
-			return nil, err
-		}
-		if _, v := snap.ValSet.GetByAddress(validator); v == nil {
-			return nil, errUnauthorized
-		}
-
-		// Header authorized, discard any previous votes from the validator
-		for i, vote := range snap.Votes {
-			if vote.Validator == validator && vote.Address == header.Coinbase {
-				// Uncast the vote from the cached tally
-				snap.uncast(vote.Address, vote.Authorize)
-
-				// Uncast the vote from the chronological list
-				snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-				break // only one vote allowed
+		if isQBFTConsensus && header.Number.Uint64() > qbftBlockNumber {
+			err := snap.qbftApply(header)
+			if err != nil {
+				return nil, err
 			}
-		}
-		// Tally up the new vote from the validator
-		var authorize bool
-		switch {
-		case bytes.Equal(header.Nonce[:], nonceAuthVote):
-			authorize = true
-		case bytes.Equal(header.Nonce[:], nonceDropVote):
-			authorize = false
-		default:
-			return nil, errInvalidVote
-		}
-		if snap.cast(header.Coinbase, authorize) {
-			snap.Votes = append(snap.Votes, &Vote{
-				Validator: validator,
-				Block:     number,
-				Address:   header.Coinbase,
-				Authorize: authorize,
-			})
-		}
-		// If the vote passed, update the list of validators
-		if tally := snap.Tally[header.Coinbase]; tally.Votes > snap.ValSet.Size()/2 {
-			if tally.Authorize {
-				snap.ValSet.AddValidator(header.Coinbase)
-			} else {
-				snap.ValSet.RemoveValidator(header.Coinbase)
-
-				// Discard any previous votes the deauthorized validator cast
-				for i := 0; i < len(snap.Votes); i++ {
-					if snap.Votes[i].Validator == header.Coinbase {
-						// Uncast the vote from the cached tally
-						snap.uncast(snap.Votes[i].Address, snap.Votes[i].Authorize)
-
-						// Uncast the vote from the chronological list
-						snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-
-						i--
-					}
-				}
+		} else {
+			err := snap.legacyApply(header)
+			if err != nil {
+				return nil, err
 			}
-			// Discard any previous votes around the just changed account
-			for i := 0; i < len(snap.Votes); i++ {
-				if snap.Votes[i].Address == header.Coinbase {
-					snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-					i--
-				}
-			}
-			delete(snap.Tally, header.Coinbase)
 		}
 	}
 	snap.Number += uint64(len(headers))
@@ -260,117 +195,173 @@ func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool) (*Snapsh
 	return snap, nil
 }
 
-// qbftApply creates a new authorization snapshot using qbftExtra by applying the given headers to
-// the original one.
-func (s *Snapshot) qbftApply(headers []*types.Header) (*Snapshot, error) {
-	// Allow passing in no headers for cleaner code
-	if len(headers) == 0 {
-		return s, nil
+func (s *Snapshot) legacyApply(header *types.Header) error {
+	// Remove any votes on checkpoint blocks
+	number := header.Number.Uint64()
+	if number%s.Epoch == 0 {
+		s.Votes = nil
+		s.Tally = make(map[common.Address]Tally)
 	}
-	// Sanity check that the headers can be applied
-	for i := 0; i < len(headers)-1; i++ {
-		if headers[i+1].Number.Uint64() != headers[i].Number.Uint64()+1 {
-			return nil, errInvalidVotingChain
+	// Resolve the authorization key and check against validators
+	validator, err := ecrecoverFromSignedHeader(header)
+	if err != nil {
+		return err
+	}
+	if _, v := s.ValSet.GetByAddress(validator); v == nil {
+		return errUnauthorized
+	}
+
+	// Header authorized, discard any previous votes from the validator
+	for i, vote := range s.Votes {
+		if vote.Validator == validator && vote.Address == header.Coinbase {
+			// Uncast the vote from the cached tally
+			s.uncast(vote.Address, vote.Authorize)
+
+			// Uncast the vote from the chronological list
+			s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
+			break // only one vote allowed
 		}
 	}
-	if headers[0].Number.Uint64() != s.Number+1 {
-		return nil, errInvalidVotingChain
+	// Tally up the new vote from the validator
+	var authorize bool
+	switch {
+	case bytes.Equal(header.Nonce[:], nonceAuthVote):
+		authorize = true
+	case bytes.Equal(header.Nonce[:], nonceDropVote):
+		authorize = false
+	default:
+		return errInvalidVote
 	}
-	// Iterate through the headers and create a new snapshot
-	snap := s.copy()
-
-	for _, header := range headers {
-		// Remove any votes on checkpoint blocks
-		number := header.Number.Uint64()
-		if number%s.Epoch == 0 {
-			snap.Votes = nil
-			snap.Tally = make(map[common.Address]Tally)
-		}
-		// Resolve the authorization key and check against validators
-		validator, err := ecrecoverFromCoinbase(header)
-		if err != nil {
-			return nil, err
-		}
-		if _, v := snap.ValSet.GetByAddress(validator); v == nil {
-			return nil, errUnauthorized
-		}
-
-		// Get the Vote information from header
-		qbftExtra, err := types.ExtractQbftExtra(header)
-		if err != nil {
-			return nil, errInvalidExtraDataFormat
-		}
-
-		var validatorVote *types.ValidatorVote
-		if qbftExtra.Vote == nil || len(qbftExtra.Vote) == 0 {
-			validatorVote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QbftDropVote}
+	if s.cast(header.Coinbase, authorize) {
+		s.Votes = append(s.Votes, &Vote{
+			Validator: validator,
+			Block:     number,
+			Address:   header.Coinbase,
+			Authorize: authorize,
+		})
+	}
+	// If the vote passed, update the list of validators
+	if tally := s.Tally[header.Coinbase]; tally.Votes > s.ValSet.Size()/2 {
+		if tally.Authorize {
+			s.ValSet.AddValidator(header.Coinbase)
 		} else {
-			validatorVote = qbftExtra.Vote[0]
-		}
+			s.ValSet.RemoveValidator(header.Coinbase)
 
-		// Header authorized, discard any previous votes from the validator
-		for i, vote := range snap.Votes {
-			if vote.Validator == validator && vote.Address == validatorVote.RecipientAddress {
-				// Uncast the vote from the cached tally
-				snap.uncast(vote.Address, vote.Authorize)
+			// Discard any previous votes the deauthorized validator cast
+			for i := 0; i < len(s.Votes); i++ {
+				if s.Votes[i].Validator == header.Coinbase {
+					// Uncast the vote from the cached tally
+					s.uncast(s.Votes[i].Address, s.Votes[i].Authorize)
 
-				// Uncast the vote from the chronological list
-				snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-				break // only one vote allowed
-			}
-		}
-		// Tally up the new vote from the validator
-		var authorize bool
-		switch {
-		case validatorVote.VoteType == types.QbftAuthVote:
-			authorize = true
-		case validatorVote.VoteType == types.QbftDropVote:
-			authorize = false
-		default:
-			return nil, errInvalidVote
-		}
-		if snap.cast(validatorVote.RecipientAddress, authorize) {
-			snap.Votes = append(snap.Votes, &Vote{
-				Validator: validator,
-				Block:     number,
-				Address:   validatorVote.RecipientAddress,
-				Authorize: authorize,
-			})
-		}
-		// If the vote passed, update the list of validators
-		if tally := snap.Tally[validatorVote.RecipientAddress]; tally.Votes > snap.ValSet.Size()/2 {
-			if tally.Authorize {
-				snap.ValSet.AddValidator(validatorVote.RecipientAddress)
-			} else {
-				snap.ValSet.RemoveValidator(validatorVote.RecipientAddress)
+					// Uncast the vote from the chronological list
+					s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
 
-				// Discard any previous votes the deauthorized validator cast
-				for i := 0; i < len(snap.Votes); i++ {
-					if snap.Votes[i].Validator == validatorVote.RecipientAddress {
-						// Uncast the vote from the cached tally
-						snap.uncast(snap.Votes[i].Address, snap.Votes[i].Authorize)
-
-						// Uncast the vote from the chronological list
-						snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-
-						i--
-					}
-				}
-			}
-			// Discard any previous votes around the just changed account
-			for i := 0; i < len(snap.Votes); i++ {
-				if snap.Votes[i].Address == validatorVote.RecipientAddress {
-					snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
 					i--
 				}
 			}
-			delete(snap.Tally, validatorVote.RecipientAddress)
+		}
+		// Discard any previous votes around the just changed account
+		for i := 0; i < len(s.Votes); i++ {
+			if s.Votes[i].Address == header.Coinbase {
+				s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
+				i--
+			}
+		}
+		delete(s.Tally, header.Coinbase)
+	}
+	return nil
+}
+
+// qbftApply creates a new authorization snapshot using qbftExtra by applying the given headers to
+// the original one.
+func (s *Snapshot) qbftApply(header *types.Header) error {
+	// Remove any votes on checkpoint blocks
+	number := header.Number.Uint64()
+	if number%s.Epoch == 0 {
+		s.Votes = nil
+		s.Tally = make(map[common.Address]Tally)
+	}
+	// Resolve the authorization key and check against validators
+	validator, err := ecrecoverFromCoinbase(header)
+	if err != nil {
+		return err
+	}
+	if _, v := s.ValSet.GetByAddress(validator); v == nil {
+		return errUnauthorized
+	}
+
+	// Get the Vote information from header
+	qbftExtra, err := types.ExtractQbftExtra(header)
+	if err != nil {
+		return errInvalidExtraDataFormat
+	}
+
+	var validatorVote *types.ValidatorVote
+	if qbftExtra.Vote == nil || len(qbftExtra.Vote) == 0 {
+		validatorVote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QbftDropVote}
+	} else {
+		validatorVote = qbftExtra.Vote[0]
+	}
+
+	// Header authorized, discard any previous votes from the validator
+	for i, vote := range s.Votes {
+		if vote.Validator == validator && vote.Address == validatorVote.RecipientAddress {
+			// Uncast the vote from the cached tally
+			s.uncast(vote.Address, vote.Authorize)
+
+			// Uncast the vote from the chronological list
+			s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
+			break // only one vote allowed
 		}
 	}
-	snap.Number += uint64(len(headers))
-	snap.Hash = headers[len(headers)-1].Hash()
+	// Tally up the new vote from the validator
+	var authorize bool
+	switch {
+	case validatorVote.VoteType == types.QbftAuthVote:
+		authorize = true
+	case validatorVote.VoteType == types.QbftDropVote:
+		authorize = false
+	default:
+		return errInvalidVote
+	}
+	if s.cast(validatorVote.RecipientAddress, authorize) {
+		s.Votes = append(s.Votes, &Vote{
+			Validator: validator,
+			Block:     number,
+			Address:   validatorVote.RecipientAddress,
+			Authorize: authorize,
+		})
+	}
+	// If the vote passed, update the list of validators
+	if tally := s.Tally[validatorVote.RecipientAddress]; tally.Votes > s.ValSet.Size()/2 {
+		if tally.Authorize {
+			s.ValSet.AddValidator(validatorVote.RecipientAddress)
+		} else {
+			s.ValSet.RemoveValidator(validatorVote.RecipientAddress)
 
-	return snap, nil
+			// Discard any previous votes the deauthorized validator cast
+			for i := 0; i < len(s.Votes); i++ {
+				if s.Votes[i].Validator == validatorVote.RecipientAddress {
+					// Uncast the vote from the cached tally
+					s.uncast(s.Votes[i].Address, s.Votes[i].Authorize)
+
+					// Uncast the vote from the chronological list
+					s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
+
+					i--
+				}
+			}
+		}
+		// Discard any previous votes around the just changed account
+		for i := 0; i < len(s.Votes); i++ {
+			if s.Votes[i].Address == validatorVote.RecipientAddress {
+				s.Votes = append(s.Votes[:i], s.Votes[i+1:]...)
+				i--
+			}
+		}
+		delete(s.Tally, validatorVote.RecipientAddress)
+	}
+	return nil
 }
 
 // validators retrieves the list of authorized validators in ascending order.

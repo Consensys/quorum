@@ -83,7 +83,7 @@ func (api *API) signers(header *types.Header) (*BlockSigners, error) {
 		return nil, err
 	}
 
-	committers, err := api.istanbul.Signers(header)
+	committers, err := api.istanbul.Signers(header, api.istanbul.IsQIBFTConsensusForHeader(header))
 	if err != nil {
 		return nil, err
 	}
