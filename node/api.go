@@ -275,7 +275,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	if err := server.setListenAddr(*host, *port); err != nil {
 		return false, err
 	}
-	if err := server.enableWS(api.node.rpcAPIs, config,auth); err != nil {
+	if err := server.enableWS(api.node.rpcAPIs, config, auth); err != nil {
 		return false, err
 	}
 	if err := server.start(tls); err != nil {

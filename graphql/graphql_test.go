@@ -17,12 +17,12 @@
 package graphql
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"strings"
-	"context"
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/eth"

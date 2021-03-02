@@ -4,6 +4,12 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/core"
@@ -14,11 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"io/ioutil"
-	"net"
-	"os"
-	"testing"
-	"time"
 )
 
 // pm.advanceAppliedIndex() and state updates are in different

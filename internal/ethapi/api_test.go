@@ -2,11 +2,12 @@ package ethapi
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/consensus"
 	"math/big"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"

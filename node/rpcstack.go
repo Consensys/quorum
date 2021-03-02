@@ -20,7 +20,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/plugin/security"
 	"io"
 	"io/ioutil"
 	"net"
@@ -29,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ethereum/go-ethereum/plugin/security"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
