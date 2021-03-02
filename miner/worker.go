@@ -802,7 +802,6 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
-	privateStateDB = privateStateDB.Copy()
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	privateStateSnaphots[privateStateRepo.GetDefaultStateMetadata().ID] = privateStateDB.Snapshot()
@@ -1174,7 +1173,6 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsR
 			if err != nil {
 				return nil, err
 			}
-			db = db.Copy()
 			db.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 			privateStateSnaphots[psi] = db.Snapshot()
 			return db, nil
