@@ -87,6 +87,7 @@ jobs:
         # More comprehensive suites are scheduled to run in master
         tag:
           - 'basic || networks/typical::raftmps'
+          - 'basic || networks/typical::istanbulmps'
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
     runs-on: ubuntu-18.04
