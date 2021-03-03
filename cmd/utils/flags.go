@@ -1998,10 +1998,11 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 	if err != nil {
 		Fatalf("plugins: Failed to register the Plugins service: %v", err)
 	}
-	stack.RegisterLifecycle(pluginManager)
-	stack.RegisterProtocols(pluginManager.Protocols())
-	stack.RegisterAPIs(pluginManager.APIs())
 	stack.SetPluginManager(pluginManager)
+	stack.RegisterAPIs(pluginManager.APIs())
+	stack.RegisterProtocols(pluginManager.Protocols())
+	stack.RegisterLifecycle(pluginManager)
+	log.Info("plugin service registered")
 }
 
 // Configure smart-contract-based permissioning service
@@ -2017,10 +2018,9 @@ func RegisterPermissionService(stack *node.Node, useDns bool) {
 		Fatalf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}
 
-	stack.RegisterLifecycle(pc)
+	stack.RegisterAPIs(pc.APIs())
 	stack.RegisterProtocols(pc.Protocols())
-	stack.RegisterAPIs(pc.APIs())
-	stack.RegisterAPIs(pc.APIs())
+	stack.RegisterLifecycle(pc)
 	log.Info("permission service registered")
 }
 
@@ -2070,10 +2070,9 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		Fatalf("raft: Failed to register the Raft service: %v", err)
 	}
 
-	stack.RegisterLifecycle(raftService)
-	stack.RegisterProtocols(raftService.Protocols())
 	stack.RegisterAPIs(raftService.APIs())
-
+	stack.RegisterProtocols(raftService.Protocols())
+	stack.RegisterLifecycle(raftService)
 	log.Info("raft service registered")
 }
 
@@ -2087,12 +2086,11 @@ func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
 
 	service := factory.BackendService()
 
-	stack.RegisterLifecycle(service)
-	stack.RegisterProtocols(service.Protocols())
 	stack.RegisterAPIs(service.APIs())
+	stack.RegisterProtocols(service.Protocols())
+	stack.RegisterLifecycle(service)
 
 	log.Info("extension service registered")
-
 }
 
 func SetupMetrics(ctx *cli.Context) {

@@ -23,6 +23,7 @@ type PluginManager struct {
 	mux                sync.Mutex                            // control concurrent access to plugins cache
 	plugins            map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
 	initializedPlugins map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting/stopping/getting info
+	pluginsStarted     bool
 }
 
 func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
@@ -41,6 +42,10 @@ func (s *PluginManager) APIs() []rpc.API {
 }
 
 func (s *PluginManager) Start() (err error) {
+	if s.pluginsStarted {
+		log.Info("Plugins already started")
+		return
+	}
 	log.Info("Starting all plugins", "count", len(s.initializedPlugins))
 	startedPlugins := make([]managedPlugin, 0, len(s.initializedPlugins))
 	for _, p := range s.initializedPlugins {
@@ -54,6 +59,8 @@ func (s *PluginManager) Start() (err error) {
 		for _, p := range startedPlugins {
 			_ = p.Stop()
 		}
+	} else {
+		s.pluginsStarted = true
 	}
 	return
 }
@@ -129,6 +136,7 @@ func (s *PluginManager) Stop() error {
 		}
 	}
 	log.Info("All plugins stopped", "errors", allErrors)
+	s.pluginsStarted = false
 	if len(allErrors) == 0 {
 		return nil
 	}
@@ -228,6 +236,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		}
 		pm.initializedPlugins[pluginName] = base
 	}
+	log.Debug("Created plugin manager", "PluginsInfo()", pm.PluginsInfo())
 	return pm, nil
 }
 
