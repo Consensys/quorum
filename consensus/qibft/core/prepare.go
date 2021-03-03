@@ -38,7 +38,7 @@ func (c *core) broadcastPrepare() {
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign commit message", "msg", prepare, "err", err)
+		logger.Error("QBFT: Failed to sign prepare message", "msg", prepare, "err", err)
 		return
 	}
 	prepare.SetSignature(signature)
@@ -46,7 +46,7 @@ func (c *core) broadcastPrepare() {
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode commit message", "msg", prepare, "err", err)
+		logger.Error("QBFT: Failed to encode prepare message", "msg", prepare, "err", err)
 		return
 	}
 
