@@ -213,7 +213,7 @@ func (c *core) handleTimeoutMsg() {
 func (c *core) verifySignatures(m message.QBFTMessage) error {
 	// Anonymous function to verify the signature of a single message or payload
 	verify := func(m message.QBFTMessage) error {
-		payload, err := m.EncodePayload()
+		payload, err := m.EncodePayloadForSigning()
 		if err != nil {
 			c.logger.Error("QBFT: Error encoding payload", "code", m.Code(), "err", err)
 		}

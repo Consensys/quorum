@@ -35,7 +35,7 @@ func (c *core) sendPreprepareMsg(request *Request) {
 		preprepare.SetSource(c.Address())
 
 		// Sign payload
-		encodedPayload, err := preprepare.EncodePayload()
+		encodedPayload, err := preprepare.EncodePayloadForSigning()
 		if err != nil {
 			logger.Error("QBFT: Failed to encode payload of pre-prepare message", "msg", preprepare, "err", err)
 			return

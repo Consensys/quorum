@@ -39,7 +39,7 @@ func (c *core) broadcastCommit() {
 	commit.SetSource(c.Address())
 
 	// Sign Message
-	encodedPayload, err := commit.EncodePayload()
+	encodedPayload, err := commit.EncodePayloadForSigning()
 	if err != nil {
 		logger.Error("QBFT: Failed to encode payload of commit message", "msg", commit, "err", err)
 		return
