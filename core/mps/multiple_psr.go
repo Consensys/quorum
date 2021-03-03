@@ -9,7 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// manages a number of state DB objects identified by their PSI (private state identifier)
+// MultiplePrivateStateRepository manages a number of state DB objects
+// identified by their types.PrivateStateIdentifier. It also maintains a trie
+// of private states whose root hash is mapped with a block hash.
 type MultiplePrivateStateRepository struct {
 	chainConfig *params.ChainConfig
 	db          ethdb.Database
@@ -22,7 +24,7 @@ type MultiplePrivateStateRepository struct {
 	trie state.Trie
 
 	// managed states map
-	managedStates map[types.PrivateStateIdentifier]*ManagedState
+	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
 func NewMultiplePrivateStateRepository(chainConfig *params.ChainConfig, db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*MultiplePrivateStateRepository, error) {
@@ -36,70 +38,66 @@ func NewMultiplePrivateStateRepository(chainConfig *params.ChainConfig, db ethdb
 		db:            db,
 		repoCache:     cache,
 		trie:          tr,
-		managedStates: make(map[types.PrivateStateIdentifier]*ManagedState)}, nil
+		managedStates: make(map[types.PrivateStateIdentifier]*managedState)}, nil
 }
 
 // A managed state is a pair of stateDb and it's corresponding stateCache objects
 // Although right now we may not need a separate stateCache it may be useful if we'll do multiple managed state commits in parallel
-type ManagedState struct {
+type managedState struct {
 	stateDb    *state.StateDB
 	stateCache state.Database
 }
 
-// TODO - !!!IMPORTANT!!! review the state delegate logic with the rest of the team
-// The empty state is the private state where all private transactions are executed "as if" the private state is not a party.
-// ALL private transactions are being applied to this state (with empty private transaction payload). It allows the public
-// state to progress as usual (increasing the public state nonce when transactions are sent/contracts are created).
-// The empty state also allows us not to execute the non party transactions for each of the managed private states (by
-// injecting the empty state into every managed state as a delegate for CERTAIN calls where the state object is nil). When
-// invoking an Exist/Empty/GetNonce call on the StateDB if the state object is missing in the current managed private
-// the call is delegated to the empty state.
-// State delegate consequences:
-// * a managed state in a multiple private state environment will NOT have the same state root as the private state in
-// a standalone quorum (due to the empty contracts not being part of the actual state in the multiple private states env)
-func (psm *MultiplePrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
-	return psm.GetPrivateState(types.EmptyPrivateStateMetadata.ID)
+func (ms *managedState) Copy() *managedState {
+	return &managedState{
+		stateDb:    ms.stateDb.Copy(),
+		stateCache: ms.stateCache,
+	}
 }
 
-func (psm *MultiplePrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+func (mpsr *MultiplePrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
+	return mpsr.GetPrivateState(types.EmptyPrivateStateMetadata.ID)
+}
+
+func (mpsr *MultiplePrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
 	return types.EmptyPrivateStateMetadata
 }
 
-func (psm *MultiplePrivateStateRepository) IsMPS() bool {
+func (mpsr *MultiplePrivateStateRepository) IsMPS() bool {
 	return true
 }
 
-func (psm *MultiplePrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
-	managedState, found := psm.managedStates[psi]
+func (mpsr *MultiplePrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+	ms, found := mpsr.managedStates[psi]
 	if found {
-		return managedState.stateDb, nil
+		return ms.stateDb, nil
 	}
-	privateStatesTrieRoot, err := psm.trie.TryGet([]byte(psi))
+	privateStatesTrieRoot, err := mpsr.trie.TryGet([]byte(psi))
 	if err != nil {
 		return nil, err
 	}
-	stateCache := state.NewDatabase(psm.db)
+	stateCache := state.NewDatabase(mpsr.db)
 	statedb, err := state.New(common.BytesToHash(privateStatesTrieRoot), stateCache, nil)
 	if err != nil {
 		return nil, err
 	}
 	if psi != types.EmptyPrivateStateMetadata.ID {
-		emptyState, err := psm.GetDefaultState()
+		emptyState, err := mpsr.GetDefaultState()
 		if err != nil {
 			return nil, err
 		}
 		statedb.SetEmptyState(emptyState)
 	}
-	psm.managedStates[psi] = &ManagedState{
+	mpsr.managedStates[psi] = &managedState{
 		stateCache: stateCache,
 		stateDb:    statedb,
 	}
 	return statedb, nil
 }
 
-func (psm *MultiplePrivateStateRepository) Reset() error {
-	for psi, managedState := range psm.managedStates {
-		root, err := psm.trie.TryGet([]byte(psi))
+func (mpsr *MultiplePrivateStateRepository) Reset() error {
+	for psi, managedState := range mpsr.managedStates {
+		root, err := mpsr.trie.TryGet([]byte(psi))
 		if err != nil {
 			return err
 		}
@@ -112,15 +110,15 @@ func (psm *MultiplePrivateStateRepository) Reset() error {
 }
 
 // commitAndWrite- commits all private states, updates the trie of private states, writes to disk
-func (psm *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) error {
-	for psi, managedState := range psm.managedStates {
+func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) error {
+	for psi, managedState := range mpsr.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(psm.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(mpsr.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
 		// update the managed state root in the trie of states
-		err = psm.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
 			return err
 		}
@@ -130,42 +128,56 @@ func (psm *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) er
 		}
 	}
 	// commit the trie of states
-	mtRoot, err := psm.trie.Commit(nil)
+	mtRoot, err := mpsr.trie.Commit(nil)
 	if err != nil {
 		return err
 	}
-	err = rawdb.WritePrivateStatesTrieRoot(psm.db, block.Root(), mtRoot)
+	err = rawdb.WritePrivateStatesTrieRoot(mpsr.db, block.Root(), mtRoot)
 	if err != nil {
 		return err
 	}
-	privateTriedb := psm.repoCache.TrieDB()
+	privateTriedb := mpsr.repoCache.TrieDB()
 	err = privateTriedb.Commit(mtRoot, false)
 	return err
 }
 
 // commit - commits all private states, updates the trie of private states only
-func (psm *MultiplePrivateStateRepository) Commit(block *types.Block) error {
-	for psi, managedState := range psm.managedStates {
+func (mpsr *MultiplePrivateStateRepository) Commit(block *types.Block) error {
+	for psi, managedState := range mpsr.managedStates {
 		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(psm.chainConfig.IsEIP158(block.Number()))
+		privateRoot, err := managedState.stateDb.Commit(mpsr.chainConfig.IsEIP158(block.Number()))
 		if err != nil {
 			return err
 		}
 		// update the managed state root in the trie of states
-		err = psm.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
 			return err
 		}
 	}
 	// commit the trie of states
-	_, err := psm.trie.Commit(nil)
+	_, err := mpsr.trie.Commit(nil)
 	if err != nil {
 		return err
 	}
 	return err
 }
 
-func (psm *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
+func (mpsr *MultiplePrivateStateRepository) Copy() PrivateStateRepository {
+	managedStatesCopy := make(map[types.PrivateStateIdentifier]*managedState)
+	for key, value := range mpsr.managedStates {
+		managedStatesCopy[key] = value.Copy()
+	}
+	return &MultiplePrivateStateRepository{
+		chainConfig:   mpsr.chainConfig,
+		db:            mpsr.db,
+		repoCache:     mpsr.repoCache,
+		trie:          mpsr.repoCache.CopyTrie(mpsr.trie),
+		managedStates: managedStatesCopy,
+	}
+}
+
+func (mpsr *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
 		m[receipt.TxHash] = receipt

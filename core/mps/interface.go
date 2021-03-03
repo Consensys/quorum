@@ -32,6 +32,7 @@ type PrivateStateRepository interface {
 	GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error)
 	CommitAndWrite(block *types.Block) error
 	Commit(block *types.Block) error
+	Copy() PrivateStateRepository
 	Reset() error
 	GetDefaultState() (*state.StateDB, error)
 	GetDefaultStateMetadata() *types.PrivateStateMetadata

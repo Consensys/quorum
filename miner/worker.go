@@ -1081,6 +1081,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	privateReceipts := copyReceipts(w.current.privateReceipts) // Quorum
 
 	s := w.current.state.Copy()
+	psrCopy := w.current.privateStateRepo.Copy()
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err
@@ -1090,7 +1091,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateRepo: w.current.privateStateRepo, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateRepo: psrCopy, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,

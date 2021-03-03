@@ -89,6 +89,16 @@ func (dpsr *DefaultPrivateStateRepository) Commit(block *types.Block) error {
 	return err
 }
 
+func (dpsr *DefaultPrivateStateRepository) Copy() PrivateStateRepository {
+	return &DefaultPrivateStateRepository{
+		chainConfig: dpsr.chainConfig,
+		db:          dpsr.db,
+		stateCache:  dpsr.stateCache,
+		stateDB:     dpsr.stateDB.Copy(),
+		root:        dpsr.root,
+	}
+}
+
 func (dpsr *DefaultPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
