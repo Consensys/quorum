@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"io"
 	"math/big"
 
@@ -76,4 +77,8 @@ func (m *Preprepare) DecodeRLP(stream *rlp.Stream) error {
 	m.JustificationPrepares = message.Justification.Prepares
 	m.JustificationRoundChanges = message.Justification.RoundChanges
 	return nil
+}
+
+func (m *Preprepare) String() string {
+	return fmt.Sprintf("code: %d, sequence: %d, round: %d, proposal: %v", m.code, m.Sequence, m.Round, m.Proposal.Hash().Hex())
 }

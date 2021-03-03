@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -50,7 +51,7 @@ func (c *core) broadcastPrepare() {
 		return
 	}
 
-	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", payload)
+	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", hexutil.Encode(payload))
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
 		logger.Error("QBFT: Failed to broadcast message", "msg", prepare, "err", err)
