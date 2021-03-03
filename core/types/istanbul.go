@@ -19,7 +19,6 @@ package types
 import (
 	"errors"
 	"io"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -129,7 +128,7 @@ type QbftExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
 	Vote          []*ValidatorVote
-	Round         *big.Int
+	Round         uint32
 	CommittedSeal [][]byte
 }
 
@@ -155,7 +154,7 @@ func (qst *QbftExtra) DecodeRLP(s *rlp.Stream) error {
 		VanityData    []byte
 		Validators    []common.Address
 		Vote          []*ValidatorVote
-		Round         *big.Int
+		Round         uint32
 		CommittedSeal [][]byte
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
@@ -211,7 +210,7 @@ func QbftFilteredHeader(h *Header) *Header {
 
 	qbftExtra.VanityData = []byte{}
 	qbftExtra.CommittedSeal = [][]byte{}
-	qbftExtra.Round = nil
+	qbftExtra.Round = 0
 	qbftExtra.Vote = nil
 
 	payload, err := rlp.EncodeToBytes(&qbftExtra)

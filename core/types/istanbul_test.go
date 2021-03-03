@@ -18,7 +18,6 @@ package types
 
 import (
 	"bytes"
-	"math/big"
 	"reflect"
 	"testing"
 
@@ -63,7 +62,7 @@ func TestExtractToQbftExtra(t *testing.T) {
 					common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 				},
 				CommittedSeal: [][]byte{},
-				Round:         big.NewInt(0),
+				Round:         0,
 				Vote:          []*ValidatorVote{},
 			},
 			nil,

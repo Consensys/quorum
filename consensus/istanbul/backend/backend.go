@@ -377,6 +377,30 @@ func (sb *backend) IsQIBFTConsensusCrossed() bool {
 	return false
 }
 
+// IsQIBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
+func (sb *backend) IsQIBFTConsensusForHeader(header *types.Header) bool {
+	// If qibftBlock is not defined in genesis, then use legacy ibft
+	if sb.config.QibftBlock == nil {
+		return false
+	}
+	if sb.config.QibftBlock.Uint64() == 0 {
+		return true
+	}
+
+	if sb.chain != nil && header.Number.Cmp(sb.config.QibftBlock) >= 0 {
+		return true
+	}
+	return false
+}
+
+// qbftBlockNumber returns the qibftBlock fork block number
+func (sb *backend) qbftBlockNumber() uint64 {
+	if sb.config.QibftBlock == nil {
+		return 0
+	}
+	return sb.config.QibftBlock.Uint64()
+}
+
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qibft consensus
 func (sb *backend) StartQIBFTConsensus() error {
 	sb.logger.Trace("Starting QIBFT Consensus")

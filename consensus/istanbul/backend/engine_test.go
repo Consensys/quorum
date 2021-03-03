@@ -104,7 +104,7 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 		Validators:    addrs,
 		Vote:          nil,
 		CommittedSeal: [][]byte{},
-		Round:         big.NewInt(0),
+		Round:         0,
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
@@ -597,7 +597,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 		},
 		CommittedSeal: [][]byte{expectedCommittedSeal},
-		Round:         big.NewInt(0),
+		Round:         0,
 		Vote:          []*types.ValidatorVote{},
 	}
 	var expectedErr error
@@ -640,7 +640,7 @@ func TestWriteRoundNumber(t *testing.T) {
 			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 		},
 		CommittedSeal: [][]byte{},
-		Round:         big.NewInt(5),
+		Round:         5,
 		Vote:          []*types.ValidatorVote{},
 	}
 
@@ -674,7 +674,7 @@ func TestWriteValidatorVote(t *testing.T) {
 		VanityData:    vanity,
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},
-		Round:         big.NewInt(0),
+		Round:         0,
 		Vote:          []*types.ValidatorVote{vote},
 	}
 
