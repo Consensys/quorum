@@ -66,7 +66,7 @@ func setup() {
 	mux.HandleFunc("/send", MockSendAPIHandlerFunc)
 	mux.HandleFunc("/transaction/", MockReceiveAPIHandlerFunc)
 	mux.HandleFunc("/sendsignedtx", MockSendSignedTxAPIHandlerFunc)
-	mux.HandleFunc("/residentGroups", MockGroupsAPIHandlerFunc)
+	mux.HandleFunc("/groups/resident", MockGroupsAPIHandlerFunc)
 
 	testServer = httptest.NewServer(mux)
 
