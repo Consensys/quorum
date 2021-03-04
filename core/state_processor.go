@@ -136,6 +136,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
 	vmenv.SetCurrentTX(tx)
+	vmenv.SavedPrivateState = privateState //Quorum - save private stateDB for precompile
 
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)

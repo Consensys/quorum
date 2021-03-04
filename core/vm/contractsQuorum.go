@@ -17,7 +17,11 @@
 package vm
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -60,23 +64,69 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 // retrieves transaction data from Tessera and executes it (if we are a participant)
 //		input = 64 byte private hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
-	encryptedHash := common.BytesToEncryptedPayloadHash(input)
-	_, _, data, _, err := private.P.Receive(encryptedHash)
+	log.Debug("Running privacy marker precompile")
+
+	txHash := common.BytesToEncryptedPayloadHash(evm.currentTx.Data())
+	_, _, privateInputData, _, err := private.P.Receive(txHash) //TODO: should use returned metadata...
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, err
 	}
-
-	//if this node is not a participant then no action
-	if data == nil {
-		log.Trace("not a participant, precompile performing no action")
+	if privateInputData == nil {
+		log.Debug("not a participant, precompile performing no action")
 		return nil, nil
 	}
 
-	return c.runUsingSandboxEVM(evm, data)
+	var tx types.Transaction
+	err = json.NewDecoder(bytes.NewReader(privateInputData)).Decode(&tx)
+	if err != nil {
+		log.Trace("failed to deserialize privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	// Restore txn data from tessera
+	payloadHash := common.BytesToEncryptedPayloadHash(tx.Data())
+	_, _, privatePayload, _, err := private.P.Receive(payloadHash)
+	if err != nil {
+		return nil, err
+	}
+	if privatePayload == nil {
+		log.Debug("not a participant, precompile performing no action (this should never happen)")
+		return nil, nil
+	}
+
+	return c.runUsingSandboxEVM(evm, tx, privatePayload)
 }
 
-func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, data []byte) ([]byte, error) {
-	log.Warn("privacy marker transaction not yet supported - no action performed")
-	return nil, nil
+func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data []byte) ([]byte, error) {
+
+	/* TODO: should use something like this context for the EVM:
+	   // Setup context with timeout as gas un-metered
+	   var cancel context.CancelFunc
+	   ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+	   // Make sure the context is cancelled when the call has completed
+	   // this makes sure resources are cleaned up.
+	   defer func() { cancel() }()
+	*/
+
+	//TODO: may need to create a new vm.Context (because of multitenancy, as per GetEVM())
+	privateState := evm.SavedPrivateState
+	if !privateState.Exist(*tx.To()) {
+		privateState = evm.publicState
+	}
+	sandboxEVM := NewEVM(evm.Context, evm.publicState, privateState, evm.chainConfig, evm.vmConfig)
+	sandboxEVM.SetCurrentTX(&tx)
+
+	/* TODO:
+	// Wait for the context to be done and cancel the evm. Even if the
+	// EVM has finished, cancelling may be done (repeatedly)
+	go func() {
+	   <-ctx.Done()
+	   evm.Cancel()
+	}()
+	*/
+
+	ret, _, err := sandboxEVM.Call(AccountRef(tx.From()), *tx.To(), data, tx.Gas(), tx.Value())
+
+	return ret, err
 }

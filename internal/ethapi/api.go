@@ -19,7 +19,6 @@ package ethapi
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -473,6 +472,17 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
 	}
+
+	// Quorum
+	if isPrivate && args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
+		signed, err = buildPrivacyMarkerTransaction(ctx, s.b, args, signed)
+		if err != nil {
+			log.Warn("Failed to create privacy marker during transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+	}
+	// /Quorum
+
 	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
 }
 
@@ -1827,15 +1837,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		}
 	}
 
-	// If privacy marker transactions are enabled then replace any transaction which calls a private contract,
-	// with a new one, masking the 'To' address by replacing it with the address of the precompile
-	if tx.IsPrivate() && tx.To() != nil && b.QuorumUsingPrivacyMarkerTransactions() {
-		tx, err = buildPrivacyMarkerTransaction(ctx, b, tx, b.QuorumPrivacyMarkerSigningKey(), types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number()))
-		if err != nil {
-			return common.Hash{}, err
-		}
-	}
-
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
@@ -2005,8 +2006,28 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 
 // Quorum
 //
-// Create a privacy marker transaction
-func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, tx *types.Transaction, signingKey *ecdsa.PrivateKey, signer types.Signer) (*types.Transaction, error) {
+// If privacy marker transactions are enabled then replace transaction with a new one which masks the 'From'
+// and 'To' addresses.
+// This is done by replacing the 'To' address with the address of a precompile,
+// and signing the transaction with an alternate wallet.
+func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, args SendTxArgs, tx *types.Transaction) (*types.Transaction, error) {
+
+	log.Trace("creating privacy marker transaction", "from", tx.From(), "to", tx.To())
+
+	data := new(bytes.Buffer)
+	err := json.NewEncoder(data).Encode(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	// store entire transaction in tessera
+	_, _, txnHash, err := private.P.Send(data.Bytes(), args.PrivateTxArgs.PrivateFrom, args.PrivateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+	if err != nil {
+		return nil, err
+	}
+
+	signingKey := b.QuorumPrivacyMarkerSigningKey()
+	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
 
 	// TODO: there must be an easier way to get the 'from' address for the signing key
 	// dummy sign transaction to get the address of the signing key...
@@ -2019,7 +2040,7 @@ func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, tx *types.Tra
 		return nil, err
 	}
 
-	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data())
+	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), txnHash.Bytes())
 
 	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
 	if err != nil {
@@ -2055,7 +2076,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2074,6 +2094,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 	// /Quorum
 
+	// Quorum
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
@@ -2084,6 +2105,17 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
+
+	// Quorum
+	if isPrivate && args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
+		signed, err = buildPrivacyMarkerTransaction(ctx, s.b, args, signed)
+		if err != nil {
+			log.Warn("Failed to create privacy marker during transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+	}
+	// /Quorum
+
 	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
 }
 

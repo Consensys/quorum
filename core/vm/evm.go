@@ -205,6 +205,8 @@ type EVM struct {
 	// we use this to bubble up the error instead of "evm: execution revert" error.
 	// use it with care as it's meant for runtime multitenancy check during simulation.
 	lastError error
+
+	SavedPrivateState PrivateState //Quorum: used to support privacy marker transactions
 }
 
 // AffectedType defines attributes indicating how a contract is affected
