@@ -47,8 +47,8 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 	if t.features.HasFeature(engine.MultiTenancy) {
 		apiVersion = "vnd.tessera-2.1+"
 	}
-	// TODO - figure out the API version for residentGroups
-	if t.features.HasFeature(engine.MultiplePrivateStates) && path == "/residentGroups" {
+	if t.features.HasFeature(engine.MultiplePrivateStates) && path == "/groups/resident" {
+		// for the groups API the Content-type/Accept is application/json
 		apiVersion = ""
 	}
 	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request, apiVersion)
@@ -427,7 +427,7 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 
 func (t *tesseraPrivateTxManager) Groups() ([]engine.PrivacyGroup, error) {
 	response := make([]engine.PrivacyGroup, 0)
-	if _, err := t.submitJSON("GET", "/residentGroups", nil, &response); err != nil {
+	if _, err := t.submitJSON("GET", "/groups/resident", nil, &response); err != nil {
 		return nil, err
 	}
 	return response, nil
