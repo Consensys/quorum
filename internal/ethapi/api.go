@@ -2004,53 +2004,6 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	return evm, err
 }
 
-// Quorum
-//
-// If privacy marker transactions are enabled then replace transaction with a new one which masks the 'From'
-// and 'To' addresses.
-// This is done by replacing the 'To' address with the address of a precompile,
-// and signing the transaction with an alternate wallet.
-func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, args SendTxArgs, tx *types.Transaction) (*types.Transaction, error) {
-
-	log.Trace("creating privacy marker transaction", "from", tx.From(), "to", tx.To())
-
-	data := new(bytes.Buffer)
-	err := json.NewEncoder(data).Encode(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	// store entire transaction in tessera
-	_, _, txnHash, err := private.P.Send(data.Bytes(), args.PrivateTxArgs.PrivateFrom, args.PrivateTxArgs.PrivateFor, &engine.ExtraMetadata{})
-	if err != nil {
-		return nil, err
-	}
-
-	signingKey := b.QuorumPrivacyMarkerSigningKey()
-	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
-
-	// TODO: there must be an easier way to get the 'from' address for the signing key
-	// dummy sign transaction to get the address of the signing key...
-	dummyTx, err := types.SignTx(tx, signer, signingKey)
-	from := dummyTx.From()
-
-	nonce, err := b.GetPoolNonce(ctx, from)
-	if err != nil {
-		log.Error("Failed to calculate nonce for privacy marker transaction", "err", err)
-		return nil, err
-	}
-
-	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), txnHash.Bytes())
-
-	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
-	if err != nil {
-		log.Error("Failed to sign privacy marker transaction", "err", err)
-		return nil, err
-	}
-
-	return signedPrivacyMarkerTx, nil
-}
-
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args SendTxArgs) (common.Hash, error) {
@@ -2607,6 +2560,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 
+// Quorum
 func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if !isPrivate {
@@ -2644,6 +2598,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	return
 }
 
+// Quorum
 // If transaction is raw, the tx payload is indeed the hash of the encrypted payload
 //
 // For private transaction, run a simulated execution in order to
@@ -2723,6 +2678,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	return
 }
 
+// Quorum
 // simulateExecutionForPE simulates execution of a private transaction for enhanced privacy
 //
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
@@ -2786,6 +2742,48 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 	}
 	log.Trace("post-execution run", "merkleRoot", merkleRoot, "affectedhashes", affectedContractsHashes)
 	return affectedContractsHashes, merkleRoot, nil
+}
+
+// Quorum
+// If privacy marker transactions are enabled then replace transaction with a new one which masks the 'From'
+// and 'To' addresses.
+// This is done by replacing the 'To' address with the address of a precompile,
+// and signing the transaction with an alternate wallet.
+func buildPrivacyMarkerTransaction(ctx context.Context, b Backend, args SendTxArgs, tx *types.Transaction) (*types.Transaction, error) {
+
+	log.Trace("creating privacy marker transaction", "from", tx.From(), "to", tx.To())
+
+	data := new(bytes.Buffer)
+	err := json.NewEncoder(data).Encode(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	// store entire transaction in tessera
+	_, _, txnHash, err := private.P.Send(data.Bytes(), args.PrivateTxArgs.PrivateFrom, args.PrivateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+	if err != nil {
+		return nil, err
+	}
+
+	signingKey := b.QuorumPrivacyMarkerSigningKey()
+	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
+	from := crypto.PubkeyToAddress(signingKey.PublicKey)
+
+	nonce, err := b.GetPoolNonce(ctx, from)
+	if err != nil {
+		log.Error("Failed to calculate nonce for privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), txnHash.Bytes())
+
+	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
+	if err != nil {
+		log.Error("Failed to sign privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	return signedPrivacyMarkerTx, nil
 }
 
 //End-Quorum
