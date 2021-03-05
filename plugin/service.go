@@ -42,12 +42,17 @@ func (s *PluginManager) APIs() []rpc.API {
 }
 
 func (s *PluginManager) Start() (err error) {
+	initializedPluginsCount := len(s.initializedPlugins)
+	if initializedPluginsCount == 0 {
+		log.Info("No plugins initialized")
+		return
+	}
 	if s.pluginsStarted {
 		log.Info("Plugins already started")
 		return
 	}
-	log.Info("Starting all plugins", "count", len(s.initializedPlugins))
-	startedPlugins := make([]managedPlugin, 0, len(s.initializedPlugins))
+	log.Info("Starting all plugins", "count", initializedPluginsCount)
+	startedPlugins := make([]managedPlugin, 0, initializedPluginsCount)
 	for _, p := range s.initializedPlugins {
 		if err = p.Start(); err != nil {
 			break

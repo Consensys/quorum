@@ -176,14 +176,13 @@ func (n *Node) Start() error {
 
 	// Quorum
 	// Start the plugin manager before as might be needed for TLS and Auth manager for networking/rpc.
-	err := n.PluginManager().Start()
-	if err != nil {
+	if err := n.PluginManager().Start(); err != nil {
 		n.doClose(nil)
 		return err
 	}
 	// End Quorum
 
-	err = n.startNetworking()
+	err := n.startNetworking()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
 	n.lock.Unlock()
