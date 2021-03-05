@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func makeReceipt(addr common.Address) *types.Receipt {
@@ -258,4 +259,136 @@ func TestFilters(t *testing.T) {
 		t.Error("expected 2 log, got", len(logs))
 	}
 
+}
+
+func TestMPSFilters(t *testing.T) {
+	dir, err := ioutil.TempDir("", "filtertest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	var (
+		db, _   = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
+		backend = &testBackend{db: db}
+		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+		addr    = crypto.PubkeyToAddress(key1.PublicKey)
+		hash1   = common.BytesToHash([]byte("topic1"))
+	)
+	defer db.Close()
+
+	noPSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+		},
+	}
+
+	psi2PSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+			PSI:     types.PrivateStateIdentifier("psi2"),
+		},
+	}
+	psi1PSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+			PSI:     types.PrivateStateIdentifier("psi1"),
+		},
+	}
+
+	genesis := core.GenesisBlockForTesting(db, addr, big.NewInt(1000000))
+	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
+		switch i {
+		case 1:
+			//log on private transaction
+			//has "private" psi receipt
+			tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.Logs = noPSILog
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			ir := types.NewReceipt(nil, false, 0)
+			ir.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = ir
+			if err := rawdb.WritePrivateBlockBloom(db, 2, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 2:
+			//no log on private transaction
+			//has "psi1" receipt
+			tx := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			ir := types.NewReceipt(nil, false, 0)
+			ir.Logs = psi1PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi1")] = ir
+			if err := rawdb.WritePrivateBlockBloom(db, 3, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 998:
+			//no log on private transaction
+			//has "psi2" psi receipt
+			tx := types.NewTransaction(998, common.HexToAddress("0x998"), big.NewInt(998), 998, big.NewInt(998), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			ir := types.NewReceipt(nil, false, 0)
+			ir.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = ir
+			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 999:
+			//log on private transaction
+			//no psi receipt
+			tx := types.NewTransaction(999, common.HexToAddress("0x999"), big.NewInt(999), 999, big.NewInt(999), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.Logs = noPSILog
+			if err := rawdb.WritePrivateBlockBloom(db, 1000, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		}
+	})
+	for i, block := range chain {
+		rawdb.WriteBlock(db, block)
+		rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+		rawdb.WriteHeadBlockHash(db, block.Hash())
+		rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), receipts[i])
+	}
+
+	//no psi filter: but only gets top level private receipt logs(no psi)
+	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, "")
+	logs, _ := filter.Logs(context.Background())
+	if len(logs) != 2 {
+		t.Error("expected 2 logs, got", len(logs))
+	}
+
+	//test filtering "psi2" logs: gets psi2 logs and top level private receipt logs(no psi)
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.PrivateStateIdentifier("psi2"))
+	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("psi2"))
+	logs, _ = filter.Logs(ctx)
+	if len(logs) != 3 {
+		t.Error("expected 3 logs, got", len(logs))
+	}
+
+	//test filtering "psi1" logs: gets psi1 logs and top level private receipt logs(no psi)
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.PrivateStateIdentifier("psi1"))
+	ctx = context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("psi1"))
+	logs, _ = filter.Logs(ctx)
+	if len(logs) != 3 {
+		t.Error("expected 3 logs, got", len(logs))
+	}
 }

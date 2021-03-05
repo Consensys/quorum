@@ -96,7 +96,7 @@ func TestDefaultResolver(t *testing.T) {
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, types.DefaultPrivateStateMetadata)
 
-	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("private"))
+	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.DefaultPrivateStateIdentifier)
 	psm1, _ = mpsm.ResolveForUserContext(ctx)
 	assert.Equal(t, psm1, &types.PrivateStateMetadata{ID: "private", Type: types.Resident})
 	psm1, _ = mpsm.ResolveForUserContext(context.Background())
