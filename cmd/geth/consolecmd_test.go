@@ -155,7 +155,7 @@ func TestHTTPAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--rpc", "--rpcport", port, "--rpcapi", "admin,eth,net,web3")
+		"--etherbase", coinbase, "--http", "--http.port", port, "--rpcapi", "admin,eth,net,web3")
 
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
@@ -172,7 +172,7 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--ws", "--wsport", port, "--wsapi", "admin,eth,net,web3")
+		"--etherbase", coinbase, "--ws", "--ws.port", port, "--wsapi", "admin,eth,net,web3")
 
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)

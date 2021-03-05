@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/holiman/uint256"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -58,19 +59,30 @@ type (
 	GetHashFunc func(uint64) common.Hash
 )
 
+func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
+	var precompiles map[common.Address]PrecompiledContract
+	switch {
+	case evm.chainRules.IsYoloV1:
+		precompiles = PrecompiledContractsYoloV1
+	case evm.chainRules.IsIstanbul:
+		precompiles = PrecompiledContractsIstanbul
+	case evm.chainRules.IsByzantium:
+		precompiles = PrecompiledContractsByzantium
+	default:
+		precompiles = PrecompiledContractsHomestead
+	}
+	p, ok := precompiles[addr]
+	return p, ok
+}
+
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
+	// Quorum
 	if contract.CodeAddr != nil {
 		// Using CodeAddr is favour over contract.Address()
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
-		// during simulation/eth_call, when contract code is empty, there's no execution hence the
-		// multitenancy check will not happen in captureOperationMode().
-		// This additional check to ensure we capture this case
-		if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(contract.Code) == 0 {
-			return nil, multitenancy.ErrNotAuthorized
-		}
-		if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+		if err := validateMultitenancy(evm, contract.Code, address); err != nil {
 			return nil, err
 		}
 		// When delegatecall, need to capture the operation mode in the context of contract.Address()
@@ -81,23 +93,11 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 			evm.pushAddress(address)
 		}
 		defer evm.popAddress()
-		precompiles := PrecompiledContractsHomestead
-		if evm.chainRules.IsByzantium {
-			precompiles = PrecompiledContractsByzantium
-		}
-		if evm.chainRules.IsIstanbul {
-			precompiles = PrecompiledContractsIstanbul
-		}
-		if evm.chainRules.IsYoloV1 {
-			precompiles = PrecompiledContractsYoloV1
-		}
-		if p := precompiles[address]; p != nil {
-			return RunPrecompiledContract(p, input, contract)
-		}
 		if p := QuorumPrecompiledContracts[address]; p != nil {
 			return QuorumRunPrecompiledContract(evm, p, input, contract)
 		}
 	}
+	// End Quorum
 	for _, interpreter := range evm.interpreters {
 		if interpreter.CanRun(contract.Code) {
 			if evm.interpreter != interpreter {
@@ -357,22 +357,14 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+	if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
-	var (
-		to       = AccountRef(addr)
-		snapshot = evm.StateDB.Snapshot()
-	)
+	snapshot := evm.StateDB.Snapshot()
+	p, isPrecompile := evm.precompile(addr)
+
 	if !evm.StateDB.Exist(addr) {
-		precompiles := PrecompiledContractsHomestead
-		if evm.chainRules.IsByzantium {
-			precompiles = PrecompiledContractsByzantium
-		}
-		if evm.chainRules.IsIstanbul {
-			precompiles = PrecompiledContractsIstanbul
-		}
-		if precompiles[addr] == nil && QuorumPrecompiledContracts[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
+		if !isPrecompile && QuorumPrecompiledContracts[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if evm.vmConfig.Debug && evm.depth == 0 {
 				evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
@@ -382,46 +374,61 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
+
+	// Quorum
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
 		if value.Sign() != 0 {
 			if evm.quorumReadOnly {
 				return nil, gas, ErrReadOnlyValueTransfer
 			}
-			evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+			evm.Transfer(evm.StateDB, caller.Address(), addr, value)
 		}
+		// End Quorum
 	} else {
-		evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+		evm.Transfer(evm.StateDB, caller.Address(), addr, value)
 	}
-
-	// Initialise a new contract and set the code that is to be used by the EVM.
-	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-
-	// Even if the account has no code, we need to continue because it might be a precompile
-	start := time.Now()
 
 	// Capture the tracer start/end events in debug mode
 	if evm.vmConfig.Debug && evm.depth == 0 {
 		evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
-
-		defer func() { // Lazy evaluation of the parameters
-			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
-		}()
+		defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+			evm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
+		}(gas, time.Now())
 	}
-	ret, err = run(evm, contract, input, false)
 
+	if isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		code := evm.StateDB.GetCode(addr)
+		if len(code) == 0 {
+			// Quorum - If the account has no code, we still check for multitenancy
+			ret, err = nil, validateMultitenancy(evm, code, addr) // gas is unchanged
+		} else {
+			addrCopy := addr
+			// If the account has no code, we can abort here
+			// The depth-check is already done, and precompiles handled above
+			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
+			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+			ret, err = run(evm, contract, input, false)
+			gas = contract.Gas
+		}
+	}
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
-			contract.UseGas(contract.Gas)
+			gas = 0
 		}
+		// TODO: consider clearing up unused snapshots:
+		//} else {
+		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
-	return ret, contract.Gas, err
+	return ret, gas, err
 }
 
 // CallCode executes the contract associated with the addr with the given input
@@ -436,8 +443,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, nil
 	}
 
+	// Quorum
 	evm.Push(getDualState(evm, addr))
 	defer func() { evm.Pop() }()
+	// End Quorum
 
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -450,23 +459,27 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
-	var (
-		snapshot = evm.StateDB.Snapshot()
-		to       = AccountRef(caller.Address())
-	)
-	// Initialise a new contract and set the code that is to be used by the EVM.
-	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
+	var snapshot = evm.StateDB.Snapshot()
 
-	ret, err = run(evm, contract, input, false)
+	// It is allowed to call precompiles, even via delegatecall
+	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		addrCopy := addr
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
+		contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), evm.StateDB.GetCode(addrCopy))
+		ret, err = run(evm, contract, input, false)
+		gas = contract.Gas
+	}
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
-			contract.UseGas(contract.Gas)
+			gas = 0
 		}
 	}
-	return ret, contract.Gas, err
+	return ret, gas, err
 }
 
 // DelegateCall executes the contract associated with the addr with the given input
@@ -479,29 +492,35 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		return nil, gas, nil
 	}
 
+	// Quorum
 	evm.Push(getDualState(evm, addr))
 	defer func() { evm.Pop() }()
+	// End Quorum
 
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-	var (
-		snapshot = evm.StateDB.Snapshot()
-		to       = AccountRef(caller.Address())
-	)
-	// Initialise a new contract and make initialise the delegate values
-	contract := NewContract(caller, to, nil, gas).AsDelegate()
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
+	var snapshot = evm.StateDB.Snapshot()
 
-	ret, err = run(evm, contract, input, false)
+	// It is allowed to call precompiles, even via delegatecall
+	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		addrCopy := addr
+		// Initialise a new contract and make initialise the delegate values
+		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas).AsDelegate()
+		contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), evm.StateDB.GetCode(addrCopy))
+		ret, err = run(evm, contract, input, false)
+		gas = contract.Gas
+	}
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
-			contract.UseGas(contract.Gas)
+			gas = 0
 		}
 	}
-	return ret, contract.Gas, err
+	return ret, gas, err
 }
 
 // StaticCall executes the contract associated with the addr with the given input
@@ -516,33 +535,48 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-	var (
-		to       = AccountRef(addr)
-		stateDb  = getDualState(evm, addr)
-		snapshot = stateDb.Snapshot()
-	)
-	// Initialise a new contract and set the code that is to be used by the EVM.
-	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, to, new(big.Int), gas)
-	contract.SetCallCode(&addr, stateDb.GetCodeHash(addr), stateDb.GetCode(addr))
+	// Quorum
+	// use the right state (public or private)
+	stateDb := getDualState(evm, addr)
+	// End Quorum
+
+	// We take a snapshot here. This is a bit counter-intuitive, and could probably be skipped.
+	// However, even a staticcall is considered a 'touch'. On mainnet, static calls were introduced
+	// after all empty accounts were deleted, so this is not required. However, if we omit this,
+	// then certain tests start failing; stRevertTest/RevertPrecompiledTouchExactOOG.json.
+	// We could change this, but for now it's left for legacy reasons
+	var snapshot = stateDb.Snapshot()
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	stateDb.AddBalance(addr, bigZero)
+	stateDb.AddBalance(addr, big0)
 
-	// When an error was returned by the EVM or when setting the creation code
-	// above we revert to the snapshot and consume any gas remaining. Additionally
-	// when we're in Homestead this also counts for code storage gas errors.
-	ret, err = run(evm, contract, input, true)
+	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		// At this point, we use a copy of address. If we don't, the go compiler will
+		// leak the 'contract' to the outer scope, and make allocation for 'contract'
+		// even if the actual execution ends on RunPrecompiled above.
+		addrCopy := addr
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		contract := NewContract(caller, AccountRef(addrCopy), new(big.Int), gas)
+		contract.SetCallCode(&addrCopy, stateDb.GetCodeHash(addrCopy), stateDb.GetCode(addrCopy))
+		// When an error was returned by the EVM or when setting the creation code
+		// above we revert to the snapshot and consume any gas remaining. Additionally
+		// when we're in Homestead this also counts for code storage gas errors.
+		ret, err = run(evm, contract, input, true)
+		gas = contract.Gas
+	}
 	if err != nil {
 		stateDb.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
-			contract.UseGas(contract.Gas)
+			gas = 0
 		}
 	}
-	return ret, contract.Gas, err
+	return ret, gas, err
 }
 
 type codeAndHash struct {
@@ -594,11 +628,15 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
+
+	// Quorum
 	if evm.SupportsMultitenancy && evm.AuthorizeCreateFunc != nil {
 		if authorized := evm.AuthorizeCreateFunc(); !authorized {
 			return nil, common.Address{}, gas, multitenancy.ErrNotAuthorized
 		}
 	}
+	// End Quorum
+
 	evm.StateDB.CreateAccount(address)
 	evm.affectedContracts[address] = newAffectedType(Creation, ModeWrite|ModeRead)
 	if evm.chainRules.IsEIP158 {
@@ -704,9 +742,9 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 //
 // The different between Create2 with Create is Create2 uses sha3(0xff ++ msg.sender ++ salt ++ sha3(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
-func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
-	contractAddr = crypto.CreateAddress2(caller.Address(), common.BigToHash(salt), codeAndHash.Hash().Bytes())
+	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), codeAndHash.Hash().Bytes())
 	return evm.create(caller, codeAndHash, gas, endowment, contractAddr)
 }
 
@@ -930,6 +968,8 @@ func (evm *EVM) AffectedContracts() []common.Address {
 	return addr[:]
 }
 
+// Quorum
+//
 // Return MerkleRoot of all affected contracts (due to both creation and message call)
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 	combined := new(trie.Trie)
@@ -943,4 +983,20 @@ func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 		}
 	}
 	return combined.Hash(), nil
+}
+
+// Quorum
+//
+// validateMultitenancy - validates if multitenancy is authorized for this execution
+func validateMultitenancy(evm *EVM, code []byte, address common.Address) error {
+	// during simulation/eth_call, when contract code is empty, there's no execution hence the
+	// multitenancy check will not happen in captureOperationMode().
+	// This additional check to ensure we capture this case
+	if evm.SupportsMultitenancy && evm.AuthorizeMessageCallFunc != nil && len(code) == 0 {
+		return multitenancy.ErrNotAuthorized
+	}
+	if err := evm.captureAffectedContract(address, ModeUnknown); err != nil {
+		return err
+	}
+	return nil
 }

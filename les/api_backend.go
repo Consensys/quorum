@@ -166,8 +166,11 @@ func (b *LesApiBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	return nil, nil
 }
 
-func (b *LesApiBackend) GetTd(hash common.Hash) *big.Int {
-	return b.eth.blockchain.GetTdByHash(hash)
+func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
+	if number := rawdb.ReadHeaderNumber(b.eth.chainDb, hash); number != nil {
+		return b.eth.blockchain.GetTdOdr(ctx, hash, *number)
+	}
+	return nil
 }
 
 func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
@@ -263,12 +266,19 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
+// Quorum
 func (b *LesApiBackend) CallTimeOut() time.Duration {
 	return b.eth.config.EVMCallTimeOut
 }
 
-func (b *LesApiBackend) RPCGasCap() *big.Int {
+// End Quorum
+
+func (b *LesApiBackend) RPCGasCap() uint64 {
 	return b.eth.config.RPCGasCap
+}
+
+func (b *LesApiBackend) RPCTxFeeCap() float64 {
+	return b.eth.config.RPCTxFeeCap
 }
 
 func (b *LesApiBackend) BloomStatus() (uint64, uint64) {
@@ -285,6 +295,7 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
+// Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated && b.eth.config.EnableMultitenancy {
@@ -313,3 +324,5 @@ func (b *LesApiBackend) QuorumUsingPrivacyMarkerTransactions() bool {
 func (b *LesApiBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
 	return b.eth.config.QuorumPrivacyMarkerSigningKey
 }
+
+// End Quorum

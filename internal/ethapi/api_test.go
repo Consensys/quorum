@@ -553,7 +553,11 @@ func (sb *StubBackend) CallTimeOut() time.Duration {
 	panic("implement me")
 }
 
-func (sb *StubBackend) RPCGasCap() *big.Int {
+func (sb *StubBackend) RPCTxFeeCap() float64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() uint64 {
 	panic("implement me")
 }
 
@@ -597,7 +601,7 @@ func (sb *StubBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (
 	panic("implement me")
 }
 
-func (sb *StubBackend) GetTd(blockHash common.Hash) *big.Int {
+func (sb *StubBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	panic("implement me")
 }
 

@@ -354,7 +354,7 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 	}
 
 	// Register the peer locally
-	if err := pm.peers.Register(p, protoName); err != nil {
+	if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
 		p.Log().Error("Ethereum peer registration failed", "err", err)
 		return err
 	}
@@ -442,7 +442,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return err
 		}
 	}
-	// /Quorum
+	// End Quorum
 
 	// Handle the message depending on its contents
 	switch {
@@ -1042,3 +1042,5 @@ func (self *ProtocolManager) FindPeers(targets map[common.Address]bool) map[comm
 	}
 	return m
 }
+
+// End Quorum
