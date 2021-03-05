@@ -40,12 +40,18 @@ var QuorumPrecompiledContracts = map[common.Address]QuorumPrecompiledContract{
 }
 
 // QuorumRunPrecompiledContract runs and evaluates the output of an extended precompiled contract.
-func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {
-	gas := p.RequiredGas(input)
-	if contract.UseGas(gas) {
-		return p.Run(evm, input)
+// It returns
+// - the returned bytes,
+// - the _remaining_ gas,
+// - any error that occurred
+func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input []byte, suppliedGas uint64) (ret []byte, remainingGas uint64, err error) {
+	gasCost := p.RequiredGas(input)
+	if suppliedGas < gasCost {
+		return nil, 0, ErrOutOfGas
 	}
-	return nil, ErrOutOfGas
+	suppliedGas -= gasCost
+	output, err := p.Run(evm, input)
+	return output, suppliedGas, err
 }
 
 type privacyMarker struct{}

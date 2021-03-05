@@ -75,6 +75,14 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 	return p, ok
 }
 
+// Quorum
+func (evm *EVM) quorumPrecompile(addr common.Address) (QuorumPrecompiledContract, bool) {
+	p, ok := QuorumPrecompiledContracts[addr]
+	return p, ok
+}
+
+// End Quorum
+
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	// Quorum
@@ -93,9 +101,6 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 			evm.pushAddress(address)
 		}
 		defer evm.popAddress()
-		if p := QuorumPrecompiledContracts[address]; p != nil {
-			return QuorumRunPrecompiledContract(evm, p, input, contract)
-		}
 	}
 	// End Quorum
 	for _, interpreter := range evm.interpreters {
@@ -362,9 +367,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 	snapshot := evm.StateDB.Snapshot()
 	p, isPrecompile := evm.precompile(addr)
+	qp, isQuorumPrecompile := evm.quorumPrecompile(addr) // Quorum
 
 	if !evm.StateDB.Exist(addr) {
-		if !isPrecompile && QuorumPrecompiledContracts[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
+		if !isPrecompile && !isQuorumPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if evm.vmConfig.Debug && evm.depth == 0 {
 				evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
@@ -397,7 +403,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}(gas, time.Now())
 	}
 
-	if isPrecompile {
+	if isQuorumPrecompile {
+		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+	} else if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
@@ -462,7 +470,9 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	var snapshot = evm.StateDB.Snapshot()
 
 	// It is allowed to call precompiles, even via delegatecall
-	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
+		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		addrCopy := addr
@@ -504,7 +514,9 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	var snapshot = evm.StateDB.Snapshot()
 
 	// It is allowed to call precompiles, even via delegatecall
-	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
+		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		addrCopy := addr
@@ -553,7 +565,9 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// future scenarios
 	stateDb.AddBalance(addr, big0)
 
-	if p, isPrecompile := evm.precompile(addr); isPrecompile {
+	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
+		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		// At this point, we use a copy of address. If we don't, the go compiler will
