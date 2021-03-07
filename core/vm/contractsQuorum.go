@@ -68,40 +68,29 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 
 // privacyMarker precompile execution
 // retrieves transaction data from Tessera and executes it (if we are a participant)
-//		input = 64 byte private hash for the private transaction
+//		input = 64 byte hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
 
 	txHash := common.BytesToEncryptedPayloadHash(evm.currentTx.Data())
-	_, _, privateInputData, _, err := private.P.Receive(txHash) //TODO: should use returned metadata...
+	_, _, txData, _, err := private.P.Receive(txHash) //TODO: should use returned metadata...
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, err
 	}
-	if privateInputData == nil {
+	if txData == nil {
 		log.Debug("not a participant, precompile performing no action")
 		return nil, nil
 	}
 
 	var tx types.Transaction
-	err = json.NewDecoder(bytes.NewReader(privateInputData)).Decode(&tx)
+	err = json.NewDecoder(bytes.NewReader(txData)).Decode(&tx)
 	if err != nil {
 		log.Trace("failed to deserialize privacy marker transaction", "err", err)
 		return nil, err
 	}
 
-	// Restore txn data from tessera
-	payloadHash := common.BytesToEncryptedPayloadHash(tx.Data())
-	_, _, privatePayload, _, err := private.P.Receive(payloadHash)
-	if err != nil {
-		return nil, err
-	}
-	if privatePayload == nil {
-		log.Debug("not a participant, precompile performing no action (this should never happen)")
-		return nil, nil
-	}
-
-	return c.runUsingSandboxEVM(evm, tx, privatePayload)
+	return c.runUsingSandboxEVM(evm, tx, tx.Data())
 }
 
 func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data []byte) ([]byte, error) {
