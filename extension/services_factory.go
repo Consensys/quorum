@@ -32,7 +32,12 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	factory.dataHandler = NewJsonFileDataHandler(node.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
-	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend)
+	rpcClient, err := node.Attach()
+	if err != nil {
+		panic("extension: could not connect to ethereum client rpc")
+	}
+
+	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend, rpcClient)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +47,6 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	privacyExtension.DefaultExtensionHandler.SupportMultitenancy(isMultitenant)
 
 	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
-
-	go backendService.initialise(node)
 
 	return factory, nil
 }

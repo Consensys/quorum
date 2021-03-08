@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
@@ -36,6 +35,8 @@ type PrivacyService struct {
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
+
+	rpcClient *rpc.Client
 }
 
 var (
@@ -58,7 +59,7 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper) (*PrivacyService, error) {
+func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper, rpcClient *rpc.Client) (*PrivacyService, error) {
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
@@ -66,6 +67,7 @@ func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handl
 		stateFetcher:     fetcher,
 		accountManager:   manager,
 		apiBackendHelper: apiBackendHelper,
+		rpcClient:        rpcClient,
 	}
 
 	var err error
@@ -77,16 +79,11 @@ func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handl
 	return service, nil
 }
 
-func (service *PrivacyService) initialise(node *node.Node) {
+func (service *PrivacyService) initialise() {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	rpcClient, err := node.Attach()
-	if err != nil {
-		panic("extension: could not connect to ethereum client rpc")
-	}
-
-	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
+	client := ethclient.NewClientWithPTM(service.rpcClient, service.ptm)
 	service.managementContractFacade = NewManagementContractFacade(client)
 	service.extClient = NewInProcessClient(client)
 
@@ -96,7 +93,7 @@ func (service *PrivacyService) initialise(node *node.Node) {
 		service.watchForCompletionEvents,   // watch for extension contract voting complete event
 	} {
 		if err := f(); err != nil {
-			log.Error("")
+			panic(fmt.Sprintf("Error loading the watchers. Err: %s", err))
 		}
 	}
 
@@ -367,6 +364,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 
 func (service *PrivacyService) Start() error {
 	log.Debug("extension service: starting")
+	go service.initialise()
 	return nil
 }
 
