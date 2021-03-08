@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/les"
 	"math"
 	"os"
 	godebug "runtime/debug"
@@ -461,11 +462,21 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	ethClient := ethclient.NewClient(rpcClient)
 
 	// Quorum
-	var ethService *eth.Ethereum
-	if err := stack.Lifecycle(&ethService); err != nil {
-		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+	var setContractAuthzProviderFunc func(dm multitenancy.ContractAuthorizationProvider)
+	// check if is light version to get the right function. but do we really support light mode?
+	if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
+		var lesService *les.LightEthereum
+		if err := stack.Lifecycle(&lesService); err != nil {
+			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
+		}
+		setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
+	} else {
+		var ethService *eth.Ethereum
+		if err := stack.Lifecycle(&ethService); err != nil {
+			utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+		}
+		setContractAuthzProviderFunc = ethService.SetContractAuthorizationProvider
 	}
-	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
 
 	// Set ContractAuthorizationProvider if multitenancy flag is on AND plugin security is configured
 	if ctx.GlobalBool(utils.MultitenancyFlag.Name) {
