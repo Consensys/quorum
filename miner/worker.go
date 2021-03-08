@@ -1057,15 +1057,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
-	// TODO ricardolyn: should we use `copyReceipts`?
-	privateReceipts := make([]*types.Receipt, len(w.current.privateReceipts))
-	for i, l := range w.current.privateReceipts {
-		privateReceipts[i] = new(types.Receipt)
-		*privateReceipts[i] = *l
-	}
+	privateReceipts := copyReceipts(w.current.privateReceipts) // Quorum
 
 	s := w.current.state.Copy()
-	ps := w.current.privateState.Copy()
+	ps := w.current.privateState.Copy() // Quorum
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err

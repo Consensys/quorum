@@ -1937,10 +1937,7 @@ func setDNSDiscoveryDefaults(cfg *eth.Config, genesis common.Hash) {
 
 // RegisterEthService adds an Ethereum client to the stack.
 // Quorum => returns also the ethereum service which is used by the raft service
-func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth.Ethereum) { // TODO ricardolyn: chan *eth.Ethereum {
-	// TODO ricadolyn: what do we do about the channel?
-	// Quorum: raft service listens to this channel to get Ethereum backend
-	//nodeChan := make(chan *eth.Ethereum, 1)
+func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth.Ethereum) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
 		if err != nil {
@@ -1958,8 +1955,6 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth
 				Fatalf("Failed to create the LES server: %v", err)
 			}
 		}
-		// TODO ricadolyn: what do we do about the channel?
-		//nodeChan <- backend
 		return backend.APIBackend, backend
 	}
 }
@@ -2075,8 +2070,6 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 	stack.RegisterLifecycle(raftService)
 	log.Info("raft service registered")
 }
-
-//TODO ricardolyn: f err := n.startRPC(services); err != nil { was in the Start() of node. what happens now?
 
 func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
 	factory, err := extension.NewServicesFactory(stack, private.P, ethService)

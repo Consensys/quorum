@@ -678,7 +678,6 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	origin := block.NumberU64()
 	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "")
 	// Quorum
-	//TODO ricardolyn: do we need to pass another `journal` argument when using private db?
 	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "")
 	// End Quorum
 

@@ -63,7 +63,7 @@ var DefaultConfig = Config{
 	UltraLightFraction:      75,
 	DatabaseCache:           768,
 	TrieCleanCache:          154,
-	TrieCleanCacheJournal:   "triecache", // TODO ricardolyn: do we need to duplicate for private?
+	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,
 	TrieDirtyCache:          256,
 	TrieTimeout:             60 * time.Minute,

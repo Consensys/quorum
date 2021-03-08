@@ -254,7 +254,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:            engine,
 		vmConfig:          vmConfig,
 		badBlocks:         badBlocks,
-		privateStateCache: state.NewDatabase(db), //TODO ricardolyn: should we use cache?
+		privateStateCache: state.NewDatabase(db),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)

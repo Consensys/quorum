@@ -153,10 +153,8 @@ func enableWhisper(ctx *cli.Context) bool {
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 
-	// Quorum - using the `ethService` for the Raft and extension service
+	// Quorum - returning `ethService` too for the Raft and extension service
 	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
-	// TODO ricardolyn: it returns direcly the backend. maybe we don't need the channel?
-	//ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Quorum
 	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
