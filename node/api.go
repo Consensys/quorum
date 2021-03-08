@@ -204,7 +204,6 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
-	//TODO ricardolyn: should be a pointer to the tls/auth?
 	tls, auth, err := api.node.getSecuritySupports()
 	if err != nil {
 		return false, err
@@ -264,7 +263,6 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
-	//TODO ricardolyn: should be a pointer to the tls/auth?
 	tls, auth, err := api.node.getSecuritySupports()
 	if err != nil {
 		return false, err

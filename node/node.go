@@ -360,7 +360,6 @@ func (n *Node) startRPC() error {
 		}
 	}
 
-	//TODO ricardolyn: should be a pointer to the tls/auth?
 	tls, auth, err := n.getSecuritySupports()
 	if err != nil {
 		return err
