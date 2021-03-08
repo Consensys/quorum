@@ -93,7 +93,7 @@ func (service *PrivacyService) initialise() {
 		service.watchForCompletionEvents,   // watch for extension contract voting complete event
 	} {
 		if err := f(); err != nil {
-			panic(fmt.Sprintf("Error loading the watchers. Err: %s", err))
+			panic(fmt.Sprintf("Error when registering the Privacy Service watchers. Err: %s", err))
 		}
 	}
 
