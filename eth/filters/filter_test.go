@@ -262,7 +262,7 @@ func TestFilters(t *testing.T) {
 }
 
 func TestMPSFilters(t *testing.T) {
-	dir, err := ioutil.TempDir("", "filtertest")
+	dir, err := ioutil.TempDir("", "filtermpstest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestMPSFilters(t *testing.T) {
 	}
 
 	genesis := core.GenesisBlockForTesting(db, addr, big.NewInt(1000000))
-	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
+	chain, receipts := core.GenerateChain(params.QuorumMPSTestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
 		switch i {
 		case 1:
 			//log on private transaction
@@ -310,9 +310,9 @@ func TestMPSFilters(t *testing.T) {
 			privateReceipt := types.NewReceipt(nil, false, 0)
 			privateReceipt.Logs = noPSILog
 			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
-			ir := types.NewReceipt(nil, false, 0)
-			ir.Logs = psi2PSILog
-			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = ir
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
 			if err := rawdb.WritePrivateBlockBloom(db, 2, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
@@ -325,9 +325,9 @@ func TestMPSFilters(t *testing.T) {
 			tx.SetPrivate()
 			privateReceipt := types.NewReceipt(nil, false, 0)
 			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
-			ir := types.NewReceipt(nil, false, 0)
-			ir.Logs = psi1PSILog
-			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi1")] = ir
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi1PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi1")] = psiReceipt
 			if err := rawdb.WritePrivateBlockBloom(db, 3, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
@@ -340,9 +340,9 @@ func TestMPSFilters(t *testing.T) {
 			tx.SetPrivate()
 			privateReceipt := types.NewReceipt(nil, false, 0)
 			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
-			ir := types.NewReceipt(nil, false, 0)
-			ir.Logs = psi2PSILog
-			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = ir
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
 			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}

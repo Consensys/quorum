@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
-// the copy and their corresponding managed states independent of each other.
+//TestDefaultPSRCopy tests that copying a the PSR object indeed makes the original and
+// the copy and their states independent of each other.
 func TestDefaultPSRCopy(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
@@ -69,6 +69,8 @@ func TestDefaultPSRCopy(t *testing.T) {
 	}
 }
 
+//TestDefaultPSRReset tests that state objects are cleared from statedb after reset call
+//Any updated stateObjects not committed before reset will be cleared
 func TestDefaultPSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()

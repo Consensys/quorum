@@ -110,6 +110,8 @@ func TestMultiplePSRCopy(t *testing.T) {
 	}
 }
 
+//TestMultiplePSRReset tests that state objects are cleared from all managedState statedbs after reset call
+//Any updated stateObjects not committed to statedbs before reset will be cleared
 func TestMultiplePSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
@@ -142,6 +144,7 @@ func TestMultiplePSRReset(t *testing.T) {
 	}
 }
 
+//TestCreatingManagedStates tests that managed states are created and added to managedState map
 func TestCreatingManagedStates(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
