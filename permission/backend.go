@@ -88,6 +88,12 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, 
 		case <-stopChan:
 		}
 	}(wg) // wait for inproc RPC to be ready
+
+	// Register on node
+	stack.RegisterAPIs(p.apis())
+	stack.RegisterProtocols(p.protocols())
+	stack.RegisterLifecycle(p)
+
 	return p, nil
 }
 
@@ -100,11 +106,11 @@ func (p *PermissionCtrl) Start() error {
 	return nil
 }
 
-func (p *PermissionCtrl) Protocols() []p2p.Protocol {
+func (p *PermissionCtrl) protocols() []p2p.Protocol {
 	return []p2p.Protocol{}
 }
 
-func (p *PermissionCtrl) APIs() []rpc.API {
+func (p *PermissionCtrl) apis() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "quorumPermission",

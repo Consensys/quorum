@@ -1985,10 +1985,10 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, cfg node.C
 //
 // Register plugin manager as a service in geth
 func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, localVerify bool, publicKey string) {
+	// ricardolyn: I can't adapt this Plugin Service construction to the new approach as there are circular dependencies between Node and Plugin
 	if err := cfg.ResolvePluginBaseDir(); err != nil {
 		Fatalf("plugins: unable to resolve plugin base dir due to %s", err)
 	}
-	// TODO ricardolyn: should be refactored to the new architecture
 	pluginManager, err := plugin.NewPluginManager(cfg.UserIdent, cfg.Plugins, skipVerify, localVerify, publicKey)
 	if err != nil {
 		Fatalf("plugins: Failed to register the Plugins service: %v", err)
@@ -2002,25 +2002,19 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 
 // Configure smart-contract-based permissioning service
 func RegisterPermissionService(stack *node.Node, useDns bool) {
-	// TODO ricardolyn: should be refactored to the new architecture
 	permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 	if err != nil {
 		Fatalf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
+	_, err = permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
 	if err != nil {
 		Fatalf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}
-
-	stack.RegisterAPIs(pc.APIs())
-	stack.RegisterProtocols(pc.Protocols())
-	stack.RegisterLifecycle(pc)
 	log.Info("permission service registered")
 }
 
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethService *eth.Ethereum) {
-	// TODO ricardolyn: should be refactored to the new architecture
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
@@ -2060,28 +2054,19 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		}
 	}
 
-	raftService, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, datadir, useDns)
+	_, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, datadir, useDns)
 	if err != nil {
 		Fatalf("raft: Failed to register the Raft service: %v", err)
 	}
 
-	stack.RegisterAPIs(raftService.APIs())
-	stack.RegisterProtocols(raftService.Protocols())
-	stack.RegisterLifecycle(raftService)
 	log.Info("raft service registered")
 }
 
 func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
-	factory, err := extension.NewServicesFactory(stack, private.P, ethService)
+	_, err := extension.NewServicesFactory(stack, private.P, ethService)
 	if err != nil {
 		Fatalf("Failed to register the Extension service: %v", err)
 	}
-
-	service := factory.BackendService()
-
-	stack.RegisterAPIs(service.APIs())
-	stack.RegisterProtocols(service.Protocols())
-	stack.RegisterLifecycle(service)
 
 	log.Info("extension service registered")
 }

@@ -58,7 +58,25 @@ func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uin
 		return nil, err
 	}
 
+	stack.RegisterAPIs(service.apis())
+	stack.RegisterProtocols(service.protocols())
+	stack.RegisterLifecycle(service)
+
 	return service, nil
+}
+
+// Utility methods
+
+func (service *RaftService) protocols() []p2p.Protocol { return []p2p.Protocol{} }
+func (service *RaftService) apis() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "raft",
+			Version:   "1.0",
+			Service:   NewPublicRaftAPI(service),
+			Public:    true,
+		},
+	}
 }
 
 // Backend interface methods:
@@ -71,18 +89,6 @@ func (service *RaftService) EventMux() *event.TypeMux          { return service.
 func (service *RaftService) TxPool() *core.TxPool              { return service.txPool }
 
 // node.Service interface methods:
-
-func (service *RaftService) Protocols() []p2p.Protocol { return []p2p.Protocol{} }
-func (service *RaftService) APIs() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "raft",
-			Version:   "1.0",
-			Service:   NewPublicRaftAPI(service),
-			Public:    true,
-		},
-	}
-}
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.

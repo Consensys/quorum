@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/node"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -59,7 +61,12 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper, rpcClient *rpc.Client) (*PrivacyService, error) {
+func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper) (*PrivacyService, error) {
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		panic("extension: could not connect to ethereum client rpc")
+	}
+
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
@@ -70,11 +77,15 @@ func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handl
 		rpcClient:        rpcClient,
 	}
 
-	var err error
 	service.currentContracts, err = service.dataHandler.Load()
 	if err != nil {
 		return nil, errors.New("could not load existing extension contracts: " + err.Error())
 	}
+
+	// Register service to node
+	stack.RegisterAPIs(service.apis())
+	stack.RegisterProtocols(service.protocols())
+	stack.RegisterLifecycle(service)
 
 	return service, nil
 }
@@ -346,12 +357,12 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 	return nil
 }
 
-// node.Service interface methods:
-func (service *PrivacyService) Protocols() []p2p.Protocol {
+// utility methods
+func (service *PrivacyService) protocols() []p2p.Protocol {
 	return []p2p.Protocol{}
 }
 
-func (service *PrivacyService) APIs() []rpc.API {
+func (service *PrivacyService) apis() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "quorumExtension",
@@ -361,6 +372,8 @@ func (service *PrivacyService) APIs() []rpc.API {
 		},
 	}
 }
+
+// node.Service interface methods:
 
 func (service *PrivacyService) Start() error {
 	log.Debug("extension service: starting")
