@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 )
@@ -96,4 +97,77 @@ func TestDefaultPSRReset(t *testing.T) {
 		addr := common.BytesToAddress([]byte{i})
 		assert.False(t, testState.Exist(addr))
 	}
+}
+
+func TestOnlyPrivateStateAccessible(t *testing.T) {
+	testdb := rawdb.NewMemoryDatabase()
+	testCache := state.NewDatabase(testdb)
+	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+
+	privateState, _ := psr.GetDefaultState()
+	assert.NotEqual(t, privateState, nil)
+	privateState, _ = psr.GetPrivateState(types.DefaultPrivateStateIdentifier)
+	assert.NotEqual(t, privateState, nil)
+	_, err := psr.GetPrivateState(types.PrivateStateIdentifier("test"))
+	assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
+}
+
+//TestDefaultPSRCommitAndWrite tests that statedb is updated but not written to db
+func TestDefaultPSRCommit(t *testing.T) {
+	testdb := rawdb.NewMemoryDatabase()
+	testCache := state.NewDatabase(testdb)
+	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
+	block := types.NewBlockWithHeader(header)
+
+	testState, _ := psr.GetDefaultState()
+
+	testRoot := testState.IntermediateRoot(false)
+	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+
+	//make updates to states
+	for i := byte(0); i < 255; i++ {
+		addr := common.BytesToAddress([]byte{i})
+		testState.AddBalance(addr, big.NewInt(int64(i)))
+	}
+	assert.Equal(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
+
+	psr.Commit(block)
+
+	//private root updated but not committed
+	assert.NotEqual(t, psr.root, common.Hash{})
+	assert.Equal(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
+
+	testRoot = testState.IntermediateRoot(false)
+	assert.NotEqual(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+}
+
+//TestDefaultPSRCommitAndWrite tests that statedb is updated and written to db
+func TestDefaultPSRCommitAndWrite(t *testing.T) {
+	testdb := rawdb.NewMemoryDatabase()
+	testCache := state.NewDatabase(testdb)
+	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
+	block := types.NewBlockWithHeader(header)
+
+	testState, _ := psr.GetDefaultState()
+
+	testRoot := testState.IntermediateRoot(false)
+	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+
+	//make updates to states
+	for i := byte(0); i < 255; i++ {
+		addr := common.BytesToAddress([]byte{i})
+		testState.AddBalance(addr, big.NewInt(int64(i)))
+	}
+	assert.Equal(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
+
+	psr.CommitAndWrite(block)
+
+	//private root gets committed to db, but isn't updated on psr (only needed for commit)
+	assert.Equal(t, psr.root, common.Hash{})
+	assert.NotEqual(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
+
+	testRoot = testState.IntermediateRoot(false)
+	assert.NotEqual(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
 }

@@ -161,3 +161,99 @@ func TestCreatingManagedStates(t *testing.T) {
 	assert.Contains(t, psr.managedStates, types.PrivateStateIdentifier("test"))
 	assert.NotContains(t, psr.managedStates, types.PrivateStateIdentifier("added"))
 }
+
+//TestMultiplePSRCommit tests that managedStates are updated, trie of states is updated but not written to db
+func TestMultiplePSRCommit(t *testing.T) {
+	testdb := rawdb.NewMemoryDatabase()
+	testCache := state.NewDatabase(testdb)
+	psr, _ := NewMultiplePrivateStateRepository(params.QuorumMPSTestChainConfig, testdb, testCache, common.Hash{})
+	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
+	block := types.NewBlockWithHeader(header)
+
+	testState, _ := psr.GetPrivateState(types.PrivateStateIdentifier("test"))
+	privState, _ := psr.GetPrivateState(types.DefaultPrivateStateIdentifier)
+
+	//states have empty tries first
+	testRoot := testState.IntermediateRoot(false)
+	privRoot := privState.IntermediateRoot(false)
+	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+	assert.Equal(t, privRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+
+	//make updates to states
+	for i := byte(0); i < 255; i++ {
+		addr := common.BytesToAddress([]byte{i})
+		testState.AddBalance(addr, big.NewInt(int64(i)))
+		privState.AddBalance(addr, big.NewInt(int64(i)))
+	}
+
+	assert.Equal(t, rawdb.GetPrivateStatesTrieRoot(testdb, block.Root()), common.Hash{})
+
+	psr.Commit(block)
+
+	//trie root updated but not committed to db
+	assert.NotEqual(t, psr.trie.Hash(), common.Hash{})
+	assert.Equal(t, rawdb.GetPrivateStatesTrieRoot(testdb, block.Root()), common.Hash{})
+
+	privateKey, _ := psr.trie.TryGet([]byte(types.DefaultPrivateStateIdentifier))
+	assert.NotEqual(t, len(privateKey), 0)
+	testKey, _ := psr.trie.TryGet([]byte(types.PrivateStateIdentifier("test")))
+	assert.NotEqual(t, len(testKey), 0)
+	emptyKey, _ := psr.trie.TryGet([]byte(types.EmptyPrivateStateIdentifier))
+	assert.NotEqual(t, len(emptyKey), 0)
+	notKey, _ := psr.trie.TryGet([]byte(types.PrivateStateIdentifier("notKey")))
+	assert.Equal(t, len(notKey), 0)
+
+	//managed state tries updated
+	testRoot = testState.IntermediateRoot(false)
+	privRoot = privState.IntermediateRoot(false)
+	assert.NotEqual(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+	assert.NotEqual(t, privRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+}
+
+//TestMultiplePSRCommitAndWrite tests that managedStates are updated, trie of states is updated and written to db
+func TestMultiplePSRCommitAndWrite(t *testing.T) {
+	testdb := rawdb.NewMemoryDatabase()
+	testCache := state.NewDatabase(testdb)
+	psr, _ := NewMultiplePrivateStateRepository(params.QuorumMPSTestChainConfig, testdb, testCache, common.Hash{})
+	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
+	block := types.NewBlockWithHeader(header)
+
+	testState, _ := psr.GetPrivateState(types.PrivateStateIdentifier("test"))
+	privState, _ := psr.GetPrivateState(types.DefaultPrivateStateIdentifier)
+
+	//states have empty tries first
+	testRoot := testState.IntermediateRoot(false)
+	privRoot := privState.IntermediateRoot(false)
+	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+	assert.Equal(t, privRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+
+	//make updates to states
+	for i := byte(0); i < 255; i++ {
+		addr := common.BytesToAddress([]byte{i})
+		testState.AddBalance(addr, big.NewInt(int64(i)))
+		privState.AddBalance(addr, big.NewInt(int64(i)))
+	}
+
+	assert.Equal(t, rawdb.GetPrivateStatesTrieRoot(testdb, block.Root()), common.Hash{})
+
+	psr.CommitAndWrite(block)
+
+	//trie root updated and committed to db
+	assert.NotEqual(t, psr.trie.Hash(), common.Hash{})
+	assert.NotEqual(t, rawdb.GetPrivateStatesTrieRoot(testdb, block.Root()), common.Hash{})
+
+	privateKey, _ := psr.trie.TryGet([]byte(types.DefaultPrivateStateIdentifier))
+	assert.NotEqual(t, len(privateKey), 0)
+	testKey, _ := psr.trie.TryGet([]byte(types.PrivateStateIdentifier("test")))
+	assert.NotEqual(t, len(testKey), 0)
+	emptyKey, _ := psr.trie.TryGet([]byte(types.EmptyPrivateStateIdentifier))
+	assert.NotEqual(t, len(emptyKey), 0)
+	notKey, _ := psr.trie.TryGet([]byte(types.PrivateStateIdentifier("notKey")))
+	assert.Equal(t, len(notKey), 0)
+
+	//managed state tries updated
+	testRoot = testState.IntermediateRoot(false)
+	privRoot = privState.IntermediateRoot(false)
+	assert.NotEqual(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+	assert.NotEqual(t, privRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+}
