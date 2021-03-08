@@ -105,7 +105,7 @@ func (service *RaftService) Stop() error {
 	service.minter.stop()
 	service.eventMux.Stop()
 
-	// chainDb.Close() handles gracefully if freezedb process is already stopped
+	// handles gracefully if freezedb process is already stopped
 	service.chainDb.Close()
 
 	log.Info("Raft stopped")

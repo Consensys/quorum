@@ -17,13 +17,12 @@
 package main
 
 import (
+	"github.com/cespare/cp"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/cespare/cp"
 )
 
 // These tests are 'smoke tests' for the account related
@@ -212,8 +211,6 @@ Password: {{.InputLine "foobar"}}
 		}
 	}
 }
-
-// TODO ricardlyn: add test to check if RAFT shutsdown well
 
 func TestGethDoesntStartWithoutConfiguredConsensus(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
