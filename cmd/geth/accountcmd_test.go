@@ -17,12 +17,13 @@
 package main
 
 import (
-	"github.com/cespare/cp"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/cespare/cp"
 )
 
 // These tests are 'smoke tests' for the account related
