@@ -141,7 +141,7 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 					return nil, err
 				}
 			} else {
-				isAuthorized, err := multitenancy.Authorize(authToken, (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(requestPSI))
+				isAuthorized, err := multitenancy.AuthorizePSI(authToken, requestPSI)
 				if err != nil {
 					return nil, err
 				}

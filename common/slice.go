@@ -16,25 +16,26 @@
 
 package common
 
-// ContainsAll returns true if all elements in the target are in the source,
+// ContainsAll returns true if all elements in one of the targets are in the source,
 // false otherwise.
-func ContainsAll(source, target []string) bool {
+func ContainsAll(source []string, targets ...[]string) bool {
 	mark := make(map[string]bool, len(source))
 	for _, str := range source {
 		mark[str] = true
 	}
-	for _, str := range target {
-		if _, found := mark[str]; !found {
-			return false
+	for _, target := range targets {
+		foundAll := true
+		for _, str := range target {
+			if _, found := mark[str]; !found {
+				foundAll = false
+				break
+			}
+		}
+		if foundAll {
+			return true
 		}
 	}
-	return true
-}
-
-// ContainsAll returns true if all elements in the target are NOT in the source,
-// false otherwise.
-func NotContainsAll(source, target []string) bool {
-	return !ContainsAll(source, target)
+	return false
 }
 
 // AppendSkipDuplicates appends source with elements with a condition

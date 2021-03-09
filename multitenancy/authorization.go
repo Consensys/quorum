@@ -22,7 +22,12 @@ var (
 // the granted access inside the pre-authenticated access token.
 func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *PrivateStateSecurityAttribute) (bool, error) {
 	query := url.Values{}
-	query.Set(QueryEOA, toHexAddress(attr.eoa))
+	if attr.nodeEOA != nil {
+		query.Set(QueryNodeEOA, toHexAddress(attr.nodeEOA))
+	}
+	if attr.selfEOA != nil {
+		query.Set(QuerySelfEOA, toHexAddress(attr.selfEOA))
+	}
 	// construct the request
 	askValue, err := url.Parse(fmt.Sprintf("%s://%s?%s", SchemePSI, attr.psi, query.Encode()))
 	if err != nil {
@@ -43,6 +48,24 @@ func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *Priva
 	return false, nil
 }
 
+// AuthorizePSI performs only authorization checks for PSI
+func AuthorizePSI(authToken *proto.PreAuthenticatedAuthenticationToken, psi types.PrivateStateIdentifier) (bool, error) {
+	// compare the security attribute with the granted list
+	for _, granted := range authToken.GetAuthorities() {
+		grantedValue, err := url.Parse(granted.GetRaw())
+		if err != nil {
+			continue
+		}
+		// because we care only for PSI so we try to match only PSI
+		isMatched := strings.EqualFold(SchemePSI, grantedValue.Scheme) && strings.EqualFold(psi.String(), grantedValue.Host)
+		log.Debug("Checking PSI access", "passed", isMatched, "granted", grantedValue, "ask", psi)
+		if isMatched {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ExtractPSI returns a single PSI if found in the granted scope.
 // If there is none or multiple, return error
 func ExtractPSI(authToken *proto.PreAuthenticatedAuthenticationToken) (types.PrivateStateIdentifier, error) {
@@ -55,11 +78,16 @@ func ExtractPSI(authToken *proto.PreAuthenticatedAuthenticationToken) (types.Pri
 		if err != nil || grantedValue.Scheme != SchemePSI {
 			continue
 		}
+		grantedPSI := types.PrivateStateIdentifier(grantedValue.Host)
+		// already captured
+		if grantedPSI == authorizedPSI {
+			continue
+		}
 		if found {
 			return "", ErrPSIFoundMultiple
 		}
 		found = true
-		authorizedPSI = types.PrivateStateIdentifier(grantedValue.Host)
+		authorizedPSI = grantedPSI
 	}
 	if !found {
 		return "", ErrPSINotFound
@@ -67,8 +95,11 @@ func ExtractPSI(authToken *proto.PreAuthenticatedAuthenticationToken) (types.Pri
 	return authorizedPSI, nil
 }
 
-func toHexAddress(a common.Address) string {
-	if (a == common.Address{}) {
+func toHexAddress(a *common.Address) string {
+	if a == nil {
+		return ""
+	}
+	if (*a == common.Address{}) {
 		return AnyEOAAddress
 	}
 	return strings.ToLower(a.Hex())
@@ -81,16 +112,12 @@ func match(ask, granted *url.URL) bool {
 }
 
 func matchQuery(ask, granted url.Values) bool {
-	grantedEOAs := granted[QueryEOA]
-	askEOAs := ask[QueryEOA]
-	if len(askEOAs) == 0 && len(grantedEOAs) > 0 {
+	return matchEOA(granted[QueryNodeEOA], ask[QueryNodeEOA]) || matchEOA(granted[QuerySelfEOA], ask[QuerySelfEOA])
+}
+
+func matchEOA(grantedEOAs []string, askEOAs []string) bool {
+	if len(grantedEOAs) == 0 || len(askEOAs) == 0 {
 		return false
 	}
-	if len(grantedEOAs) == 0 { // consider AnyEOAAddress
-		return true
-	}
-	if len(grantedEOAs) == 1 && strings.EqualFold(grantedEOAs[0], AnyEOAAddress) { // explicit
-		return true
-	}
-	return common.ContainsAll(grantedEOAs, askEOAs)
+	return common.ContainsAll(grantedEOAs, []string{AnyEOAAddress}, askEOAs)
 }
