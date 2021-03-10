@@ -301,6 +301,11 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop running lifecycles in reverse order.
 	failure := &StopError{Services: make(map[reflect.Type]error)}
+	// Quorum
+	if err := n.PluginManager().Stop(); err != nil {
+		failure.Services[reflect.TypeOf(n.PluginManager())] = err
+	}
+	// End Quorum
 	for i := len(running) - 1; i >= 0; i-- {
 		if err := running[i].Stop(); err != nil {
 			failure.Services[reflect.TypeOf(running[i])] = err

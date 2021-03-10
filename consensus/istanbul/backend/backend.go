@@ -164,7 +164,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 // Commit implements istanbul.Backend.Commit
 func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
@@ -207,7 +206,6 @@ func (sb *backend) EventMux() *event.TypeMux {
 // Verify implements istanbul.Backend.Verify
 func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)

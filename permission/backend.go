@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 	v1 "github.com/ethereum/go-ethereum/permission/v1"
@@ -91,7 +90,6 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, 
 
 	// Register on node
 	stack.RegisterAPIs(p.apis())
-	stack.RegisterProtocols(p.protocols())
 	stack.RegisterLifecycle(p)
 
 	return p, nil
@@ -104,10 +102,6 @@ func (p *PermissionCtrl) Start() error {
 		p.asyncStart()
 	}()
 	return nil
-}
-
-func (p *PermissionCtrl) protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
 }
 
 func (p *PermissionCtrl) apis() []rpc.API {

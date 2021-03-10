@@ -1995,7 +1995,6 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 	}
 	stack.SetPluginManager(pluginManager)
 	stack.RegisterAPIs(pluginManager.APIs())
-	stack.RegisterProtocols(pluginManager.Protocols())
 	stack.RegisterLifecycle(pluginManager)
 	log.Info("plugin service registered")
 }

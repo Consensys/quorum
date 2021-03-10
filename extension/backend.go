@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -84,30 +83,9 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 
 	// Register service to node
 	stack.RegisterAPIs(service.apis())
-	stack.RegisterProtocols(service.protocols())
 	stack.RegisterLifecycle(service)
 
 	return service, nil
-}
-
-func (service *PrivacyService) initialise() {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
-	client := ethclient.NewClientWithPTM(service.rpcClient, service.ptm)
-	service.managementContractFacade = NewManagementContractFacade(client)
-	service.extClient = NewInProcessClient(client)
-
-	for _, f := range []func() error{
-		service.watchForNewContracts,       // watch for new extension contract creation event
-		service.watchForCancelledContracts, // watch for extension contract cancellation event
-		service.watchForCompletionEvents,   // watch for extension contract voting complete event
-	} {
-		if err := f(); err != nil {
-			panic(fmt.Sprintf("Error when registering the Privacy Service watchers. Err: %s", err))
-		}
-	}
-
 }
 
 func (service *PrivacyService) watchForNewContracts() error {
@@ -358,10 +336,6 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 }
 
 // utility methods
-func (service *PrivacyService) protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
-}
-
 func (service *PrivacyService) apis() []rpc.API {
 	return []rpc.API{
 		{
@@ -373,11 +347,27 @@ func (service *PrivacyService) apis() []rpc.API {
 	}
 }
 
-// node.Service interface methods:
+// node.Lifecycle interface methods:
 
 func (service *PrivacyService) Start() error {
 	log.Debug("extension service: starting")
-	go service.initialise()
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	client := ethclient.NewClientWithPTM(service.rpcClient, service.ptm)
+	service.managementContractFacade = NewManagementContractFacade(client)
+	service.extClient = NewInProcessClient(client)
+
+	for _, f := range []func() error{
+		service.watchForNewContracts,       // watch for new extension contract creation event
+		service.watchForCancelledContracts, // watch for extension contract cancellation event
+		service.watchForCompletionEvents,   // watch for extension contract voting complete event
+	} {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

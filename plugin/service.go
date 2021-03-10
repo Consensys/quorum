@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -23,10 +23,8 @@ type PluginManager struct {
 	mux                sync.Mutex                            // control concurrent access to plugins cache
 	plugins            map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
 	initializedPlugins map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting/stopping/getting info
-	pluginsStarted     bool
+	pluginsStarted     *int32
 }
-
-func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
 
 // this is called after PluginManager service has been successfully started
 // See node/node.go#Start()
@@ -47,7 +45,7 @@ func (s *PluginManager) Start() (err error) {
 		log.Info("No plugins initialized")
 		return
 	}
-	if s.pluginsStarted {
+	if atomic.LoadInt32(s.pluginsStarted) != 0 {
 		log.Info("Plugins already started")
 		return
 	}
@@ -65,7 +63,7 @@ func (s *PluginManager) Start() (err error) {
 			_ = p.Stop()
 		}
 	} else {
-		s.pluginsStarted = true
+		atomic.AddInt32(s.pluginsStarted, 1)
 	}
 	return
 }
@@ -133,7 +131,8 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 }
 
 func (s *PluginManager) Stop() error {
-	log.Info("Stopping all plugins", "count", len(s.initializedPlugins))
+	initializedPluginsCount := len(s.initializedPlugins)
+	log.Info("Stopping all plugins", "count", initializedPluginsCount)
 	allErrors := make([]error, 0)
 	for _, p := range s.initializedPlugins {
 		if err := p.Stop(); err != nil {
@@ -141,7 +140,9 @@ func (s *PluginManager) Stop() error {
 		}
 	}
 	log.Info("All plugins stopped", "errors", allErrors)
-	s.pluginsStarted = false
+	if initializedPluginsCount > 0 {
+		atomic.StoreInt32(s.pluginsStarted, 0)
+	}
 	if len(allErrors) == 0 {
 		return nil
 	}
@@ -218,6 +219,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		plugins:            make(map[PluginInterfaceName]managedPlugin),
 		initializedPlugins: make(map[PluginInterfaceName]managedPlugin),
 		settings:           settings,
+		pluginsStarted:     new(int32),
 	}
 	pm.downloader = NewDownloader(pm)
 	if skipVerify {

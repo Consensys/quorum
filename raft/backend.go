@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -59,7 +58,6 @@ func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uin
 	}
 
 	stack.RegisterAPIs(service.apis())
-	stack.RegisterProtocols(service.protocols())
 	stack.RegisterLifecycle(service)
 
 	return service, nil
@@ -67,7 +65,6 @@ func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uin
 
 // Utility methods
 
-func (service *RaftService) protocols() []p2p.Protocol { return []p2p.Protocol{} }
 func (service *RaftService) apis() []rpc.API {
 	return []rpc.API{
 		{
@@ -88,7 +85,7 @@ func (service *RaftService) DappDb() ethdb.Database            { return nil }
 func (service *RaftService) EventMux() *event.TypeMux          { return service.eventMux }
 func (service *RaftService) TxPool() *core.TxPool              { return service.txPool }
 
-// node.Service interface methods:
+// node.Lifecycle interface methods:
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
