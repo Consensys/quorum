@@ -18,6 +18,7 @@ package backend
 
 import (
 	"bytes"
+	"github.com/ethereum/go-ethereum/trie"
 	"io/ioutil"
 	"math/big"
 	"testing"
@@ -103,7 +104,7 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 		Root:      common.StringToHash("someroot"),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -126,7 +127,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 		Number:    big.NewInt(1),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -163,7 +164,7 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 		Number:    big.NewInt(1),
 		GasLimit:  0,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
 	if invalidMsg {
 		request = []interface{}{"invalid msg"}

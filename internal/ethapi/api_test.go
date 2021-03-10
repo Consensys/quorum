@@ -2,6 +2,7 @@ package ethapi
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"os"
 	"testing"
@@ -487,7 +488,7 @@ func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.Mi
 func (sb *StubBackend) CurrentBlock() *types.Block {
 	return types.NewBlock(&types.Header{
 		Number: arbitraryCurrentBlockNumber,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 }
 
 func (sb *StubBackend) Downloader() *downloader.Downloader {
