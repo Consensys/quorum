@@ -319,6 +319,14 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (stat
 	return publicState.RawDump(false, false, true), nil
 }
 
+func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
+	_, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return privateState.IntermediateRoot(true), nil
+}
+
 // Quorum
 // DumpAddress retrieves the state of an address at a given block.
 // Quorum adds an additional parameter to support private state dump
