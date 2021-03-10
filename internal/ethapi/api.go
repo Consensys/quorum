@@ -2698,7 +2698,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	case RawTransaction:
 		hash, err = handleRawPrivateTransaction(ctx, b, tx, privateTxArgs, from)
 	case NormalTransaction:
-		hash, err = handleNormalPrivateTransaction(ctx, b, tx, tx.Data(), privateTxArgs, from)
+		hash, err = handleNormalPrivateTransaction(ctx, b, tx, data, privateTxArgs, from)
 	}
 	return
 }

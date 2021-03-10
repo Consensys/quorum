@@ -3,12 +3,15 @@ package ethapi
 import (
 	"context"
 	"crypto/ecdsa"
+	"io/ioutil"
 	"math/big"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
@@ -450,35 +453,76 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 func TestSubmitPrivateTransaction(t *testing.T) {
 	assert := assert.New(t)
 
+	workdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Failed to create temporary work dir: %v", err)
+	}
+	defer os.RemoveAll(workdir)
+	keystore := keystore.NewKeyStore(filepath.Join(workdir, "keystore"), keystore.StandardScryptN, keystore.StandardScryptP)
+	fromAcct, err := keystore.NewAccount("")
+	toAcct, err := keystore.NewAccount("")
+
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
 	stbBackend.quorumPrivacyMarkerTransactionsEnabled = false
+	stbBackend.ks = keystore
+	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
+	stbBackend.poolNonce = 999
 
-	key, _ := crypto.GenerateKey()
-	signedPrivateTx, _ := types.SignTx(standardPrivateSimpleStorageContractMessageCallTx, types.QuorumPrivateTxSigner{}, key)
-	_, err := SubmitTransaction(arbitraryCtx, stbBackend, signedPrivateTx, arbitraryPrivateFrom, arbitraryPrivateFor, false)
+	privateAccountAPI := NewPrivateAccountAPI(stbBackend, nil)
+
+	gas := hexutil.Uint64(999999)
+	nonce := hexutil.Uint64(123)
+	payload := hexutil.Bytes(([]byte("0x43d3e767000000000000000000000000000000000000000000000000000000000000000a"))[:])
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
+	txArgs := SendTxArgs{PrivateTxArgs: *privateTxArgs, From: fromAcct.Address, To: &toAcct.Address, Gas: &gas, Nonce: &nonce, Data: &payload}
+
+	_, err = privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
 
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
 	assert.True(stbBackend.txThatWasSent.IsPrivate(), "must be a private transaction")
+	assert.Equal(stbBackend.txThatWasSent.From(), fromAcct.Address, "incorrect 'From' address on transaction")
+	assert.Equal(*stbBackend.txThatWasSent.To(), toAcct.Address, "incorrect 'To' address on transaction")
+	assert.Equal(stbBackend.txThatWasSent.Nonce(), uint64(123), "incorrect nonce on transaction")
 }
 
 func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert := assert.New(t)
 
+	workdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Failed to create temporary work dir: %v", err)
+	}
+	defer os.RemoveAll(workdir)
+	keystore := keystore.NewKeyStore(filepath.Join(workdir, "keystore"), keystore.StandardScryptN, keystore.StandardScryptP)
+	fromAcct, err := keystore.NewAccount("")
+	toAcct, err := keystore.NewAccount("")
+
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
 	stbBackend.quorumPrivacyMarkerTransactionsEnabled = true
+	stbBackend.ks = keystore
+	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
+	stbBackend.poolNonce = 999
 
-	key, _ := crypto.GenerateKey()
-	signedPrivateTx, _ := types.SignTx(standardPrivateSimpleStorageContractMessageCallTx, types.QuorumPrivateTxSigner{}, key)
-	_, err := SubmitTransaction(arbitraryCtx, stbBackend, signedPrivateTx, arbitraryPrivateFrom, arbitraryPrivateFor, false)
+	privateAccountAPI := NewPrivateAccountAPI(stbBackend, nil)
+
+	gas := hexutil.Uint64(999999)
+	nonce := hexutil.Uint64(123)
+	payload := hexutil.Bytes(([]byte("0x43d3e767000000000000000000000000000000000000000000000000000000000000000a"))[:])
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
+	txArgs := SendTxArgs{PrivateTxArgs: *privateTxArgs, From: fromAcct.Address, To: &toAcct.Address, Gas: &gas, Nonce: &nonce, Data: &payload}
+
+	_, err = privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
 
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
-	assert.True(stbBackend.quorumPrivacyMarkerSigningKeyCalled, "privacy marker transaction signing key was not used")
 	assert.False(stbBackend.txThatWasSent.IsPrivate(), "transaction was private, instead of privacy marker transaction (public)")
-	assert.Equal(vm.PrivacyMarkerAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' field should be privacy marker precompile")
+	assert.NotEqual(stbBackend.txThatWasSent.From(), fromAcct.Address, "different 'From' address expected for privacy marker precompile")
+	assert.Equal(*stbBackend.txThatWasSent.To(), vm.PrivacyMarkerAddress(), "transaction 'To' address should be privacy marker precompile")
+	assert.Equal(stbBackend.txThatWasSent.Nonce(), stbBackend.poolNonce, "incorrect nonce on transaction")
+	assert.True(stbBackend.quorumPrivacyMarkerSigningKeyCalled, "privacy marker transaction signing key was not used")
 }
 
 type StubBackend struct {
@@ -489,6 +533,9 @@ type StubBackend struct {
 	mockAccountExtraDataStateGetter        *vm.MockAccountExtraDataStateGetter
 	multitenancySupported                  bool
 	quorumPrivacyMarkerTransactionsEnabled bool
+	accountManager                         *accounts.Manager
+	ks                                     *keystore.KeyStore
+	poolNonce                              uint64
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
@@ -530,7 +577,7 @@ func (sb *StubBackend) ProtocolVersion() int {
 }
 
 func (sb *StubBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	panic("implement me")
+	return big.NewInt(0), nil
 }
 
 func (sb *StubBackend) ChainDb() ethdb.Database {
@@ -541,8 +588,16 @@ func (sb *StubBackend) EventMux() *event.TypeMux {
 	panic("implement me")
 }
 
+func (sb *StubBackend) Wallets() []accounts.Wallet {
+	return sb.ks.Wallets()
+}
+
+func (sb *StubBackend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
+	return nil
+}
+
 func (sb *StubBackend) AccountManager() *accounts.Manager {
-	panic("implement me")
+	return sb.accountManager
 }
 
 func (sb *StubBackend) ExtRPCEnabled() bool {
@@ -554,11 +609,11 @@ func (sb *StubBackend) CallTimeOut() time.Duration {
 }
 
 func (sb *StubBackend) RPCTxFeeCap() float64 {
-	panic("implement me")
+	return 25000000
 }
 
 func (sb *StubBackend) RPCGasCap() uint64 {
-	panic("implement me")
+	return 25000000
 }
 
 func (sb *StubBackend) SetHead(number uint64) {
@@ -586,7 +641,7 @@ func (sb *StubBackend) BlockByHash(ctx context.Context, hash common.Hash) (*type
 }
 
 func (sb *StubBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
-	panic("implement me")
+	return sb.CurrentBlock(), nil
 }
 
 func (sb *StubBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
@@ -636,7 +691,7 @@ func (sb *StubBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction
 }
 
 func (sb *StubBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	panic("implement me")
+	return sb.poolNonce, nil
 }
 
 func (sb *StubBackend) Stats() (pending int, queued int) {
