@@ -278,6 +278,12 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, ""]
 		}),
 		new web3._extend.Method({
+			name: 'privateStateRoot',
+			call: 'debug_privateStateRoot',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
 			name: 'dumpAddress',
 			call: 'debug_dumpAddress',
 			params: 2,
