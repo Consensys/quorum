@@ -63,7 +63,7 @@ func TestExtractToQbftExtra(t *testing.T) {
 				},
 				CommittedSeal: [][]byte{},
 				Round:         0,
-				Vote:          []*ValidatorVote{},
+				Vote:          nil,
 			},
 			nil,
 		},

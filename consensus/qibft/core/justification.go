@@ -38,7 +38,6 @@ func justify(
 	var preparedRound *big.Int
 	iteration := 0
 	for _, spp := range prepareMessages {
-		log.Info("QBFT: JUSTIFICATION PREPARE", spp)
 		if iteration == 0 { // Get the round of the first message
 			preparedRound = spp.Round
 		}

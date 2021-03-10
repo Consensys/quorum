@@ -270,6 +270,11 @@ func (sb *backend) Sign(data []byte) ([]byte, error) {
 	return crypto.Sign(hashData, sb.privateKey)
 }
 
+// SignWithoutHashing implements istanbul.Backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
+func (sb *backend) SignWithoutHashing(data []byte) ([]byte, error) {
+	return crypto.Sign(data, sb.privateKey)
+}
+
 // CheckSignature implements istanbul.Backend.CheckSignature
 func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := istanbul.GetSignatureAddress(data, sig)

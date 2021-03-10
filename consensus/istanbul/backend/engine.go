@@ -111,31 +111,43 @@ func (sb *backend) Author(header *types.Header) (common.Address, error) {
 // repeated
 func (sb *backend) Signers(header *types.Header, isQbft bool) ([]common.Address, error) {
 	var committedSeal [][]byte
+	var proposalSeal []byte
 	if isQbft {
 		extra, err := types.ExtractQbftExtra(header)
 		if err != nil {
 			return []common.Address{}, err
 		}
 		committedSeal = extra.CommittedSeal
+		proposalSeal = qibftCore.PrepareCommittedSeal(header, extra.Round)
 	} else {
 		extra, err := types.ExtractIstanbulExtra(header)
 		if err != nil {
 			return []common.Address{}, err
 		}
 		committedSeal = extra.CommittedSeal
+		proposalSeal = istanbulCore.PrepareCommittedSeal(header.Hash())
 	}
 
 	var addrs []common.Address
-	proposalSeal := istanbulCore.PrepareCommittedSeal(header.Hash())
-
 	// 1. Get committed seals from current header
 	for _, seal := range committedSeal {
 		// 2. Get the original address by seal and parent block hash
-		addr, err := istanbul.GetSignatureAddress(proposalSeal, seal)
-		if err != nil {
-			sb.logger.Error("not a valid address", "err", err)
-			return nil, errInvalidSignature
+		var addr common.Address
+		var err error
+		if isQbft {
+			addr, err = istanbul.GetSignatureAddressNoHashing(proposalSeal, seal)
+			if err != nil {
+				sb.logger.Error("not a valid address", "err", err)
+				return nil, errInvalidSignature
+			}
+		} else {
+			addr, err = istanbul.GetSignatureAddress(proposalSeal, seal)
+			if err != nil {
+				sb.logger.Error("not a valid address", "err", err)
+				return nil, errInvalidSignature
+			}
 		}
+
 		addrs = append(addrs, addr)
 	}
 	return addrs, nil
@@ -867,7 +879,7 @@ func qbftPrepareExtra(header *types.Header, vals []common.Address) ([]byte, erro
 			Validators:    vals,
 			CommittedSeal: [][]byte{},
 			Round:         0,
-			Vote:          []*types.ValidatorVote{},
+			Vote:          nil,
 		}
 	} else {
 		// This is the case when validator voting has happened, just update the validators
@@ -994,7 +1006,7 @@ func writeValidatorVote(h *types.Header, address common.Address, voteType byte) 
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},
 		Round:         0,
-		Vote:          []*types.ValidatorVote{vote},
+		Vote:          vote,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)

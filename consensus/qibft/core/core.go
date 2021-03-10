@@ -17,7 +17,6 @@
 package core
 
 import (
-	"bytes"
 	"math"
 	"math/big"
 	"sync"
@@ -295,11 +294,8 @@ func (c *core) QuorumSize() int {
 	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
 }
 
-// PrepareCommittedSeal returns a committed seal for the given hash
-func PrepareCommittedSeal(hash common.Hash) []byte {
-	var buf bytes.Buffer
-	buf.Write(hash.Bytes())
-	var msgCommit uint64 = 2 // Legacy commit code for backwards compatibility
-	buf.Write([]byte{byte(msgCommit)})
-	return buf.Bytes()
+// PrepareCommittedSeal returns a committed seal for the given header and takes current round under consideration
+func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
+	h := types.CopyHeader(header)
+	return h.QbftHashWithRoundNumber(round).Bytes()
 }

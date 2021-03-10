@@ -19,6 +19,7 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -29,8 +30,12 @@ func (c *core) broadcastCommit() {
 
 	sub := c.current.Subject()
 
+	var header *types.Header
+	if block, ok := c.current.Proposal().(*types.Block); ok {
+		header = block.Header()
+	}
 	// Create Commit Seal
-	commitSeal, err := c.backend.Sign(PrepareCommittedSeal(sub.Digest))
+	commitSeal, err := c.backend.SignWithoutHashing(PrepareCommittedSeal(header, uint32(c.currentView().Round.Uint64())))
 	if err != nil {
 		logger.Error("QBFT: Failed to create commit seal", "sub", sub, "err", err)
 		return

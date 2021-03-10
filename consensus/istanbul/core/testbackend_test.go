@@ -116,6 +116,11 @@ func (self *testSystemBackend) Sign(data []byte) ([]byte, error) {
 	return self.address.Bytes(), nil
 }
 
+func (self *testSystemBackend) SignWithoutHashing(data []byte) ([]byte, error) {
+	testLogger.Info("returning current backend address so that CheckValidatorSignature returns the same value")
+	return self.address.Bytes(), nil
+}
+
 func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) error {
 	return nil
 }

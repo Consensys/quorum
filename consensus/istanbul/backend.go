@@ -52,6 +52,9 @@ type Backend interface {
 	// Sign signs input data with the backend's private key
 	Sign([]byte) ([]byte, error)
 
+	// SignWithoutHashing sign input data with the backend's private key without hashing the input data
+	SignWithoutHashing([]byte) ([]byte, error)
+
 	// CheckSignature verifies the signature by checking if it's signed by
 	// the given validator
 	CheckSignature(data []byte, addr common.Address, sig []byte) error

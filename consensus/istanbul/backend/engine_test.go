@@ -41,7 +41,7 @@ import (
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
 func newBlockChain(n int) (*core.BlockChain, *backend) {
-	genesis, nodeKeys := getGenesisAndKeys(n)
+	genesis, nodeKeys := getGenesisAndKeys(n, true)
 	memDB := rawdb.NewMemoryDatabase()
 	config := istanbul.DefaultConfig
 	// Use the first key as private key
@@ -75,7 +75,46 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	return blockchain, b
 }
 
-func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
+// in this test, we can set n to 1, and it means we can process Istanbul and commit a
+// block by one node. Otherwise, if n is larger than 1, we have to generate
+// other fake events to process Istanbul.
+func newLegacyBlockChain(n int) (*core.BlockChain, *backend) {
+	genesis, nodeKeys := getGenesisAndKeys(n, false)
+	memDB := rawdb.NewMemoryDatabase()
+	config := istanbul.DefaultConfig
+	// Use the first key as private key
+	b, _ := New(config, nodeKeys[0], memDB).(*backend)
+
+	config.QibftBlock = nil
+
+	genesis.MustCommit(memDB)
+	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	b.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
+	snap, err := b.snapshot(blockchain, 0, common.Hash{}, nil)
+	if err != nil {
+		panic(err)
+	}
+	if snap == nil {
+		panic("failed to get snapshot")
+	}
+	proposerAddr := snap.ValSet.GetProposer().Address()
+
+	// find proposer key
+	for _, key := range nodeKeys {
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		if addr.String() == proposerAddr.String() {
+			b.privateKey = key
+			b.address = addr
+		}
+	}
+
+	return blockchain, b
+}
+
+func getGenesisAndKeys(n int, isQbft bool) (*core.Genesis, []*ecdsa.PrivateKey) {
 	// Setup validators
 	var nodeKeys = make([]*ecdsa.PrivateKey, n)
 	var addrs = make([]common.Address, n)
@@ -94,8 +133,32 @@ func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 	genesis.Nonce = emptyNonce.Uint64()
 	genesis.Mixhash = types.IstanbulDigest
 
-	appendValidators(genesis, addrs)
+	if isQbft {
+		appendValidators(genesis, addrs)
+	} else {
+		appendValidatorsIstanbulExtra(genesis, addrs)
+	}
+
 	return genesis, nodeKeys
+}
+
+func appendValidatorsIstanbulExtra(genesis *core.Genesis, addrs []common.Address) {
+	if len(genesis.ExtraData) < types.IstanbulExtraVanity {
+		genesis.ExtraData = append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...)
+	}
+	genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
+
+	ist := &types.IstanbulExtra{
+		Validators:    addrs,
+		Seal:          []byte{},
+		CommittedSeal: [][]byte{},
+	}
+
+	istPayload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		panic("failed to encode istanbul extra")
+	}
+	genesis.ExtraData = append(genesis.ExtraData, istPayload...)
 }
 
 func appendValidators(genesis *core.Genesis, addrs []common.Address) {
@@ -598,7 +661,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 		},
 		CommittedSeal: [][]byte{expectedCommittedSeal},
 		Round:         0,
-		Vote:          []*types.ValidatorVote{},
+		Vote:          nil,
 	}
 	var expectedErr error
 
@@ -641,7 +704,7 @@ func TestWriteRoundNumber(t *testing.T) {
 		},
 		CommittedSeal: [][]byte{},
 		Round:         5,
-		Vote:          []*types.ValidatorVote{},
+		Vote:          nil,
 	}
 
 	var expectedErr error
@@ -675,7 +738,7 @@ func TestWriteValidatorVote(t *testing.T) {
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},
 		Round:         0,
-		Vote:          []*types.ValidatorVote{vote},
+		Vote:          vote,
 	}
 
 	var expectedErr error

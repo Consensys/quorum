@@ -297,10 +297,10 @@ func (s *Snapshot) qbftApply(header *types.Header) error {
 	}
 
 	var validatorVote *types.ValidatorVote
-	if qbftExtra.Vote == nil || len(qbftExtra.Vote) == 0 {
+	if qbftExtra.Vote == nil {
 		validatorVote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QbftDropVote}
 	} else {
-		validatorVote = qbftExtra.Vote[0]
+		validatorVote = qbftExtra.Vote
 	}
 
 	// Header authorized, discard any previous votes from the validator

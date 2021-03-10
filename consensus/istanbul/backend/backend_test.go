@@ -187,16 +187,9 @@ func TestGetProposer(t *testing.T) {
 
 func TestIsQIBFTConsensus(t *testing.T) {
 	// Uses Istanbul DefaultConfig which has qibftBlock set to 0
-	chain, engine := newBlockChain(1)
-	qibftConsensus := engine.IsQIBFTConsensus()
-	if !qibftConsensus {
-		t.Errorf("IsQIBFTConsensus() should return true")
-	}
-	// reset sb.qibftConsensusEnabled as it is set to true when engine is started when creating newBlockChain()
-	engine.qibftConsensusEnabled = false
+	chain, engine := newLegacyBlockChain(1)
 
-	engine.config.QibftBlock = nil
-	qibftConsensus = engine.IsQIBFTConsensus()
+	qibftConsensus := engine.IsQIBFTConsensus()
 	if qibftConsensus {
 		t.Errorf("IsQIBFTConsensus() should return false")
 	}
@@ -210,7 +203,10 @@ func TestIsQIBFTConsensus(t *testing.T) {
 
 	// Create an insert a new block into the chain.
 	block := makeBlock(chain, engine, chain.Genesis())
-	chain.InsertChain(types.Blocks{block})
+	_, err := chain.InsertChain(types.Blocks{block})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
 
 	qibftConsensus = engine.IsQIBFTConsensus()
 	if !qibftConsensus {

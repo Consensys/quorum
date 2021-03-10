@@ -127,7 +127,7 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 type QbftExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
-	Vote          []*ValidatorVote
+	Vote          *ValidatorVote
 	Round         uint32
 	CommittedSeal [][]byte
 }
@@ -153,7 +153,7 @@ func (qst *QbftExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData    []byte
 		Validators    []common.Address
-		Vote          []*ValidatorVote
+		Vote          *ValidatorVote `rlp:"nil"`
 		Round         uint32
 		CommittedSeal [][]byte
 	}
@@ -208,10 +208,30 @@ func QbftFilteredHeader(h *Header) *Header {
 		return nil
 	}
 
-	qbftExtra.VanityData = []byte{}
 	qbftExtra.CommittedSeal = [][]byte{}
 	qbftExtra.Round = 0
-	qbftExtra.Vote = nil
+
+	payload, err := rlp.EncodeToBytes(&qbftExtra)
+	if err != nil {
+		return nil
+	}
+
+	newHeader.Extra = payload
+
+	return newHeader
+}
+
+// QbftFilteredHeaderWithRound returns the copy of the header with round number set to the given round number
+// and commit seal set to its null value
+func QbftFilteredHeaderWithRound(h *Header, round uint32) *Header {
+	newHeader := CopyHeader(h)
+	qbftExtra, err := ExtractQbftExtra(newHeader)
+	if err != nil {
+		return nil
+	}
+
+	qbftExtra.CommittedSeal = [][]byte{}
+	qbftExtra.Round = round
 
 	payload, err := rlp.EncodeToBytes(&qbftExtra)
 	if err != nil {
