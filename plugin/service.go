@@ -42,7 +42,7 @@ func (s *PluginManager) APIs() []rpc.API {
 func (s *PluginManager) Start() (err error) {
 	initializedPluginsCount := len(s.initializedPlugins)
 	if initializedPluginsCount == 0 {
-		log.Info("No plugins initialized")
+		log.Info("No plugins to initialise")
 		return
 	}
 	if atomic.LoadInt32(s.pluginsStarted) != 0 {
