@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -107,6 +108,7 @@ func defaultNodeConfig() node.Config {
 	return cfg
 }
 
+// makeConfigNode loads geth configuration and creates a blank node instance.
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Load defaults.
 	cfg := gethConfig{
@@ -147,10 +149,14 @@ func enableWhisper(ctx *cli.Context) bool {
 	return false
 }
 
-func makeFullNode(ctx *cli.Context) *node.Node {
+// makeFullNode loads geth configuration and creates the Ethereum backend.
+func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
-	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
+	// Quorum - returning `ethService` too for the Raft and extension service
+	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Quorum
 	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
 	// fails to start
 	if cfg.Node.Plugins != nil {
@@ -162,12 +168,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
-		utils.RegisterExtensionService(stack, ethChan)
+		utils.RegisterExtensionService(stack, ethService)
 	}
+	// End Quorum
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
@@ -186,13 +193,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 	// Configure GraphQL if requested
 	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
-		utils.RegisterGraphQLService(stack, cfg.Node.GraphQLEndpoint(), cfg.Node.GraphQLCors, cfg.Node.GraphQLVirtualHosts, cfg.Node.HTTPTimeouts)
+		utils.RegisterGraphQLService(stack, backend, cfg.Node)
 	}
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
-		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
+		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}
-	return stack
+	return stack, backend
 }
 
 // dumpConfig is the dumpconfig command.
@@ -228,7 +235,7 @@ func dumpConfig(ctx *cli.Context) error {
 func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
-	err := stack.Service(&ethereum)
+	err := stack.Lifecycle(&ethereum)
 	if err != nil {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}

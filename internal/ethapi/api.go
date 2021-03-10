@@ -2112,6 +2112,8 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	return SubmitTransaction(ctx, s.b, tx, "", nil, false)
 }
 
+// Quorum
+//
 // SendRawPrivateTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {

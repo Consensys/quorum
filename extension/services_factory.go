@@ -11,8 +11,6 @@ import (
 )
 
 type ServicesFactory interface {
-	BackendService() *PrivacyService
-
 	AccountManager() *accounts.Manager
 	DataHandler() DataHandler
 	StateFetcher() *StateFetcher
@@ -25,14 +23,14 @@ type DefaultServicesFactory struct {
 	stateFetcher   *StateFetcher
 }
 
-func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, ethService *eth.Ethereum) (*DefaultServicesFactory, error) {
+func NewServicesFactory(stack *node.Node, ptm private.PrivateTransactionManager, ethService *eth.Ethereum) (*DefaultServicesFactory, error) {
 	factory := &DefaultServicesFactory{}
 
 	factory.accountManager = ethService.AccountManager()
-	factory.dataHandler = NewJsonFileDataHandler(node.InstanceDir())
+	factory.dataHandler = NewJsonFileDataHandler(stack.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
-	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend)
+	backendService, err := New(stack, ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend)
 	if err != nil {
 		return nil, err
 	}
@@ -43,13 +41,7 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 
 	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
 
-	go backendService.initialise(node)
-
 	return factory, nil
-}
-
-func (factory *DefaultServicesFactory) BackendService() *PrivacyService {
-	return factory.backendService
 }
 
 func (factory *DefaultServicesFactory) AccountManager() *accounts.Manager {
