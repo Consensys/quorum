@@ -4,7 +4,7 @@ go 1.15
 
 // Quorum - Replace Go modules that use modifications done by us
 
-replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200804194033-c8f07379f487
+replace github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20210223160031-6e8585c2a9ad
 
 replace github.com/coreos/etcd => github.com/Consensys/etcd v3.3.13-quorum197+incompatible
 
@@ -50,7 +50,7 @@ require (
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-plugin v1.2.2
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/holiman/uint256 v1.1.0
+	github.com/holiman/uint256 v1.1.1
 	github.com/huin/goupnp v1.0.0
 	github.com/influxdata/influxdb v1.2.3-0.20180221223340-01288bdb0883
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
