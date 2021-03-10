@@ -309,7 +309,6 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Quorum
-	//TODO ricardolyn: right location for this?
 	if _, err := state.New(rawdb.GetPrivateStateRoot(bc.db, head.Root()), bc.privateStateCache, nil); err != nil {
 		log.Warn("Head private state missing, resetting chain", "number", head.Number(), "hash", head.Hash())
 		return nil, bc.Reset()

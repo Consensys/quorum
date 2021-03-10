@@ -79,7 +79,6 @@ func GetImmutabilityThreshold() int {
 	return FullImmutabilityThreshold
 }
 
-//TODO ricardolyn: right name for this?
 func GetImmutabilityThresholdWithDefault(defaultValue int) int {
 
 	if quorumImmutabilityThreshold > 0 {
