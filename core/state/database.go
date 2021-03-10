@@ -123,14 +123,14 @@ func NewDatabaseWithCache(db ethdb.Database, cache int, journal string) Database
 	return &cachingDB{
 		db:                     trie.NewDatabaseWithCache(db, cache, journal),
 		codeSizeCache:          csc,
-		codeCache:     fastcache.New(codeCacheSize),
+		codeCache:              fastcache.New(codeCacheSize),
 		accountExtraDataLinker: rawdb.NewAccountExtraDataLinker(db),
 	}
 }
 
 type cachingDB struct {
-	db *trie.Database
-	codeSizeCache          *lru.Cache
+	db            *trie.Database
+	codeSizeCache *lru.Cache
 	codeCache     *fastcache.Cache
 
 	// Quorum

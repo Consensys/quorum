@@ -19,10 +19,11 @@ package backend
 import (
 	"bytes"
 	"errors"
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"

@@ -18,10 +18,11 @@ package raft
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/trie"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"

@@ -18,10 +18,11 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"

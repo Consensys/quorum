@@ -18,10 +18,11 @@ package backend
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/trie"
 	"io/ioutil"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
