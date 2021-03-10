@@ -19,6 +19,7 @@ package usbwallet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -544,6 +545,10 @@ func (w *wallet) SignText(account accounts.Account, text []byte) ([]byte, error)
 func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	w.stateLock.RLock() // Comms have own mutex, this is for the state fields
 	defer w.stateLock.RUnlock()
+
+	if tx.IsPrivate() {
+		return nil, errors.New("Signing Quorum Private transactions with a USB wallet not yet supported")
+	}
 
 	// If the wallet is closed, abort
 	if w.device == nil {

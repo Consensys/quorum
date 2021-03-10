@@ -65,3 +65,33 @@ const (
 	// reorgs, by the light pruner as the pruning validity guarantee.
 	LightImmutabilityThreshold = 30000
 )
+
+// //Quorum
+var quorumImmutabilityThreshold int
+
+// returns the immutability threshold set for the network
+func GetImmutabilityThreshold() int {
+
+	if quorumImmutabilityThreshold > 0 {
+		return quorumImmutabilityThreshold
+	}
+
+	return FullImmutabilityThreshold
+}
+
+//TODO ricardolyn: right name for this?
+func GetImmutabilityThresholdWithDefault(defaultValue int) int {
+
+	if quorumImmutabilityThreshold > 0 {
+		return quorumImmutabilityThreshold
+	}
+
+	return defaultValue
+}
+
+// sets the immutability threshold and isQuorum to passed values
+func SetQuorumImmutabilityThreshold(immutabilityThreshold int) {
+	quorumImmutabilityThreshold = immutabilityThreshold
+}
+
+// /Quorum

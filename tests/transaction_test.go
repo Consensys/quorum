@@ -32,6 +32,23 @@ func TestTransaction(t *testing.T) {
 	// This is a pseudo-consensus vulnerability, but not in practice
 	// because of the gas limit
 	txt.skipLoad("^ttGasLimit/TransactionWithGasLimitxPriceOverflow.json")
+
+	//Quorum - skip the tests below as they have V=37/38 for transactions being tested and it is causing quorum to use quorum private signer for public transactions
+	txt.skipLoad("^ttGasLimit/TransactionWithHihghGasLimit63m1.json")
+	txt.skipLoad("^ttVValue/V_equals38.json")
+	txt.skipLoad("^ttVValue/V_equals37.json")
+	txt.skipLoad("^ttSignature/Vitalik_9.json")
+	txt.skipLoad("^ttSignature/Vitalik_8.json")
+	txt.skipLoad("^ttSignature/Vitalik_7.json")
+	txt.skipLoad("^ttSignature/Vitalik_6.json")
+	txt.skipLoad("^ttSignature/Vitalik_5.json")
+	txt.skipLoad("^ttSignature/Vitalik_4.json")
+	txt.skipLoad("^ttSignature/Vitalik_3.json")
+	txt.skipLoad("^ttSignature/Vitalik_2.json")
+	txt.skipLoad("^ttSignature/Vitalik_11.json")
+	txt.skipLoad("^ttSignature/Vitalik_10.json")
+	txt.skipLoad("^ttSignature/Vitalik_1.json")
+
 	// We _do_ allow more than uint64 in gas price, as opposed to the tests
 	// This is also not a concern, as long as tx.Cost() uses big.Int for
 	// calculating the final cozt

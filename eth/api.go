@@ -61,6 +61,35 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
+// Quorum
+// StorageRoot returns the storage root of an account on the the given (optional) block height.
+// If block number is not given the latest block is used.
+func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
+	var (
+		pub, priv *state.StateDB
+		err       error
+	)
+
+	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
+		pub, priv, err = s.e.blockchain.State()
+	} else {
+		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
+			pub, priv, err = s.e.blockchain.StateAt(ch.Root)
+		} else {
+			return common.Hash{}, fmt.Errorf("invalid block number")
+		}
+	}
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if priv.Exist(addr) {
+		return priv.GetStorageRoot(addr)
+	}
+	return pub.GetStorageRoot(addr)
+}
+
 // Hashrate returns the POW hashrate
 func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(api.e.Miner().HashRate())
@@ -277,14 +306,57 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
-func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
+// Quorum adds an additional parameter to support private state dump
+func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return state.Dump{}, err
+	}
+
+	if typ != nil && *typ == "private" {
+		return privateState.RawDump(false, false, true), nil
+	}
+	return publicState.RawDump(false, false, true), nil
+}
+
+func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
+	_, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return privateState.IntermediateRoot(true), nil
+}
+
+// Quorum
+// DumpAddress retrieves the state of an address at a given block.
+// Quorum adds an additional parameter to support private state dump
+func (api *PublicDebugAPI) DumpAddress(address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	if err != nil {
+		return state.DumpAccount{}, err
+	}
+
+	if accountDump, ok := privateState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	if accountDump, ok := publicState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	return state.DumpAccount{}, errors.New("error retrieving state")
+}
+
+//Quorum
+//Taken from DumpBlock, as it was reused in DumpAddress.
+//Contains modifications from the original to return the private state db, as well as public.
+func (api *PublicDebugAPI) getStateDbsFromBlockNumber(blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
 		// the miner and operate on those
-		_, stateDb := api.eth.miner.Pending()
-		return stateDb.RawDump(false, false, true), nil
+		_, publicState, privateState := api.eth.miner.Pending()
+		return publicState, privateState, nil
 	}
+
 	var block *types.Block
 	if blockNr == rpc.LatestBlockNumber {
 		block = api.eth.blockchain.CurrentBlock()
@@ -292,13 +364,9 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error
 		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
 	}
 	if block == nil {
-		return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
+		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
 	}
-	stateDb, err := api.eth.BlockChain().StateAt(block.Root())
-	if err != nil {
-		return state.Dump{}, err
-	}
-	return stateDb.RawDump(false, false, true), nil
+	return api.eth.BlockChain().StateAt(block.Root())
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
@@ -364,7 +432,7 @@ func (api *PublicDebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, sta
 			// If we're dumping the pending state, we need to request
 			// both the pending block as well as the pending state from
 			// the miner and operate on those
-			_, stateDb = api.eth.miner.Pending()
+			_, stateDb, _ = api.eth.miner.Pending()
 		} else {
 			var block *types.Block
 			if number == rpc.LatestBlockNumber {
@@ -375,7 +443,7 @@ func (api *PublicDebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, sta
 			if block == nil {
 				return state.IteratorDump{}, fmt.Errorf("block #%d not found", number)
 			}
-			stateDb, err = api.eth.BlockChain().StateAt(block.Root())
+			stateDb, _, err = api.eth.BlockChain().StateAt(block.Root())
 			if err != nil {
 				return state.IteratorDump{}, err
 			}
@@ -385,7 +453,7 @@ func (api *PublicDebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, sta
 		if block == nil {
 			return state.IteratorDump{}, fmt.Errorf("block %s not found", hash.Hex())
 		}
-		stateDb, err = api.eth.BlockChain().StateAt(block.Root())
+		stateDb, _, err = api.eth.BlockChain().StateAt(block.Root())
 		if err != nil {
 			return state.IteratorDump{}, err
 		}
@@ -412,7 +480,7 @@ type storageEntry struct {
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
 func (api *PrivateDebugAPI) StorageRangeAt(blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	_, _, statedb, err := api.computeTxEnv(blockHash, txIndex, 0)
+	_, _, statedb, _, err := api.computeTxEnv(blockHash, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
@@ -505,7 +573,8 @@ func (api *PrivateDebugAPI) getModifiedAccounts(startBlock, endBlock *types.Bloc
 	if startBlock.Number().Uint64() >= endBlock.Number().Uint64() {
 		return nil, fmt.Errorf("start block height (%d) must be less than end block height (%d)", startBlock.Number().Uint64(), endBlock.Number().Uint64())
 	}
-	triedb := api.eth.BlockChain().StateCache().TrieDB()
+	statedb, _ := api.eth.BlockChain().StateCache()
+	triedb := statedb.TrieDB()
 
 	oldTrie, err := trie.NewSecure(startBlock.Root(), triedb)
 	if err != nil {

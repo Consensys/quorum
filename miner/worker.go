@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
@@ -91,6 +92,10 @@ type environment struct {
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
+
+	privateReceipts []*types.Receipt
+	// Leave this publicState named state, add privateState which most code paths can just ignore
+	privateState *state.StateDB
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -99,6 +104,10 @@ type task struct {
 	state     *state.StateDB
 	block     *types.Block
 	createdAt time.Time
+
+	privateReceipts []*types.Receipt
+	// Leave this publicState named state, add privateState which most code paths can just ignore
+	privateState *state.StateDB
 }
 
 const (
@@ -211,27 +220,28 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 	}
-	// Subscribe NewTxsEvent for tx pool
-	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
-	// Subscribe events for blockchain
-	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
+		// Subscribe NewTxsEvent for tx pool
+		worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
+		// Subscribe events for blockchain
+		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+		// Sanitize recommit interval if the user-specified one is too short.
+		recommit := worker.config.Recommit
+		if recommit < minRecommitInterval {
+			log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
+			recommit = minRecommitInterval
+		}
 
-	// Sanitize recommit interval if the user-specified one is too short.
-	recommit := worker.config.Recommit
-	if recommit < minRecommitInterval {
-		log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
-		recommit = minRecommitInterval
-	}
+		go worker.mainLoop()
+		go worker.newWorkLoop(recommit)
+		go worker.resultLoop()
+		go worker.taskLoop()
 
-	go worker.mainLoop()
-	go worker.newWorkLoop(recommit)
-	go worker.resultLoop()
-	go worker.taskLoop()
-
-	// Submit first work to initialize pending state.
-	if init {
-		worker.startCh <- struct{}{}
+		// Submit first work to initialize pending state.
+		if init {
+			worker.startCh <- struct{}{}
+		}
 	}
 	return worker
 }
@@ -266,14 +276,14 @@ func (w *worker) enablePreseal() {
 }
 
 // pending returns the pending state and corresponding block.
-func (w *worker) pending() (*types.Block, *state.StateDB) {
+func (w *worker) pending() (*types.Block, *state.StateDB, *state.StateDB) {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
 	if w.snapshotState == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return w.snapshotBlock, w.snapshotState.Copy()
+	return w.snapshotBlock, w.snapshotState.Copy(), w.current.privateState.Copy()
 }
 
 // pendingBlock returns pending block.
@@ -287,11 +297,17 @@ func (w *worker) pendingBlock() *types.Block {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
+	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		istanbul.Start(w.chain, w.chain.CurrentBlock, w.chain.HasBadBlock)
+	}
 	w.startCh <- struct{}{}
 }
 
 // stop sets the running status as 0.
 func (w *worker) stop() {
+	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		istanbul.Stop()
+	}
 	atomic.StoreInt32(&w.running, 0)
 }
 
@@ -369,6 +385,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			if h, ok := w.engine.(consensus.Handler); ok {
+				h.NewChainHead()
+			}
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
@@ -509,7 +528,7 @@ func (w *worker) mainLoop() {
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
-		// System stopped
+			// System stopped
 		case <-w.exitCh:
 			return
 		case <-w.txsSub.Err():
@@ -596,17 +615,19 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				receipts = make([]*types.Receipt, len(task.receipts))
-				logs     []*types.Log
+				pubReceipts = make([]*types.Receipt, len(task.receipts))
+				prvReceipts = make([]*types.Receipt, len(task.privateReceipts))
+				logs        []*types.Log
 			)
+			offset := len(task.receipts)
 			for i, receipt := range task.receipts {
 				// add block location fields
 				receipt.BlockHash = hash
 				receipt.BlockNumber = block.Number()
 				receipt.TransactionIndex = uint(i)
 
-				receipts[i] = new(types.Receipt)
-				*receipts[i] = *receipt
+				pubReceipts[i] = new(types.Receipt)
+				*pubReceipts[i] = *receipt
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
 				for _, log := range receipt.Logs {
@@ -614,10 +635,33 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 			}
+
+			for i, receipt := range task.privateReceipts {
+				// add block location fields
+				receipt.BlockHash = hash
+				receipt.BlockNumber = block.Number()
+				receipt.TransactionIndex = uint(i + offset)
+
+				prvReceipts[i] = new(types.Receipt)
+				*prvReceipts[i] = *receipt
+				// Update the block hash in all logs since it is now available and not when the
+				// receipt/log of individual transactions were created.
+				for _, log := range receipt.Logs {
+					log.BlockHash = hash
+				}
+				logs = append(logs, receipt.Logs...)
+			}
+
+			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
+
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, receipts, logs, task.state, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateState, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
+				continue
+			}
+			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
+				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
@@ -635,19 +679,41 @@ func (w *worker) resultLoop() {
 	}
 }
 
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
+func mergeReceipts(pub, priv types.Receipts) types.Receipts {
+	m := make(map[common.Hash]*types.Receipt)
+	for _, receipt := range pub {
+		m[receipt.TxHash] = receipt
+	}
+	for _, receipt := range priv {
+		m[receipt.TxHash] = receipt
+	}
+
+	ret := make(types.Receipts, 0, len(pub))
+	for _, pubReceipt := range pub {
+		ret = append(ret, m[pubReceipt.TxHash])
+	}
+
+	return ret
+}
+
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	state, err := w.chain.StateAt(parent.Root())
+	publicState, privateState, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	env := &environment{
-		signer:    types.NewEIP155Signer(w.chainConfig.ChainID),
-		state:     state,
-		ancestors: mapset.NewSet(),
-		family:    mapset.NewSet(),
-		uncles:    mapset.NewSet(),
-		header:    header,
+		signer:       types.MakeSigner(w.chainConfig, header.Number),
+		state:        publicState,
+		ancestors:    mapset.NewSet(),
+		family:       mapset.NewSet(),
+		uncles:       mapset.NewSet(),
+		header:       header,
+		privateState: privateState,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -720,16 +786,26 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
+	privateSnap := w.current.privateState.Snapshot()
 
-	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+	txnStart := time.Now()
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
+		w.current.privateState.RevertToSnapshot(privateSnap)
 		return nil, err
 	}
 	w.current.txs = append(w.current.txs, tx)
 	w.current.receipts = append(w.current.receipts, receipt)
+	log.EmitCheckpoint(log.TxCompleted, "tx", tx.Hash().Hex(), "time", time.Since(txnStart))
 
-	return receipt.Logs, nil
+	logs := receipt.Logs
+	if privateReceipt != nil {
+		logs = append(receipt.Logs, privateReceipt.Logs...)
+		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
+		w.chain.CheckAndSetPrivateState(logs, w.current.privateState)
+	}
+	return logs, nil
 }
 
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
@@ -782,7 +858,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		from, _ := types.Sender(w.current.signer, tx)
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
-		if tx.Protected() && !w.chainConfig.IsEIP155(w.current.header.Number) {
+		if tx.Protected() && !w.chainConfig.IsEIP155(w.current.header.Number) && !tx.IsPrivate() {
 			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.chainConfig.EIP155Block)
 
 			txs.Pop()
@@ -790,6 +866,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		}
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+		w.current.privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 
 		logs, err := w.commitTransaction(tx, coinbase)
 		switch err {
@@ -856,8 +933,11 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	if parent.Time() >= uint64(timestamp) {
 		timestamp = int64(parent.Time() + 1)
 	}
+
+	allowedFutureBlockTime := int64(w.config.AllowedFutureBlockTime) //Quorum - get AllowedFutureBlockTime to fix issue # 1004
+
 	// this will ensure we're not going off too far in the future
-	if now := time.Now().Unix(); timestamp > now+1 {
+	if now := time.Now().Unix(); timestamp > now+1+allowedFutureBlockTime {
 		wait := time.Duration(timestamp-now) * time.Second
 		log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
 		time.Sleep(wait)
@@ -979,7 +1059,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
+	privateReceipts := copyReceipts(w.current.privateReceipts) // Quorum
+
 	s := w.current.state.Copy()
+	ps := w.current.privateState.Copy() // Quorum
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err
@@ -989,7 +1072,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateState: ps, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,

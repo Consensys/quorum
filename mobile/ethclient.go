@@ -21,6 +21,8 @@ package geth
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -312,5 +314,5 @@ func (ec *EthereumClient) EstimateGas(ctx *Context, msg *CallMsg) (gas int64, _ 
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
 func (ec *EthereumClient) SendTransaction(ctx *Context, tx *Transaction) error {
-	return ec.client.SendTransaction(ctx.context, tx.tx)
+	return ec.client.SendTransaction(ctx.context, tx.tx, bind.PrivateTxArgs{})
 }

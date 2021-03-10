@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,12 +27,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/plugin/security"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -58,6 +62,10 @@ type Node struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	databases map[*closeTrackingDB]struct{} // All open databases
+
+	// Quorum
+	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
+	// End Quorum
 }
 
 const (
@@ -103,6 +111,7 @@ func New(conf *Config) (*Node, error) {
 		stop:          make(chan struct{}),
 		server:        &p2p.Server{Config: conf.P2P},
 		databases:     make(map[*closeTrackingDB]struct{}),
+		pluginManager: plugin.NewEmptyPluginManager(),
 	}
 
 	// Register built-in APIs.
@@ -135,6 +144,11 @@ func New(conf *Config) (*Node, error) {
 		node.server.Config.NodeDatabase = node.config.NodeDB()
 	}
 
+	// Quorum
+	node.server.Config.EnableNodePermission = node.config.EnableNodePermission
+	node.server.Config.DataDir = node.config.DataDir
+	// End Quorum
+
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
@@ -159,6 +173,15 @@ func (n *Node) Start() error {
 		return ErrNodeStopped
 	}
 	n.state = runningState
+
+	// Quorum
+	// Start the plugin manager before as might be needed for TLS and Auth manager for networking/rpc.
+	if err := n.PluginManager().Start(); err != nil {
+		n.doClose(nil)
+		return err
+	}
+	// End Quorum
+
 	err := n.startNetworking()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
@@ -278,6 +301,11 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop running lifecycles in reverse order.
 	failure := &StopError{Services: make(map[reflect.Type]error)}
+	// Quorum
+	if err := n.PluginManager().Stop(); err != nil {
+		failure.Services[reflect.TypeOf(n.PluginManager())] = err
+	}
+	// End Quorum
 	for i := len(running) - 1; i >= 0; i-- {
 		if err := running[i].Stop(); err != nil {
 			failure.Services[reflect.TypeOf(running[i])] = err
@@ -337,6 +365,11 @@ func (n *Node) startRPC() error {
 		}
 	}
 
+	tls, auth, err := n.getSecuritySupports()
+	if err != nil {
+		return err
+	}
+
 	// Configure HTTP.
 	if n.config.HTTPHost != "" {
 		config := httpConfig{
@@ -347,7 +380,7 @@ func (n *Node) startRPC() error {
 		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
 		}
-		if err := n.http.enableRPC(n.rpcAPIs, config); err != nil {
+		if err := n.http.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
@@ -362,15 +395,15 @@ func (n *Node) startRPC() error {
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
 		}
-		if err := server.enableWS(n.rpcAPIs, config); err != nil {
+		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
 
-	if err := n.http.start(); err != nil {
+	if err := n.http.start(tls); err != nil {
 		return err
 	}
-	return n.ws.start()
+	return n.ws.start(tls)
 }
 
 func (n *Node) wsServerForPort(port int) *httpServer {
@@ -394,7 +427,7 @@ func (n *Node) startInProc() error {
 			return err
 		}
 	}
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
@@ -622,4 +655,75 @@ func (n *Node) closeDatabases() (errors []error) {
 		}
 	}
 	return errors
+}
+
+// Quorum
+func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
+			return
+		}
+		if tlsConfigSource, err = sp.TLSConfigurationSource(); err != nil {
+			return
+		}
+		if authManager, err = sp.AuthenticationManager(); err != nil {
+			return
+		}
+	} else {
+		log.Info("Security Plugin is not enabled")
+	}
+	return
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
+}
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) PluginManager() *plugin.PluginManager {
+	return n.pluginManager
+}
+
+// Quorum
+//
+// This can be used to set the plugin manager in the node (replacing the default Empty one)
+func (n *Node) SetPluginManager(pm *plugin.PluginManager) {
+	n.pluginManager = pm
+}
+
+// Quorum
+//
+// Lifecycle retrieves a currently lifecycle registered of a specific type.
+func (n *Node) Lifecycle(lifecycle interface{}) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// Short circuit if the node's not running
+	if n.server == nil {
+		return ErrNodeStopped
+	}
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(lifecycle).Elem()
+	for _, runningLifecycle := range n.lifecycles {
+		lElem := reflect.TypeOf(runningLifecycle)
+		if lElem == element.Type() {
+			element.Set(reflect.ValueOf(runningLifecycle))
+			return nil
+		}
+	}
+
+	return ErrServiceUnknown
 }

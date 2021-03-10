@@ -94,6 +94,16 @@ func (v IP) ENRKey() string {
 	return "ip"
 }
 
+// Quorum
+// RaftPort is the "raftport" key, which holds the raftport of the node
+type RaftPort uint16
+
+func (v RaftPort) ENRKey() string { return "raftport" }
+
+type Hostname string
+
+func (v Hostname) ENRKey() string { return "hostname" }
+
 // EncodeRLP implements rlp.Encoder.
 func (v IP) EncodeRLP(w io.Writer) error {
 	if ip4 := net.IP(v).To4(); ip4 != nil {

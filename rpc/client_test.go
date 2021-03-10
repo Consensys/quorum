@@ -33,6 +33,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClientRequest(t *testing.T) {
@@ -648,4 +649,56 @@ func (l *flakeyListener) Accept() (net.Conn, error) {
 		})
 	}
 	return c, err
+}
+
+func TestClient_withCredentials_whenTargetingHTTP(t *testing.T) {
+	server := newTestServer()
+	server.authenticationManager = &stubAuthenticationManager{isEnabled: true}
+	defer server.Stop()
+	fl := &flakeyListener{
+		maxAcceptDelay: 1 * time.Second,
+		maxKillTimeout: 600 * time.Millisecond,
+	}
+	hs := httptest.NewUnstartedServer(server)
+	fl.Listener = hs.Listener
+	hs.Listener = fl
+	// Connect the client.
+	hs.Start()
+	defer hs.Close()
+
+	c, err := Dial("http://" + hs.Listener.Addr().String())
+	assert.NoError(t, err)
+	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+		return "Bearer arbitrary_token", nil
+	}
+	authenticatedClient, err := c.WithHTTPCredentials(f)
+	assert.NoError(t, err)
+
+	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
+	assert.EqualError(t, err, "arbitrary_call - access denied")
+}
+
+func TestClient_withCredentials_whenTargetingWS(t *testing.T) {
+	server := newTestServer()
+	server.authenticationManager = &stubAuthenticationManager{isEnabled: true}
+	defer server.Stop()
+	fl := &flakeyListener{
+		maxAcceptDelay: 1 * time.Second,
+		maxKillTimeout: 600 * time.Millisecond,
+	}
+	hs := httptest.NewUnstartedServer(server.WebsocketHandler([]string{"*"}))
+	fl.Listener = hs.Listener
+	hs.Listener = fl
+	// Connect the client.
+	hs.Start()
+	defer hs.Close()
+	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+		return "Bearer arbitrary_token", nil
+	}
+	ctx := context.WithValue(context.Background(), CtxCredentialsProvider, f)
+	authenticatedClient, err := DialContext(ctx, "ws://"+hs.Listener.Addr().String())
+	assert.NoError(t, err)
+
+	err = authenticatedClient.CallContext(context.Background(), nil, "arbitrary_call")
+	assert.EqualError(t, err, "arbitrary_call - access denied")
 }
