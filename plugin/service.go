@@ -63,7 +63,7 @@ func (s *PluginManager) Start() (err error) {
 			_ = p.Stop()
 		}
 	} else {
-		atomic.AddInt32(s.pluginsStarted, 1)
+		atomic.StoreInt32(s.pluginsStarted, 1)
 	}
 	return
 }
