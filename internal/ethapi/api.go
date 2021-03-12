@@ -456,19 +456,13 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	createPrivacyMarker := false
-	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
-		createPrivacyMarker = true
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
+	if err != nil {
+		return common.Hash{}, err
 	}
-	if !createPrivacyMarker {
-		isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
-			// replace the original payload with encrypted payload hash
-			args.Data = data.BytesTypeRef()
-		}
+	if replaceDataWithHash {
+		// replace the original payload with encrypted payload hash
+		args.Data = data.BytesTypeRef()
 	}
 	// /Quorum
 
@@ -479,10 +473,10 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if createPrivacyMarker {
+	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
-			log.Warn("Failed to create privacy marker during transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2052,19 +2046,13 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	createPrivacyMarker := false
-	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
-		createPrivacyMarker = true
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
+	if err != nil {
+		return common.Hash{}, err
 	}
-	if !createPrivacyMarker {
-		isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
-			// replace the original payload with encrypted payload hash
-			args.Data = data.BytesTypeRef()
-		}
+	if replaceDataWithHash {
+		// replace the original payload with encrypted payload hash
+		args.Data = data.BytesTypeRef()
 	}
 	// /Quorum
 
@@ -2090,10 +2078,10 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if createPrivacyMarker {
+	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
-			log.Warn("Failed to create privacy marker during transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2111,11 +2099,11 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	}
 	// Assemble the transaction and obtain rlp
 	// Quorum
-	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, FillTransaction)
+	isPrivate, replaceDataWithHash, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, FillTransaction)
 	if err != nil {
 		return nil, err
 	}
-	if isPrivate && !common.EmptyEncryptedPayloadHash(hash) {
+	if replaceDataWithHash {
 		// replace the original payload with encrypted payload hash
 		args.Data = hash.BytesTypeRef()
 	}
@@ -2158,24 +2146,18 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	}
 
 	// Quorum
-	createPrivacyMarker := false
-	if tx.To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
-		createPrivacyMarker = true
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	if err != nil {
+		return common.Hash{}, err
 	}
-	if !createPrivacyMarker {
-		isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
-		if err != nil {
-			return common.Hash{}, err
-		}
+	if !isPrivate {
+		return common.Hash{}, fmt.Errorf("transaction is not private")
+	}
 
-		if !isPrivate {
-			return common.Hash{}, fmt.Errorf("transaction is not private")
-		}
-	} else {
-		var err error
+	if tx.To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
 		tx, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, tx, RawTransaction)
 		if err != nil {
-			log.Warn("Failed to create privacy marker during transaction send attempt", "from", tx.From(), "to", tx.To(), "value", tx.Value(), "err", err)
+			log.Warn("Failed to create privacy marker for raw transaction", "from", tx.From(), "to", tx.To(), "value", tx.Value(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2640,7 +2622,8 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 }
 
 // Quorum
-func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, replaceDataWithHash bool, hash common.EncryptedPayloadHash, err error) {
+	replaceDataWithHash = false
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if !isPrivate {
 		return
@@ -2656,22 +2639,25 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	}
 
 	if len(tx.Data()) > 0 {
-		// check private contract exists on the node initiating the transaction
-		if tx.To() != nil && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
-			state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
-			if lerr != nil && state == nil {
-				err = fmt.Errorf("state not found")
-				return
+		if tx.To() == nil || !b.QuorumUsingPrivacyMarkerTransactions() {
+			// check private contract exists on the node initiating the transaction
+			if tx.To() != nil && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
+				state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
+				if lerr != nil && state == nil {
+					err = fmt.Errorf("state not found")
+					return
+				}
+				if state.GetCode(*tx.To()) == nil {
+					err = fmt.Errorf("contract not found. cannot transact")
+					return
+				}
 			}
-			if state.GetCode(*tx.To()) == nil {
-				err = fmt.Errorf("contract not found. cannot transact")
-				return
-			}
+
+			replaceDataWithHash = true
+			hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
+
+			return
 		}
-
-		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
-
-		return
 	}
 
 	return

@@ -375,7 +375,7 @@ func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = 4
 
-	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "invalid privacyFlag")
 }
@@ -386,7 +386,7 @@ func TestHandlePrivateTransaction_withPartyProtectionTxAndPrivacyEnhancementsIsD
 	params.QuorumTestChainConfig.PrivacyEnhancementsBlock = nil
 	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
 
-	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
 }
@@ -395,7 +395,7 @@ func TestHandlePrivateTransaction_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -408,7 +408,7 @@ func TestHandlePrivateTransaction_whenStandardPrivateCallingContractThatIsNotAva
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.NoError(err, "no error expected")
 
@@ -419,7 +419,7 @@ func TestHandlePrivateTransaction_whenPartyProtectionCallingContractThatIsNotAva
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "handle invalid message call")
 
@@ -430,7 +430,7 @@ func TestHandlePrivateTransaction_whenPartyProtectionCallingStandardPrivate(t *t
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "handle invalid message call")
 
@@ -442,7 +442,7 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateCreation(t *testing.T) {
 	private.P = &StubPrivateTransactionManager{creation: true}
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawSimpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawSimpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, RawTransaction)
 
 	assert.NoError(err, "raw standard private creation succeeded")
 	assert.True(isPrivate, "must be a private transaction")
