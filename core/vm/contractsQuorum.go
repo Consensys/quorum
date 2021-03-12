@@ -19,7 +19,6 @@ package vm
 import (
 	"bytes"
 	"encoding/json"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -56,14 +55,12 @@ func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input [
 
 type privacyMarker struct{}
 
-const privacyMarkerGas uint64 = 3000 //TODO: needs to match Besu gas usage
-
 func PrivacyMarkerAddress() common.Address {
 	return common.BytesToAddress([]byte{0x7f, 0xff, 0xff, 0xff}) //using Address = MaxInt32
 }
 
 func (c *privacyMarker) RequiredGas(input []byte) uint64 {
-	return privacyMarkerGas
+	return uint64(0)
 }
 
 // privacyMarker precompile execution
@@ -105,10 +102,11 @@ func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data 
 	*/
 
 	//TODO: may need to create a new vm.Context (because of multitenancy, as per GetEVM())
-	privateState := evm.SavedPrivateState
-	if !privateState.Exist(*tx.To()) {
-		privateState = evm.publicState
+	privateState := evm.publicState
+	if tx.To() != nil && !privateState.Exist(*tx.To()) {
+		privateState = evm.SavedPrivateState
 	}
+
 	sandboxEVM := NewEVM(evm.Context, evm.publicState, privateState, evm.chainConfig, evm.vmConfig)
 	sandboxEVM.SetCurrentTX(&tx)
 

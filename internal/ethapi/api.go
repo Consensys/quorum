@@ -2791,8 +2791,6 @@ func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArg
 	case FillTransaction:
 		return nil, errors.New("FillTransaction is not supported as a privacy marker transaction")
 	case RawTransaction:
-		//txnHash, err = handleRawPrivateTransaction(ctx, b, tx, privateTxArgs, tx.From())
-
 		data := tx.Data()
 		hash := common.BytesToEncryptedPayloadHash(data)
 		privatePayload, _, _, err := private.P.ReceiveRaw(hash)

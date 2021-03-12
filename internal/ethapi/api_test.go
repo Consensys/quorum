@@ -72,6 +72,8 @@ var (
 
 	publicStateDB  *state.StateDB
 	privateStateDB *state.StateDB
+
+	workdir string
 )
 
 func TestMain(m *testing.M) {
@@ -130,10 +132,15 @@ func setup() {
 		big.NewInt(0),
 		arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes())
 
+	workdir, err = ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func teardown() {
 	log.Root().SetHandler(log.DiscardHandler())
+	os.RemoveAll(workdir)
 }
 
 func TestSimulateExecution_whenStandardPrivateCreation(t *testing.T) {
@@ -453,14 +460,7 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 func TestSubmitPrivateTransaction(t *testing.T) {
 	assert := assert.New(t)
 
-	workdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Failed to create temporary work dir: %v", err)
-	}
-	defer os.RemoveAll(workdir)
-	keystore := keystore.NewKeyStore(filepath.Join(workdir, "keystore"), keystore.StandardScryptN, keystore.StandardScryptP)
-	fromAcct, err := keystore.NewAccount("")
-	toAcct, err := keystore.NewAccount("")
+	keystore, fromAcct, toAcct := createKeystore(t)
 
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
@@ -477,7 +477,7 @@ func TestSubmitPrivateTransaction(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 	txArgs := SendTxArgs{PrivateTxArgs: *privateTxArgs, From: fromAcct.Address, To: &toAcct.Address, Gas: &gas, Nonce: &nonce, Data: &payload}
 
-	_, err = privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
+	_, err := privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
 
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
@@ -490,14 +490,7 @@ func TestSubmitPrivateTransaction(t *testing.T) {
 func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert := assert.New(t)
 
-	workdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Failed to create temporary work dir: %v", err)
-	}
-	defer os.RemoveAll(workdir)
-	keystore := keystore.NewKeyStore(filepath.Join(workdir, "keystore"), keystore.StandardScryptN, keystore.StandardScryptP)
-	fromAcct, err := keystore.NewAccount("")
-	toAcct, err := keystore.NewAccount("")
+	keystore, fromAcct, toAcct := createKeystore(t)
 
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
@@ -514,7 +507,7 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 	txArgs := SendTxArgs{PrivateTxArgs: *privateTxArgs, From: fromAcct.Address, To: &toAcct.Address, Gas: &gas, Nonce: &nonce, Data: &payload}
 
-	_, err = privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
+	_, err := privateAccountAPI.SendTransaction(arbitraryCtx, txArgs, "")
 
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
@@ -523,6 +516,18 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert.Equal(*stbBackend.txThatWasSent.To(), vm.PrivacyMarkerAddress(), "transaction 'To' address should be privacy marker precompile")
 	assert.Equal(stbBackend.txThatWasSent.Nonce(), stbBackend.poolNonce, "incorrect nonce on transaction")
 	assert.True(stbBackend.quorumPrivacyMarkerSigningKeyCalled, "privacy marker transaction signing key was not used")
+}
+
+func createKeystore(t *testing.T) (*keystore.KeyStore, accounts.Account, accounts.Account) {
+	assert := assert.New(t)
+
+	keystore := keystore.NewKeyStore(filepath.Join(workdir, "keystore"), keystore.StandardScryptN, keystore.StandardScryptP)
+	fromAcct, err := keystore.NewAccount("")
+	assert.NoError(err)
+	toAcct, err := keystore.NewAccount("")
+	assert.NoError(err)
+
+	return keystore, fromAcct, toAcct
 }
 
 type StubBackend struct {
