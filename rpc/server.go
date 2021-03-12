@@ -160,13 +160,14 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	if found {
 		securityContext = context.WithValue(securityContext, ctxRequestPrivateStateIdentifier, userProvidedPSI)
 	}
-	securityContext = context.WithValue(securityContext, ctxIsMultitenant, s.isMultitenant)
+	securityContext = context.WithValue(securityContext, CtxIsMultitenant, s.isMultitenant)
 	if isAuthEnabled, err := s.authenticationManager.IsEnabled(context.Background()); err != nil {
 		// this indicates a failure in the plugin. We don't want any subsequent request unchecked
 		log.Error("failure when checking if authentication manager is enabled", "err", err)
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
 		return
 	} else if !isAuthEnabled {
+		// node is not configured to be multitenant but MPS is enabled
 		securityContext = context.WithValue(securityContext, CtxPrivateStateIdentifier, userProvidedPSI)
 		return
 	}

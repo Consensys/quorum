@@ -207,7 +207,10 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("invalid recipient address")
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
 
 	// check if a private contract exists
 	if !api.checkIfPrivateStateExists(psm.ID, toExtend) {

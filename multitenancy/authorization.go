@@ -18,9 +18,24 @@ var (
 	ErrPSINotFound      = errors.New("no private state identifiers found")
 )
 
-// Authorizev performs authorization check for one security attribute against
+// Authoriz performs authorization check for security attributes against
 // the granted access inside the pre-authenticated access token.
-func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *PrivateStateSecurityAttribute) (bool, error) {
+func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, secAttributes ...*PrivateStateSecurityAttribute) (bool, error) {
+	for _, attr := range secAttributes {
+		isAuthorized, err := authorize(authToken, attr)
+		if err != nil {
+			return false, err
+		}
+		if !isAuthorized {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// Authoriz performs authorization check for one security attribute against
+// the granted access inside the pre-authenticated access token.
+func authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *PrivateStateSecurityAttribute) (bool, error) {
 	query := url.Values{}
 	if attr.nodeEOA != nil {
 		query.Set(QueryNodeEOA, toHexAddress(attr.nodeEOA))

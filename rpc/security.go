@@ -26,7 +26,7 @@ const (
 	QueryPrivateStateIdentifierParamName = "PSI"
 	EnvVarPrivateStateIdentifier         = "GOQUORUM_PSI"
 	// this key is set by server to indicate if server supports mulitenancy
-	ctxIsMultitenant = securityContextKey("IS_MULTITENANT")
+	CtxIsMultitenant = securityContextKey("IS_MULTITENANT")
 	// this key is set into the secured context to indicate
 	// the authorized private state being operated on for the request.
 	// the value MUST BE OF TYPE types.PrivateStateIdentifier
@@ -130,7 +130,7 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 			return nil, err
 		}
 		// authorization check for PSI when multitenancy is enabled
-		if isMultitenant, ok := secCtx.Value(ctxIsMultitenant).(bool); ok && isMultitenant {
+		if isMultitenant, ok := secCtx.Value(CtxIsMultitenant).(bool); ok && isMultitenant {
 			var authorizedPSI types.PrivateStateIdentifier
 			var err error
 			// does user provide PSI in the request

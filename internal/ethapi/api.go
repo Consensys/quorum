@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
@@ -469,7 +470,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
 	}
-	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
+	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
 // SignTransaction will create a transaction from the given arguments and
@@ -1746,7 +1747,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
-func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, privateFor []string, isRaw bool) (common.Hash, error) {
+func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, isRaw bool) (common.Hash, error) {
 	// If the transaction fee cap is already specified, ensure the
 	// fee of the given transaction is _reasonable_.
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), b.RPCTxFeeCap()); err != nil {
@@ -1763,7 +1764,24 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if err != nil {
 		return common.Hash{}, err
 	}
-
+	// Quorum
+	// Need to do authorization check for Ethereum Account being used in signing.
+	// We only care about private transactions
+	if token, ok := b.SupportsMultitenancy(ctx); ok && tx.IsPrivate() {
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, from)
+		psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, from)
+		if isAuthorized, _ := multitenancy.Authorize(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+			return common.Hash{}, multitenancy.ErrNotAuthorized
+		}
+	}
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
@@ -1895,7 +1913,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
-	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
+	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
 // FillTransaction fills the defaults (nonce, gas, gasPrice) on a given unsigned transaction,
@@ -1939,7 +1957,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	return SubmitTransaction(ctx, s.b, tx, "", nil, false)
+	return SubmitTransaction(ctx, s.b, tx, "", true)
 }
 
 // Quorum
@@ -1963,7 +1981,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 	// /Quorum
-	return SubmitTransaction(ctx, s.b, tx, "", args.PrivateFor, true)
+	return SubmitTransaction(ctx, s.b, tx, args.PrivateFrom, true)
 }
 
 // Sign calculates an ECDSA signature for:
@@ -2428,6 +2446,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	return fmt.Sprintf("0x%x", data), nil
 }
 
+// for raw private transaction, privateTxArgs.privateFrom will be updated with value from Tessera when payload is retrieved
 func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if !isPrivate {
@@ -2465,7 +2484,8 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	return
 }
 
-// If transaction is raw, the tx payload is indeed the hash of the encrypted payload
+// If transaction is raw, the tx payload is indeed the hash of the encrypted payload.
+// Then the sender key will set to privateTxArgs.privateFrom.
 //
 // For private transaction, run a simulated execution in order to
 // 1. Find all affected private contract accounts then retrieve encrypted payload hashes of their creation txs
@@ -2489,11 +2509,12 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		return
 	case RawTransaction:
 		hash = common.BytesToEncryptedPayloadHash(data)
-		privatePayload, _, _, revErr := private.P.ReceiveRaw(hash)
+		privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
 		if revErr != nil {
 			return common.EncryptedPayloadHash{}, revErr
 		}
-		log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
+		log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload), "privateFrom", privateFrom)
+		privateTxArgs.PrivateFrom = privateFrom
 		var privateTx *types.Transaction
 		if tx.To() == nil {
 			privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)

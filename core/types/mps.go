@@ -5,10 +5,10 @@ import "fmt"
 var (
 	// DefaultPrivateStateIdentifier is the default privacy group name created when
 	// no privacy group has been configured in Tessera
-	DefaultPrivateStateIdentifier PrivateStateIdentifier = ToPrivateStateIdentifier("private")
+	DefaultPrivateStateIdentifier = ToPrivateStateIdentifier("private")
 	// EmptyPrivateStateIdentifier is the identifier for the empty private state
 	// which is to hold state of transactions "as if" to which the node is not party
-	EmptyPrivateStateIdentifier PrivateStateIdentifier = ToPrivateStateIdentifier("empty")
+	EmptyPrivateStateIdentifier = ToPrivateStateIdentifier("empty")
 	// DefaultPrivateStateMetadata is the metadata for the single private state being used
 	// when MPS is disabled
 	DefaultPrivateStateMetadata = NewPrivateStateMetadata(

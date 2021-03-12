@@ -39,6 +39,15 @@ func (pssa *PrivateStateSecurityAttribute) WithPSI(psi types.PrivateStateIdentif
 	return pssa
 }
 
+// WithSelfEOAIf calls WithSelfEOA if b is true, otherwise calls WithNodeEOA
+func (pssa *PrivateStateSecurityAttribute) WithSelfEOAIf(b bool, eoa common.Address) *PrivateStateSecurityAttribute {
+	if b {
+		return pssa.WithSelfEOA(eoa)
+	} else {
+		return pssa.WithNodeEOA(eoa)
+	}
+}
+
 // WithNodeEOA set node-mannaged EOA value and unset self-managed EOA value
 func (pssa *PrivateStateSecurityAttribute) WithNodeEOA(eoa common.Address) *PrivateStateSecurityAttribute {
 	pssa.nodeEOA, pssa.selfEOA = &eoa, nil

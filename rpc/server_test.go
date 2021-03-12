@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -30,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
@@ -214,6 +216,53 @@ func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
 	assert.EqualError(t, actualErr, "missing access token")
 	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	assert.False(t, hasAuthToken, "must not be preauthenticated")
+}
+
+func TestAuthenticateHttpRequest_Multitenancy_whenUserNotProvidePSI(t *testing.T) {
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	assert.Nil(t, captor.context.Value(ctxRequestPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+}
+
+func TestAuthenticateHttpRequest_Multitenancy_whenPSIInURL(t *testing.T) {
+	arbitraryPSI := types.ToPrivateStateIdentifier("arbitrary")
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", fmt.Sprintf("https://arbitraryUrl?%s=%s", QueryPrivateStateIdentifierParamName, arbitraryPSI.String()), nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	assert.Equal(t, arbitraryPSI, captor.context.Value(ctxRequestPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+}
+
+func TestAuthenticateHttpRequest_Multitenancy_whenPSIInHTTPHeader(t *testing.T) {
+	arbitraryPSI := types.ToPrivateStateIdentifier("arbitrary")
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	arbitraryRequest.Header.Set(HttpPrivateStateIdentifierHeader, arbitraryPSI.String())
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	assert.Equal(t, arbitraryPSI, captor.context.Value(ctxRequestPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+}
+
+func TestAuthenticateHttpRequest_MPS_whenTypical(t *testing.T) {
+	singleTenantServer := NewProtectedServer(&stubAuthenticationManager{false, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	singleTenantServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	assert.Nil(t, captor.context.Value(ctxRequestPrivateStateIdentifier))
+	assert.Equal(t, types.DefaultPrivateStateIdentifier, captor.context.Value(CtxPrivateStateIdentifier))
 }
 
 type securityContextConfigurerCaptor struct {

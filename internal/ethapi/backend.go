@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -95,6 +96,7 @@ type Backend interface {
 	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 	PSMR() mps.PrivateStateMetadataResolver
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
