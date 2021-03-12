@@ -1923,7 +1923,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if parent == nil {
 			parent = bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
 		}
-		// alias state.New because we introduce a variable named state on the next line
 
 		statedb, err := state.New(parent.Root, bc.stateCache, bc.snaps)
 		if err != nil {
