@@ -1924,7 +1924,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			parent = bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
 		}
 		// alias state.New because we introduce a variable named state on the next line
-		stateNew := state.New
 
 		statedb, err := state.New(parent.Root, bc.stateCache, bc.snaps)
 		if err != nil {
@@ -1932,7 +1931,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		// Quorum
 		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root)
-		privateState, err := stateNew(privateStateRoot, bc.privateStateCache, nil)
+		privateState, err := state.New(privateStateRoot, bc.privateStateCache, nil)
 		if err != nil {
 			return it.index, err
 		}
@@ -1944,7 +1943,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
-				privatest, _ := stateNew(privateStateRoot, bc.privateStateCache, nil)
+				privatest, _ := state.New(privateStateRoot, bc.privateStateCache, nil)
 				go func(start time.Time, followup *types.Block, throwaway, privatest *state.StateDB, interrupt *uint32) {
 					bc.prefetcher.Prefetch(followup, throwaway, privatest, bc.vmConfig, &followupInterrupt)
 

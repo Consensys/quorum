@@ -124,7 +124,7 @@ func NewDatabaseWithCache(db ethdb.Database, cache int, journal string) Database
 		db:                     trie.NewDatabaseWithCache(db, cache, journal),
 		codeSizeCache:          csc,
 		codeCache:              fastcache.New(codeCacheSize),
-		accountExtraDataLinker: rawdb.NewAccountExtraDataLinker(db),
+		accountExtraDataLinker: rawdb.NewAccountExtraDataLinker(db), // Quorum
 	}
 }
 
