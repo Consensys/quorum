@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/les"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/pluggable"
@@ -38,8 +40,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/debug"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
-	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/multitenancy"
@@ -48,7 +50,7 @@ import (
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/private"
 	gopsutil "github.com/shirou/gopsutil/mem"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -114,6 +116,8 @@ var (
 		utils.CacheFlag,
 		utils.CacheDatabaseFlag,
 		utils.CacheTrieFlag,
+		utils.CacheTrieJournalFlag,
+		utils.CacheTrieRejournalFlag,
 		utils.CacheGCFlag,
 		utils.CacheSnapshotFlag,
 		utils.CacheNoPrefetchFlag,
@@ -208,8 +212,6 @@ var (
 		utils.LegacyRPCCORSDomainFlag,
 		utils.LegacyRPCVirtualHostsFlag,
 		utils.GraphQLEnabledFlag,
-		utils.GraphQLListenAddrFlag,
-		utils.GraphQLPortFlag,
 		utils.GraphQLCORSDomainFlag,
 		utils.GraphQLVirtualHostsFlag,
 		utils.HTTPApiFlag,
@@ -411,13 +413,15 @@ func geth(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
+
 	prepare(ctx)
 
-	node := makeFullNode(ctx)
-	defer node.Close()
-	startNode(ctx, node)
+	stack, backend := makeFullNode(ctx)
+	defer stack.Close()
 
-	node.Wait()
+	startNode(ctx, stack, backend)
+
+	stack.Wait()
 	return nil
 }
 
@@ -426,7 +430,7 @@ func geth(ctx *cli.Context) error {
 // miner.
 // Quorum
 // - Enrich eth/les service with ContractAuthorizationProvider for multitenancy support if prequisites are met
-func startNode(ctx *cli.Context, stack *node.Node) {
+func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
 
@@ -460,40 +464,32 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 	ethClient := ethclient.NewClient(rpcClient)
 
-	var ethService *eth.Ethereum
-	if err := stack.Service(&ethService); err != nil {
-		utils.Fatalf("Failed to retrieve ethereum service: %v", err)
-	}
-	setContractAuthzProviderFunc := ethService.SetContractAuthorizationProvider
-	// Set contract backend for ethereum service if local node
-	// is serving LES requests.
-	if ctx.GlobalInt(utils.LegacyLightServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
-		var ethService *eth.Ethereum
-		if err := stack.Service(&ethService); err != nil {
-			utils.Fatalf("Failed to retrieve ethereum service: %v", err)
-		}
-		ethService.SetContractBackend(ethClient)
-	}
-	// Set contract backend for les service if local node is
-	// running as a light client.
-	if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
-		var lesService *les.LightEthereum
-		if err := stack.Service(&lesService); err != nil {
-			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
-		}
-		lesService.SetContractBackend(ethClient)
-		setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
-	}
-
+	// Quorum
 	// Set ContractAuthorizationProvider if multitenancy flag is on AND plugin security is configured
 	if ctx.GlobalBool(utils.MultitenancyFlag.Name) {
 		if stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
+			var setContractAuthzProviderFunc func(dm multitenancy.ContractAuthorizationProvider)
+			// check if is light version to get the right function. but do we really support light mode?
+			if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
+				var lesService *les.LightEthereum
+				if err := stack.Lifecycle(&lesService); err != nil {
+					utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
+				}
+				setContractAuthzProviderFunc = lesService.SetContractAuthorizationManager
+			} else {
+				var ethService *eth.Ethereum
+				if err := stack.Lifecycle(&ethService); err != nil {
+					utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+				}
+				setContractAuthzProviderFunc = ethService.SetContractAuthorizationProvider
+			}
 			log.Info("Node supports multitenancy")
 			setContractAuthzProviderFunc(&multitenancy.DefaultContractAuthorizationProvider{})
 		} else {
 			utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
 		}
 	}
+	// End Quorum
 
 	go func() {
 		// Open any wallets already attached
@@ -546,7 +542,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 				if timestamp := time.Unix(int64(done.Latest.Time), 0); time.Since(timestamp) < 10*time.Minute {
 					log.Info("Synchronisation completed", "latestnum", done.Latest.Number, "latesthash", done.Latest.Hash(),
 						"age", common.PrettyAge(timestamp))
-					stack.Stop()
+					stack.Close()
 				}
 			}
 		}()
@@ -559,7 +555,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
 		if stack.IsPermissionEnabled() {
 			var permissionService *permission.PermissionCtrl
-			if err := stack.Service(&permissionService); err != nil {
+			if err := stack.Lifecycle(&permissionService); err != nil {
 				utils.Fatalf("Permission service not runnning: %v", err)
 			}
 			if err := permissionService.AfterStart(); err != nil {
@@ -574,24 +570,24 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
 			utils.Fatalf("Light clients do not support mining")
 		}
-		var ethereum *eth.Ethereum
-		if err := stack.Service(&ethereum); err != nil {
+		ethBackend, ok := backend.(*eth.EthAPIBackend)
+		if !ok {
 			utils.Fatalf("Ethereum service not running: %v", err)
 		}
+
 		// Set the gas price to the limits from the CLI and start mining
 		gasprice := utils.GlobalBig(ctx, utils.MinerGasPriceFlag.Name)
 		if ctx.GlobalIsSet(utils.LegacyMinerGasPriceFlag.Name) && !ctx.GlobalIsSet(utils.MinerGasPriceFlag.Name) {
 			gasprice = utils.GlobalBig(ctx, utils.LegacyMinerGasPriceFlag.Name)
 		}
-		ethereum.TxPool().SetGasPrice(gasprice)
-
+		ethBackend.TxPool().SetGasPrice(gasprice)
+		// start mining
 		threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name)
 		if ctx.GlobalIsSet(utils.LegacyMinerThreadsFlag.Name) && !ctx.GlobalIsSet(utils.MinerThreadsFlag.Name) {
 			threads = ctx.GlobalInt(utils.LegacyMinerThreadsFlag.Name)
 			log.Warn("The flag --minerthreads is deprecated and will be removed in the future, please use --miner.threads")
 		}
-
-		if err := ethereum.StartMining(threads); err != nil {
+		if err := ethBackend.StartMining(threads); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}

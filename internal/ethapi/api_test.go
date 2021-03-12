@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -541,6 +543,14 @@ type StubBackend struct {
 	accountManager                         *accounts.Manager
 	ks                                     *keystore.KeyStore
 	poolNonce                              uint64
+}
+
+func (sb *StubBackend) CurrentHeader() *types.Header {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Engine() consensus.Engine {
+	panic("implement me")
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {

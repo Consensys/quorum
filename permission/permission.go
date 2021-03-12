@@ -63,7 +63,7 @@ func (p *PermissionCtrl) AfterStart() error {
 func (p *PermissionCtrl) asyncStart() {
 	var ethereum *eth.Ethereum
 	// will be blocked here until Node is up
-	if err := p.node.Service(&ethereum); err != nil {
+	if err := p.node.Lifecycle(&ethereum); err != nil {
 		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
 		return
 	}

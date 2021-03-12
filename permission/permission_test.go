@@ -78,9 +78,7 @@ func TestMain(m *testing.M) {
 	var ret int
 	for i := range v2FlagVer {
 		v2Flag = v2FlagVer[i]
-		setup()
 		ret = m.Run()
-		teardown()
 		if ret != 0 {
 			os.Exit(ret)
 		}
@@ -135,14 +133,11 @@ func setup() {
 		},
 	}
 
-	if err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
+	_, err = eth.New(stack, ethConf)
+	if err != nil {
 		t.Fatalf("failed to register Ethereum protocol: %v", err)
 	}
-	// Start the Node and assemble the JavaScript console around it
-	if err = stack.Start(); err != nil {
-		t.Fatalf("failed to start test stack: %v", err)
-	}
-	if err := stack.Service(&ethereum); err != nil {
+	if err := stack.Lifecycle(&ethereum); err != nil {
 		t.Fatal(err)
 	}
 	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
@@ -228,10 +223,6 @@ func setup() {
 		}
 	}
 	fmt.Printf("current block is %v\n", ethereum.BlockChain().CurrentBlock().Number().Int64())
-}
-
-func teardown() {
-
 }
 
 func TestPermissionCtrl_AfterStart(t *testing.T) {
@@ -699,6 +690,8 @@ func getArbitraryAccount() common.Address {
 }
 
 func typicalPermissionCtrl(t *testing.T, v2Flag bool) *PermissionCtrl {
+	setup() // need to be called before to mak sure the Node is in initial state
+
 	pconfig := &ptype.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
@@ -738,6 +731,12 @@ func typicalPermissionCtrl(t *testing.T, v2Flag bool) *PermissionCtrl {
 	} else {
 		b := testObject.backend.(*v1.Backend)
 		b.Contr = testObject.contract.(*v1.Init)
+	}
+
+	// Start the Node and assemble the JavaScript console around it
+	// we can start now as the APIs are already registered
+	if err = stack.Start(); err != nil {
+		t.Fatalf("failed to start test stack: %v", err)
 	}
 
 	go func() {

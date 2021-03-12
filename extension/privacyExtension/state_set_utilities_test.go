@@ -125,10 +125,10 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
 	// we don't save PrivacyMetadata if it's standardprivate
-	privacyMetaData, err := statedb.GetPrivacyMetadata(address)
+	_, err := statedb.GetPrivacyMetadata(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 
-	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
+	privacyMetaData := &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
 	statedb.SetPrivacyMetadata(address, privacyMetaData)
 
 	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
