@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/multitenancy"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -105,19 +107,37 @@ func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi types.PrivateState
 }
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
-	// TODO need to revise the logic
+	backendHelper := api.privacyService.apiBackendHelper
+	if token, ok := backendHelper.SupportsMultitenancy(ctx); ok {
+		psm, err := backendHelper.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return err
+		}
+		eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithNodeEOA(address)
+		psm, err = backendHelper.PSMR().ResolveForManagedParty(txa.PrivateFrom)
+		if err != nil {
+			return err
+		}
+		privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithNodeEOA(address)
+		if isAuthorized, _ := multitenancy.Authorize(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+			return multitenancy.ErrNotAuthorized
+		}
+	}
 	return nil
 }
 
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
-	err := api.doMultiTenantChecks(ctx, addressToVoteOn, txa)
+	err := api.doMultiTenantChecks(ctx, txa.From, txa)
 	if err != nil {
 		return "", err
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	psi := psm.ID
 
 	// check if the extension has been completed. if yes
@@ -136,7 +156,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	}
 
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn, psm.ID)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn, psi)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
@@ -197,7 +217,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("extending a public contract!!! not allowed")
 	}
 
-	err := api.doMultiTenantChecks(ctx, toExtend, txa)
+	err := api.doMultiTenantChecks(ctx, txa.From, txa)
 	if err != nil {
 		return "", err
 	}
@@ -278,14 +298,16 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 // CancelExtension allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
 func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
-	err := api.doMultiTenantChecks(ctx, extensionContract, txa)
+	err := api.doMultiTenantChecks(ctx, txa.From, txa)
 	if err != nil {
 		return "", err
 	}
 
-	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	// get all participants for the contract being extended
-
 	status, err := api.checkIfExtensionComplete(extensionContract, txa.From, psm.ID)
 	if err != nil {
 		return "", err
@@ -331,7 +353,10 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	psm, _ := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{}, psm.ID)
 	if err != nil {
 		return "", err

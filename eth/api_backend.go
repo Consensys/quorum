@@ -155,7 +155,10 @@ func (b *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
-	psm, _ := b.PSMR().ResolveForUserContext(ctx)
+	psm, err := b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		// Quorum
@@ -199,7 +202,10 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		if blockNrOrHash.RequireCanonical && b.eth.blockchain.GetCanonicalHash(header.Number.Uint64()) != hash {
 			return nil, nil, errors.New("hash is not currently canonical")
 		}
-		psm, _ := b.PSMR().ResolveForUserContext(ctx)
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
 		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 		return EthAPIState{stateDb, privateState}, header, err
 

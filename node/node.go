@@ -497,7 +497,7 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
 }
 
-// Attach creates an RPC client attached to an in-process API handler.
+// AttachWithPSI creates a PSI-specific RPC client attached to an in-process API handler.
 func (n *Node) AttachWithPSI(psi types.PrivateStateIdentifier) (*rpc.Client, error) {
 	client, err := n.Attach()
 	if err != nil {

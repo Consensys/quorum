@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // ChainAccessor provides methods to fetch state and blocks from the local blockchain
@@ -24,11 +25,12 @@ type ChainAccessor interface {
 	CurrentBlock() *types.Block
 }
 
-// Only extract required methods from ethService.APIBackend
+// Only extract required methods from EthAPIBackend
 type APIBackendHelper interface {
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 	PSMR() mps.PrivateStateMetadataResolver
 	CurrentBlock() *types.Block
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
