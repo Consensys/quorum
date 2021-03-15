@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"errors"
-	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"io/ioutil"
 	"math/big"
 	"reflect"
@@ -27,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -41,6 +41,9 @@ const (
 var (
 	// errDecodeFailed is returned when decode message fails
 	errDecodeFailed = errors.New("fail to decode istanbul message")
+
+	// errPayloadReadFailed is returned when qbft message read fails
+	errPayloadReadFailed = errors.New("unable to read payload from message")
 )
 
 // Protocol implements consensus.Engine.Protocol
@@ -50,10 +53,16 @@ func (sb *backend) Protocol() consensus.Protocol {
 
 func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
-	if err := msg.Decode(&data); err != nil {
-		return nil, common.Hash{}, errDecodeFailed
+	if sb.IsQIBFTConsensus() {
+		data = make([]byte, msg.Size)
+		if _, err := msg.Payload.Read(data); err != nil {
+			return nil, common.Hash{}, errPayloadReadFailed
+		}
+	} else {
+		if err := msg.Decode(&data); err != nil {
+			return nil, common.Hash{}, errDecodeFailed
+		}
 	}
-
 	return data, istanbul.RLPHash(data), nil
 }
 

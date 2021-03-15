@@ -19,6 +19,10 @@ package backend
 import (
 	"bytes"
 	"errors"
+	"math/big"
+	"math/rand"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -33,9 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/crypto/sha3"
-	"math/big"
-	"math/rand"
-	"time"
 )
 
 const (

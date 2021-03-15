@@ -154,7 +154,7 @@ func (p *SignedRoundChangePayload) EncodePayloadForSigning() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return rlp.EncodeToBytes(
 		[]interface{}{
 			p.Code(),

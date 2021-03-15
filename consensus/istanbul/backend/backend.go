@@ -18,7 +18,6 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 	"math/big"
 	"sync"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -165,7 +165,11 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			if _, ok := qibftMessage.MessageCodes()[code]; ok {
 				outboundCode = code
 			}
-			go p.SendConsensus(outboundCode, payload)
+			if sb.IsQIBFTConsensus() {
+				go p.SendQbftConsensus(outboundCode, payload)
+			} else {
+				go p.SendConsensus(outboundCode, payload)
+			}
 		}
 	}
 	return nil

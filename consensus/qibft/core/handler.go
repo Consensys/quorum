@@ -232,16 +232,16 @@ func (c *core) verifySignatures(m message.QBFTMessage) error {
 	}
 
 	// Verifies the signature of piggybacked justification payloads.
-	switch m.(type) {
+	switch msgType := m.(type) {
 	case *message.RoundChange:
-		signedPreparePayloads := m.(*message.RoundChange).Justification
+		signedPreparePayloads := msgType.Justification
 		for _, p := range signedPreparePayloads {
 			if err := verify(p); err != nil {
 				return err
 			}
 		}
 	case *message.Preprepare:
-		signedRoundChangePayloads := m.(*message.Preprepare).JustificationRoundChanges
+		signedRoundChangePayloads := msgType.JustificationRoundChanges
 		for _, p := range signedRoundChangePayloads {
 			if err := verify(p); err != nil {
 				return err

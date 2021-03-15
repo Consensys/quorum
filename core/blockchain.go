@@ -1671,14 +1671,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		return 0, nil
 	}
 
-
-	/*
-	for i := 0; i < len(chain); i++ {
-		log.Warn("QBFT: CHAIN BLOCK", "#", chain[i].Number())
-	}
-	*/
-
-
 	bc.blockProcFeed.Send(true)
 	defer bc.blockProcFeed.Send(false)
 

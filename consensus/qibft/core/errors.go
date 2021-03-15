@@ -19,9 +19,6 @@ package core
 import "errors"
 
 var (
-	// errInconsistentSubject is returned when received subject is different from
-	// current subject.
-	errInconsistentSubject = errors.New("inconsistent subjects")
 	// errNotFromProposer is returned when received message is supposed to be from
 	// proposer.
 	errNotFromProposer = errors.New("message does not come from proposer")
@@ -33,16 +30,6 @@ var (
 	errOldMessage = errors.New("old message")
 	// errInvalidMessage is returned when the message is malformed.
 	errInvalidMessage = errors.New("invalid message")
-	// errFailedDecodePreprepare is returned when the PRE-PREPARE message is malformed.
-	errFailedDecodePreprepare = errors.New("failed to decode PRE-PREPARE")
-	// errFailedDecodeRoundChange is returned when the ROUNDCHANGE message is malformed.
-	errFailedDecodeRoundChange = errors.New("failed to decode ROUNDCHANGE")
-	// errFailedDecodePrepare is returned when the PREPARE message is malformed.
-	errFailedDecodePrepare = errors.New("failed to decode PREPARE")
-	// errFailedDecodeCommit is returned when the COMMIT message is malformed.
-	errFailedDecodeCommit = errors.New("failed to decode COMMIT")
-	// errFailedDecodePiggybackMsgs is returned when the Piggyback messages are malformed
-	errFailedDecodePiggybackMsgs = errors.New("failed to decode Piggyback Messages")
 	// errInvalidSigner is returned when the message is signed by a validator different than message sender
 	errInvalidSigner = errors.New("message not signed by the sender")
 	// errInvalidPreparedBlock is returned when prepared block is not validated in round change messages

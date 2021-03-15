@@ -74,7 +74,7 @@ func (self *testSystemBackend) Send(message []byte, code uint64, target common.A
 	testLogger.Info("enqueuing a message...", "address", self.Address())
 	self.sentMsgs = append(self.sentMsgs, message)
 	self.sys.queuedMessage <- istanbul.MessageEvent{
-		Code: code,
+		Code:    code,
 		Payload: message,
 	}
 	return nil
@@ -84,7 +84,7 @@ func (self *testSystemBackend) Broadcast(valSet istanbul.ValidatorSet, code uint
 	testLogger.Info("enqueuing a message...", "address", self.Address())
 	self.sentMsgs = append(self.sentMsgs, message)
 	self.sys.queuedMessage <- istanbul.MessageEvent{
-		Code: code,
+		Code:    code,
 		Payload: message,
 	}
 	return nil
