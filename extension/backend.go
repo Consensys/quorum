@@ -8,8 +8,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/node"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -325,13 +324,13 @@ func (service *PrivacyService) Start() error {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	for _, group := range service.apiBackendHelper.PSMR().PSIs() {
+	for _, psi := range service.apiBackendHelper.PSMR().PSIs() {
 		for _, f := range []func(identifier types.PrivateStateIdentifier) error{
 			service.watchForNewContracts,       // watch for new extension contract creation event
 			service.watchForCancelledContracts, // watch for extension contract cancellation event
 			service.watchForCompletionEvents,   // watch for extension contract voting complete event
 		} {
-			if err := f(group); err != nil {
+			if err := f(psi); err != nil {
 				return err
 			}
 		}

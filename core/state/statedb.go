@@ -169,7 +169,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 
 // Quorum
 // NewDual - Create a public and private state from a given public and private tree
-// TODO - rebase - this is not right for MPS. Need to see where this is used.
+// TODO - rebase - this is not used (except in tests). It was used in the trace APIs. Should we remove it?
 func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Database, privateDb Database, privateSnaps *snapshot.Tree) (state, privateState *StateDB, err error) {
 	state, err = New(root, db, snaps)
 	if err != nil {

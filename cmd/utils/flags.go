@@ -73,6 +73,7 @@ import (
 	"github.com/ethereum/go-ethereum/permission/core/types"
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/raft"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
@@ -1676,6 +1677,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+	cfg.EnableMPS = private.P.HasFeature(engine.MultiplePrivateStates)
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 }
