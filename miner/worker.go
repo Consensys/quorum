@@ -1126,7 +1126,6 @@ func (w *worker) postSideBlock(event core.ChainSideEvent) {
 	}
 }
 
-
 // totalFees computes total consumed fees in ETH. Block transactions and receipts have to have the same order.
 func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 	feesWei := new(big.Int)

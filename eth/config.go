@@ -198,7 +198,7 @@ type Config struct {
 	EVMCallTimeOut time.Duration
 
 	// Quorum
-	EnableMultitenancy bool
+	EnableMultitenancy bool `toml:"-"`
 
 	// Quorum
 	//
@@ -206,5 +206,5 @@ type Config struct {
 	// with PrivateStateMetadataResolver sourced from private.PrivateTransactionManager.
 	// It depends on 2 values: ChainConfig.IsMPS and engine.MultiplePrivateStates
 	// feature of private.PrivateTransactionManager
-	EnableMPS bool
+	EnableMPS bool `toml:"-"`
 }
