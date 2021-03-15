@@ -77,7 +77,7 @@ type backend struct {
 	core             istanbulCore.Engine
 	logger           log.Logger
 	db               ethdb.Database
-	chain            consensus.ChainReader
+	chain            consensus.ChainHeaderReader
 	currentBlock     func() *types.Block
 	hasBadBlock      func(hash common.Hash) bool
 
@@ -105,7 +105,7 @@ type backend struct {
 }
 
 // zekun: HACK
-func (sb *backend) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
+func (sb *backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return new(big.Int)
 }
 
@@ -178,7 +178,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 // Commit implements istanbul.Backend.Commit
 func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) error {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
@@ -235,7 +234,6 @@ func (sb *backend) EventMux() *event.TypeMux {
 // Verify implements istanbul.Backend.Verify
 func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)

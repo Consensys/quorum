@@ -157,7 +157,7 @@ func (sb *backend) Signers(header *types.Header, isQbft bool) ([]common.Address,
 // VerifyHeader checks whether a header conforms to the consensus rules of a
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
-func (sb *backend) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
+func (sb *backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
 	return sb.verifyHeader(chain, header, nil)
 }
 
@@ -165,7 +165,7 @@ func (sb *backend) VerifyHeader(chain consensus.ChainReader, header *types.Heade
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (sb *backend) verifyHeader(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	if header.Number == nil {
 		return errUnknownBlock
 	}
@@ -210,7 +210,7 @@ func (sb *backend) verifyHeader(chain consensus.ChainReader, header *types.Heade
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
 // database. This is useful for concurrently verifying a batch of new headers.
-func (sb *backend) verifyCascadingFields(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *backend) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	// The genesis block is the always valid dead-end
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -249,7 +249,7 @@ func (sb *backend) verifyCascadingFields(chain consensus.ChainReader, header *ty
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
-func (sb *backend) VerifyHeaders(chain consensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+func (sb *backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
@@ -286,7 +286,7 @@ func (sb *backend) VerifyUncles(chain consensus.ChainReader, block *types.Block)
 }
 
 // verifySigner checks whether the signer is in parent's validator set
-func (sb *backend) verifySigner(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *backend) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	// Verifying the genesis block is not supported
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -313,7 +313,7 @@ func (sb *backend) verifySigner(chain consensus.ChainReader, header *types.Heade
 }
 
 // verifyCommittedSeals checks whether every committed seal is signed by one of the parent's validators
-func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *backend) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	number := header.Number.Uint64()
 	// We don't need to verify committed seals in the genesis block
 	if number == 0 {
@@ -371,7 +371,7 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (sb *backend) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
+func (sb *backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -387,7 +387,7 @@ func (sb *backend) VerifySeal(chain consensus.ChainReader, header *types.Header)
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (sb *backend) Prepare(chain consensus.ChainReader, header *types.Header) error {
+func (sb *backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Check if QiBFT Consensus is used, call the QbftPrepare() is that is the case
 	if sb.IsQIBFTConsensus() {
 		return sb.QbftPrepare(chain, header)
@@ -453,7 +453,7 @@ func (sb *backend) Prepare(chain consensus.ChainReader, header *types.Header) er
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (sb *backend) QbftPrepare(chain consensus.ChainReader, header *types.Header) error {
+func (sb *backend) QbftPrepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// unused fields, force to set to empty
 	header.Coinbase = common.Address{}
 	header.Nonce = emptyNonce
@@ -519,7 +519,7 @@ func (sb *backend) QbftPrepare(chain consensus.ChainReader, header *types.Header
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (sb *backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header) {
 	// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -528,7 +528,7 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (sb *backend) FinalizeAndAssemble(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+func (sb *backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
@@ -539,7 +539,7 @@ func (sb *backend) FinalizeAndAssemble(chain consensus.ChainReader, header *type
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+func (sb *backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
@@ -624,7 +624,7 @@ func (sb *backend) updateBlock(parent *types.Header, block *types.Block) (*types
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
-func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
+func (sb *backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{{
 		Namespace: "istanbul",
 		Version:   "1.0",
@@ -634,7 +634,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
+func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -693,7 +693,7 @@ func (sb *backend) Stop() error {
 }
 
 // snapshot retrieves the authorization snapshot at a given point in time.
-func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header

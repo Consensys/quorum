@@ -57,7 +57,7 @@ type ProtocolManager struct {
 	removedPeers mapset.Set // *Permanently removed* peers
 
 	// P2P transport
-	p2pServer *p2p.Server // Initialized in start()
+	p2pServer *p2p.Server
 	useDns    bool
 
 	// Blockchain services
@@ -99,7 +99,7 @@ var errNoLeaderElected = errors.New("no leader is currently elected")
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool, p2pServer *p2p.Server) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -126,6 +126,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		minter:              minter,
 		downloader:          downloader,
 		useDns:              useDns,
+		p2pServer:           p2pServer,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -137,10 +138,9 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	return manager, nil
 }
 
-func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
+func (pm *ProtocolManager) Start() {
 	log.Info("starting raft protocol handler")
 
-	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	pm.startRaft()
 	// update raft peers info to p2p server
