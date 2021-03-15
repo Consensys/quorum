@@ -7,11 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/consensus"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -29,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -487,7 +487,7 @@ func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.Mi
 func (sb *StubBackend) CurrentBlock() *types.Block {
 	return types.NewBlock(&types.Header{
 		Number: arbitraryCurrentBlockNumber,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 }
 
 func (sb *StubBackend) Downloader() *downloader.Downloader {

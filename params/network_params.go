@@ -79,6 +79,15 @@ func GetImmutabilityThreshold() int {
 	return FullImmutabilityThreshold
 }
 
+func GetImmutabilityThresholdWithDefault(defaultValue int) int {
+
+	if quorumImmutabilityThreshold > 0 {
+		return quorumImmutabilityThreshold
+	}
+
+	return defaultValue
+}
+
 // sets the immutability threshold and isQuorum to passed values
 func SetQuorumImmutabilityThreshold(immutabilityThreshold int) {
 	quorumImmutabilityThreshold = immutabilityThreshold
