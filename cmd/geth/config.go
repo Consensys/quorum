@@ -26,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -156,7 +155,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 
 	// Quorum - returning `ethService` too for the Raft and extension service
-	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth, quorumInitPSMR())
+	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Quorum
 	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
@@ -251,18 +250,6 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 
 	quorumValidatePrivacyEnhancements(ethereum)
 	quorumValidateMPS(ethereum)
-}
-
-func quorumInitPSMR() psmr.PrivateStateMetadataResolver {
-	if private.P.HasFeature(engine.MultiplePrivateStates) {
-		privateStateMetadataResolver, err := psmr.NewTesseraPrivateStateMetadataResolver()
-		if err != nil {
-			utils.Fatalf("Unable to initialize the private state metadata resolver (PSMR): %v", err)
-		}
-		return privateStateMetadataResolver
-	} else {
-		return &psmr.DefaultPrivateStateMetadataResolver{}
-	}
 }
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used

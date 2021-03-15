@@ -621,7 +621,7 @@ func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
 	return (*hexutil.Big)(s.b.ChainConfig().ChainID)
 }
 
-// ChainId returns the chainID value for transaction replay protection.
+// GetPSI - retunrs the PSI that was resolved based on the client request
 func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
 	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
 	if err != nil {

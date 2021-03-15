@@ -27,7 +27,6 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -128,7 +127,6 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)

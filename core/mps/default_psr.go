@@ -79,7 +79,7 @@ func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) er
 		log.Error("Failed writing private state root", "err", err)
 		return err
 	}
-	return dpsr.stateCache.TrieDB().Commit(privateRoot, false)
+	return dpsr.stateCache.TrieDB().Commit(privateRoot, false, nil)
 }
 
 // commit - commits the private state only

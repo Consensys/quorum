@@ -29,10 +29,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/plugin/security"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -499,26 +498,12 @@ func (n *Node) Attach() (*rpc.Client, error) {
 }
 
 // Attach creates an RPC client attached to an in-process API handler.
-func (n *Node) AttachWithPSI(psi string) (*rpc.Client, error) {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
-	if n.server == nil {
-		return nil, ErrNodeStopped
+func (n *Node) AttachWithPSI(psi types.PrivateStateIdentifier) (*rpc.Client, error) {
+	client, err := n.Attach()
+	if err != nil {
+		return nil, err
 	}
-	// TODO - NLREBASE - return client.WithPSI(types.PrivateStateIdentifier(psi)), nil
-	return rpc.DialInProcWithPSI(n.inprocHandler, psi), nil
-}
-
-// Attach creates an RPC client attached to an in-process API handler.
-func (n *Node) AttachWithPSI(psi string) (*rpc.Client, error) {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
-	if n.server == nil {
-		return nil, ErrNodeStopped
-	}
-	return rpc.DialInProcWithPSI(n.inprocHandler, psi), nil
+	return client.WithPSI(psi), nil
 }
 
 // RPCHandler returns the in-process RPC request handler.

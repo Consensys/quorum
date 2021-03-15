@@ -770,7 +770,7 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 		hash = header.Hash()
 	}
 	// Construct the range filter
-	// TODO identify the relevant PSI
+	// TODO - rebase - identify the relevant PSI
 	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, "")
 
 	// Run the filter and return all the logs
@@ -1064,6 +1064,7 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 	// Construct the range filter
+	// TODO - rebase - figure out the right psi
 	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, "")
 	return runFilter(ctx, r.backend, filter)
 }

@@ -122,7 +122,7 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) e
 		if err != nil {
 			return err
 		}
-		err = managedState.stateCache.TrieDB().Commit(privateRoot, false)
+		err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(block *types.Block) e
 		return err
 	}
 	privateTriedb := mpsr.repoCache.TrieDB()
-	err = privateTriedb.Commit(mtRoot, false)
+	err = privateTriedb.Commit(mtRoot, false, nil)
 	return err
 }
 

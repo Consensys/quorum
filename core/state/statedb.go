@@ -169,12 +169,13 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 
 // Quorum
 // NewDual - Create a public and private state from a given public and private tree
+// TODO - rebase - this is not right for MPS. Need to see where this is used.
 func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Database, privateDb Database, privateSnaps *snapshot.Tree) (state, privateState *StateDB, err error) {
 	state, err = New(root, db, snaps)
 	if err != nil {
 		return nil, nil, err
 	}
-	privateState, err = New(rawdb.GetPrivateStatesTrieRoot(ethDb, root), privateDb, privateSnaps)
+	privateState, err = New(rawdb.GetPrivateStateRoot(ethDb, root), privateDb, privateSnaps)
 	if err != nil {
 		return nil, nil, err
 	}

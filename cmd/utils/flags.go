@@ -1938,7 +1938,8 @@ func setDNSDiscoveryDefaults(cfg *eth.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config, psmr core.PrivateStateMetadataResolver) (ethapi.Backend, *eth.Ethereum) {
+// Quorum => returns also the ethereum service which is used by the raft service
+func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth.Ethereum) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
 		if err != nil {
@@ -1946,7 +1947,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config, psmr core.PrivateStat
 		}
 		return backend.ApiBackend, nil
 	} else {
-		backend, err := eth.New(stack, cfg, psmr)
+		backend, err := eth.New(stack, cfg)
 		if err != nil {
 			Fatalf("Failed to register the Ethereum service: %v", err)
 		}
@@ -2233,7 +2234,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		limit = &l
 	}
 	// TODO should multiple private states work with import/export/inspect commands
-	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit, &core.DefaultPrivateStateMetadataResolver{})
+	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)
 	}

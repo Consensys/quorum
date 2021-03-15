@@ -27,8 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/les"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/pluggable"

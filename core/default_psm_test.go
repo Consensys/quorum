@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/psmr"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -31,7 +30,7 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
 
-	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumTestChainConfig, &psmr.DefaultPrivateStateMetadataResolver{})
+	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumTestChainConfig)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]

@@ -71,11 +71,6 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 }
 
 func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper) (*PrivacyService, error) {
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		panic("extension: could not connect to ethereum client rpc")
-	}
-
 	service := &PrivacyService{
 		psiContracts:     make(map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract),
 		ptm:              ptm,
@@ -83,8 +78,7 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 		stateFetcher:     fetcher,
 		accountManager:   manager,
 		apiBackendHelper: apiBackendHelper,
-		rpcClient:        rpcClient,
-		node: stack,
+		node:             stack,
 	}
 
 	var err error
@@ -331,18 +325,13 @@ func (service *PrivacyService) Start() error {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	client := ethclient.NewClientWithPTM(service.rpcClient, service.ptm)
-	service.managementContractFacade = NewManagementContractFacade(client)
-	service.extClient = NewInProcessClient(client)
-
-
-	for _, group := range service.apiBackendHelper.PSIS().Groups() {
-		for _, f := range []func() error{
+	for _, group := range service.apiBackendHelper.PSMR().PSIs() {
+		for _, f := range []func(identifier types.PrivateStateIdentifier) error{
 			service.watchForNewContracts,       // watch for new extension contract creation event
 			service.watchForCancelledContracts, // watch for extension contract cancellation event
 			service.watchForCompletionEvents,   // watch for extension contract voting complete event
 		} {
-			if err := f(group.Name); err != nil {
+			if err := f(group); err != nil {
 				return err
 			}
 		}

@@ -309,7 +309,6 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 // DumpBlock retrieves the entire state of the database at a given block.
 // Quorum adds an additional parameter to support private state dump
 func (api *PublicDebugAPI) DumpBlock(ctx context.Context, blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
-	// TODO add context and extract the relevant PSI
 	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
 	if err != nil {
 		return state.Dump{}, err
@@ -322,7 +321,7 @@ func (api *PublicDebugAPI) DumpBlock(ctx context.Context, blockNr rpc.BlockNumbe
 }
 
 func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
-	_, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	_, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
 	if err != nil {
 		return common.Hash{}, err
 	}

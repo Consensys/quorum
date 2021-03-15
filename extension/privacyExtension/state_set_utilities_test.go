@@ -152,7 +152,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	_, err := statedb.GetPrivacyMetadata(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 
-	privacyMetaData := &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
+	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
 	statedb.SetPrivacyMetadata(address, privacyMetaData)
 
 	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
