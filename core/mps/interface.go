@@ -14,6 +14,7 @@ import (
 type PrivateStateManager interface {
 	PrivateStateMetadataResolver
 	GetPrivateStateRepository(blockHash common.Hash) (PrivateStateRepository, error)
+	GetCache() state.Database
 }
 
 type PrivateStateMetadataResolver interface {

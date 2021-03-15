@@ -48,3 +48,7 @@ func (d *DefaultPrivateStateManager) NotIncludeAny(_ *types.PrivateStateMetadata
 	// with default implementation, all managedParties are members of the psm
 	return false
 }
+
+func (d *DefaultPrivateStateManager) GetCache() state.Database {
+	return d.repoCache
+}

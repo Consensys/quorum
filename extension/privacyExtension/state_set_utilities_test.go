@@ -6,9 +6,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -361,4 +360,8 @@ func (mpm *mockPrivateTransactionManager) DecryptPayload(payload common.DecryptR
 		r5 = values[2].(error)
 	}
 	return r3, r4, r5
+}
+
+func (mpm *mockPrivateTransactionManager) GetCache() state.Database {
+	return nil
 }

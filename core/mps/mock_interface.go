@@ -115,6 +115,20 @@ func (mr *MockPrivateStateManagerMockRecorder) GetPrivateStateRepository(blockHa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateStateRepository", reflect.TypeOf((*MockPrivateStateManager)(nil).GetPrivateStateRepository), blockHash)
 }
 
+// GetCache mocks base method.
+func (m *MockPrivateStateManager) GetCache() state.Database {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCache")
+	ret0, _ := ret[0].(state.Database)
+	return ret0
+}
+
+// GetCache indicates an expected call of GetCache.
+func (mr *MockPrivateStateManagerMockRecorder) GetCache() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCache", reflect.TypeOf((*MockPrivateStateManager)(nil).GetCache))
+}
+
 // MockPrivateStateMetadataResolver is a mock of PrivateStateMetadataResolver interface.
 type MockPrivateStateMetadataResolver struct {
 	ctrl     *gomock.Controller
@@ -265,6 +279,20 @@ func (m *MockPrivateStateRepository) Commit(block *types.Block) error {
 func (mr *MockPrivateStateRepositoryMockRecorder) Commit(block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockPrivateStateRepository)(nil).Commit), block)
+}
+
+// Copy mocks base method.
+func (m *MockPrivateStateRepository) Copy() PrivateStateRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Copy")
+	ret0, _ := ret[0].(PrivateStateRepository)
+	return ret0
+}
+
+// Copy indicates an expected call of Copy.
+func (mr *MockPrivateStateRepositoryMockRecorder) Copy() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockPrivateStateRepository)(nil).Copy))
 }
 
 // Reset mocks base method.

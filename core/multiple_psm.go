@@ -100,6 +100,10 @@ func (m *MultiplePrivateStateManager) NotIncludeAny(psm *types.PrivateStateMetad
 	return psm.NotIncludeAny(managedParties...)
 }
 
+func (m *MultiplePrivateStateManager) GetCache() state.Database {
+	return m.privateStatesTrieCache
+}
+
 func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *types.PrivateStateMetadata {
 	return types.NewPrivateStateMetadata(
 		types.ToPrivateStateIdentifier(group.PrivacyGroupId),
