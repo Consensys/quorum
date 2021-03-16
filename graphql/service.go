@@ -17,10 +17,13 @@
 package graphql
 
 import (
+	"context"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
+	"net/http"
 )
 
 // New constructs a new GraphQL service instance.
@@ -42,11 +45,29 @@ func newHandler(stack *node.Node, backend ethapi.Backend, cors, vhosts []string)
 		return err
 	}
 	h := &relay.Handler{Schema: s}
-	handler := node.NewHTTPHandlerStack(h, cors, vhosts)
+	handler := &mpsHandler{delegate: node.NewHTTPHandlerStack(h, cors, vhosts)}
 
 	stack.RegisterHandler("GraphQL UI", "/graphql/ui", GraphiQL{})
 	stack.RegisterHandler("GraphQL", "/graphql", handler)
 	stack.RegisterHandler("GraphQL", "/graphql/", handler)
 
 	return nil
+}
+
+// Quorum
+//
+// mpsHandler wraps around the http handler in order to propagate the PSI into the request context.
+// Should further consider whether or not to implement full RPC security for graphql (and multitenancy support).
+type mpsHandler struct {
+	delegate http.Handler
+}
+
+func (h *mpsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	userProvidedPSI, found := rpc.ExtractPSI(r)
+	if found {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, rpc.CtxPrivateStateIdentifier, userProvidedPSI)
+		r = r.WithContext(ctx)
+	}
+	h.delegate.ServeHTTP(w, r)
 }

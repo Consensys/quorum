@@ -169,10 +169,10 @@ func securityErrorMessage(forMsg *jsonrpcMessage, err error) *jsonrpcMessage {
 	return msg
 }
 
-// extractPSI tries to extract the PSI from the HTTP Header then the URL
+// ExtractPSI tries to extract the PSI from the HTTP Header then the URL
 // otherwise return the default value but still signal the caller
 // that user doesn't provide PSI
-func extractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
+func ExtractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
 	psi := r.Header.Get(HttpPrivateStateIdentifierHeader)
 	if len(psi) == 0 {
 		psi = r.URL.Query().Get(QueryPrivateStateIdentifierParamName)

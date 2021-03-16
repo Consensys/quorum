@@ -156,7 +156,7 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	defer func() {
 		cfg.Configure(securityContext)
 	}()
-	userProvidedPSI, found := extractPSI(r)
+	userProvidedPSI, found := ExtractPSI(r)
 	if found {
 		securityContext = context.WithValue(securityContext, ctxRequestPrivateStateIdentifier, userProvidedPSI)
 	}

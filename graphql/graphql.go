@@ -330,9 +330,16 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 		return &hexutil.Bytes{}, err
 	}
 	if tx.IsPrivate() {
-		_, _, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return &hexutil.Bytes{}, err
+		}
+		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		if err != nil || tx == nil {
 			return &hexutil.Bytes{}, err
+		}
+		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
+			return &hexutil.Bytes{}, nil
 		}
 		ret := hexutil.Bytes(privateInputData)
 		return &ret, nil
