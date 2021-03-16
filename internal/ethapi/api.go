@@ -473,7 +473,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2078,7 +2078,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if args.toTransaction().To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2154,7 +2154,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
-	if tx.To() != nil && s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if s.b.QuorumUsingPrivacyMarkerTransactions() {
 		tx, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, tx, RawTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for raw transaction", "from", tx.From(), "to", tx.To(), "value", tx.Value(), "err", err)
@@ -2639,20 +2639,20 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	}
 
 	if len(tx.Data()) > 0 {
-		if tx.To() == nil || !b.QuorumUsingPrivacyMarkerTransactions() {
-			// check private contract exists on the node initiating the transaction
-			if tx.To() != nil && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
-				state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
-				if lerr != nil && state == nil {
-					err = fmt.Errorf("state not found")
-					return
-				}
-				if state.GetCode(*tx.To()) == nil {
-					err = fmt.Errorf("contract not found. cannot transact")
-					return
-				}
+		// check private contract exists on the node initiating the transaction
+		if tx.To() != nil && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
+			state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
+			if lerr != nil && state == nil {
+				err = fmt.Errorf("state not found")
+				return
 			}
+			if state.GetCode(*tx.To()) == nil {
+				err = fmt.Errorf("contract not found. cannot transact")
+				return
+			}
+		}
 
+		if txnType == FillTransaction || !b.QuorumUsingPrivacyMarkerTransactions() {
 			replaceDataWithHash = true
 			hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
 

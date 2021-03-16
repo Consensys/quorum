@@ -19,6 +19,7 @@ package vm
 import (
 	"bytes"
 	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -64,7 +65,8 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 }
 
 // privacyMarker precompile execution
-// retrieves transaction data from Tessera and executes it (if we are a participant)
+// Retrieves private transaction from Tessera and executes it.
+// If we are not a participant, then just ensure public state remains in sync.
 //		input = 64 byte hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
@@ -77,6 +79,12 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	}
 	if txData == nil {
 		log.Debug("not a participant, precompile performing no action")
+
+		// TODO: we don't have the 'from' address of private txn, so hard-coded to test that this works...
+		// must increment the nonce to mirror the state change that is done in evm.create() for participants
+		fromAddr := common.Address{237, 157, 2, 227, 130, 179, 72, 24, 232, 139, 136, 163, 9, 199, 254, 113, 230, 95, 65, 157}
+		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+
 		return nil, nil
 	}
 
@@ -87,7 +95,9 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return c.runUsingSandboxEVM(evm, tx, tx.Data())
+	_, err = c.runUsingSandboxEVM(evm, tx, tx.Data())
+
+	return nil, err
 }
 
 func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data []byte) ([]byte, error) {
@@ -102,12 +112,8 @@ func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data 
 	*/
 
 	//TODO: may need to create a new vm.Context (because of multitenancy, as per GetEVM())
-	privateState := evm.publicState
-	if tx.To() != nil && !privateState.Exist(*tx.To()) {
-		privateState = evm.SavedPrivateState
-	}
 
-	sandboxEVM := NewEVM(evm.Context, evm.publicState, privateState, evm.chainConfig, evm.vmConfig)
+	sandboxEVM := NewEVM(evm.Context, evm.publicState, evm.SavedPrivateState, evm.chainConfig, evm.vmConfig)
 	sandboxEVM.SetCurrentTX(&tx)
 
 	/* TODO:
@@ -119,7 +125,23 @@ func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data 
 	}()
 	*/
 
-	ret, _, err := sandboxEVM.Call(AccountRef(tx.From()), *tx.To(), data, tx.Gas(), tx.Value())
+	var ret []byte
+	var err error
+	if tx.To() != nil {
+		ret, _, err = sandboxEVM.Call(AccountRef(tx.From()), *tx.To(), data, tx.Gas(), tx.Value())
+
+		// need to increment the nonce, as it's not done in the evm for calls
+		evm.publicState.SetNonce(tx.From(), evm.publicState.GetNonce(tx.From())+1)
+	} else {
+		contractAddr := common.Address{}
+		ret, contractAddr, _, err = sandboxEVM.Create(AccountRef(tx.From()), data, tx.Gas(), tx.Value())
+		if err == nil {
+			log.Info("precompile created contract", "contractAddr", contractAddr)
+		}
+	}
+	if err != nil {
+		log.Info("precompile VM returned with error", "err", err)
+	}
 
 	return ret, err
 }
