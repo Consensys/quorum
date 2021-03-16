@@ -2826,7 +2826,10 @@ func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArg
 		return nil, err
 	}
 
-	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), txnHash.Bytes())
+	//TODO (peter): sender should be removed when possible
+	senderAndHash := append(tx.From().Bytes(), txnHash.Bytes()...)
+
+	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), senderAndHash)
 
 	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
 	if err != nil {

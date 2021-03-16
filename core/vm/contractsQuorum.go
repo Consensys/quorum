@@ -71,7 +71,8 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
 
-	txHash := common.BytesToEncryptedPayloadHash(evm.currentTx.Data())
+	data := evm.currentTx.Data()
+	txHash := common.BytesToEncryptedPayloadHash(data[20:])
 	_, _, txData, _, err := private.P.Receive(txHash) //TODO: should use returned metadata...
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
@@ -80,9 +81,9 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	if txData == nil {
 		log.Debug("not a participant, precompile performing no action")
 
-		// TODO: we don't have the 'from' address of private txn, so hard-coded to test that this works...
+		//TODO (peter): sender from tx data should be removed when possible
+		fromAddr := common.BytesToAddress(data[:20])
 		// must increment the nonce to mirror the state change that is done in evm.create() for participants
-		fromAddr := common.Address{237, 157, 2, 227, 130, 179, 72, 24, 232, 139, 136, 163, 9, 199, 254, 113, 230, 95, 65, 157}
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 
 		return nil, nil
