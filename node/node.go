@@ -354,6 +354,8 @@ func (n *Node) closeDataDir() {
 // configureRPC is a helper method to configure all the various RPC endpoints during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server when appropriate
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
@@ -364,6 +366,7 @@ func (n *Node) startRPC() error {
 		if err := n.ipc.start(n.rpcAPIs); err != nil {
 			return err
 		}
+		n.configureMultitenancy(n.ipc.srv)
 	}
 
 	tls, auth, err := n.getSecuritySupports()
@@ -378,12 +381,14 @@ func (n *Node) startRPC() error {
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
 		}
-		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
+		server := n.http
+		if err := server.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
 		}
-		if err := n.http.enableRPC(n.rpcAPIs, config, auth); err != nil {
+		if err := server.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
+		n.configureMultitenancy(server.httpHandler.Load().(*rpcHandler).server)
 	}
 
 	// Configure WebSocket.
@@ -399,6 +404,7 @@ func (n *Node) startRPC() error {
 		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
+		n.configureMultitenancy(server.httpHandler.Load().(*rpcHandler).server)
 	}
 
 	if err := n.http.start(tls); err != nil {
@@ -422,12 +428,15 @@ func (n *Node) stopRPC() {
 }
 
 // startInProc registers all RPC APIs on the inproc server.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server
 func (n *Node) startInProc() error {
 	for _, api := range n.rpcAPIs {
 		if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
 			return err
 		}
 	}
+	n.configureMultitenancy(n.inprocHandler)
 	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
@@ -736,4 +745,12 @@ func (n *Node) Lifecycle(lifecycle interface{}) error {
 	}
 
 	return ErrServiceUnknown
+}
+
+// Quorum
+//
+// configureMultitenancy enables multitenancy flag in rpc.Server
+func (n *Node) configureMultitenancy(handler *rpc.Server) *rpc.Server {
+	handler.SupportsMultitenancy(n.config.EnableMultitenancy)
+	return handler
 }

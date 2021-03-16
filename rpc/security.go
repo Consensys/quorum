@@ -151,6 +151,7 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 				authorizedPSI = requestPSI
 			}
 			secCtx = context.WithValue(secCtx, CtxPrivateStateIdentifier, authorizedPSI)
+			log.Debug("Determined authorized PSI", "psi", authorizedPSI)
 		}
 	}
 	return secCtx, nil

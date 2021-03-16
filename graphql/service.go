@@ -18,12 +18,13 @@ package graphql
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
-	"net/http"
 )
 
 // New constructs a new GraphQL service instance.
@@ -65,8 +66,7 @@ type mpsHandler struct {
 func (h *mpsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	userProvidedPSI, found := rpc.ExtractPSI(r)
 	if found {
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, rpc.CtxPrivateStateIdentifier, userProvidedPSI)
+		ctx := context.WithValue(r.Context(), rpc.CtxPrivateStateIdentifier, userProvidedPSI)
 		r = r.WithContext(ctx)
 	}
 	h.delegate.ServeHTTP(w, r)
