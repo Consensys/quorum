@@ -174,7 +174,10 @@ func (h *httpServer) start(tlsConfigSource security.TLSConfigurationSource) erro
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rpc := h.httpHandler.Load().(*rpcHandler)
-	if r.RequestURI == "/" {
+	// TODO - figure out why this check was introduced and what issues the update can cause
+	// we may have to ditch the url PSI parameter
+	// if r.RequestURI == "/" {
+	if r.URL.Path == "/" {
 		// Serve JSON-RPC on the root path.
 		ws := h.wsHandler.Load().(*rpcHandler)
 		if ws != nil && isWebsocket(r) {
