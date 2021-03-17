@@ -24,9 +24,23 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -160,7 +174,7 @@ func TestQuorumSchema(t *testing.T) {
 	// Test private transaction
 	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), arbitraryPayloadHash.Bytes())
 	privateTx.SetPrivate()
-	privateTxQuery := &Transaction{tx: privateTx}
+	privateTxQuery := &Transaction{tx: privateTx, backend: &StubBackend{}}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -219,4 +233,210 @@ func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayload
 func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
 	_, sender, data, metadata, err := spm.Receive(hash)
 	return data, sender[0], metadata, err
+}
+
+type StubBackend struct{}
+
+func (sb *StubBackend) CurrentHeader() *types.Header {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Engine() consensus.Engine {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.PrivateStateSecurityAttribute) (bool, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) CurrentBlock() *types.Block {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Downloader() *downloader.Downloader {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ProtocolVersion() int {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ChainDb() ethdb.Database {
+	panic("implement me")
+}
+
+func (sb *StubBackend) EventMux() *event.TypeMux {
+	panic("implement me")
+}
+
+func (sb *StubBackend) AccountManager() *accounts.Manager {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ExtRPCEnabled() bool {
+	panic("implement me")
+}
+
+func (sb *StubBackend) CallTimeOut() time.Duration {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCTxFeeCap() float64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() uint64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SetHead(number uint64) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolTransactions() (types.Transactions, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Stats() (pending int, queued int) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BloomStatus() (uint64, uint64) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ChainConfig() *params.ChainConfig {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return &StubPSMR{}
+}
+
+type StubPSMR struct {
+}
+
+func (psmr *StubPSMR) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+	panic("implement me")
+}
+func (psmr *StubPSMR) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+	return types.DefaultPrivateStateMetadata, nil
+}
+func (psmr *StubPSMR) PSIs() []types.PrivateStateIdentifier {
+	panic("implement me")
+}
+func (psmr *StubPSMR) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+	return false
 }
