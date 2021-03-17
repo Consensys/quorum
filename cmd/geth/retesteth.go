@@ -43,7 +43,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -81,6 +80,7 @@ type RetestethEthAPI interface {
 	SendRawTransaction(ctx context.Context, rawTx hexutil.Bytes) (common.Hash, error)
 	BlockNumber(ctx context.Context) (uint64, error)
 	GetBlockByNumber(ctx context.Context, blockNr math.HexOrDecimal64, fullTx bool) (map[string]interface{}, error)
+	GetBlockByHash(ctx context.Context, blockHash common.Hash, fullTx bool) (map[string]interface{}, error)
 	GetBalance(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (*math.HexOrDecimal256, error)
 	GetCode(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (hexutil.Bytes, error)
 	GetTransactionCount(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (uint64, error)
@@ -111,7 +111,6 @@ type RetestethAPI struct {
 	genesisHash   common.Hash
 	engine        *NoRewardEngine
 	blockchain    *core.BlockChain
-	blockNumber   uint64
 	txMap         map[common.Address]map[uint64]*types.Transaction // Sender -> Nonce -> Transaction
 	txSenders     map[common.Address]struct{}                      // Set of transaction senders
 	blockInterval uint64
@@ -205,11 +204,11 @@ func (e *NoRewardEngine) Author(header *types.Header) (common.Address, error) {
 	return e.inner.Author(header)
 }
 
-func (e *NoRewardEngine) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
+func (e *NoRewardEngine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
 	return e.inner.VerifyHeader(chain, header, seal)
 }
 
-func (e *NoRewardEngine) VerifyHeaders(chain consensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+func (e *NoRewardEngine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
 	return e.inner.VerifyHeaders(chain, headers, seals)
 }
 
@@ -217,11 +216,11 @@ func (e *NoRewardEngine) VerifyUncles(chain consensus.ChainReader, block *types.
 	return e.inner.VerifyUncles(chain, block)
 }
 
-func (e *NoRewardEngine) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
+func (e *NoRewardEngine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header) error {
 	return e.inner.VerifySeal(chain, header)
 }
 
-func (e *NoRewardEngine) Prepare(chain consensus.ChainReader, header *types.Header) error {
+func (e *NoRewardEngine) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	return e.inner.Prepare(chain, header)
 }
 
@@ -234,7 +233,7 @@ func (e *NoRewardEngine) accumulateRewards(config *params.ChainConfig, state *st
 	state.AddBalance(header.Coinbase, reward)
 }
 
-func (e *NoRewardEngine) Finalize(chain consensus.ChainReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction,
+func (e *NoRewardEngine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header) {
 	if e.rewardsOn {
 		e.inner.Finalize(chain, header, statedb, txs, uncles)
@@ -244,7 +243,7 @@ func (e *NoRewardEngine) Finalize(chain consensus.ChainReader, header *types.Hea
 	}
 }
 
-func (e *NoRewardEngine) FinalizeAndAssemble(chain consensus.ChainReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction,
+func (e *NoRewardEngine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	if e.rewardsOn {
 		return e.inner.FinalizeAndAssemble(chain, header, statedb, txs, uncles, receipts)
@@ -253,11 +252,11 @@ func (e *NoRewardEngine) FinalizeAndAssemble(chain consensus.ChainReader, header
 		header.Root = statedb.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
 		// Header seems complete, assemble into a block and return
-		return types.NewBlock(header, txs, uncles, receipts), nil
+		return types.NewBlock(header, txs, uncles, receipts, new(trie.Trie)), nil
 	}
 }
 
-func (e *NoRewardEngine) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+func (e *NoRewardEngine) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	return e.inner.Seal(chain, block, results, stop)
 }
 
@@ -265,11 +264,11 @@ func (e *NoRewardEngine) SealHash(header *types.Header) common.Hash {
 	return e.inner.SealHash(header)
 }
 
-func (e *NoRewardEngine) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
+func (e *NoRewardEngine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return e.inner.CalcDifficulty(chain, time, parent)
 }
 
-func (e *NoRewardEngine) APIs(chain consensus.ChainReader) []rpc.API {
+func (e *NoRewardEngine) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return e.inner.APIs(chain)
 }
 
@@ -361,7 +360,7 @@ func (api *RetestethAPI) SetChainParams(ctx context.Context, chainParams ChainPa
 			ChainID:             chainId,
 			HomesteadBlock:      homesteadBlock,
 			DAOForkBlock:        daoForkBlock,
-			DAOForkSupport:      false,
+			DAOForkSupport:      true,
 			EIP150Block:         eip150Block,
 			EIP155Block:         eip155Block,
 			EIP158Block:         eip158Block,
@@ -392,18 +391,20 @@ func (api *RetestethAPI) SetChainParams(ctx context.Context, chainParams ChainPa
 		inner = ethash.NewFaker()
 	case "Ethash":
 		inner = ethash.New(ethash.Config{
-			CacheDir:       "ethash",
-			CachesInMem:    2,
-			CachesOnDisk:   3,
-			DatasetsInMem:  1,
-			DatasetsOnDisk: 2,
+			CacheDir:         "ethash",
+			CachesInMem:      2,
+			CachesOnDisk:     3,
+			CachesLockMmap:   false,
+			DatasetsInMem:    1,
+			DatasetsOnDisk:   2,
+			DatasetsLockMmap: false,
 		}, nil, false)
 	default:
 		return false, fmt.Errorf("unrecognised seal engine: %s", chainParams.SealEngine)
 	}
 	engine := &NoRewardEngine{inner: inner, rewardsOn: chainParams.SealEngine != "NoReward"}
 
-	blockchain, err := core.NewBlockChain(ethDb, nil, chainConfig, engine, vm.Config{}, nil)
+	blockchain, err := core.NewBlockChain(ethDb, nil, chainConfig, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -416,7 +417,6 @@ func (api *RetestethAPI) SetChainParams(ctx context.Context, chainParams ChainPa
 	api.engine = engine
 	api.blockchain = blockchain
 	api.db = state.NewDatabase(api.ethDb)
-	api.blockNumber = 0
 	api.txMap = make(map[common.Address]map[uint64]*types.Transaction)
 	api.txSenders = make(map[common.Address]struct{})
 	api.blockInterval = 0
@@ -429,7 +429,7 @@ func (api *RetestethAPI) SendRawTransaction(ctx context.Context, rawTx hexutil.B
 		// Return nil is not by mistake - some tests include sending transaction where gasLimit overflows uint64
 		return common.Hash{}, nil
 	}
-	signer := types.MakeSigner(api.chainConfig, big.NewInt(int64(api.blockNumber)))
+	signer := types.MakeSigner(api.chainConfig, big.NewInt(int64(api.currentNumber())))
 	sender, err := types.Sender(signer, tx)
 	if err != nil {
 		return common.Hash{}, err
@@ -455,9 +455,17 @@ func (api *RetestethAPI) MineBlocks(ctx context.Context, number uint64) (bool, e
 	return true, nil
 }
 
+func (api *RetestethAPI) currentNumber() uint64 {
+	if current := api.blockchain.CurrentBlock(); current != nil {
+		return current.NumberU64()
+	}
+	return 0
+}
+
 func (api *RetestethAPI) mineBlock() error {
-	parentHash := rawdb.ReadCanonicalHash(api.ethDb, api.blockNumber)
-	parent := rawdb.ReadBlock(api.ethDb, parentHash, api.blockNumber)
+	number := api.currentNumber()
+	parentHash := rawdb.ReadCanonicalHash(api.ethDb, number)
+	parent := rawdb.ReadBlock(api.ethDb, parentHash, number)
 	var timestamp uint64
 	if api.blockInterval == 0 {
 		timestamp = uint64(time.Now().Unix())
@@ -467,7 +475,7 @@ func (api *RetestethAPI) mineBlock() error {
 	gasLimit := core.CalcGasLimit(parent, 9223372036854775807, 9223372036854775807)
 	header := &types.Header{
 		ParentHash: parent.Hash(),
-		Number:     big.NewInt(int64(api.blockNumber + 1)),
+		Number:     big.NewInt(int64(number + 1)),
 		GasLimit:   gasLimit,
 		Extra:      api.extraData,
 		Time:       timestamp,
@@ -500,7 +508,6 @@ func (api *RetestethAPI) mineBlock() error {
 	txCount := 0
 	var txs []*types.Transaction
 	var receipts []*types.Receipt
-	var coalescedLogs []*types.Log
 	var blockFull = gasPool.Gas() < params.TxGas
 	for address := range api.txSenders {
 		if blockFull {
@@ -527,7 +534,6 @@ func (api *RetestethAPI) mineBlock() error {
 				}
 				txs = append(txs, tx)
 				receipts = append(receipts, receipt)
-				coalescedLogs = append(coalescedLogs, receipt.Logs...)
 				delete(m, nonce)
 				if len(m) == 0 {
 					// Last tx for the sender
@@ -555,8 +561,7 @@ func (api *RetestethAPI) importBlock(block *types.Block) error {
 	if _, err := api.blockchain.InsertChain([]*types.Block{block}); err != nil {
 		return err
 	}
-	api.blockNumber = block.NumberU64()
-	fmt.Printf("Imported block %d\n", block.NumberU64())
+	fmt.Printf("Imported block %d,  head is %d\n", block.NumberU64(), api.currentNumber())
 	return nil
 }
 
@@ -581,7 +586,9 @@ func (api *RetestethAPI) RewindToBlock(ctx context.Context, newHead uint64) (boo
 	if err := api.blockchain.SetHead(newHead); err != nil {
 		return false, err
 	}
-	api.blockNumber = newHead
+	// When we rewind, the transaction pool should be cleaned out.
+	api.txMap = make(map[common.Address]map[uint64]*types.Transaction)
+	api.txSenders = make(map[common.Address]struct{})
 	return true, nil
 }
 
@@ -601,8 +608,7 @@ func (api *RetestethAPI) GetLogHash(ctx context.Context, txHash common.Hash) (co
 }
 
 func (api *RetestethAPI) BlockNumber(ctx context.Context) (uint64, error) {
-	//fmt.Printf("BlockNumber, response: %d\n", api.blockNumber)
-	return api.blockNumber, nil
+	return api.currentNumber(), nil
 }
 
 func (api *RetestethAPI) GetBlockByNumber(ctx context.Context, blockNr math.HexOrDecimal64, fullTx bool) (map[string]interface{}, error) {
@@ -617,6 +623,20 @@ func (api *RetestethAPI) GetBlockByNumber(ctx context.Context, blockNr math.HexO
 		return response, err
 	}
 	return nil, fmt.Errorf("block %d not found", blockNr)
+}
+
+func (api *RetestethAPI) GetBlockByHash(ctx context.Context, blockHash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	block := api.blockchain.GetBlockByHash(blockHash)
+	if block != nil {
+		response, err := RPCMarshalBlock(block, true, fullTx)
+		if err != nil {
+			return nil, err
+		}
+		response["author"] = response["miner"]
+		response["totalDifficulty"] = (*hexutil.Big)(api.blockchain.GetTd(block.Hash(), block.Number().Uint64()))
+		return response, err
+	}
+	return nil, fmt.Errorf("block 0x%x not found", blockHash)
 }
 
 func (api *RetestethAPI) AccountRange(ctx context.Context,
@@ -662,7 +682,7 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
 			vmenv := vm.NewEVM(context, statedb, pvtst, api.blockchain.Config(), vm.Config{})
-			if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return AccountRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
 			// Ensure any modifications are committed to the state
@@ -687,9 +707,6 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 	for i := 0; i < int(maxResults) && it.Next(); i++ {
 		if preimage := accountTrie.GetKey(it.Key); preimage != nil {
 			result.AddressMap[common.BytesToHash(it.Key)] = common.BytesToAddress(preimage)
-			//fmt.Printf("%x: %x\n", it.Key, preimage)
-		} else {
-			//fmt.Printf("could not find preimage for %x\n", it.Key)
 		}
 	}
 	//fmt.Printf("Number of entries returned: %d\n", len(result.AddressMap))
@@ -775,7 +792,7 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
 			vmenv := vm.NewEVM(context, statedb, pvtstdb, api.blockchain.Config(), vm.Config{})
-			if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
+			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return StorageRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
 			// Ensure any modifications are committed to the state
@@ -813,9 +830,6 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 				Key:   string(ks),
 				Value: string(vs),
 			}
-			//fmt.Printf("Key: %s, Value: %s\n", ks, vs)
-		} else {
-			//fmt.Printf("Did not find preimage for %x\n", it.Key)
 		}
 	}
 	if it.Next() {
@@ -877,12 +891,25 @@ func retesteth(ctx *cli.Context) error {
 			Version:   "1.0",
 		},
 	}
-	vhosts := splitAndTrim(ctx.GlobalString(utils.RPCVirtualHostsFlag.Name))
-	cors := splitAndTrim(ctx.GlobalString(utils.RPCCORSDomainFlag.Name))
+	vhosts := splitAndTrim(ctx.GlobalString(utils.HTTPVirtualHostsFlag.Name))
+	cors := splitAndTrim(ctx.GlobalString(utils.HTTPCORSDomainFlag.Name))
+
+	// register apis and create handler stack
+	srv := rpc.NewServer()
+	err := node.RegisterApisFromWhitelist(rpcAPI, []string{"test", "eth", "debug", "web3"}, srv, false)
+	if err != nil {
+		utils.Fatalf("Could not register RPC apis: %w", err)
+	}
+	handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
 
 	// start http server
-	httpEndpoint := fmt.Sprintf("%s:%d", ctx.GlobalString(utils.RPCListenAddrFlag.Name), ctx.Int(rpcPortFlag.Name))
-	listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"test", "eth", "debug", "web3"}, cors, vhosts, rpc.DefaultHTTPTimeouts, nil, &security.DisabledAuthenticationManager{})
+	var RetestethHTTPTimeouts = rpc.HTTPTimeouts{
+		ReadTimeout:  120 * time.Second,
+		WriteTimeout: 120 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	httpEndpoint := fmt.Sprintf("%s:%d", ctx.GlobalString(utils.HTTPListenAddrFlag.Name), ctx.Int(rpcPortFlag.Name))
+	httpServer, _, _, err := node.StartHTTPEndpoint(httpEndpoint, RetestethHTTPTimeouts, handler, nil)
 	if err != nil {
 		utils.Fatalf("Could not start RPC api: %v", err)
 	}
@@ -890,11 +917,12 @@ func retesteth(ctx *cli.Context) error {
 	log.Info("HTTP endpoint opened", "url", extapiURL)
 
 	defer func() {
-		listener.Close()
+		// Don't bother imposing a timeout here.
+		httpServer.Shutdown(context.Background())
 		log.Info("HTTP endpoint closed", "url", httpEndpoint)
 	}()
 
-	abortChan := make(chan os.Signal)
+	abortChan := make(chan os.Signal, 11)
 	signal.Notify(abortChan, os.Interrupt)
 
 	sig := <-abortChan

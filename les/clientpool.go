@@ -42,15 +42,7 @@ const (
 	persistCumulativeTimeRefresh = time.Minute * 5  // refresh period of the cumulative running time persistence
 	posBalanceCacheLimit         = 8192             // the maximum number of cached items in positive balance queue
 	negBalanceCacheLimit         = 8192             // the maximum number of cached items in negative balance queue
-
-	// connectedBias is applied to already connected clients So that
-	// already connected client won't be kicked out very soon and we
-	// can ensure all connected clients can have enough time to request
-	// or sync some data.
-	//
-	// todo(rjl493456442) make it configurable. It can be the option of
-	// free trial time!
-	connectedBias = time.Minute * 3
+	defaultConnectedBias         = time.Minute * 3  // the default connectedBias used in clientPool
 )
 
 // clientPool implements a client database that assigns a priority to each client
@@ -94,15 +86,15 @@ type clientPool struct {
 	freeClientCap     uint64         // The capacity value of each free client
 	startTime         mclock.AbsTime // The timestamp at which the clientpool started running
 	cumulativeTime    int64          // The cumulative running time of clientpool at the start point.
-	disableBias       bool           // Disable connection bias(used in testing)
+	connectedBias     time.Duration  // The connection bias. 0: Disable connection bias(used in testing)
 }
 
-// clientPeer represents a client in the pool.
+// clientPoolPeer represents a client peer in the pool.
 // Positive balances are assigned to node key while negative balances are assigned
 // to freeClientId. Currently network IP address without port is used because
 // clients have a limited access to IP addresses while new node keys can be easily
 // generated so it would be useless to assign a negative value to them.
-type clientPeer interface {
+type clientPoolPeer interface {
 	ID() enode.ID
 	freeClientId() string
 	updateCapacity(uint64)
@@ -117,7 +109,7 @@ type clientInfo struct {
 	capacity               uint64
 	priority               bool
 	pool                   *clientPool
-	peer                   clientPeer
+	peer                   clientPoolPeer
 	queueIndex             int // position in connectedQueue
 	balanceTracker         balanceTracker
 	posFactors, negFactors priceFactors
@@ -171,6 +163,7 @@ func newClientPool(db ethdb.Database, freeClientCap uint64, clock mclock.Clock, 
 		startTime:      clock.Now(),
 		cumulativeTime: ndb.getCumulativeTime(),
 		stopCh:         make(chan struct{}),
+		connectedBias:  defaultConnectedBias,
 	}
 	// If the negative balance of free client is even lower than 1,
 	// delete this entry.
@@ -207,7 +200,7 @@ func (f *clientPool) stop() {
 
 // connect should be called after a successful handshake. If the connection was
 // rejected, there is no need to call disconnect.
-func (f *clientPool) connect(peer clientPeer, capacity uint64) bool {
+func (f *clientPool) connect(peer clientPoolPeer, capacity uint64) bool {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -219,7 +212,7 @@ func (f *clientPool) connect(peer clientPeer, capacity uint64) bool {
 	id, freeID := peer.ID(), peer.freeClientId()
 	if _, ok := f.connectedMap[id]; ok {
 		clientRejectedMeter.Mark(1)
-		log.Debug("Client already connected", "address", freeID, "id", peerIdToString(id))
+		log.Debug("Client already connected", "address", freeID, "id", id.String())
 		return false
 	}
 	// Create a clientInfo but do not add it yet
@@ -279,16 +272,12 @@ func (f *clientPool) connect(peer clientPeer, capacity uint64) bool {
 			newCount--
 			return newCapacity > f.capLimit || newCount > f.connLimit
 		})
-		bias := connectedBias
-		if f.disableBias {
-			bias = 0
-		}
-		if newCapacity > f.capLimit || newCount > f.connLimit || (e.balanceTracker.estimatedPriority(now+mclock.AbsTime(bias), false)-kickPriority) > 0 {
+		if newCapacity > f.capLimit || newCount > f.connLimit || (e.balanceTracker.estimatedPriority(now+mclock.AbsTime(f.connectedBias), false)-kickPriority) > 0 {
 			for _, c := range kickList {
 				f.connectedQueue.Push(c)
 			}
 			clientRejectedMeter.Mark(1)
-			log.Debug("Client rejected", "address", freeID, "id", peerIdToString(id))
+			log.Debug("Client rejected", "address", freeID, "id", id.String())
 			return false
 		}
 		// accept new client, drop old ones
@@ -322,7 +311,7 @@ func (f *clientPool) connect(peer clientPeer, capacity uint64) bool {
 // disconnect should be called when a connection is terminated. If the disconnection
 // was initiated by the pool itself using disconnectFn then calling disconnect is
 // not necessary but permitted.
-func (f *clientPool) disconnect(p clientPeer) {
+func (f *clientPool) disconnect(p clientPoolPeer) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -333,7 +322,7 @@ func (f *clientPool) disconnect(p clientPeer) {
 	// Short circuit if the peer hasn't been registered.
 	e := f.connectedMap[p.ID()]
 	if e == nil {
-		log.Debug("Client not connected", "address", p.freeClientId(), "id", peerIdToString(p.ID()))
+		log.Debug("Client not connected", "address", p.freeClientId(), "id", p.ID().String())
 		return
 	}
 	f.dropClient(e, f.clock.Now(), false)
@@ -369,6 +358,16 @@ func (f *clientPool) setDefaultFactors(posFactors, negFactors priceFactors) {
 
 	f.defaultPosFactors = posFactors
 	f.defaultNegFactors = negFactors
+}
+
+// setConnectedBias sets the connection bias, which is applied to already connected clients
+// So that already connected client won't be kicked out very soon and we can ensure all
+// connected clients can have enough time to request or sync some data.
+func (f *clientPool) setConnectedBias(bias time.Duration) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	f.connectedBias = bias
 }
 
 // dropClient removes a client from the connected queue and finalizes its balance.
@@ -516,7 +515,7 @@ func (f *clientPool) setCapacity(c *clientInfo, capacity uint64) error {
 }
 
 // requestCost feeds request cost after serving a request from the given peer.
-func (f *clientPool) requestCost(p *peer, cost uint64) {
+func (f *clientPool) requestCost(p *clientPeer, cost uint64) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -585,7 +584,7 @@ func (f *clientPool) addBalance(id enode.ID, amount int64, meta string) (uint64,
 		if !c.priority && pb.value > 0 {
 			// The capacity should be adjusted based on the requirement,
 			// but we have no idea about the new capacity, need a second
-			// call to udpate it.
+			// call to update it.
 			c.priority = true
 			f.priorityConnected += c.capacity
 			c.balanceTracker.addCallback(balanceCallbackZero, 0, func() { f.balanceExhausted(id) })
@@ -691,6 +690,14 @@ func (db *nodeDB) close() {
 	close(db.closeCh)
 }
 
+func (db *nodeDB) getPrefix(neg bool) []byte {
+	prefix := positiveBalancePrefix
+	if neg {
+		prefix = negativeBalancePrefix
+	}
+	return append(db.verbuf[:], prefix...)
+}
+
 func (db *nodeDB) key(id []byte, neg bool) []byte {
 	prefix := positiveBalancePrefix
 	if neg {
@@ -761,7 +768,8 @@ func (db *nodeDB) getPosBalanceIDs(start, stop enode.ID, maxCount int) (result [
 	if maxCount <= 0 {
 		return
 	}
-	it := db.db.NewIteratorWithStart(db.key(start.Bytes(), false))
+	prefix := db.getPrefix(false)
+	it := db.db.NewIterator(prefix, start.Bytes())
 	defer it.Release()
 	for i := len(stop[:]) - 1; i >= 0; i-- {
 		stop[i]--
@@ -840,8 +848,9 @@ func (db *nodeDB) expireNodes() {
 		visited int
 		deleted int
 		start   = time.Now()
+		prefix  = db.getPrefix(true)
 	)
-	iter := db.db.NewIteratorWithPrefix(append(db.verbuf[:], negativeBalancePrefix...))
+	iter := db.db.NewIterator(prefix, nil)
 	for iter.Next() {
 		visited += 1
 		var balance negBalance

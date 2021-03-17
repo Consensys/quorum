@@ -32,6 +32,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -42,11 +43,11 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -58,6 +59,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/fourbyte"
 	"github.com/ethereum/go-ethereum/signer/rules"
 	"github.com/ethereum/go-ethereum/signer/storage"
+
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"gopkg.in/urfave/cli.v1"
@@ -87,6 +89,10 @@ var (
 		Name:  "advanced",
 		Usage: "If enabled, issues warnings instead of rejections for suspicious requests. Default off",
 	}
+	acceptFlag = cli.BoolFlag{
+		Name:  "suppress-bootwarn",
+		Usage: "If set, does not show the warning during boot",
+	}
 	keystoreFlag = cli.StringFlag{
 		Name:  "keystore",
 		Value: filepath.Join(node.DefaultDataDir(), "keystore"),
@@ -103,8 +109,13 @@ var (
 		Usage: "Chain id to use for signing (1=mainnet, 3=Ropsten, 4=Rinkeby, 5=Goerli)",
 	}
 	rpcPortFlag = cli.IntFlag{
-		Name:  "rpcport",
+		Name:  "http.port",
 		Usage: "HTTP-RPC server listening port",
+		Value: node.DefaultHTTPPort + 5,
+	}
+	legacyRPCPortFlag = cli.IntFlag{
+		Name:  "rpcport",
+		Usage: "HTTP-RPC server listening port (Deprecated, please use --http.port).",
 		Value: node.DefaultHTTPPort + 5,
 	}
 	signerSecretFlag = cli.StringFlag{
@@ -192,6 +203,22 @@ The setpw command stores a password for a given address (keyfile).
 		Description: `
 The delpw command removes a password for a given address (keyfile).
 `}
+	newAccountCommand = cli.Command{
+		Action:    utils.MigrateFlags(newAccount),
+		Name:      "newaccount",
+		Usage:     "Create a new account",
+		ArgsUsage: "",
+		Flags: []cli.Flag{
+			logLevelFlag,
+			keystoreFlag,
+			utils.LightKDFFlag,
+			acceptFlag,
+		},
+		Description: `
+The newaccount command creates a new keystore-backed account. It is a convenience-method
+which can be used in lieu of an external UI.`,
+	}
+
 	gendocCommand = cli.Command{
 		Action: GenDoc,
 		Name:   "gendoc",
@@ -206,6 +233,48 @@ var supportedPlugins = []plugin.PluginInterfaceName{plugin.AccountPluginInterfac
 
 // </Quorum>
 
+// AppHelpFlagGroups is the application flags, grouped by functionality.
+var AppHelpFlagGroups = []flags.FlagGroup{
+	{
+		Name: "FLAGS",
+		Flags: []cli.Flag{
+			logLevelFlag,
+			keystoreFlag,
+			configdirFlag,
+			chainIdFlag,
+			utils.LightKDFFlag,
+			utils.NoUSBFlag,
+			utils.SmartCardDaemonPathFlag,
+			utils.HTTPListenAddrFlag,
+			utils.HTTPVirtualHostsFlag,
+			utils.IPCDisabledFlag,
+			utils.IPCPathFlag,
+			utils.HTTPEnabledFlag,
+			rpcPortFlag,
+			signerSecretFlag,
+			customDBFlag,
+			auditLogFlag,
+			ruleFlag,
+			stdiouiFlag,
+			testFlag,
+			advancedMode,
+			acceptFlag,
+			// <Quorum>
+			utils.PluginSettingsFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
+			utils.PluginSkipVerifyFlag,
+			// </Quorum>
+		},
+	},
+	{
+		Name: "ALIASED (deprecated)",
+		Flags: []cli.Flag{
+			legacyRPCPortFlag,
+		},
+	},
+}
+
 func init() {
 	app.Name = "Clef"
 	app.Usage = "Manage Ethereum account operations"
@@ -217,11 +286,11 @@ func init() {
 		utils.LightKDFFlag,
 		utils.NoUSBFlag,
 		utils.SmartCardDaemonPathFlag,
-		utils.RPCListenAddrFlag,
-		utils.RPCVirtualHostsFlag,
+		utils.HTTPListenAddrFlag,
+		utils.HTTPVirtualHostsFlag,
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
-		utils.RPCEnabledFlag,
+		utils.HTTPEnabledFlag,
 		rpcPortFlag,
 		signerSecretFlag,
 		customDBFlag,
@@ -230,6 +299,8 @@ func init() {
 		stdiouiFlag,
 		testFlag,
 		advancedMode,
+		acceptFlag,
+		legacyRPCPortFlag,
 		// <Quorum>
 		utils.PluginSettingsFlag,
 		utils.PluginLocalVerifyFlag,
@@ -238,7 +309,47 @@ func init() {
 		// </Quorum>
 	}
 	app.Action = signer
-	app.Commands = []cli.Command{initCommand, attestCommand, setCredentialCommand, delCredentialCommand, gendocCommand}
+	app.Commands = []cli.Command{initCommand,
+		attestCommand,
+		setCredentialCommand,
+		delCredentialCommand,
+		newAccountCommand,
+		gendocCommand}
+	cli.CommandHelpTemplate = flags.CommandHelpTemplate
+	// Override the default app help template
+	cli.AppHelpTemplate = flags.ClefAppHelpTemplate
+
+	// Override the default app help printer, but only for the global app help
+	originalHelpPrinter := cli.HelpPrinter
+	cli.HelpPrinter = func(w io.Writer, tmpl string, data interface{}) {
+		if tmpl == flags.ClefAppHelpTemplate {
+			// Render out custom usage screen
+			originalHelpPrinter(w, tmpl, flags.HelpData{App: data, FlagGroups: AppHelpFlagGroups})
+		} else if tmpl == flags.CommandHelpTemplate {
+			// Iterate over all command specific flags and categorize them
+			categorized := make(map[string][]cli.Flag)
+			for _, flag := range data.(cli.Command).Flags {
+				if _, ok := categorized[flag.String()]; !ok {
+					categorized[flags.FlagCategory(flag, AppHelpFlagGroups)] = append(categorized[flags.FlagCategory(flag, AppHelpFlagGroups)], flag)
+				}
+			}
+
+			// sort to get a stable ordering
+			sorted := make([]flags.FlagGroup, 0, len(categorized))
+			for cat, flgs := range categorized {
+				sorted = append(sorted, flags.FlagGroup{Name: cat, Flags: flgs})
+			}
+			sort.Sort(flags.ByCategory(sorted))
+
+			// add sorted array to data and render with default printer
+			originalHelpPrinter(w, tmpl, map[string]interface{}{
+				"cmd":              data,
+				"categorizedFlags": sorted,
+			})
+		} else {
+			originalHelpPrinter(w, tmpl, data)
+		}
+	}
 }
 
 func main() {
@@ -278,7 +389,7 @@ func initializeSecrets(c *cli.Context) error {
 	text := "The master seed of clef will be locked with a password.\nPlease specify a password. Do not forget this password!"
 	var password string
 	for {
-		password = getPassPhrase(text, true)
+		password = utils.GetPassPhrase(text, true)
 		if err := core.ValidatePasswordFormat(password); err != nil {
 			fmt.Printf("invalid password: %v\n", err)
 		} else {
@@ -351,7 +462,7 @@ func setCredential(ctx *cli.Context) error {
 		utils.Fatalf("Invalid address specified: %s", addr)
 	}
 	address := common.HexToAddress(addr)
-	password := getPassPhrase("Please enter a password to store for this address:", true)
+	password := utils.GetPassPhrase("Please enter a password to store for this address:", true)
 	fmt.Println()
 
 	stretchedKey, err := readMasterKey(ctx, nil)
@@ -397,14 +508,44 @@ func removeCredential(ctx *cli.Context) error {
 	return nil
 }
 
+func newAccount(c *cli.Context) error {
+	if err := initialize(c); err != nil {
+		return err
+	}
+	// The newaccount is meant for users using the CLI, since 'real' external
+	// UIs can use the UI-api instead. So we'll just use the native CLI UI here.
+	var (
+		ui                        = core.NewCommandlineUI()
+		pwStorage storage.Storage = &storage.NoStorage{}
+		ksLoc                     = c.GlobalString(keystoreFlag.Name)
+		lightKdf                  = c.GlobalBool(utils.LightKDFFlag.Name)
+	)
+	log.Info("Starting clef", "keystore", ksLoc, "light-kdf", lightKdf)
+	am, _, err := startClefAccountManagerWithPlugins(c, ksLoc, true, lightKdf, "")
+	if err != nil {
+		return err
+	}
+	// This gives is us access to the external API
+	apiImpl := core.NewSignerAPI(am, 0, true, ui, nil, false, pwStorage)
+	// This gives us access to the internal API
+	internalApi := core.NewUIServerAPI(apiImpl)
+	addr, err := internalApi.New(context.Background())
+	if err == nil {
+		fmt.Printf("Generated account %v\n", addr.String())
+	}
+	return err
+}
+
 func initialize(c *cli.Context) error {
 	// Set up the logger to print everything
 	logOutput := os.Stdout
 	if c.GlobalBool(stdiouiFlag.Name) {
 		logOutput = os.Stderr
 		// If using the stdioui, we can't do the 'confirm'-flow
-		fmt.Fprint(logOutput, legalWarning)
-	} else {
+		if !c.GlobalBool(acceptFlag.Name) {
+			fmt.Fprint(logOutput, legalWarning)
+		}
+	} else if !c.GlobalBool(acceptFlag.Name) {
 		if !confirm(legalWarning) {
 			return fmt.Errorf("aborted by user")
 		}
@@ -472,7 +613,6 @@ func signer(c *cli.Context) error {
 		api       core.ExternalAPI
 		pwStorage storage.Storage = &storage.NoStorage{}
 	)
-
 	configDir := c.GlobalString(configdirFlag.Name)
 	if stretchedKey, err := readMasterKey(c, ui); err != nil {
 		log.Warn("Failed to open master, rules disabled", "err", err)
@@ -524,48 +664,10 @@ func signer(c *cli.Context) error {
 	log.Info("Starting signer", "chainid", chainId, "keystore", ksLoc,
 		"light-kdf", lightKdf, "advanced", advanced)
 
-	// <Quorum> start the plugin manager
-	var (
-		pm         *plugin.PluginManager
-		pluginConf *plugin.Settings
-	)
-	if c.IsSet(utils.PluginSettingsFlag.Name) {
-		log.Info("Using plugins")
-		pm, pluginConf, err = startPluginManager(c)
-		if err != nil {
-			utils.Fatalf(err.Error())
-		}
-
-		// setup goroutine to stop plugin manager when clef stops
-		go func() {
-			sigc := make(chan os.Signal, 1)
-			signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
-			defer signal.Stop(sigc)
-			<-sigc
-			log.Info("Got interrupt, shutting down...")
-			go pm.Stop()
-			for i := 10; i > 0; i-- {
-				<-sigc
-				if i > 1 {
-					log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
-				}
-			}
-			debug.Exit() // ensure trace and CPU profile data is flushed.
-			debug.LoudPanic("boom")
-		}()
+	am, pm, err := startClefAccountManagerWithPlugins(c, ksLoc, nousb, lightKdf, scpath)
+	if err != nil {
+		return err
 	}
-	// </Quorum>
-
-	am := core.StartClefAccountManager(ksLoc, nousb, lightKdf, pluginConf, scpath)
-
-	// <Quorum> setup the pluggable accounts backend with the plugin
-	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
-		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
-		if err := pm.AddAccountPluginToBackend(b); err != nil {
-			return err
-		}
-	}
-	// </Quorum>
 
 	apiImpl := core.NewSignerAPI(am, chainId, nousb, ui, db, advanced, pwStorage)
 
@@ -600,22 +702,39 @@ func signer(c *cli.Context) error {
 	}
 	// </Quorum>
 
-	if c.GlobalBool(utils.RPCEnabledFlag.Name) {
-		vhosts := splitAndTrim(c.GlobalString(utils.RPCVirtualHostsFlag.Name))
-		cors := splitAndTrim(c.GlobalString(utils.RPCCORSDomainFlag.Name))
+	if c.GlobalBool(utils.HTTPEnabledFlag.Name) {
+		vhosts := splitAndTrim(c.GlobalString(utils.HTTPVirtualHostsFlag.Name))
+		cors := splitAndTrim(c.GlobalString(utils.HTTPCORSDomainFlag.Name))
+
+		srv := rpc.NewServer()
+		err := node.RegisterApisFromWhitelist(rpcAPI, []string{"account"}, srv, false)
+		if err != nil {
+			utils.Fatalf("Could not register API: %w", err)
+		}
+		handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
+
+		// set port
+		port := c.Int(rpcPortFlag.Name)
+		if c.GlobalIsSet(legacyRPCPortFlag.Name) {
+			if !c.GlobalIsSet(rpcPortFlag.Name) {
+				port = c.Int(legacyRPCPortFlag.Name)
+			}
+			log.Warn("The flag --rpcport is deprecated and will be removed in the future, please use --http.port")
+		}
 
 		// start http server
-		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
-		listener, _, _, err := rpc.StartHTTPEndpoint(httpEndpoint, rpcAPI, []string{"account", "plugin@account"}, cors, vhosts, rpc.DefaultHTTPTimeouts, nil, nil)
+		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.HTTPListenAddrFlag.Name), port)
+		httpServer, addr, _, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler, nil)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}
-		extapiURL = fmt.Sprintf("http://%s", httpEndpoint)
+		extapiURL = fmt.Sprintf("http://%v/", addr)
 		log.Info("HTTP endpoint opened", "url", extapiURL)
 
 		defer func() {
-			listener.Close()
-			log.Info("HTTP endpoint closed", "url", httpEndpoint)
+			// Don't bother imposing a timeout here.
+			httpServer.Shutdown(context.Background())
+			log.Info("HTTP endpoint closed", "url", extapiURL)
 		}()
 	}
 	if !c.GlobalBool(utils.IPCDisabledFlag.Name) {
@@ -671,7 +790,7 @@ func startPluginManager(c *cli.Context) (*plugin.PluginManager, *plugin.Settings
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := pm.Start(nil); err != nil {
+	if err := pm.Start(); err != nil {
 		return nil, nil, err
 	}
 	return pm, pluginConf, nil
@@ -767,7 +886,7 @@ func readMasterKey(ctx *cli.Context, ui core.UIClientAPI) ([]byte, error) {
 		}
 		password = resp.Text
 	} else {
-		password = getPassPhrase("Decrypt master seed of clef", false)
+		password = utils.GetPassPhrase("Decrypt master seed of clef", false)
 	}
 	masterSeed, err := decryptSeed(cipherKey, password)
 	if err != nil {
@@ -962,27 +1081,6 @@ func testExternalUI(api *core.SignerAPI) {
 
 }
 
-// getPassPhrase retrieves the password associated with clef, either fetched
-// from a list of preloaded passphrases, or requested interactively from the user.
-// TODO: there are many `getPassPhrase` functions, it will be better to abstract them into one.
-func getPassPhrase(prompt string, confirmation bool) string {
-	fmt.Println(prompt)
-	password, err := console.Stdin.PromptPassword("Password: ")
-	if err != nil {
-		utils.Fatalf("Failed to read password: %v", err)
-	}
-	if confirmation {
-		confirm, err := console.Stdin.PromptPassword("Repeat password: ")
-		if err != nil {
-			utils.Fatalf("Failed to read password confirmation: %v", err)
-		}
-		if password != confirm {
-			utils.Fatalf("Passwords do not match")
-		}
-	}
-	return password
-}
-
 type encryptedSeedStorage struct {
 	Description string              `json:"description"`
 	Version     int                 `json:"version"`
@@ -1033,7 +1131,7 @@ func GenDoc(ctx *cli.Context) {
 			if data, err := json.MarshalIndent(v, "", "  "); err == nil {
 				output = append(output, fmt.Sprintf("### %s\n\n%s\n\nExample:\n```json\n%s\n```", name, desc, data))
 			} else {
-				log.Error("Error generating output", err)
+				log.Error("Error generating output", "err", err)
 			}
 		}
 	)
@@ -1166,4 +1264,54 @@ These data types are defined in the channel between clef and the UI`)
 	for _, elem := range output {
 		fmt.Println(elem)
 	}
+}
+
+// Quorum
+// startClefAccountManagerWithPlugins - wrapped function to create a CLEF account manager with Plugin Support
+func startClefAccountManagerWithPlugins(c *cli.Context, ksLocation string, nousb, lightKDF bool, scpath string) (*accounts.Manager, *plugin.PluginManager, error) {
+	var err error
+	// <Quorum> start the plugin manager
+	var (
+		pm         *plugin.PluginManager
+		pluginConf *plugin.Settings
+	)
+	if c.IsSet(utils.PluginSettingsFlag.Name) {
+		log.Info("Using plugins")
+		pm, pluginConf, err = startPluginManager(c)
+		if err != nil {
+			utils.Fatalf(err.Error())
+		}
+
+		// setup goroutine to stop plugin manager when clef stops
+		go func() {
+			sigc := make(chan os.Signal, 1)
+			signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+			defer signal.Stop(sigc)
+			<-sigc
+			log.Info("Got interrupt, shutting down...")
+			go pm.Stop()
+			for i := 10; i > 0; i-- {
+				<-sigc
+				if i > 1 {
+					log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
+				}
+			}
+			debug.Exit() // ensure trace and CPU profile data is flushed.
+			debug.LoudPanic("boom")
+		}()
+	}
+	// </Quorum>
+
+	am := core.StartClefAccountManager(ksLocation, nousb, lightKDF, pluginConf, scpath)
+
+	// <Quorum> setup the pluggable accounts backend with the plugin
+	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := pm.AddAccountPluginToBackend(b); err != nil {
+			return nil, nil, err
+		}
+	}
+	// </Quorum>
+
+	return am, pm, nil
 }

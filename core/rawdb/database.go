@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -41,16 +42,32 @@ type freezerdb struct {
 // the slow ancient tables.
 func (frdb *freezerdb) Close() error {
 	var errs []error
-	if err := frdb.KeyValueStore.Close(); err != nil {
+	if err := frdb.AncientStore.Close(); err != nil {
 		errs = append(errs, err)
 	}
-	if err := frdb.AncientStore.Close(); err != nil {
+	if err := frdb.KeyValueStore.Close(); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) != 0 {
 		return fmt.Errorf("%v", errs)
 	}
 	return nil
+}
+
+// Freeze is a helper method used for external testing to trigger and block until
+// a freeze cycle completes, without having to sleep for a minute to trigger the
+// automatic background run.
+func (frdb *freezerdb) Freeze(threshold uint64) {
+	// Set the freezer threshold to a temporary value
+	defer func(old uint64) {
+		atomic.StoreUint64(&frdb.AncientStore.(*freezer).threshold, old)
+	}(atomic.LoadUint64(&frdb.AncientStore.(*freezer).threshold))
+	atomic.StoreUint64(&frdb.AncientStore.(*freezer).threshold, threshold)
+
+	// Trigger a freeze cycle and block until it's done
+	trigger := make(chan struct{}, 1)
+	frdb.AncientStore.(*freezer).trigger <- trigger
+	<-trigger
 }
 
 // nofreezedb is a database wrapper that disables freezer data retrievals.
@@ -137,7 +154,10 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace st
 			// If the freezer already contains something, ensure that the genesis blocks
 			// match, otherwise we might mix up freezers across chains and destroy both
 			// the freezer and the key-value store.
-			if frgenesis, _ := frdb.Ancient(freezerHashTable, 0); !bytes.Equal(kvgenesis, frgenesis) {
+			frgenesis, err := frdb.Ancient(freezerHashTable, 0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve genesis from ancient %v", err)
+			} else if !bytes.Equal(kvgenesis, frgenesis) {
 				return nil, fmt.Errorf("genesis mismatch: %#x (leveldb) != %#x (ancients)", kvgenesis, frgenesis)
 			}
 			// Key-value store and freezer belong to the same network. Ensure that they
@@ -150,11 +170,10 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace st
 				}
 				// Database contains only older data than the freezer, this happens if the
 				// state was wiped and reinited from an existing freezer.
-			} else {
-				// Key-value store continues where the freezer left off, all is fine. We might
-				// have duplicate blocks (crash after freezer write but before kay-value store
-				// deletion, but that's fine).
 			}
+			// Otherwise, key-value store continues where the freezer left off, all is fine.
+			// We might have duplicate blocks (crash after freezer write but before key-value
+			// store deletion, but that's fine).
 		} else {
 			// If the freezer is empty, ensure nothing was moved yet from the key-value
 			// store, otherwise we'll end up missing data. We check block #1 to decide
@@ -167,9 +186,9 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace st
 					return nil, errors.New("ancient chain segments already extracted, please set --datadir.ancient to the correct path")
 				}
 				// Block #1 is still in the database, we're allowed to init a new feezer
-			} else {
-				// The head header is still the genesis, we're allowed to init a new feezer
 			}
+			// Otherwise, the head header is still the genesis, we're allowed to init a new
+			// feezer.
 		}
 	}
 	// Freezer is consistent with the key-value database, permit combining the two
@@ -222,7 +241,7 @@ func NewLevelDBDatabaseWithFreezer(file string, cache int, handles int, freezer 
 // InspectDatabase traverses the entire database and checks the size
 // of all different categories of data.
 func InspectDatabase(db ethdb.Database) error {
-	it := db.NewIterator()
+	it := db.NewIterator(nil, nil)
 	defer it.Release()
 
 	var (
@@ -239,7 +258,10 @@ func InspectDatabase(db ethdb.Database) error {
 		numHashPairing  common.StorageSize
 		hashNumPairing  common.StorageSize
 		trieSize        common.StorageSize
+		codeSize        common.StorageSize
 		txlookupSize    common.StorageSize
+		accountSnapSize common.StorageSize
+		storageSnapSize common.StorageSize
 		preimageSize    common.StorageSize
 		bloomBitsSize   common.StorageSize
 		cliqueSnapsSize common.StorageSize
@@ -281,6 +303,10 @@ func InspectDatabase(db ethdb.Database) error {
 			receiptSize += size
 		case bytes.HasPrefix(key, txLookupPrefix) && len(key) == (len(txLookupPrefix)+common.HashLength):
 			txlookupSize += size
+		case bytes.HasPrefix(key, SnapshotAccountPrefix) && len(key) == (len(SnapshotAccountPrefix)+common.HashLength):
+			accountSnapSize += size
+		case bytes.HasPrefix(key, SnapshotStoragePrefix) && len(key) == (len(SnapshotStoragePrefix)+2*common.HashLength):
+			storageSnapSize += size
 		case bytes.HasPrefix(key, preimagePrefix) && len(key) == (len(preimagePrefix)+common.HashLength):
 			preimageSize += size
 		case bytes.HasPrefix(key, bloomBitsPrefix) && len(key) == (len(bloomBitsPrefix)+10+common.HashLength):
@@ -291,6 +317,8 @@ func InspectDatabase(db ethdb.Database) error {
 			chtTrieNodes += size
 		case bytes.HasPrefix(key, []byte("blt-")) && len(key) == 4+common.HashLength:
 			bloomTrieNodes += size
+		case bytes.HasPrefix(key, codePrefix) && len(key) == len(codePrefix)+common.HashLength:
+			codeSize += size
 		case len(key) == common.HashLength:
 			trieSize += size
 		default:
@@ -330,8 +358,11 @@ func InspectDatabase(db ethdb.Database) error {
 		{"Key-Value store", "Block hash->number", hashNumPairing.String()},
 		{"Key-Value store", "Transaction index", txlookupSize.String()},
 		{"Key-Value store", "Bloombit index", bloomBitsSize.String()},
+		{"Key-Value store", "Contract codes", codeSize.String()},
 		{"Key-Value store", "Trie nodes", trieSize.String()},
 		{"Key-Value store", "Trie preimages", preimageSize.String()},
+		{"Key-Value store", "Account snapshot", accountSnapSize.String()},
+		{"Key-Value store", "Storage snapshot", storageSnapSize.String()},
 		{"Key-Value store", "Clique snapshots", cliqueSnapsSize.String()},
 		{"Key-Value store", "Singleton metadata", metadata.String()},
 		{"Ancient store", "Headers", ancientHeaders.String()},

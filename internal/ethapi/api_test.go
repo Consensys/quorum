@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -27,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -83,11 +85,11 @@ func setup() {
 	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
-	publicStateDB, err = state.New(common.Hash{}, db)
+	publicStateDB, err = state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}
-	privateStateDB, err = state.New(common.Hash{}, db)
+	privateStateDB, err = state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -445,30 +447,17 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 }
 
-// Copy and set private
-func copyTransaction(tx *types.Transaction) *types.Transaction {
-	var privateTx *types.Transaction
-	if tx.To() == nil {
-		privateTx = types.NewContractCreation(tx.Nonce(),
-			tx.Value(),
-			tx.Gas(),
-			tx.GasPrice(),
-			tx.Data())
-	} else {
-		privateTx = types.NewTransaction(tx.Nonce(),
-			*tx.To(),
-			tx.Value(),
-			tx.Gas(),
-			tx.GasPrice(),
-			tx.Data())
-	}
-	privateTx.SetPrivate()
-	return privateTx
-}
-
 type StubBackend struct {
 	getEVMCalled                    bool
 	mockAccountExtraDataStateGetter *vm.MockAccountExtraDataStateGetter
+}
+
+func (sb *StubBackend) CurrentHeader() *types.Header {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Engine() consensus.Engine {
+	panic("implement me")
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
@@ -498,7 +487,7 @@ func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.Mi
 func (sb *StubBackend) CurrentBlock() *types.Block {
 	return types.NewBlock(&types.Header{
 		Number: arbitraryCurrentBlockNumber,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 }
 
 func (sb *StubBackend) Downloader() *downloader.Downloader {
@@ -533,7 +522,11 @@ func (sb *StubBackend) CallTimeOut() time.Duration {
 	panic("implement me")
 }
 
-func (sb *StubBackend) RPCGasCap() *big.Int {
+func (sb *StubBackend) RPCTxFeeCap() float64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() uint64 {
 	panic("implement me")
 }
 
@@ -577,7 +570,7 @@ func (sb *StubBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (
 	panic("implement me")
 }
 
-func (sb *StubBackend) GetTd(blockHash common.Hash) *big.Int {
+func (sb *StubBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	panic("implement me")
 }
 
@@ -647,6 +640,10 @@ func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent
 
 func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 	return params.QuorumTestChainConfig
+}
+
+func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
 }
 
 type StubMinimalApiState struct {

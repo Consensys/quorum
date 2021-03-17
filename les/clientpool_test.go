@@ -91,7 +91,7 @@ func testClientPool(t *testing.T, connLimit, clientCount, paidCount int, randomD
 		}
 		pool = newClientPool(db, 1, &clock, disconnFn)
 	)
-	pool.disableBias = true
+	pool.setConnectedBias(0)
 	pool.setLimits(connLimit, uint64(connLimit))
 	pool.setDefaultFactors(priceFactors{1, 0, 1}, priceFactors{1, 0, 1})
 
@@ -248,7 +248,7 @@ func TestPaidClientKickedOut(t *testing.T) {
 		clock.Run(time.Millisecond)
 	}
 	clock.Run(time.Second)
-	clock.Run(connectedBias)
+	clock.Run(defaultConnectedBias)
 	if !pool.connect(poolTestPeer(11), 0) {
 		t.Fatalf("Free client should be accectped")
 	}
@@ -517,7 +517,7 @@ func TestNodeDBExpiration(t *testing.T) {
 	for _, c := range cases {
 		ndb.setNB(c.ip, c.balance)
 	}
-	time.Sleep(100 * time.Millisecond) // Ensure the db expirer is registered.
+	clock.WaitForTimers(1)
 	clock.Run(time.Hour + time.Minute)
 	select {
 	case <-done:
@@ -527,7 +527,7 @@ func TestNodeDBExpiration(t *testing.T) {
 	if iterated != 4 {
 		t.Fatalf("Failed to evict useless negative balances, want %v, got %d", 4, iterated)
 	}
-
+	clock.WaitForTimers(1)
 	for _, c := range cases {
 		ndb.setNB(c.ip, c.balance)
 	}

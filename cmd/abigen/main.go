@@ -21,28 +21,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
-)
-
-const (
-	commandHelperTemplate = `{{.Name}}{{if .Subcommands}} command{{end}}{{if .Flags}} [command options]{{end}} [arguments...]
-{{if .Description}}{{.Description}}
-{{end}}{{if .Subcommands}}
-SUBCOMMANDS:
-	{{range .Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
-	{{end}}{{end}}{{if .Flags}}
-OPTIONS:
-{{range $.Flags}}{{"\t"}}{{.}}
-{{end}}
-{{end}}`
 )
 
 var (
@@ -111,7 +101,7 @@ var (
 )
 
 func init() {
-	app = utils.NewApp(gitCommit, gitDate, "ethereum checkpoint helper tool")
+	app = flags.NewApp(gitCommit, gitDate, "ethereum checkpoint helper tool")
 	app.Flags = []cli.Flag{
 		abiFlag,
 		binFlag,
@@ -128,7 +118,7 @@ func init() {
 		aliasFlag,
 	}
 	app.Action = utils.MigrateFlags(abigen)
-	cli.CommandHelpTemplate = commandHelperTemplate
+	cli.CommandHelpTemplate = flags.OriginCommandHelpTemplate
 }
 
 func abigen(c *cli.Context) error {
@@ -206,10 +196,22 @@ func abigen(c *cli.Context) error {
 				utils.Fatalf("Failed to build Solidity contract: %v", err)
 			}
 		case c.GlobalIsSet(vyFlag.Name):
-			contracts, err = compiler.CompileVyper(c.GlobalString(vyperFlag.Name), c.GlobalString(vyFlag.Name))
+			output, err := compiler.CompileVyper(c.GlobalString(vyperFlag.Name), c.GlobalString(vyFlag.Name))
 			if err != nil {
 				utils.Fatalf("Failed to build Vyper contract: %v", err)
 			}
+			contracts = make(map[string]*compiler.Contract)
+			for n, contract := range output {
+				name := n
+				// Sanitize the combined json names to match the
+				// format expected by solidity.
+				if !strings.Contains(n, ":") {
+					// Remove extra path components
+					name = abi.ToCamelCase(strings.TrimSuffix(filepath.Base(name), ".vy"))
+				}
+				contracts[name] = contract
+			}
+
 		case c.GlobalIsSet(jsonFlag.Name):
 			jsonOutput, err := ioutil.ReadFile(c.GlobalString(jsonFlag.Name))
 			if err != nil {

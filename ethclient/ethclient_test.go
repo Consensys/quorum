@@ -99,6 +99,22 @@ func TestToFilterArg(t *testing.T) {
 			nil,
 		},
 		{
+			"with negative fromBlock and negative toBlock",
+			ethereum.FilterQuery{
+				Addresses: addresses,
+				FromBlock: big.NewInt(-1),
+				ToBlock:   big.NewInt(-1),
+				Topics:    [][]common.Hash{},
+			},
+			map[string]interface{}{
+				"address":   addresses,
+				"fromBlock": "pending",
+				"toBlock":   "pending",
+				"topics":    [][]common.Hash{},
+			},
+			nil,
+		},
+		{
 			"with blockhash",
 			ethereum.FilterQuery{
 				Addresses: addresses,
@@ -172,17 +188,18 @@ var (
 func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	// Generate test chain.
 	genesis, blocks := generateTestChain()
-
-	// Start Ethereum service.
-	var ethservice *eth.Ethereum
+	// Create node
 	n, err := node.New(&node.Config{})
-	n.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		config := &eth.Config{Genesis: genesis}
-		config.Ethash.PowMode = ethash.ModeFake
-		ethservice, err = eth.New(ctx, config)
-		return ethservice, err
-	})
-
+	if err != nil {
+		t.Fatalf("can't create new node: %v", err)
+	}
+	// Create Ethereum Service
+	config := &eth.Config{Genesis: genesis}
+	config.Ethash.PowMode = ethash.ModeFake
+	ethservice, err := eth.New(n, config)
+	if err != nil {
+		t.Fatalf("can't create new ethereum service: %v", err)
+	}
 	// Import the test chain.
 	if err := n.Start(); err != nil {
 		t.Fatalf("can't start test node: %v", err)
@@ -216,7 +233,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 func TestHeader(t *testing.T) {
 	backend, chain := newTestBackend(t)
 	client, _ := backend.Attach()
-	defer backend.Stop()
+	defer backend.Close()
 	defer client.Close()
 
 	tests := map[string]struct {
@@ -260,7 +277,7 @@ func TestHeader(t *testing.T) {
 func TestBalanceAt(t *testing.T) {
 	backend, _ := newTestBackend(t)
 	client, _ := backend.Attach()
-	defer backend.Stop()
+	defer backend.Close()
 	defer client.Close()
 
 	tests := map[string]struct {
@@ -306,7 +323,7 @@ func TestBalanceAt(t *testing.T) {
 func TestTransactionInBlockInterrupted(t *testing.T) {
 	backend, _ := newTestBackend(t)
 	client, _ := backend.Attach()
-	defer backend.Stop()
+	defer backend.Close()
 	defer client.Close()
 
 	ec := NewClient(client)
@@ -324,7 +341,7 @@ func TestTransactionInBlockInterrupted(t *testing.T) {
 func TestChainID(t *testing.T) {
 	backend, _ := newTestBackend(t)
 	client, _ := backend.Attach()
-	defer backend.Stop()
+	defer backend.Close()
 	defer client.Close()
 	ec := NewClient(client)
 

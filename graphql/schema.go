@@ -119,6 +119,9 @@ const schema string = `
 		isPrivate: Boolean
 		# PrivateInputData is the actual payload of Quorum private transaction
 		privateInputData: Bytes
+        r: BigInt!
+        s: BigInt!
+        v: BigInt!
     }
 
     # BlockFilterCriteria encapsulates log filter criteria for a filter applied
@@ -315,6 +318,8 @@ const schema string = `
         protocolVersion: Int!
         # Syncing returns information on the current synchronisation state.
         syncing: SyncState
+        # ChainID returns the current chain ID for transaction replay protection.
+        chainID: BigInt!
     }
 
     type Mutation {

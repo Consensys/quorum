@@ -27,7 +27,15 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-// DumpAccount represents an account in the state
+// DumpCollector interface which the state trie calls during iteration
+type DumpCollector interface {
+	// OnRoot is called with the state root
+	OnRoot(common.Hash)
+	// OnAccount is called once for each account in the trie
+	OnAccount(common.Address, DumpAccount)
+}
+
+// DumpAccount represents an account in the state.
 type DumpAccount struct {
 	Balance   string                 `json:"balance"`
 	Nonce     uint64                 `json:"nonce"`
@@ -40,32 +48,46 @@ type DumpAccount struct {
 
 }
 
-// Dump represents the full dump in a collected format, as one large map
+// Dump represents the full dump in a collected format, as one large map.
 type Dump struct {
 	Root     string                         `json:"root"`
 	Accounts map[common.Address]DumpAccount `json:"accounts"`
 }
 
-// iterativeDump is a 'collector'-implementation which dump output line-by-line iteratively
+// OnRoot implements DumpCollector interface
+func (d *Dump) OnRoot(root common.Hash) {
+	d.Root = fmt.Sprintf("%x", root)
+}
+
+// OnAccount implements DumpCollector interface
+func (d *Dump) OnAccount(addr common.Address, account DumpAccount) {
+	d.Accounts[addr] = account
+}
+
+// IteratorDump is an implementation for iterating over data.
+type IteratorDump struct {
+	Root     string                         `json:"root"`
+	Accounts map[common.Address]DumpAccount `json:"accounts"`
+	Next     []byte                         `json:"next,omitempty"` // nil if no more accounts
+}
+
+// OnRoot implements DumpCollector interface
+func (d *IteratorDump) OnRoot(root common.Hash) {
+	d.Root = fmt.Sprintf("%x", root)
+}
+
+// OnAccount implements DumpCollector interface
+func (d *IteratorDump) OnAccount(addr common.Address, account DumpAccount) {
+	d.Accounts[addr] = account
+}
+
+// iterativeDump is a DumpCollector-implementation which dumps output line-by-line iteratively.
 type iterativeDump struct {
 	*json.Encoder
 }
 
-// Collector interface which the state trie calls during iteration
-type collector interface {
-	onRoot(common.Hash)
-	onAccount(common.Address, DumpAccount)
-}
-
-func (d *Dump) onRoot(root common.Hash) {
-	d.Root = fmt.Sprintf("%x", root)
-}
-
-func (d *Dump) onAccount(addr common.Address, account DumpAccount) {
-	d.Accounts[addr] = account
-}
-
-func (d iterativeDump) onAccount(addr common.Address, account DumpAccount) {
+// OnAccount implements DumpCollector interface
+func (d iterativeDump) OnAccount(addr common.Address, account DumpAccount) {
 	dumpAccount := &DumpAccount{
 		Balance:   account.Balance,
 		Nonce:     account.Nonce,
@@ -82,31 +104,32 @@ func (d iterativeDump) onAccount(addr common.Address, account DumpAccount) {
 	d.Encode(dumpAccount)
 }
 
-func (d iterativeDump) onRoot(root common.Hash) {
+// OnRoot implements DumpCollector interface
+func (d iterativeDump) OnRoot(root common.Hash) {
 	d.Encode(struct {
 		Root common.Hash `json:"root"`
 	}{root})
 }
 
-func (s *StateDB) dump(c collector, excludeCode, excludeStorage, excludeMissingPreimages bool) {
-	emptyAddress := (common.Address{})
+func (s *StateDB) DumpToCollector(c DumpCollector, excludeCode, excludeStorage, excludeMissingPreimages bool, start []byte, maxResults int) (nextKey []byte) {
 	missingPreimages := 0
-	c.onRoot(s.trie.Hash())
-	it := trie.NewIterator(s.trie.NodeIterator(nil))
+	c.OnRoot(s.trie.Hash())
+
+	var count int
+	it := trie.NewIterator(s.trie.NodeIterator(start))
 	for it.Next() {
 		var data Account
 		if err := rlp.DecodeBytes(it.Value, &data); err != nil {
 			panic(err)
 		}
-		addr := common.BytesToAddress(s.trie.GetKey(it.Key))
-		obj := newObject(nil, addr, data)
 		account := DumpAccount{
 			Balance:  data.Balance.String(),
 			Nonce:    data.Nonce,
 			Root:     common.Bytes2Hex(data.Root[:]),
 			CodeHash: common.Bytes2Hex(data.CodeHash),
 		}
-		if emptyAddress == addr {
+		addrBytes := s.trie.GetKey(it.Key)
+		if addrBytes == nil {
 			// Preimage missing
 			missingPreimages++
 			if excludeMissingPreimages {
@@ -114,6 +137,8 @@ func (s *StateDB) dump(c collector, excludeCode, excludeStorage, excludeMissingP
 			}
 			account.SecureKey = it.Key
 		}
+		addr := common.BytesToAddress(addrBytes)
+		obj := newObject(nil, addr, data)
 		if !excludeCode {
 			account.Code = common.Bytes2Hex(obj.Code(s.db))
 		}
@@ -129,11 +154,20 @@ func (s *StateDB) dump(c collector, excludeCode, excludeStorage, excludeMissingP
 				account.Storage[common.BytesToHash(s.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
 			}
 		}
-		c.onAccount(addr, account)
+		c.OnAccount(addr, account)
+		count++
+		if maxResults > 0 && count >= maxResults {
+			if it.Next() {
+				nextKey = it.Key
+			}
+			break
+		}
 	}
 	if missingPreimages > 0 {
 		log.Warn("Dump incomplete due to missing preimages", "missing", missingPreimages)
 	}
+
+	return nextKey
 }
 
 // RawDump returns the entire state an a single large object
@@ -141,7 +175,7 @@ func (s *StateDB) RawDump(excludeCode, excludeStorage, excludeMissingPreimages b
 	dump := &Dump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	s.dump(dump, excludeCode, excludeStorage, excludeMissingPreimages)
+	s.DumpToCollector(dump, excludeCode, excludeStorage, excludeMissingPreimages, nil, 0)
 	return *dump
 }
 
@@ -150,7 +184,7 @@ func (s *StateDB) Dump(excludeCode, excludeStorage, excludeMissingPreimages bool
 	dump := s.RawDump(excludeCode, excludeStorage, excludeMissingPreimages)
 	json, err := json.MarshalIndent(dump, "", "    ")
 	if err != nil {
-		fmt.Println("dump err", err)
+		fmt.Println("Dump err", err)
 	}
 	return json
 }
@@ -187,5 +221,14 @@ func (self *StateDB) DumpAddress(address common.Address) (DumpAccount, bool) {
 
 // IterativeDump dumps out accounts as json-objects, delimited by linebreaks on stdout
 func (s *StateDB) IterativeDump(excludeCode, excludeStorage, excludeMissingPreimages bool, output *json.Encoder) {
-	s.dump(iterativeDump{output}, excludeCode, excludeStorage, excludeMissingPreimages)
+	s.DumpToCollector(iterativeDump{output}, excludeCode, excludeStorage, excludeMissingPreimages, nil, 0)
+}
+
+// IteratorDump dumps out a batch of accounts starts with the given start key
+func (s *StateDB) IteratorDump(excludeCode, excludeStorage, excludeMissingPreimages bool, start []byte, maxResults int) IteratorDump {
+	iterator := &IteratorDump{
+		Accounts: make(map[common.Address]DumpAccount),
+	}
+	iterator.Next = s.DumpToCollector(iterator, excludeCode, excludeStorage, excludeMissingPreimages, start, maxResults)
+	return *iterator
 }

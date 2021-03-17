@@ -22,18 +22,18 @@ jobs:
           echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/') 
       - name: 'Build and publish to Docker Hub'
         uses: docker/build-push-action@v1
-        with: 
+        with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
           repository: ${{ secrets.DOCKER_REPO }}
           tags: ${{ steps.extract.outputs.image_tag }}, ${{ steps.extract.outputs.image_tag_minor_latest }}
           add_git_labels: true
-  build:
+  build-binary:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-18.04", "macos-latest"]
+        os: [ "ubuntu-18.04", "macos-latest" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
@@ -47,7 +47,7 @@ jobs:
           echo "::set-output name=key::$(go env GOOS)_$(go env GOARCH)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
       - name: 'Check out project files'
-        uses: actions/checkout@574281d
+        uses: actions/checkout@v2
         with:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}
@@ -62,48 +62,39 @@ jobs:
         with:
           path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
-  prepare-bintray:
-    name: 'Prepare Bintray'
-    runs-on: ubuntu-18.04
-    steps:
-      - name: 'Setup jfrog CLI'
-        uses: jfrog/setup-jfrog-cli@v1
-      - name: 'Create new version in Bintray'
-        id: prepare_bintray
-        run: |
-          TAG="${GITHUB_REF##*/}"
-          PACKAGE="${{ secrets.BINTRAY_PACKAGE }}" # e.g.: quorumengineering/quorum/geth
-          VERSION="$PACKAGE/$TAG"
-          jfrog bt package-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $PACKAGE
-          echo "Checking $VERSION"
-          jfrog bt version-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $VERSION && x=0 || x=1
-          if [ $x -eq 0 ]; then
-            echo "$VERSION already exists"
-          else
-            jfrog bt version-create --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} \
-                --vcs-tag $TAG --released $(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-                $VERSION
-          fi
-  deploy-bintray:
-    name: 'Deploy binaries to Bintray'
+  deploy-cloudsmith:
+    name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
     needs:
-      - build
-      - prepare-bintray
-    runs-on: ubuntu-18.04
+      - build-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [ "linux_amd64", "darwin_amd64" ]
+    runs-on: ubuntu-latest
     steps:
-      - name: 'Setup jfrog CLI'
-        uses: jfrog/setup-jfrog-cli@v1
+      - name: 'Prepare environment'
+        id: env
+        run: |
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          echo "::set-output name=version::${GITHUB_REF##*/}"
       - name: 'Download artifacts'
         uses: actions/download-artifact@v2
         with:
           path: artifact
-      - name: 'Upload artifacts to Bintray'
-        run: |
-          TAG="${GITHUB_REF##*/}"
-          jfrog bt upload --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} --publish --override \
-              "artifact/*/*.*" \
-              ${{ secrets.BINTRAY_PACKAGE }}/$TAG \
-              $TAG/
+      - name: 'Upload artifacts to Cloudsmith'
+        id: push
+        uses: cloudsmith-io/action@master
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+          command: "push"
+          format: "raw"
+          owner: "consensys"
+          repo: "go-quorum"
+          file: "artifact/${{ matrix.goarch }}/geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
+          name: "geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
+          summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
+          description: "See https://github.com/ConsenSys/quorum/"
+          version: "${{ steps.env.outputs.version }}"
   draft-release:
     name: 'Draft Github release'
     needs:
@@ -133,7 +124,7 @@ jobs:
           echo "| Filename | SHA256 Hash |" >> $file
           echo "|:---------|:------------|" >> $file
           curl -q -s -u ${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_API_KEY}} "https://api.bintray.com/packages/$package/versions/$current_version/files" \
-          	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/$repo/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
+          	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/'"$repo"'/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
           	>> $file
           content=$(cat $file)
           # escape newline

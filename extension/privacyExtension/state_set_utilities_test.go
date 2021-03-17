@@ -53,7 +53,7 @@ func TestLogContainsExtensionTopicWithCorrectHashReturnsTrue(t *testing.T) {
 
 func createStateDb(t *testing.T) *state.StateDB {
 	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"22","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal([]byte(input), &accounts); err != nil {
@@ -102,7 +102,7 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 
 func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"invalid","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal([]byte(input), &accounts); err != nil {
@@ -125,10 +125,10 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
 	// we don't save PrivacyMetadata if it's standardprivate
-	privacyMetaData, err := statedb.GetPrivacyMetadata(address)
+	_, err := statedb.GetPrivacyMetadata(address)
 	assert.Error(t, err, common.ErrNoAccountExtraData)
 
-	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
+	privacyMetaData := &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
 	statedb.SetPrivacyMetadata(address, privacyMetaData)
 
 	privacyMetaData, err = statedb.GetPrivacyMetadata(address)

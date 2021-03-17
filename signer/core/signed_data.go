@@ -31,7 +31,6 @@ import (
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -99,7 +98,7 @@ func (t *Type) isReferenceType() bool {
 	if len(t.Type) == 0 {
 		return false
 	}
-	// Reference types must have a leading uppercase characer
+	// Reference types must have a leading uppercase character
 	return unicode.IsUpper([]rune(t.Type)[0])
 }
 
@@ -482,6 +481,24 @@ func (typedData *TypedData) EncodeData(primaryType string, data map[string]inter
 	return buffer.Bytes(), nil
 }
 
+// Attempt to parse bytes in different formats: byte array, hex string, hexutil.Bytes.
+func parseBytes(encType interface{}) ([]byte, bool) {
+	switch v := encType.(type) {
+	case []byte:
+		return v, true
+	case hexutil.Bytes:
+		return []byte(v), true
+	case string:
+		bytes, err := hexutil.Decode(v)
+		if err != nil {
+			return nil, false
+		}
+		return bytes, true
+	default:
+		return nil, false
+	}
+}
+
 func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 	var (
 		length int
@@ -561,7 +578,7 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue interf
 		}
 		return crypto.Keccak256([]byte(strVal)), nil
 	case "bytes":
-		bytesValue, ok := encValue.([]byte)
+		bytesValue, ok := parseBytes(encValue)
 		if !ok {
 			return nil, dataMismatchError(encType, encValue)
 		}
@@ -576,10 +593,13 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue interf
 		if length < 0 || length > 32 {
 			return nil, fmt.Errorf("invalid size on bytes: %d", length)
 		}
-		if byteValue, ok := encValue.(hexutil.Bytes); !ok {
+		if byteValue, ok := parseBytes(encValue); !ok || len(byteValue) != length {
 			return nil, dataMismatchError(encType, encValue)
 		} else {
-			return math.PaddedBigBytes(new(big.Int).SetBytes(byteValue), 32), nil
+			// Right-pad the bits
+			dst := make([]byte, 32)
+			copy(dst, byteValue)
+			return dst, nil
 		}
 	}
 	if strings.HasPrefix(encType, "int") || strings.HasPrefix(encType, "uint") {
@@ -587,7 +607,7 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue interf
 		if err != nil {
 			return nil, err
 		}
-		return abi.U256(b), nil
+		return math.U256Bytes(b), nil
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", encType)
 
@@ -827,23 +847,23 @@ func (t Types) validate() error {
 		}
 		for i, typeObj := range typeArr {
 			if len(typeObj.Type) == 0 {
-				return fmt.Errorf("type %v:%d: empty Type", typeKey, i)
+				return fmt.Errorf("type %q:%d: empty Type", typeKey, i)
 			}
 			if len(typeObj.Name) == 0 {
-				return fmt.Errorf("type %v:%d: empty Name", typeKey, i)
+				return fmt.Errorf("type %q:%d: empty Name", typeKey, i)
 			}
 			if typeKey == typeObj.Type {
-				return fmt.Errorf("type '%s' cannot reference itself", typeObj.Type)
+				return fmt.Errorf("type %q cannot reference itself", typeObj.Type)
 			}
 			if typeObj.isReferenceType() {
 				if _, exist := t[typeObj.typeName()]; !exist {
-					return fmt.Errorf("reference type '%s' is undefined", typeObj.Type)
+					return fmt.Errorf("reference type %q is undefined", typeObj.Type)
 				}
 				if !typedDataReferenceTypeRegexp.MatchString(typeObj.Type) {
-					return fmt.Errorf("unknown reference type '%s", typeObj.Type)
+					return fmt.Errorf("unknown reference type %q", typeObj.Type)
 				}
 			} else if !isPrimitiveTypeValid(typeObj.Type) {
-				return fmt.Errorf("unknown type '%s'", typeObj.Type)
+				return fmt.Errorf("unknown type %q", typeObj.Type)
 			}
 		}
 	}
@@ -923,7 +943,9 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 		primitiveType == "bytes30" ||
 		primitiveType == "bytes30[]" ||
 		primitiveType == "bytes31" ||
-		primitiveType == "bytes31[]" {
+		primitiveType == "bytes31[]" ||
+		primitiveType == "bytes32" ||
+		primitiveType == "bytes32[]" {
 		return true
 	}
 	if primitiveType == "int" ||
@@ -964,11 +986,7 @@ func isPrimitiveTypeValid(primitiveType string) bool {
 // validate checks if the given domain is valid, i.e. contains at least
 // the minimum viable keys and values
 func (domain *TypedDataDomain) validate() error {
-	if domain.ChainId == nil {
-		return errors.New("chainId must be specified according to EIP-155")
-	}
-
-	if len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 && len(domain.Salt) == 0 {
+	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 && len(domain.Salt) == 0 {
 		return errors.New("domain is undefined")
 	}
 

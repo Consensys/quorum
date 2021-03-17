@@ -41,7 +41,7 @@ import (
 func TestUpdateLeaks(t *testing.T) {
 	// Create an empty state database
 	db := rawdb.NewMemoryDatabase()
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, NewDatabase(db), nil)
 
 	// Update it with some accounts
 	for i := byte(0); i < 255; i++ {
@@ -57,12 +57,12 @@ func TestUpdateLeaks(t *testing.T) {
 	}
 
 	root := state.IntermediateRoot(false)
-	if err := state.Database().TrieDB().Commit(root, false); err != nil {
+	if err := state.Database().TrieDB().Commit(root, false, nil); err != nil {
 		t.Errorf("can not commit trie %v to persistent database", root.Hex())
 	}
 
 	// Ensure that no data was leaked into the database
-	it := db.NewIterator()
+	it := db.NewIterator(nil, nil)
 	for it.Next() {
 		t.Errorf("State leaked into database: %x -> %x", it.Key(), it.Value())
 	}
@@ -75,8 +75,8 @@ func TestIntermediateLeaks(t *testing.T) {
 	// Create two state databases, one transitioning to the final state, the other final from the beginning
 	transDb := rawdb.NewMemoryDatabase()
 	finalDb := rawdb.NewMemoryDatabase()
-	transState, _ := New(common.Hash{}, NewDatabase(transDb))
-	finalState, _ := New(common.Hash{}, NewDatabase(finalDb))
+	transState, _ := New(common.Hash{}, NewDatabase(transDb), nil)
+	finalState, _ := New(common.Hash{}, NewDatabase(finalDb), nil)
 
 	modify := func(state *StateDB, addr common.Address, i, tweak byte) {
 		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
@@ -108,7 +108,7 @@ func TestIntermediateLeaks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to commit transition state: %v", err)
 	}
-	if err = transState.Database().TrieDB().Commit(transRoot, false); err != nil {
+	if err = transState.Database().TrieDB().Commit(transRoot, false, nil); err != nil {
 		t.Errorf("can not commit trie %v to persistent database", transRoot.Hex())
 	}
 
@@ -116,11 +116,11 @@ func TestIntermediateLeaks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to commit final state: %v", err)
 	}
-	if err = finalState.Database().TrieDB().Commit(finalRoot, false); err != nil {
+	if err = finalState.Database().TrieDB().Commit(finalRoot, false, nil); err != nil {
 		t.Errorf("can not commit trie %v to persistent database", finalRoot.Hex())
 	}
 
-	it := finalDb.NewIterator()
+	it := finalDb.NewIterator(nil, nil)
 	for it.Next() {
 		key, fvalue := it.Key(), it.Value()
 		tvalue, err := transDb.Get(key)
@@ -133,7 +133,7 @@ func TestIntermediateLeaks(t *testing.T) {
 	}
 	it.Release()
 
-	it = transDb.NewIterator()
+	it = transDb.NewIterator(nil, nil)
 	for it.Next() {
 		key, tvalue := it.Key(), it.Value()
 		fvalue, err := finalDb.Get(key)
@@ -146,43 +146,12 @@ func TestIntermediateLeaks(t *testing.T) {
 	}
 }
 
-func TestStorageRoot(t *testing.T) {
-	var (
-		mem      = rawdb.NewMemoryDatabase()
-		db       = NewDatabase(mem)
-		state, _ = New(common.Hash{}, db)
-		addr     = common.Address{1}
-		key      = common.Hash{1}
-		value    = common.Hash{42}
-
-		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	)
-
-	so := state.GetOrNewStateObject(addr)
-
-	emptyRoot := so.storageRoot(db)
-	if emptyRoot != empty {
-		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
-	}
-
-	// add a bit of state
-	so.SetState(db, key, value)
-	state.Commit(false)
-
-	root := so.storageRoot(db)
-	expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
-
-	if expected != root {
-		t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
-	}
-}
-
-// TestCopy tests that copying a statedb object indeed makes the original and
+// TestCopy tests that copying a StateDB object indeed makes the original and
 // the copy independent of each other. This test is a regression test against
 // https://github.com/ethereum/go-ethereum/pull/15549.
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
-	orig, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	orig, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	for i := byte(0); i < 255; i++ {
 		obj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
@@ -434,7 +403,7 @@ func (test *snapshotTest) String() string {
 func (test *snapshotTest) run() bool {
 	// Run all actions and create snapshots.
 	var (
-		state, _     = New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+		state, _     = New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 		snapshotRevs = make([]int, len(test.snapshots))
 		sindex       = 0
 	)
@@ -448,7 +417,7 @@ func (test *snapshotTest) run() bool {
 	// Revert all snapshots in reverse order. Each revert must yield a state
 	// that is equivalent to fresh state with all actions up the snapshot applied.
 	for sindex--; sindex >= 0; sindex-- {
-		checkstate, _ := New(common.Hash{}, state.Database())
+		checkstate, _ := New(common.Hash{}, state.Database(), nil)
 		for _, action := range test.actions[:test.snapshots[sindex]] {
 			action.fn(action, checkstate)
 		}
@@ -529,7 +498,7 @@ func TestTouchDelete(t *testing.T) {
 // TestCopyOfCopy tests that modified objects are carried over to the copy, and the copy of the copy.
 // See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	addr := common.HexToAddress("aaaa")
 	state.SetBalance(addr, big.NewInt(42))
 
@@ -546,7 +515,7 @@ func TestCopyOfCopy(t *testing.T) {
 //
 // See https://github.com/ethereum/go-ethereum/issues/20106.
 func TestCopyCommitCopy(t *testing.T) {
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.HexToAddress("0xaffeaffeaffeaffeaffeaffeaffeaffeaffeaffe")
@@ -618,7 +587,7 @@ func TestCopyCommitCopy(t *testing.T) {
 //
 // See https://github.com/ethereum/go-ethereum/issues/20106.
 func TestCopyCopyCommitCopy(t *testing.T) {
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	// Create an account and check if the retrieved balance is correct
 	addr := common.HexToAddress("0xaffeaffeaffeaffeaffeaffeaffeaffeaffeaffe")
@@ -699,16 +668,16 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 }
 
 // TestDeleteCreateRevert tests a weird state transition corner case that we hit
-// while changing the internals of statedb. The workflow is that a contract is
-// self destructed, then in a followup transaction (but same block) it's created
+// while changing the internals of StateDB. The workflow is that a contract is
+// self-destructed, then in a follow-up transaction (but same block) it's created
 // again and the transaction reverted.
 //
-// The original statedb implementation flushed dirty objects to the tries after
+// The original StateDB implementation flushed dirty objects to the tries after
 // each transaction, so this works ok. The rework accumulated writes in memory
 // first, but the journal wiped the entire state object on create-revert.
 func TestDeleteCreateRevert(t *testing.T) {
 	// Create an initial state with a single contract
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	addr := toAddr([]byte("so"))
 	state.SetBalance(addr, big.NewInt(1))
@@ -733,11 +702,145 @@ func TestDeleteCreateRevert(t *testing.T) {
 	}
 }
 
+// TestMissingTrieNodes tests that if the StateDB fails to load parts of the trie,
+// the Commit operation fails with an error
+// If we are missing trie nodes, we should not continue writing to the trie
+func TestMissingTrieNodes(t *testing.T) {
+
+	// Create an initial state with a few accounts
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	var root common.Hash
+	state, _ := New(common.Hash{}, db, nil)
+	addr := toAddr([]byte("so"))
+	{
+		state.SetBalance(addr, big.NewInt(1))
+		state.SetCode(addr, []byte{1, 2, 3})
+		a2 := toAddr([]byte("another"))
+		state.SetBalance(a2, big.NewInt(100))
+		state.SetCode(a2, []byte{1, 2, 4})
+		root, _ = state.Commit(false)
+		t.Logf("root: %x", root)
+		// force-flush
+		state.Database().TrieDB().Cap(0)
+	}
+	// Create a new state on the old root
+	state, _ = New(root, db, nil)
+	// Now we clear out the memdb
+	it := memDb.NewIterator(nil, nil)
+	for it.Next() {
+		k := it.Key()
+		// Leave the root intact
+		if !bytes.Equal(k, root[:]) {
+			t.Logf("key: %x", k)
+			memDb.Delete(k)
+		}
+	}
+	balance := state.GetBalance(addr)
+	// The removed elem should lead to it returning zero balance
+	if exp, got := uint64(0), balance.Uint64(); got != exp {
+		t.Errorf("expected %d, got %d", exp, got)
+	}
+	// Modify the state
+	state.SetBalance(addr, big.NewInt(2))
+	root, err := state.Commit(false)
+	if err == nil {
+		t.Fatalf("expected error, got root :%x", root)
+	}
+}
+
+// Quorum
+
+func TestStorageRoot(t *testing.T) {
+	var (
+		mem      = rawdb.NewMemoryDatabase()
+		db       = NewDatabase(mem)
+		state, _ = New(common.Hash{}, db, nil)
+		addr     = common.Address{1}
+		key      = common.Hash{1}
+		value    = common.Hash{42}
+
+		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	)
+
+	so := state.GetOrNewStateObject(addr)
+
+	emptyRoot := so.storageRoot(db)
+	if emptyRoot != empty {
+		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
+	}
+
+	// add a bit of state
+	so.SetState(db, key, value)
+	state.Commit(false)
+
+	root := so.storageRoot(db)
+	expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
+
+	if expected != root {
+		t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
+	}
+}
+
+// End Quorum
+
+// Quorum - NewDual
+
+func TestStorageRootNewDual(t *testing.T) {
+
+	var (
+		pubMem                 = rawdb.NewMemoryDatabase()
+		privMem                = rawdb.NewMemoryDatabase()
+		pubDb                  = NewDatabase(pubMem)
+		privDb                 = NewDatabase(privMem)
+		pubState, privState, _ = NewDual(common.Hash{}, pubDb, nil, privMem, privDb, nil)
+		addr                   = common.Address{1}
+		key                    = common.Hash{1}
+		value                  = common.Hash{42}
+
+		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	)
+
+	args := []struct {
+		db    Database
+		state *StateDB
+	}{
+		{
+			pubDb, pubState,
+		},
+		{
+			privDb, privState,
+		},
+	}
+
+	for _, arg := range args {
+		so := arg.state.GetOrNewStateObject(addr)
+
+		emptyRoot := so.storageRoot(arg.db)
+		if emptyRoot != empty {
+			t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
+		}
+
+		// add a bit of state
+		so.SetState(arg.db, key, value)
+		arg.state.Commit(false)
+
+		root := so.storageRoot(arg.db)
+		expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
+
+		if expected != root {
+			t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
+		}
+	}
+}
+
+// End Quorum - NewDual
+
 // Quorum - Privacy Enhancements
 func TestPrivacyMetadataIsSavedOnStateDbCommit(t *testing.T) {
 	ethDb := rawdb.NewMemoryDatabase()
 	stateDb := NewDatabase(ethDb)
-	state, _ := New(common.Hash{}, stateDb)
+	state, _ := New(common.Hash{}, stateDb, nil)
 
 	addr := common.Address{1}
 	state.CreateAccount(addr)
@@ -764,7 +867,7 @@ func TestPrivacyMetadataIsSavedOnStateDbCommit(t *testing.T) {
 func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t *testing.T) {
 	ethDb := rawdb.NewMemoryDatabase()
 	stateDb := NewDatabase(ethDb)
-	state, _ := New(common.Hash{}, stateDb)
+	state, _ := New(common.Hash{}, stateDb, nil)
 
 	addr := common.Address{1}
 	state.CreateAccount(addr)
@@ -801,7 +904,7 @@ func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t
 func TestPrivacyMetadataIsRemovedOnAccountSuicide(t *testing.T) {
 	ethDb := rawdb.NewMemoryDatabase()
 	stateDb := NewDatabase(ethDb)
-	state, _ := New(common.Hash{}, stateDb)
+	state, _ := New(common.Hash{}, stateDb, nil)
 
 	addr := common.Address{1}
 	state.CreateAccount(addr)
@@ -830,7 +933,7 @@ func TestPrivacyMetadataIsRemovedOnAccountSuicide(t *testing.T) {
 func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	ethDb := rawdb.NewMemoryDatabase()
 	stateDb := NewDatabase(ethDb)
-	state, _ := New(common.Hash{}, stateDb)
+	state, _ := New(common.Hash{}, stateDb, nil)
 
 	addr := common.Address{1}
 	state.CreateAccount(addr)

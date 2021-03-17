@@ -17,7 +17,6 @@
 package miner
 
 import (
-	"fmt"
 	"math/big"
 	"math/rand"
 	"sync/atomic"
@@ -118,7 +117,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	}
 	genesis := gspec.MustCommit(db)
 
-	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil)
+	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil)
 	txpool := core.NewTxPool(testTxPoolConfig, chainConfig, chain)
 
 	// Generate a small n-block chain and an uncle block for it
@@ -150,9 +149,6 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 func (b *testWorkerBackend) ChainDb() ethdb.Database      { return b.db }
 func (b *testWorkerBackend) BlockChain() *core.BlockChain { return b.chain }
 func (b *testWorkerBackend) TxPool() *core.TxPool         { return b.txPool }
-func (b *testWorkerBackend) PostChainEvents(events []interface{}) {
-	b.chain.PostChainEvents(events, nil)
-}
 
 func (b *testWorkerBackend) newRandomUncle() *types.Block {
 	var parent *types.Block
@@ -214,43 +210,37 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	w, b := newTestWorker(t, chainConfig, engine, db, 0)
 	defer w.close()
 
+	// This test chain imports the mined blocks.
 	db2 := rawdb.NewMemoryDatabase()
 	b.genesis.MustCommit(db2)
-	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil)
+	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil)
 	defer chain.Stop()
 
-	loopErr := make(chan error)
-	newBlock := make(chan struct{})
-	listenNewBlock := func() {
-		sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
-		defer sub.Unsubscribe()
-
-		for item := range sub.Chan() {
-			block := item.Data.(core.NewMinedBlockEvent).Block
-			_, err := chain.InsertChain([]*types.Block{block})
-			if err != nil {
-				loopErr <- fmt.Errorf("failed to insert new mined block:%d, error:%v", block.NumberU64(), err)
-			}
-			newBlock <- struct{}{}
-		}
-	}
-	// Ignore empty commit here for less noise
+	// Ignore empty commit here for less noise.
 	w.skipSealHook = func(task *task) bool {
 		return len(task.receipts) == 0
 	}
-	w.start() // Start mining!
-	go listenNewBlock()
+
+	// Wait for mined blocks.
+	sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
+	defer sub.Unsubscribe()
+
+	// Start mining!
+	w.start()
 
 	for i := 0; i < 5; i++ {
 		b.txPool.AddLocal(b.newRandomTx(true))
 		b.txPool.AddLocal(b.newRandomTx(false))
-		b.PostChainEvents([]interface{}{core.ChainSideEvent{Block: b.newRandomUncle()}})
-		b.PostChainEvents([]interface{}{core.ChainSideEvent{Block: b.newRandomUncle()}})
+		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
+		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
+
 		select {
-		case e := <-loopErr:
-			t.Fatal(e)
-		case <-newBlock:
-		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.
+		case ev := <-sub.Chan():
+			block := ev.Data.(core.NewMinedBlockEvent).Block
+			if _, err := chain.InsertChain([]*types.Block{block}); err != nil {
+				t.Fatalf("failed to insert new mined block %d: %v", block.NumberU64(), err)
+			}
+		case <-time.After(3 * time.Second): // Worker needs 1s to include new changes.
 			t.Fatalf("timeout")
 		}
 	}
@@ -296,9 +286,7 @@ func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consens
 	}
 	w.skipSealHook = func(task *task) bool { return true }
 	w.fullTaskHook = func() {
-		// Aarch64 unit tests are running in a VM on travis, they must
-		// be given more time to execute.
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 	}
 	w.start() // Start mining!
 	for i := 0; i < 2; i += 1 {
@@ -352,7 +340,8 @@ func TestStreamUncleBlock(t *testing.T) {
 		}
 	}
 
-	b.PostChainEvents([]interface{}{core.ChainSideEvent{Block: b.uncleBlock}})
+	w.postSideBlock(core.ChainSideEvent{Block: b.uncleBlock})
+
 	select {
 	case <-taskCh:
 	case <-time.NewTimer(time.Second).C:

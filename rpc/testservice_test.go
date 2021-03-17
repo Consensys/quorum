@@ -63,6 +63,12 @@ type echoResult struct {
 	Args   *echoArgs
 }
 
+type testError struct{}
+
+func (testError) Error() string          { return "testError" }
+func (testError) ErrorCode() int         { return 444 }
+func (testError) ErrorData() interface{} { return "testError data" }
+
 func (s *testService) NoArgsRets() {}
 
 func (s *testService) Echo(str string, i int, args *echoArgs) echoResult {
@@ -81,6 +87,11 @@ func (s *testService) Sleep(ctx context.Context, duration time.Duration) {
 	time.Sleep(duration)
 }
 
+func (s *testService) Block(ctx context.Context) error {
+	<-ctx.Done()
+	return errors.New("context canceled in testservice_block")
+}
+
 func (s *testService) Rets() (string, error) {
 	return "", nil
 }
@@ -96,6 +107,10 @@ func (s *testService) InvalidRets2() (string, string) {
 
 func (s *testService) InvalidRets3() (string, string, error) {
 	return "", "", nil
+}
+
+func (s *testService) ReturnError() error {
+	return testError{}
 }
 
 func (s *testService) CallMeBack(ctx context.Context, method string, args []interface{}) (interface{}, error) {

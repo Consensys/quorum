@@ -342,6 +342,33 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 
 // END QUORUM
 
+func (t *Transaction) R(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	_, r, _ := tx.RawSignatureValues()
+	return hexutil.Big(*r), nil
+}
+
+func (t *Transaction) S(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	_, _, s := tx.RawSignatureValues()
+	return hexutil.Big(*s), nil
+}
+
+func (t *Transaction) V(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	v, _, _ := tx.RawSignatureValues()
+	return hexutil.Big(*v), nil
+}
+
 type BlockType int
 
 // Block represents an Ethereum block.
@@ -585,7 +612,7 @@ func (b *Block) TotalDifficulty(ctx context.Context) (hexutil.Big, error) {
 		}
 		h = header.Hash()
 	}
-	return hexutil.Big(*b.backend.GetTd(h)), nil
+	return hexutil.Big(*b.backend.GetTd(ctx, h)), nil
 }
 
 // BlockNumberArgs encapsulates arguments to accessors that specify a block number.
@@ -806,16 +833,20 @@ func (b *Block) Call(ctx context.Context, args struct {
 	}
 
 	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
-	result, gas, failed, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
+	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
 	status := hexutil.Uint64(1)
-	if failed {
+	if result.Failed() {
 		status = 0
 	}
+
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.ReturnData,
+		gasUsed: hexutil.Uint64(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (b *Block) EstimateGas(ctx context.Context, args struct {
@@ -874,16 +905,20 @@ func (p *Pending) Call(ctx context.Context, args struct {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
 
 	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
-	result, gas, failed, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
+	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
 	status := hexutil.Uint64(1)
-	if failed {
+	if result.Failed() {
 		status = 0
 	}
+
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.ReturnData,
+		gasUsed: hexutil.Uint64(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (p *Pending) EstimateGas(ctx context.Context, args struct {
@@ -1039,6 +1074,10 @@ func (r *Resolver) GasPrice(ctx context.Context) (hexutil.Big, error) {
 
 func (r *Resolver) ProtocolVersion(ctx context.Context) (int32, error) {
 	return int32(r.backend.ProtocolVersion()), nil
+}
+
+func (r *Resolver) ChainID(ctx context.Context) (hexutil.Big, error) {
+	return hexutil.Big(*r.backend.ChainConfig().ChainID), nil
 }
 
 // SyncState represents the synchronisation status returned from the `syncing` accessor.

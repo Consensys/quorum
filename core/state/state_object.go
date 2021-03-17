@@ -211,15 +211,35 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 	if value, cached := s.originStorage[key]; cached {
 		return value
 	}
-	// Track the amount of time wasted on reading the storage trie
-	if metrics.EnabledExpensive {
-		defer func(start time.Time) { s.db.StorageReads += time.Since(start) }(time.Now())
+	// If no live objects are available, attempt to use snapshots
+	var (
+		enc []byte
+		err error
+	)
+	if s.db.snap != nil {
+		if metrics.EnabledExpensive {
+			defer func(start time.Time) { s.db.SnapshotStorageReads += time.Since(start) }(time.Now())
+		}
+		// If the object was destructed in *this* block (and potentially resurrected),
+		// the storage has been cleared out, and we should *not* consult the previous
+		// snapshot about any storage values. The only possible alternatives are:
+		//   1) resurrect happened, and new slot values were set -- those should
+		//      have been handles via pendingStorage above.
+		//   2) we don't have new values, and can deliver empty response back
+		if _, destructed := s.db.snapDestructs[s.addrHash]; destructed {
+			return common.Hash{}
+		}
+		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
 	}
-	// Otherwise load the value from the database
-	enc, err := s.getTrie(db).TryGet(key[:])
-	if err != nil {
-		s.setError(err)
-		return common.Hash{}
+	// If snapshot unavailable or reading from it failed, load from the database
+	if s.db.snap == nil || err != nil {
+		if metrics.EnabledExpensive {
+			defer func(start time.Time) { s.db.StorageReads += time.Since(start) }(time.Now())
+		}
+		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
+			s.setError(err)
+			return common.Hash{}
+		}
 	}
 	var value common.Hash
 	if len(enc) > 0 {
@@ -288,13 +308,26 @@ func (s *stateObject) finalise() {
 }
 
 // updateTrie writes cached storage modifications into the object's storage trie.
+// It will return nil if the trie has not been loaded and no changes have been made
 func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
 	s.finalise()
-
+	if len(s.pendingStorage) == 0 {
+		return s.trie
+	}
 	// Track the amount of time wasted on updating the storge trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageUpdates += time.Since(start) }(time.Now())
+	}
+	// Retrieve the snapshot storage map for the object
+	var storage map[common.Hash][]byte
+	if s.db.snap != nil {
+		// Retrieve the old storage map, if available, create a new one otherwise
+		storage = s.db.snapStorage[s.addrHash]
+		if storage == nil {
+			storage = make(map[common.Hash][]byte)
+			s.db.snapStorage[s.addrHash] = storage
+		}
 	}
 	// Insert all the pending updates into the trie
 	tr := s.getTrie(db)
@@ -305,13 +338,18 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		}
 		s.originStorage[key] = value
 
+		var v []byte
 		if (value == common.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
-			continue
+		} else {
+			// Encoding []byte cannot fail, ok to ignore the error.
+			v, _ = rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
+			s.setError(tr.TryUpdate(key[:], v))
 		}
-		// Encoding []byte cannot fail, ok to ignore the error.
-		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
-		s.setError(tr.TryUpdate(key[:], v))
+		// If state snapshotting is active, cache the data til commit
+		if storage != nil {
+			storage[crypto.Keccak256Hash(key[:])] = v // v will be nil if value is 0x00
+		}
 	}
 	if len(s.pendingStorage) > 0 {
 		s.pendingStorage = make(Storage)
@@ -321,8 +359,10 @@ func (s *stateObject) updateTrie(db Database) Trie {
 
 // UpdateRoot sets the trie root to the current root hash of
 func (s *stateObject) updateRoot(db Database) {
-	s.updateTrie(db)
-
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return
+	}
 	// Track the amount of time wasted on hashing the storge trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageHashes += time.Since(start) }(time.Now())
@@ -333,7 +373,10 @@ func (s *stateObject) updateRoot(db Database) {
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
 func (s *stateObject) CommitTrie(db Database) error {
-	s.updateTrie(db)
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return nil
+	}
 	if s.dbErr != nil {
 		return s.dbErr
 	}
@@ -348,22 +391,21 @@ func (s *stateObject) CommitTrie(db Database) error {
 	return err
 }
 
-// AddBalance removes amount from c's balance.
+// AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
 func (s *stateObject) AddBalance(amount *big.Int) {
-	// EIP158: We must check emptiness for the objects such that the account
+	// EIP161: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
 		if s.empty() {
 			s.touch()
 		}
-
 		return
 	}
 	s.SetBalance(new(big.Int).Add(s.Balance(), amount))
 }
 
-// SubBalance removes amount from c's balance.
+// SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (s *stateObject) SubBalance(amount *big.Int) {
 	if amount.Sign() == 0 {
@@ -429,6 +471,23 @@ func (s *stateObject) Code(db Database) []byte {
 	}
 	s.code = code
 	return code
+}
+
+// CodeSize returns the size of the contract code associated with this object,
+// or zero if none. This method is an almost mirror of Code, but uses a cache
+// inside the database to avoid loading codes seen recently.
+func (s *stateObject) CodeSize(db Database) int {
+	if s.code != nil {
+		return len(s.code)
+	}
+	if bytes.Equal(s.CodeHash(), emptyCodeHash) {
+		return 0
+	}
+	size, err := db.ContractCodeSize(s.addrHash, common.BytesToHash(s.CodeHash()))
+	if err != nil {
+		s.setError(fmt.Errorf("can't load code size %x: %v", s.CodeHash(), err))
+	}
+	return size
 }
 
 func (s *stateObject) SetCode(codeHash common.Hash, code []byte) {
