@@ -404,7 +404,7 @@ func (n *Node) startRPC() error {
 		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
-		n.configureMultitenancy(server.httpHandler.Load().(*rpcHandler).server)
+		n.configureMultitenancy(server.wsHandler.Load().(*rpcHandler).server)
 	}
 
 	if err := n.http.start(tls); err != nil {
