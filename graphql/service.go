@@ -20,7 +20,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -52,24 +54,35 @@ func newHandler(stack *node.Node, backend ethapi.Backend, cors, vhosts []string)
 	// auth/authz and multiple private states handling
 	// as GraphQL handler is created before services start
 	// so we need to defer the authManagerFunc creation in the later call.
+	authManagerFunc := func() (security.AuthenticationManager, error) {
+		// Obtain the authentication manager for the handler to deal with rpc security
+		_, auth, err := stack.GetSecuritySupports()
+		if err != nil {
+			return nil, err
+		}
+		if auth == nil {
+			return security.NewDisabledAuthenticationManager(), nil
+		}
+		return auth, err
+	}
 	handler := &secureHandler{
-		authManagerFunc: func() (security.AuthenticationManager, error) {
-			// Obtain the authentication manager for the handler to deal with rpc security
-			_, auth, err := stack.GetSecuritySupports()
-			if err != nil {
-				return nil, err
-			}
-			if auth == nil {
-				return security.NewDisabledAuthenticationManager(), nil
-			}
-			return auth, err
-		},
+		authManagerFunc: authManagerFunc,
 		isMultitenant:   stack.Config().EnableMultitenancy,
 		protectedMethod: "graphql_*", // this follows JSON RPC convention using namespace graphql
 		delegate:        node.NewHTTPHandlerStack(h, cors, vhosts),
 	}
-
-	stack.RegisterHandler("GraphQL UI", "/graphql/ui", GraphiQL{})
+	// need to obtain eth service in order to know if MPS is enabled
+	isMPS := false
+	var ethereum *eth.Ethereum
+	if err := stack.Lifecycle(&ethereum); err != nil {
+		log.Warn("Eth service is not ready yet", "error", err)
+	} else {
+		isMPS = ethereum.BlockChain().Config().IsMPS
+	}
+	stack.RegisterHandler("GraphQL UI", "/graphql/ui", GraphiQL{
+		authManagerFunc: authManagerFunc,
+		isMPS:           isMPS,
+	})
 	stack.RegisterHandler("GraphQL", "/graphql", handler)
 	stack.RegisterHandler("GraphQL", "/graphql/", handler)
 
