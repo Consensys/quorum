@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -151,6 +152,10 @@ func enableWhisper(ctx *cli.Context) bool {
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	}
+
 	stack, cfg := makeConfigNode(ctx)
 
 	// Quorum - returning `ethService` too for the Raft and extension service
@@ -262,6 +267,22 @@ func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 			utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
 		}
 	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
 }
 
 // Get private transaction manager configuration
