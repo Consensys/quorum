@@ -152,10 +152,6 @@ func enableWhisper(ctx *cli.Context) bool {
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
-	if err := quorumInitialisePrivacy(ctx); err != nil {
-		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
-	}
-
 	stack, cfg := makeConfigNode(ctx)
 
 	// Quorum - returning `ethService` too for the Raft and extension service
@@ -174,6 +170,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
+	}
+
+	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
