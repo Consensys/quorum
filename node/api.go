@@ -184,6 +184,7 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		CorsAllowedOrigins: api.node.config.HTTPCors,
 		Vhosts:             api.node.config.HTTPVirtualHosts,
 		Modules:            api.node.config.HTTPModules,
+		IsMultitenant:      api.node.config.EnableMultitenancy,
 	}
 	if cors != nil {
 		config.CorsAllowedOrigins = nil
@@ -204,7 +205,7 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
-	tls, auth, err := api.node.getSecuritySupports()
+	tls, auth, err := api.node.GetSecuritySupports()
 	if err != nil {
 		return false, err
 	}
@@ -249,6 +250,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		Modules: api.node.config.WSModules,
 		Origins: api.node.config.WSOrigins,
 		// ExposeAll: api.node.config.WSExposeAll,
+		IsMultitenant: api.node.config.EnableMultitenancy,
 	}
 	if apis != nil {
 		config.Modules = nil
@@ -263,7 +265,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
-	tls, auth, err := api.node.getSecuritySupports()
+	tls, auth, err := api.node.GetSecuritySupports()
 	if err != nil {
 		return false, err
 	}

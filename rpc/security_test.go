@@ -132,7 +132,7 @@ func TestSecureCall_whenThereIsAuthenticationError(t *testing.T) {
 		{ctxAuthenticationError, arbitraryError},
 	})
 
-	_, err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{})
+	_, err := SecureCall(stubSecurityContextResolver, "")
 
 	assert.EqualError(err, arbitraryError.Error())
 }
@@ -146,7 +146,7 @@ func TestSecureCall_whenTokenExpired(t *testing.T) {
 		}},
 	})
 
-	_, err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{})
+	_, err := SecureCall(stubSecurityContextResolver, "")
 
 	assert.EqualError(err, "token expired")
 }
@@ -166,7 +166,7 @@ func TestSecureCall_whenTypical(t *testing.T) {
 		}},
 	})
 
-	_, err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "eth_blockNumber"})
+	_, err := SecureCall(stubSecurityContextResolver, "eth_blockNumber")
 
 	assert.NoError(err)
 }
@@ -186,7 +186,7 @@ func TestSecureCall_whenAccessDenied(t *testing.T) {
 		}},
 	})
 
-	_, err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "eth_someMethod"})
+	_, err := SecureCall(stubSecurityContextResolver, "eth_someMethod")
 
 	assert.EqualError(err, "eth_someMethod - access denied")
 }
@@ -200,24 +200,24 @@ func TestSecureCall_whenMethodInJSONMessageIsNotSupported(t *testing.T) {
 		}},
 	})
 
-	_, err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "arbitrary method"})
+	_, err := SecureCall(stubSecurityContextResolver, "arbitrary method")
 
 	assert.NoError(err)
 }
 
 type stubSecurityContextResolver struct {
-	ctx securityContext
+	ctx SecurityContext
 }
 
 func newStubSecurityContextResolver(ctx []struct{ k, v interface{} }) *stubSecurityContextResolver {
-	sc := securityContext(context.Background())
+	sc := SecurityContext(context.Background())
 	for _, kv := range ctx {
 		sc = context.WithValue(sc, kv.k, kv.v)
 	}
 	return &stubSecurityContextResolver{sc}
 }
 
-func (sr *stubSecurityContextResolver) Resolve() securityContext {
+func (sr *stubSecurityContextResolver) Resolve() SecurityContext {
 	return sr.ctx
 }
 

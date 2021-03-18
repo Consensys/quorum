@@ -13,12 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/multitenancy"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type securityContextKey string
-type securityContext context.Context
+type SecurityContext context.Context
 
 const (
 	HttpAuthorizationHeader              = "Authorization"
@@ -44,15 +45,15 @@ const (
 
 type securityContextSupport interface {
 	securityContextConfigurer
-	securityContextResolver
+	SecurityContextResolver
 }
 
 type securityContextConfigurer interface {
-	Configure(secCtx securityContext)
+	Configure(secCtx SecurityContext)
 }
 
-type securityContextResolver interface {
-	Resolve() securityContext
+type SecurityContextResolver interface {
+	Resolve() SecurityContext
 }
 
 type securityError struct{ message string }
@@ -111,7 +112,7 @@ func verifyAccess(service, method string, authorities []*proto.GrantedAuthority)
 // token expiration is checked multiple times.
 //
 // It returns the verfied security context for caller to use.
-func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.Context, error) {
+func SecureCall(resolver SecurityContextResolver, method string) (context.Context, error) {
 	secCtx := resolver.Resolve()
 	if secCtx == nil {
 		return context.Background(), nil
@@ -123,9 +124,9 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 		if err := verifyExpiration(authToken); err != nil {
 			return nil, err
 		}
-		elem := strings.SplitN(msg.Method, serviceMethodSeparator, 2)
+		elem := strings.SplitN(method, serviceMethodSeparator, 2)
 		if len(elem) != 2 {
-			log.Warn("unsupported method when performing authorization check", "method", msg.Method)
+			log.Warn("unsupported method when performing authorization check", "method", method)
 		} else if err := verifyAccess(elem[0], elem[1], authToken.Authorities); err != nil {
 			return nil, err
 		}
@@ -157,6 +158,36 @@ func secureCall(resolver securityContextResolver, msg *jsonrpcMessage) (context.
 	return secCtx, nil
 }
 
+// AuthenticateHttpRequest uses the provided authManager to authenticate an http request and populates
+// the provided ctx with additional information useful for consumers
+func AuthenticateHttpRequest(ctx context.Context, r *http.Request, authManager security.AuthenticationManager) (securityContext context.Context) {
+	securityContext = ctx
+	userProvidedPSI, found := extractPSI(r)
+	if found {
+		securityContext = context.WithValue(securityContext, ctxRequestPrivateStateIdentifier, userProvidedPSI)
+	}
+	if isAuthEnabled, err := authManager.IsEnabled(context.Background()); err != nil {
+		// this indicates a failure in the plugin. We don't want any subsequent request unchecked
+		log.Error("failure when checking if authentication manager is enabled", "err", err)
+		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
+		return
+	} else if !isAuthEnabled {
+		// node is not configured to be multitenant but MPS is enabled
+		securityContext = context.WithValue(securityContext, CtxPrivateStateIdentifier, userProvidedPSI)
+		return
+	}
+	if token, hasToken := extractToken(r); hasToken {
+		if authToken, err := authManager.Authenticate(context.Background(), token); err != nil {
+			securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{err.Error()})
+		} else {
+			securityContext = context.WithValue(securityContext, CtxPreauthenticatedToken, authToken)
+		}
+	} else {
+		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})
+	}
+	return
+}
+
 // construct JSON RPC error message which has the ID of the request
 func securityErrorMessage(forMsg *jsonrpcMessage, err error) *jsonrpcMessage {
 	msg := &jsonrpcMessage{Version: vsn, ID: forMsg.ID, Error: &jsonError{
@@ -170,10 +201,10 @@ func securityErrorMessage(forMsg *jsonrpcMessage, err error) *jsonrpcMessage {
 	return msg
 }
 
-// ExtractPSI tries to extract the PSI from the HTTP Header then the URL
+// extractPSI tries to extract the PSI from the HTTP Header then the URL
 // otherwise return the default value but still signal the caller
 // that user doesn't provide PSI
-func ExtractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
+func extractPSI(r *http.Request) (types.PrivateStateIdentifier, bool) {
 	psi := r.Header.Get(HttpPrivateStateIdentifierHeader)
 	if len(psi) == 0 {
 		psi = r.URL.Query().Get(QueryPrivateStateIdentifierParamName)

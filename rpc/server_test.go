@@ -164,7 +164,7 @@ func TestServerShortLivedConn(t *testing.T) {
 }
 
 func TestAuthenticateHttpRequest_whenAuthenticationManagerFails(t *testing.T) {
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, errors.New("arbitrary error")})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, errors.New("arbitrary error")}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -178,7 +178,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerFails(t *testing.T) {
 }
 
 func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	arbitraryRequest.Header.Set(HttpAuthorizationHeader, "arbitrary value")
 	captor := &securityContextConfigurerCaptor{}
@@ -192,7 +192,7 @@ func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
 }
 
 func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.T) {
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -205,7 +205,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.
 }
 
 func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -219,7 +219,7 @@ func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
 }
 
 func TestAuthenticateHttpRequest_Multitenancy_whenUserNotProvidePSI(t *testing.T) {
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -231,7 +231,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenUserNotProvidePSI(t *testing.T
 
 func TestAuthenticateHttpRequest_Multitenancy_whenPSIInURL(t *testing.T) {
 	arbitraryPSI := types.ToPrivateStateIdentifier("arbitrary")
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", fmt.Sprintf("https://arbitraryUrl?%s=%s", QueryPrivateStateIdentifierParamName, arbitraryPSI.String()), nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -243,7 +243,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenPSIInURL(t *testing.T) {
 
 func TestAuthenticateHttpRequest_Multitenancy_whenPSIInHTTPHeader(t *testing.T) {
 	arbitraryPSI := types.ToPrivateStateIdentifier("arbitrary")
-	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	arbitraryRequest.Header.Set(HttpPrivateStateIdentifierHeader, arbitraryPSI.String())
 	captor := &securityContextConfigurerCaptor{}
@@ -255,7 +255,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenPSIInHTTPHeader(t *testing.T) 
 }
 
 func TestAuthenticateHttpRequest_MPS_whenTypical(t *testing.T) {
-	singleTenantServer := NewProtectedServer(&stubAuthenticationManager{false, nil})
+	singleTenantServer := NewProtectedServer(&stubAuthenticationManager{false, nil}, false)
 	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
 	captor := &securityContextConfigurerCaptor{}
 
@@ -266,10 +266,10 @@ func TestAuthenticateHttpRequest_MPS_whenTypical(t *testing.T) {
 }
 
 type securityContextConfigurerCaptor struct {
-	context securityContext
+	context SecurityContext
 }
 
-func (sc *securityContextConfigurerCaptor) Configure(secCtx securityContext) {
+func (sc *securityContextConfigurerCaptor) Configure(secCtx SecurityContext) {
 	sc.context = secCtx
 }
 

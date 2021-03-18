@@ -78,11 +78,11 @@ func (hc *httpConn) closed() <-chan interface{} {
 	return hc.closeCh
 }
 
-func (hc *httpConn) Configure(_ securityContext) {
+func (hc *httpConn) Configure(_ SecurityContext) {
 	// Client doesn't need to implement this
 }
 
-func (hc *httpConn) Resolve() securityContext {
+func (hc *httpConn) Resolve() SecurityContext {
 	// Client doesn't need to implement this
 	return context.Background()
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
@@ -46,7 +47,27 @@ func newHandler(stack *node.Node, backend ethapi.Backend, cors, vhosts []string)
 		return err
 	}
 	h := &relay.Handler{Schema: s}
-	handler := &mpsHandler{delegate: node.NewHTTPHandlerStack(h, cors, vhosts)}
+	// Quorum
+	// we wrap the handler with security logic to support
+	// auth/authz and multiple private states handling
+	// as GraphQL handler is created before services start
+	// so we need to defer the authManagerFunc creation in the later call.
+	handler := &secureHandler{
+		authManagerFunc: func() (security.AuthenticationManager, error) {
+			// Obtain the authentication manager for the handler to deal with rpc security
+			_, auth, err := stack.GetSecuritySupports()
+			if err != nil {
+				return nil, err
+			}
+			if auth == nil {
+				return security.NewDisabledAuthenticationManager(), nil
+			}
+			return auth, err
+		},
+		isMultitenant:   stack.Config().EnableMultitenancy,
+		protectedMethod: "graphql_*", // this follows JSON RPC convention using namespace graphql
+		delegate:        node.NewHTTPHandlerStack(h, cors, vhosts),
+	}
 
 	stack.RegisterHandler("GraphQL UI", "/graphql/ui", GraphiQL{})
 	stack.RegisterHandler("GraphQL", "/graphql", handler)
@@ -57,17 +78,40 @@ func newHandler(stack *node.Node, backend ethapi.Backend, cors, vhosts []string)
 
 // Quorum
 //
-// mpsHandler wraps around the http handler in order to propagate the PSI into the request context.
-// Should further consider whether or not to implement full RPC security for graphql (and multitenancy support).
-type mpsHandler struct {
-	delegate http.Handler
+// secureHandler wraps around the http handler in order to perform rpc security
+// and propagate the PSI into the request context.
+type secureHandler struct {
+	delegate        http.Handler
+	protectedMethod string
+	authManagerFunc security.AuthenticationManagerDeferFunc
+	isMultitenant   bool
 }
 
-func (h *mpsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	userProvidedPSI, found := rpc.ExtractPSI(r)
-	if found {
-		ctx := context.WithValue(r.Context(), rpc.CtxPrivateStateIdentifier, userProvidedPSI)
-		r = r.WithContext(ctx)
+func (h *secureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	authManager, err := h.authManagerFunc()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	h.delegate.ServeHTTP(w, r)
+	securityContext := context.WithValue(r.Context(), rpc.CtxIsMultitenant, h.isMultitenant)
+	// authentication check
+	securityContext = rpc.AuthenticateHttpRequest(securityContext, r, authManager)
+	// authorization check
+	securedCtx, err := rpc.SecureCall(&securityContextHolder{ctx: securityContext}, h.protectedMethod)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	h.delegate.ServeHTTP(w, r.WithContext(securedCtx))
+}
+
+// Quorum
+// securityContextHolder stores a context so it can be retrieved later
+// via rpc.SecurityContextResolver interface
+type securityContextHolder struct {
+	ctx rpc.SecurityContext
+}
+
+func (sh *securityContextHolder) Resolve() rpc.SecurityContext {
+	return sh.ctx
 }

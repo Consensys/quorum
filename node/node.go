@@ -369,7 +369,7 @@ func (n *Node) startRPC() error {
 		n.configureMultitenancy(n.ipc.srv)
 	}
 
-	tls, auth, err := n.getSecuritySupports()
+	tls, auth, err := n.GetSecuritySupports()
 	if err != nil {
 		return err
 	}
@@ -380,6 +380,7 @@ func (n *Node) startRPC() error {
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
+			IsMultitenant:      n.config.EnableMultitenancy,
 		}
 		server := n.http
 		if err := server.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
@@ -388,15 +389,15 @@ func (n *Node) startRPC() error {
 		if err := server.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
-		n.configureMultitenancy(server.httpHandler.Load().(*rpcHandler).server)
 	}
 
 	// Configure WebSocket.
 	if n.config.WSHost != "" {
 		server := n.wsServerForPort(n.config.WSPort)
 		config := wsConfig{
-			Modules: n.config.WSModules,
-			Origins: n.config.WSOrigins,
+			Modules:       n.config.WSModules,
+			Origins:       n.config.WSOrigins,
+			IsMultitenant: n.config.EnableMultitenancy,
 		}
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
@@ -404,7 +405,6 @@ func (n *Node) startRPC() error {
 		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
-		n.configureMultitenancy(server.wsHandler.Load().(*rpcHandler).server)
 	}
 
 	if err := n.http.start(tls); err != nil {
@@ -677,7 +677,7 @@ func (n *Node) closeDatabases() (errors []error) {
 }
 
 // Quorum
-func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+func (n *Node) GetSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
 	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
 		sp := new(plugin.SecurityPluginTemplate)
 		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {

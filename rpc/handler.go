@@ -321,8 +321,8 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 //   before the actual processing of the call. It also populates context with preauthenticated
 //   token so the responsible RPC method can leverage if needed (e.g: in multi tenancy)
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
-	if r, ok := h.conn.(securityContextResolver); ok {
-		secCtx, err := secureCall(r, msg)
+	if r, ok := h.conn.(SecurityContextResolver); ok {
+		secCtx, err := SecureCall(r, msg.Method)
 		if err != nil {
 			return securityErrorMessage(msg, err)
 		}

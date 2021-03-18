@@ -40,12 +40,18 @@ type httpConfig struct {
 	Modules            []string
 	CorsAllowedOrigins []string
 	Vhosts             []string
+	// Quorum
+	// IsMultitenant determines if the server supports mutlitenancy
+	IsMultitenant bool
 }
 
 // wsConfig is the JSON-RPC/Websocket configuration
 type wsConfig struct {
 	Origins []string
 	Modules []string
+	// Quorum
+	// IsMultitenant determines if the server supports mutlitenancy
+	IsMultitenant bool
 }
 
 type rpcHandler struct {
@@ -239,7 +245,7 @@ func (h *httpServer) enableRPC(apis []rpc.API, config httpConfig, authManager se
 	}
 
 	// Create RPC server and handler.
-	srv := rpc.NewProtectedServer(authManager)
+	srv := rpc.NewProtectedServer(authManager, config.IsMultitenant)
 	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, false); err != nil {
 		return err
 	}
@@ -272,7 +278,7 @@ func (h *httpServer) enableWS(apis []rpc.API, config wsConfig, authManager secur
 	}
 
 	// Create RPC server and handler.
-	srv := rpc.NewProtectedServer(authManager)
+	srv := rpc.NewProtectedServer(authManager, config.IsMultitenant)
 	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, false); err != nil {
 		return err
 	}

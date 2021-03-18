@@ -56,12 +56,13 @@ type Server struct {
 }
 
 // Quorum
-// Create a server which is protected by authManager
-func NewProtectedServer(authManager security.AuthenticationManager) *Server {
+// Create a server which is protected by authManager and indicates if multitenancy is supported
+func NewProtectedServer(authManager security.AuthenticationManager, isMultitenant bool) *Server {
 	server := NewServer()
 	if authManager != nil {
 		server.authenticationManager = authManager
 	}
+	server.isMultitenant = isMultitenant
 	return server
 }
 
@@ -152,34 +153,9 @@ func (s *Server) Stop() {
 // Perform authentication on the HTTP request. Populate security context with necessary information
 // for subsequent authorization-related activities
 func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextConfigurer) {
-	securityContext := context.Background()
-	defer func() {
-		cfg.Configure(securityContext)
-	}()
-	userProvidedPSI, found := ExtractPSI(r)
-	if found {
-		securityContext = context.WithValue(securityContext, ctxRequestPrivateStateIdentifier, userProvidedPSI)
-	}
-	securityContext = context.WithValue(securityContext, CtxIsMultitenant, s.isMultitenant)
-	if isAuthEnabled, err := s.authenticationManager.IsEnabled(context.Background()); err != nil {
-		// this indicates a failure in the plugin. We don't want any subsequent request unchecked
-		log.Error("failure when checking if authentication manager is enabled", "err", err)
-		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
-		return
-	} else if !isAuthEnabled {
-		// node is not configured to be multitenant but MPS is enabled
-		securityContext = context.WithValue(securityContext, CtxPrivateStateIdentifier, userProvidedPSI)
-		return
-	}
-	if token, hasToken := extractToken(r); hasToken {
-		if authToken, err := s.authenticationManager.Authenticate(context.Background(), token); err != nil {
-			securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{err.Error()})
-		} else {
-			securityContext = context.WithValue(securityContext, CtxPreauthenticatedToken, authToken)
-		}
-	} else {
-		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})
-	}
+	securityContext := context.WithValue(context.Background(), CtxIsMultitenant, s.isMultitenant)
+	securityContext = AuthenticateHttpRequest(securityContext, r, s.authenticationManager)
+	cfg.Configure(securityContext)
 }
 
 func (s *Server) SupportsMultitenancy(b bool) {
