@@ -305,8 +305,7 @@ func testSendTransactions(t *testing.T, protocol int) {
 		for n := 0; n < len(alltxs) && !t.Failed(); {
 			var forAllHashes func(callback func(hash common.Hash))
 			switch protocol {
-			case 63:
-				fallthrough
+
 			case 64:
 				msg, err := p.app.ReadMsg()
 				if err != nil {
