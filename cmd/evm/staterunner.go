@@ -49,7 +49,7 @@ type StatetestResult struct {
 }
 
 func stateTestCmd(ctx *cli.Context) error {
-	if len(ctx.Args().First()) == 0 {
+	if ctx.Args().First() == "" {
 		return errors.New("path-to-test argument required")
 	}
 	// Configure the go-ethereum logger

@@ -36,7 +36,7 @@ var compileCommand = cli.Command{
 func compileCmd(ctx *cli.Context) error {
 	debug := ctx.GlobalBool(DebugFlag.Name)
 
-	if len(ctx.Args().First()) == 0 {
+	if ctx.Args().First() == "" {
 		return errors.New("filename required")
 	}
 

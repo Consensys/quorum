@@ -54,7 +54,7 @@ var runCommand = cli.Command{
 func readGenesis(genesisPath string) *core.Genesis {
 	// Make sure we have a valid genesis JSON
 	//genesisPath := ctx.Args().First()
-	if len(genesisPath) == 0 {
+	if genesisPath == "" {
 		utils.Fatalf("Must supply path to genesis JSON file")
 	}
 	file, err := os.Open(genesisPath)
