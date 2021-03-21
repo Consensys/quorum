@@ -718,16 +718,7 @@ func (typedData *TypedData) Format() ([]*NameValueType, error) {
 		return nil, err
 	}
 	var nvts []*NameValueType
-	nvts = append(nvts, &NameValueType{
-		Name:  "EIP712Domain",
-		Value: domain,
-		Typ:   "domain",
-	})
-	nvts = append(nvts, &NameValueType{
-		Name:  typedData.PrimaryType,
-		Value: ptype,
-		Typ:   "primary type",
-	})
+	nvts = append(nvts, &NameValueType{Name: "EIP712Domain", Value: domain, Typ: "domain"}, &NameValueType{Name: typedData.PrimaryType, Value: ptype, Typ: "primary type"})
 	return nvts, nil
 }
 

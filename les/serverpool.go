@@ -146,8 +146,7 @@ func newServerPool(db ethdb.KeyValueStore, dbKey []byte, vt *lpc.ValueTracker, d
 	s.mixer = enode.NewFairMix(mixTimeout)
 	knownSelector := lpc.NewWrsIterator(s.ns, sfHasValue, sfDisableSelection, sfiNodeWeight)
 	alwaysConnect := lpc.NewQueueIterator(s.ns, sfAlwaysConnect, sfDisableSelection, true, nil)
-	s.mixSources = append(s.mixSources, knownSelector)
-	s.mixSources = append(s.mixSources, alwaysConnect)
+	s.mixSources = append(s.mixSources, knownSelector, alwaysConnect)
 	if discovery != nil {
 		s.mixSources = append(s.mixSources, discovery)
 	}
