@@ -52,7 +52,7 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	// mainly to overcome lost of test cases which pass ChainContext as nil value
 	// nil interface requires this check to make sure we don't get nil pointer reference error
 	if chain != nil && !reflect.ValueOf(chain).IsNil() {
-		_, supportsMultitenancy = chain.SupportsMultitenancy(nil)
+		_, supportsMultitenancy = chain.SupportsMultitenancy(context.TODO())
 	}
 	return vm.Context{
 		CanTransfer: CanTransfer,
