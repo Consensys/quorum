@@ -21,6 +21,7 @@
 package rawdb
 
 import (
+	"encoding/json"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -121,4 +122,26 @@ func (pml *ethdbAccountExtraDataLinker) Link(stateRoot, extraDataRoot common.Has
 		return WriteRootHashMapping(pml.db, stateRoot, extraDataRoot)
 	}
 	return nil
+}
+
+func WritePrivateTransactionReceipt(db ethdb.Database, pmtHash common.Hash, privReceipt *types.Receipt) {
+	prefix := []byte("privPrecompileReceipt")
+	key := append(prefix, pmtHash.Bytes()...)
+	//value, _ := rlp.EncodeToBytes(privReceipt)
+	value, _ := json.Marshal(privReceipt)
+
+	db.Put(key, value)
+}
+
+func ReadPrivateTransactionReceipt(db ethdb.Database, pmtHash common.Hash) *types.Receipt {
+	prefix := []byte("privPrecompileReceipt")
+	key := append(prefix, pmtHash.Bytes()...)
+
+	b, _ := db.Get(key)
+
+	rec := &types.Receipt{}
+	json.Unmarshal(b, rec)
+	//err := rlp.DecodeBytes(b, rec)
+	//fmt.Println(err)
+	return rec
 }

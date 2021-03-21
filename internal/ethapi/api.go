@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"net/http"
 	"strings"
@@ -1588,6 +1589,28 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
+	if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+		data := tx.Data()
+		txHash := common.BytesToEncryptedPayloadHash(data[20:])
+		_, _, txData, _, err := private.P.Receive(txHash)
+		if err != nil {
+			log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
+			return nil, err
+		}
+
+		if txData != nil {
+			receipt = rawdb.ReadPrivateTransactionReceipt(s.b.ChainDb(), tx.Hash())
+
+			var privtx types.Transaction
+			err = json.NewDecoder(bytes.NewReader(txData)).Decode(&privtx)
+			if err != nil {
+				log.Trace("failed to deserialize privacy marker transaction", "err", err)
+				return nil, err
+			}
+			tx = &privtx
+		}
+	}
+
 	var signer types.Signer = types.HomesteadSigner{}
 	if tx.Protected() && !tx.IsPrivate() {
 		signer = types.NewEIP155Signer(tx.ChainId())
@@ -2162,7 +2185,6 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		}
 	}
 	// /Quorum
-
 	return SubmitTransaction(ctx, s.b, tx, "", args.PrivateFor, true)
 }
 
@@ -2611,6 +2633,10 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if err != nil {
 		return "", err
 	}
+	if len(b) == 84 {
+		b = b[20:]
+	}
+
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
@@ -2652,13 +2678,13 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 			}
 		}
 
-		if txnType == FillTransaction || !b.QuorumUsingPrivacyMarkerTransactions() {
-			replaceDataWithHash = true
-			hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
+		//if txnType == FillTransaction || !b.QuorumUsingPrivacyMarkerTransactions() {
+		replaceDataWithHash = true
+		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
 
-			return
-		}
+		//return
 	}
+	//}
 
 	return
 }
@@ -2779,27 +2805,14 @@ func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArg
 	case FillTransaction:
 		return nil, errors.New("FillTransaction is not supported as a privacy marker transaction")
 	case RawTransaction:
-		data := tx.Data()
-		hash := common.BytesToEncryptedPayloadHash(data)
-		privatePayload, _, _, err := private.P.ReceiveRaw(hash)
-		if err != nil {
-			return nil, err
-		}
-		log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
-		var privateTx *types.Transaction
-		if tx.To() == nil {
-			return nil, errors.New("attempt to create an invalid privacy marker transaction (this should never happen)")
-		} else {
-			privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-		}
-
-		txData := new(bytes.Buffer)
-		err = json.NewEncoder(txData).Encode(privateTx)
+		data := new(bytes.Buffer)
+		err = json.NewEncoder(data).Encode(tx)
 		if err != nil {
 			return nil, err
 		}
 
-		txnHash, err = handleNormalPrivateTransaction(ctx, b, tx, txData.Bytes(), privateTxArgs, tx.From())
+		_, _, txnHash, err = private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+
 		if err != nil {
 			return nil, err
 		}
@@ -2810,7 +2823,8 @@ func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArg
 			return nil, err
 		}
 
-		txnHash, err = handleNormalPrivateTransaction(ctx, b, tx, data.Bytes(), privateTxArgs, tx.From())
+		_, _, txnHash, err = private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+
 		if err != nil {
 			return nil, err
 		}
@@ -2850,6 +2864,9 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) {
 		return nil, common.Hash{}, nil
 	}
+
+	d, _ := json.Marshal(privateTx)
+	log.Info("PETER", "data", string(d))
 
 	evm, err := runSimulation(ctx, b, from, privateTx)
 	if evm == nil {

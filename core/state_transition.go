@@ -20,6 +20,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"runtime/debug"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -208,6 +209,8 @@ func (st *StateTransition) preCheck() error {
 		if nonce < st.msg.Nonce() {
 			return ErrNonceTooHigh
 		} else if nonce > st.msg.Nonce() {
+			log.Info("PETER", "found", nonce, "have", st.msg.Nonce(), "acc", st.msg.From())
+			debug.PrintStack()
 			return ErrNonceTooLow
 		}
 	}
@@ -273,6 +276,10 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
+
+		if len(st.data) != 64 {
+			data = st.data
+		}
 		if err != nil || !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}

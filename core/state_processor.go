@@ -20,10 +20,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/core"
 )
@@ -127,9 +129,11 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	}
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
+
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Info("PETER", "acc", msg.From(), "nonce", msg.Nonce())
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
@@ -137,6 +141,30 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
 	vmenv.SetCurrentTX(tx)
 	vmenv.SavedPrivateState = privateState //Quorum - save private stateDB for precompile
+
+	txIndex := statedb.TxIndex()
+	innerApply := func(innerTx *types.Transaction) (*types.Receipt, error) {
+		defer func() {
+			statedb.Prepare(tx.Hash(), header.Hash(), txIndex)
+			privateState.Prepare(tx.Hash(), header.Hash(), txIndex)
+		}()
+		statedb.Prepare(innerTx.Hash(), header.Hash(), txIndex)
+		privateState.Prepare(innerTx.Hash(), header.Hash(), txIndex)
+
+		singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
+		used := uint64(0)
+		_, privReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateState, header, innerTx, &used, cfg)
+
+		if err == nil && privReceipt.Logs == nil {
+			privReceipt.Logs = make([]*types.Log, 0)
+		}
+		if privReceipt != nil {
+			rawdb.WritePrivateTransactionReceipt(bc.db, tx.Hash(), privReceipt)
+		}
+
+		return privReceipt, err
+	}
+	vmenv.InnerApply = innerApply
 
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
