@@ -777,8 +777,11 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 		hash = header.Hash()
 	}
 	// Construct the range filter
-	// TODO - rebase - identify the relevant PSI
-	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, "")
+	psm, err := b.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, psm.ID)
 
 	// Run the filter and return all the logs
 	return runFilter(ctx, b.backend, filter)
@@ -1071,8 +1074,11 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 	// Construct the range filter
-	// TODO - rebase - figure out the right psi
-	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, "")
+	psm, err := r.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, psm.ID)
 	return runFilter(ctx, r.backend, filter)
 }
 
