@@ -66,9 +66,15 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 // privacyMarker precompile execution
 // Retrieves private transaction from Tessera and executes it.
 // If we are not a participant, then just ensure public state remains in sync.
-//		input = 64 byte hash for the private transaction
+//		input = 20 byte address of sender, 64 byte hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
+
+	if evm.currentTx.IsPrivate() {
+		//only public transactions can call the precompile
+		log.Warn("Private transaction called precompile", "tx hash", evm.currentTx.Hash())
+		return nil, nil
+	}
 
 	data := evm.currentTx.Data()
 	txHash := common.BytesToEncryptedPayloadHash(data[20:])
@@ -77,32 +83,40 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, err
 	}
+
+	//TODO (peter): sender from tx data should be removed when possible
+	fromAddr := common.BytesToAddress(data[:20])
+
 	if txData == nil {
 		log.Debug("not a participant, precompile performing no action")
-
-		//TODO (peter): sender from tx data should be removed when possible
-		fromAddr := common.BytesToAddress(data[:20])
 		// must increment the nonce to mirror the state change that is done in evm.create() for participants
+		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+		return nil, nil
+	}
+
+	var tx types.Transaction
+	if err := json.NewDecoder(bytes.NewReader(txData)).Decode(&tx); err != nil {
+		log.Trace("failed to deserialize privacy marker transaction", "err", err)
+		return nil, err
+	}
+
+	if !tx.IsPrivate() {
+		//should only allow private txns from inside precompile, as many assumptions
+		//about how a tx operates are based on its privacy (e.g. which dbs to use, PE checks etc)
+		log.Warn("Public transaction pulled from PTM during privacy precompile execution")
+
+		// non-participants have already incremented the public nonce, so we need to as well
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 
 		return nil, nil
 	}
 
-	var tx types.Transaction
-	err = json.NewDecoder(bytes.NewReader(txData)).Decode(&tx)
-	if err != nil {
-		log.Trace("failed to deserialize privacy marker transaction", "err", err)
-		return nil, err
-	}
-
-	_, err = c.runUsingSandboxEVM(evm, tx, tx.Data())
+	_, err = c.runUsingNewEVM(evm, tx)
 
 	return nil, err
 }
 
-func (c *privacyMarker) runUsingSandboxEVM(evm *EVM, tx types.Transaction, data []byte) ([]byte, error) {
+func (c *privacyMarker) runUsingNewEVM(evm *EVM, tx types.Transaction) ([]byte, error) {
 	_, err := evm.InnerApply(&tx)
-
-	//log.Info("", "", receipt.Size())
 	return nil, err
 }
