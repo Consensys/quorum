@@ -350,12 +350,24 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 	)
 	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, protoName); err != nil {
 		p.Log().Debug("Ethereum handshake failed", "protoName", protoName, "err", err)
+
+		// Quorum
+		// When the Handshake() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+		p.EthPeerDisconnected <- struct{}{}
+		// End Quorum
+
 		return err
 	}
 
 	// Register the peer locally
 	if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
 		p.Log().Error("Ethereum peer registration failed", "err", err)
+
+		// Quorum
+		// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+		p.EthPeerDisconnected <- struct{}{}
+		// End Quorum
+
 		return err
 	}
 	defer pm.removePeer(p.id)
