@@ -20,7 +20,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"runtime/debug"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -209,8 +208,6 @@ func (st *StateTransition) preCheck() error {
 		if nonce < st.msg.Nonce() {
 			return ErrNonceTooHigh
 		} else if nonce > st.msg.Nonce() {
-			log.Info("PETER", "found", nonce, "have", st.msg.Nonce(), "acc", st.msg.From())
-			debug.PrintStack()
 			return ErrNonceTooLow
 		}
 	}

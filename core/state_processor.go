@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/core"
 )
@@ -133,7 +132,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Info("PETER", "acc", msg.From(), "nonce", msg.Nonce())
+
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
