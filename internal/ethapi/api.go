@@ -2955,9 +2955,6 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 		return nil, common.Hash{}, nil
 	}
 
-	d, _ := json.Marshal(privateTx)
-	log.Info("PETER", "data", string(d))
-
 	evm, err := runSimulation(ctx, b, from, privateTx)
 	if evm == nil {
 		log.Debug("TX Simulation setup failed", "error", err)

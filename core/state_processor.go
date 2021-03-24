@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/core"
 )
@@ -133,7 +132,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Info("PETER", "acc", msg.From(), "nonce", msg.Nonce())
+
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
@@ -144,7 +143,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// Quorum
 	txIndex := statedb.TxIndex()
-	innerApply := func(innerTx *types.Transaction) (*types.Receipt, error) {
+	vmenv.InnerApply = func(innerTx *types.Transaction) (*types.Receipt, error) {
 		defer func() {
 			statedb.Prepare(tx.Hash(), header.Hash(), txIndex)
 			privateState.Prepare(tx.Hash(), header.Hash(), txIndex)
@@ -165,7 +164,6 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 		return privReceipt, err
 	}
-	vmenv.InnerApply = innerApply
 	// End Quorum
 
 	// Apply the transaction to the current state (included in the env)
