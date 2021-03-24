@@ -2920,7 +2920,11 @@ func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArg
 		}
 	}
 
-	signingKey := b.QuorumPrivacyMarkerSigningKey()
+	signingKey, err := b.QuorumPrivacyMarkerSigningKey()
+	if err != nil {
+		log.Error("Failed to retrieve private key for signing privacy marker transaction", "err", err)
+		return nil, err
+	}
 	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
 	from := crypto.PubkeyToAddress(signingKey.PublicKey)
 

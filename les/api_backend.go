@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -330,8 +331,17 @@ func (b *LesApiBackend) QuorumUsingPrivacyMarkerTransactions() bool {
 	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
 }
 
-func (b *LesApiBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
-	return b.eth.config.QuorumPrivacyMarkerSigningKey
+func (b *LesApiBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
+	if b.eth.config.QuorumPrivacyMarkerSigningKey == nil {
+		// using random key for every transaction
+		key, err := crypto.GenerateKey()
+		if err != nil {
+			return nil, err
+		}
+		return key, nil
+	}
+
+	return b.eth.config.QuorumPrivacyMarkerSigningKey, nil
 }
 
 // End Quorum

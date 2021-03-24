@@ -98,7 +98,7 @@ type Backend interface {
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 
 	QuorumUsingPrivacyMarkerTransactions() bool
-	QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey
+	QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

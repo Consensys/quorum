@@ -753,13 +753,13 @@ func (sb *StubBackend) QuorumUsingPrivacyMarkerTransactions() bool {
 	return sb.quorumPrivacyMarkerTransactionsEnabled
 }
 
-func (sb *StubBackend) QuorumPrivacyMarkerSigningKey() *ecdsa.PrivateKey {
+func (sb *StubBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
 	sb.quorumPrivacyMarkerSigningKeyCalled = true
 	key, err := crypto.GenerateKey()
 	if err != nil {
-		panic("could not generate a random key")
+		return nil, err
 	}
-	return key
+	return key, nil
 }
 
 type StubMinimalApiState struct {

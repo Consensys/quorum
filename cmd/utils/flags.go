@@ -1696,12 +1696,6 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 			return fmt.Errorf("failed to load private key specified in %v: %v", QuorumPrivacyMarkerSigningKeyFile.Name, err)
 		}
 		cfg.QuorumPrivacyMarkerSigningKey = key
-	} else {
-		key, err := crypto.GenerateKey()
-		if err != nil {
-			return fmt.Errorf("failed to generate private key for signing privacy marker transactions: %v", err)
-		}
-		cfg.QuorumPrivacyMarkerSigningKey = key
 	}
 
 	setIstanbul(ctx, cfg)
