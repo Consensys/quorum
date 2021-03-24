@@ -87,7 +87,6 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		log.Debug("not a participant, precompile performing no action")
 		// must increment the nonce to mirror the state change that is done in evm.create() for participants
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
-
 		return nil, nil
 	}
 
