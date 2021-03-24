@@ -599,6 +599,16 @@ web3._extend({
 			params: 1,
 			inputFormatter: [null]
 		}),
+		new web3._extend.Method({
+            name: 'getPrivateTransaction',
+            call: 'eth_getPrivateTransactionByHash',
+            params: 1,
+        }),
+		new web3._extend.Method({
+            name: 'getPrivateTransactionReceipt',
+            call: 'eth_getPrivateTransactionReceipt',
+            params: 1,
+        }),
 		// END-QUORUM
 	],
 	properties: [

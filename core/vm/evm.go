@@ -211,8 +211,8 @@ type EVM struct {
 	// use it with care as it's meant for runtime multitenancy check during simulation.
 	lastError error
 
-	SavedPrivateState PrivateState //Quorum: used to support privacy marker transactions
-	InnerApply        func(innerTx *types.Transaction) (*types.Receipt, error)
+	SavedPrivateState PrivateState                                             //Quorum: used to support privacy marker transactions
+	InnerApply        func(innerTx *types.Transaction) (*types.Receipt, error) //Quorum
 }
 
 // AffectedType defines attributes indicating how a contract is affected

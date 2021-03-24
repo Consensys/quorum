@@ -1536,7 +1536,7 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	return state.GetPrivacyMetadata(address)
 }
 
-// /Quorum
+// End Quorum
 
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
@@ -1589,26 +1589,116 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
-	if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
-		data := tx.Data()
-		txHash := common.BytesToEncryptedPayloadHash(data[20:])
-		_, _, txData, _, err := private.P.Receive(txHash)
+	var signer types.Signer = types.HomesteadSigner{}
+	if tx.Protected() && !tx.IsPrivate() {
+		signer = types.NewEIP155Signer(tx.ChainId())
+	}
+	from, _ := types.Sender(signer, tx)
+
+	fields := map[string]interface{}{
+		"blockHash":         blockHash,
+		"blockNumber":       hexutil.Uint64(blockNumber),
+		"transactionHash":   hash,
+		"transactionIndex":  hexutil.Uint64(index),
+		"from":              from,
+		"to":                tx.To(),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":   nil,
+		"logs":              receipt.Logs,
+		"logsBloom":         receipt.Bloom,
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		fields["root"] = hexutil.Bytes(receipt.PostState)
+	} else {
+		fields["status"] = hexutil.Uint(receipt.Status)
+	}
+	if receipt.Logs == nil {
+		fields["logs"] = [][]*types.Log{}
+	}
+	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	if receipt.ContractAddress != (common.Address{}) {
+		fields["contractAddress"] = receipt.ContractAddress
+	}
+	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
+		extraDataReader, err := s.b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(blockNumber))
 		if err != nil {
-			log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
-			return nil, err
+			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
 		}
 
-		if txData != nil {
-			receipt = rawdb.ReadPrivateTransactionReceipt(s.b.ChainDb(), tx.Hash())
-
-			var privtx types.Transaction
-			err = json.NewDecoder(bytes.NewReader(txData)).Decode(&privtx)
+		filteredLogs := make([]*types.Log, 0)
+		for _, l := range receipt.Logs {
+			ok, err := s.isContractAuthorized(ctx, authToken, extraDataReader, l.Address)
 			if err != nil {
-				log.Trace("failed to deserialize privacy marker transaction", "err", err)
 				return nil, err
 			}
-			tx = &privtx
+			if ok {
+				filteredLogs = append(filteredLogs, l)
+			}
 		}
+		fields["logs"] = filteredLogs
+		receiptClone := &types.Receipt{PostState: receipt.PostState, Status: receipt.Status, Logs: filteredLogs}
+		fields["logsBloom"] = types.CreateBloom(types.Receipts{receiptClone})
+	}
+	return fields, nil
+}
+
+// Quorum
+// GetPrivateTransactionByHash accepts the hash for a privacy marker transaction,
+// but returns the associated private transaction
+func (s *PublicTransactionPoolAPI) GetPrivateTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+	// first need the privacy marker transaction
+	pmt, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// now retrieve the private transaction
+	if pmt != nil {
+		tx, _, err := private.FetchPrivateTransaction(pmt.Data())
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
+			return newRPCTransaction(tx, blockHash, blockNumber, index), nil
+		}
+	}
+
+	// Transaction unknown or not a participant in the private transaction, return as such
+	return nil, nil
+}
+
+// Quorum
+// GetPrivateTransactionReceipt accepts the hash for a privacy marker transaction,
+// but returns the receipt of the associated private transaction
+func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	// first need the privacy marker transaction
+	pmt, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if pmt == nil {
+		// Transaction unknown, return as such
+		return nil, nil
+	}
+
+	// now retrieve the private transaction
+	tx, _, err := private.FetchPrivateTransaction(pmt.Data())
+	if err != nil {
+		return nil, err
+	}
+	// Not a participant in the private transaction, return as such
+	if tx == nil {
+		// Transaction unknown
+		return nil, nil
+	}
+
+	// also get receipt for the private transaction
+	receipt := rawdb.ReadPrivateTransactionReceipt(s.b.ChainDb(), pmt.Hash())
+	if receipt == nil {
+		return nil, errors.New("could not find receipt for private transaction")
 	}
 
 	var signer types.Signer = types.HomesteadSigner{}

@@ -17,8 +17,6 @@
 package vm
 
 import (
-	"bytes"
-	"encoding/json"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -71,13 +69,12 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
 
 	data := evm.currentTx.Data()
-	txHash := common.BytesToEncryptedPayloadHash(data[20:])
-	_, _, txData, _, err := private.P.Receive(txHash) //TODO: should use returned metadata...
+	tx, _, err := private.FetchPrivateTransaction(data) //TODO: should use returned metadata...
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, err
 	}
-	if txData == nil {
+	if tx == nil {
 		log.Debug("not a participant, precompile performing no action")
 
 		//TODO (peter): sender from tx data should be removed when possible
@@ -88,14 +85,7 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	var tx types.Transaction
-	err = json.NewDecoder(bytes.NewReader(txData)).Decode(&tx)
-	if err != nil {
-		log.Trace("failed to deserialize privacy marker transaction", "err", err)
-		return nil, err
-	}
-
-	_, err = c.runUsingSandboxEVM(evm, tx, tx.Data())
+	_, err = c.runUsingSandboxEVM(evm, *tx, tx.Data())
 
 	return nil, err
 }

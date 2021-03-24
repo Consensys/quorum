@@ -142,6 +142,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	vmenv.SetCurrentTX(tx)
 	vmenv.SavedPrivateState = privateState //Quorum - save private stateDB for precompile
 
+	// Quorum
 	txIndex := statedb.TxIndex()
 	innerApply := func(innerTx *types.Transaction) (*types.Receipt, error) {
 		defer func() {
@@ -165,6 +166,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		return privReceipt, err
 	}
 	vmenv.InnerApply = innerApply
+	// End Quorum
 
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
