@@ -603,11 +603,13 @@ web3._extend({
             name: 'getPrivateTransaction',
             call: 'eth_getPrivateTransactionByHash',
             params: 1,
+            outputFormatter: web3._extend.formatters.outputTransactionFormatter
         }),
 		new web3._extend.Method({
             name: 'getPrivateTransactionReceipt',
             call: 'eth_getPrivateTransactionReceipt',
             params: 1,
+            outputFormatter: web3._extend.formatters.outputTransactionReceiptFormatter
         }),
 		// END-QUORUM
 	],
