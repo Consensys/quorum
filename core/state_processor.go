@@ -163,9 +163,13 @@ func (p *StateProcessor) handleMPS(ti int, tx *types.Transaction, block *types.B
 //
 // ApplyTransactionOnMPS returns the auxiliary receipt which is mainly used to capture
 // multiple private receipts and logs array. Logs are decorated with types.PrivateStateIdentifier
-func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool,
+//
+// The originalGP gas pool will not be modified
+func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, originalGP *GasPool,
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
 	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+	// clone the gas pool (as we don't want to keep consuming intrinsic gas multiple times for each MPS execution)
+	gp := new(GasPool).AddGas(originalGP.Gas())
 	mpsReceipt := &types.Receipt{
 		PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
 		Logs:       make([]*types.Log, 0),
