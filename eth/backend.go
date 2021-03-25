@@ -175,6 +175,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		quorumConsensusProtocolLengths = quorumProtocol.Lengths
 	}
 	config.EnableMPS = config.EnableMPS && chainConfig.IsMPS
+	log.Info("Supporting Multiple Private States", "mps", config.EnableMPS, "chainConfig.IsMPS", chainConfig.IsMPS)
 
 	// force to set the istanbul etherbase to node key address
 	if chainConfig.Istanbul != nil {
