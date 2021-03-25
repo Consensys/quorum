@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -63,8 +64,10 @@ type TransactOpts struct {
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 
 	// Quorum
-	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	PrivateFrom                 string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor                  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	MarkerTransactionSignerFunc SignerFn
+	MarkerTransactionFrom       common.Address
 }
 
 // FilterOpts is the collection of options to fine tune filtering for events
@@ -266,6 +269,13 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		}
 		payload = hash.Bytes()
 		rawTx = c.createPrivateTransaction(rawTx, payload)
+
+		if opts.MarkerTransactionSignerFunc != nil {
+			rawTx, _ = c.CreateMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
+			opts.PrivateFor = nil
+			opts.From = opts.MarkerTransactionFrom
+			opts.Signer = opts.MarkerTransactionSignerFunc
+		}
 	}
 
 	// Choose signer to sign transaction
@@ -287,6 +297,30 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	}
 
 	return signedTx, nil
+}
+
+func (c *BoundContract) CreateMarkerTx(opts *TransactOpts, tx *types.Transaction, args PrivateTxArgs) (*types.Transaction, error) {
+	// Choose signer to sign transaction
+	if opts.Signer == nil {
+		return nil, errors.New("no signer to authorize the transaction with")
+	}
+	signedTx, err := opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := c.transactor.DistributeTransaction(ensureContext(opts.Context), signedTx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
+
+	nonce, err := c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.MarkerTransactionFrom)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+	}
+	return types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
 }
 
 // FilterLogs filters contract logs for past blocks, returning the necessary

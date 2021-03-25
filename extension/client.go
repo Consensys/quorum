@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -42,5 +43,15 @@ func (client *InProcessClient) TransactionByHash(hash common.Hash) (*types.Trans
 }
 
 func (client *InProcessClient) TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error) {
-	return client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
+	tx, err := client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the underlying private tx if we got a Private Marker Transaction
+	if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+		return client.client.GetPrivateTransaction(context.Background(), tx.Hash())
+	}
+
+	return tx, nil
 }

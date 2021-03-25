@@ -157,13 +157,8 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", errors.New("account cannot accept extension")
 	}
 
-	toExtend, err := api.getContractExtended(addressToVoteOn, txa.From)
-	if err != nil {
-		return "", err
-	}
-
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
@@ -292,6 +287,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", err
 	}
 
+	//TODO(peter): revisit this, give back private tx hash or marker hash?
 	//Return the transaction hash for later lookup
 	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil
@@ -313,13 +309,8 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
 
-	toExtend, err := api.getContractExtended(extensionContract, txa.From)
-	if err != nil {
-		return "", err
-	}
-
 	// get all participants for the contract being extended
-	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), toExtend)
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), extensionContract)
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}

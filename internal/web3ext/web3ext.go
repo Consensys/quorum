@@ -502,6 +502,12 @@ web3._extend({
 			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
+			name: 'distributePrivateTransaction',
+			call: 'eth_distributePrivateTransaction',
+			params: 2,
+			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
 			name: 'getContractPrivacyMetadata',
 			call: 'eth_getContractPrivacyMetadata',
 			params: 1

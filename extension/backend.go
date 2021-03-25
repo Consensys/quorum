@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync"
 
@@ -107,7 +108,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 			case foundLog := <-incomingLogs:
 				service.mu.Lock()
 
-				tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
+				tx, _ := service.extClient.TransactionInBlock(foundLog.BlockHash, foundLog.TxIndex)
 				from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 				newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
@@ -396,6 +397,14 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
+
+	if service.apiBackendHelper.QuorumUsingPrivacyMarkerTransactions() {
+		privKey, _ := service.apiBackendHelper.QuorumPrivacyMarkerSigningKey()
+		keyedTransactor := bind.NewKeyedTransactor(privKey)
+		txArgs.MarkerTransactionSignerFunc = keyedTransactor.Signer
+		txArgs.MarkerTransactionFrom = crypto.PubkeyToAddress(privKey.PublicKey)
+	}
+
 	if txa.GasPrice != nil {
 		txArgs.GasPrice = txa.GasPrice.ToInt()
 	}
