@@ -146,38 +146,7 @@ func TestIntermediateLeaks(t *testing.T) {
 	}
 }
 
-func TestStorageRoot(t *testing.T) {
-	var (
-		mem      = rawdb.NewMemoryDatabase()
-		db       = NewDatabase(mem)
-		state, _ = New(common.Hash{}, db, nil)
-		addr     = common.Address{1}
-		key      = common.Hash{1}
-		value    = common.Hash{42}
-
-		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	)
-
-	so := state.GetOrNewStateObject(addr)
-
-	emptyRoot := so.storageRoot(db)
-	if emptyRoot != empty {
-		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
-	}
-
-	// add a bit of state
-	so.SetState(db, key, value)
-	state.Commit(false)
-
-	root := so.storageRoot(db)
-	expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
-
-	if expected != root {
-		t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
-	}
-}
-
-// TestCopy tests that copying a statedb object indeed makes the original and
+// TestCopy tests that copying a StateDB object indeed makes the original and
 // the copy independent of each other. This test is a regression test against
 // https://github.com/ethereum/go-ethereum/pull/15549.
 func TestCopy(t *testing.T) {
@@ -699,11 +668,11 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 }
 
 // TestDeleteCreateRevert tests a weird state transition corner case that we hit
-// while changing the internals of statedb. The workflow is that a contract is
-// self destructed, then in a followup transaction (but same block) it's created
+// while changing the internals of StateDB. The workflow is that a contract is
+// self-destructed, then in a follow-up transaction (but same block) it's created
 // again and the transaction reverted.
 //
-// The original statedb implementation flushed dirty objects to the tries after
+// The original StateDB implementation flushed dirty objects to the tries after
 // each transaction, so this works ok. The rework accumulated writes in memory
 // first, but the journal wiped the entire state object on create-revert.
 func TestDeleteCreateRevert(t *testing.T) {
@@ -733,7 +702,7 @@ func TestDeleteCreateRevert(t *testing.T) {
 	}
 }
 
-// TestMissingTrieNodes tests that if the statedb fails to load parts of the trie,
+// TestMissingTrieNodes tests that if the StateDB fails to load parts of the trie,
 // the Commit operation fails with an error
 // If we are missing trie nodes, we should not continue writing to the trie
 func TestMissingTrieNodes(t *testing.T) {
@@ -779,6 +748,41 @@ func TestMissingTrieNodes(t *testing.T) {
 		t.Fatalf("expected error, got root :%x", root)
 	}
 }
+
+// Quorum
+
+func TestStorageRoot(t *testing.T) {
+	var (
+		mem      = rawdb.NewMemoryDatabase()
+		db       = NewDatabase(mem)
+		state, _ = New(common.Hash{}, db, nil)
+		addr     = common.Address{1}
+		key      = common.Hash{1}
+		value    = common.Hash{42}
+
+		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	)
+
+	so := state.GetOrNewStateObject(addr)
+
+	emptyRoot := so.storageRoot(db)
+	if emptyRoot != empty {
+		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
+	}
+
+	// add a bit of state
+	so.SetState(db, key, value)
+	state.Commit(false)
+
+	root := so.storageRoot(db)
+	expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
+
+	if expected != root {
+		t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
+	}
+}
+
+// End Quorum
 
 // Quorum - NewDual
 

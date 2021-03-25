@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var (
@@ -343,7 +344,7 @@ func (minter *minter) mintNewBlock() {
 	header.Extra = make([]byte, extraVanity+len(extraSealBytes))
 	copy(header.Extra[extraVanity:], extraSealBytes)
 
-	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
+	block := types.NewBlock(header, committedTxes, nil, publicReceipts, new(trie.Trie))
 
 	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 

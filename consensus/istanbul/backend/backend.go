@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -246,7 +247,7 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	}
 
 	// check block body
-	txnHash := types.DeriveSha(block.Transactions())
+	txnHash := types.DeriveSha(block.Transactions(), new(trie.Trie))
 	uncleHash := types.CalcUncleHash(block.Uncles())
 	if txnHash != block.Header().TxHash {
 		return 0, errMismatchTxhashes
