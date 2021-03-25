@@ -82,18 +82,18 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 
-		// if the private receipt is nil this means the tx was public
-		// and we do not need to apply the additional logic.
+		// Quorum
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
 			allLogs = append(allLogs, privateReceipt.Logs...)
 			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState)
 		} else {
-			if markerReceipt := rawdb.ReadPrivateTransactionReceipt(p.bc.db, tx.Hash()); p != nil {
+			if markerReceipt := rawdb.ReadPrivateTransactionReceipt(p.bc.db, tx.Hash()); markerReceipt != nil {
 				allLogs = append(allLogs, markerReceipt.Logs...)
 				p.bc.CheckAndSetPrivateState(markerReceipt.Logs, privateState)
 			}
 		}
+		// End Quorum
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
