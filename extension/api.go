@@ -6,12 +6,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/multitenancy"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/permission/core"
 )
 

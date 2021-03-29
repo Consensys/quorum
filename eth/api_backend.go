@@ -66,7 +66,7 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 
 // PSMR returns the private state metadata resolver.
 func (b *EthAPIBackend) PSMR() mps.PrivateStateMetadataResolver {
-	return b.eth.blockchain.PSMR()
+	return b.eth.blockchain.PrivateStateManager()
 }
 
 func (b *EthAPIBackend) CurrentBlock() *types.Block {

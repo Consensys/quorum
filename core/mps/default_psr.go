@@ -19,10 +19,7 @@ type DefaultPrivateStateRepository struct {
 	db          ethdb.Database
 	// cache of stateDB
 	stateCache state.Database
-
-	// the trie of private states
-	// key - the private state identifier
-	// value - the root hash of the private state
+	// stateDB gives access to the underlying state
 	stateDB *state.StateDB
 	root    common.Hash
 }
@@ -68,7 +65,7 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 	return dpsr.stateDB.Reset(dpsr.root)
 }
 
-// commitAndWrite- commits the private state and writes to disk
+// CommitAndWrite commits the private state and writes to disk
 func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) error {
 	privateRoot, err := dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
@@ -82,7 +79,7 @@ func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) er
 	return dpsr.stateCache.TrieDB().Commit(privateRoot, false, nil)
 }
 
-// commit - commits the private state only
+// Commit commits the private state only
 func (dpsr *DefaultPrivateStateRepository) Commit(block *types.Block) error {
 	var err error
 	dpsr.root, err = dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))

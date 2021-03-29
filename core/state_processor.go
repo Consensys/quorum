@@ -179,7 +179,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 		return nil, err
 	}
 	for _, managedParty := range managedParties {
-		psMetadata, err := bc.PSMR().ResolveForManagedParty(managedParty)
+		psMetadata, err := bc.PrivateStateManager().ResolveForManagedParty(managedParty)
 		if err != nil {
 			return nil, err
 		}

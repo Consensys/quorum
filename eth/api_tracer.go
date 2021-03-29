@@ -159,7 +159,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return nil, err
 	}
-	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +590,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 	if err != nil {
 		return nil, err
 	}
-	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +865,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *types.PrivateStateMetadata) types.Message {
 	if msg.IsPrivate() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
-		if api.eth.blockchain.PSMR().NotIncludeAny(psm, managedParties...) {
+		if api.eth.blockchain.PrivateStateManager().NotIncludeAny(psm, managedParties...) {
 			return msg.WithEmptyPrivateData(true)
 		}
 	}
@@ -887,7 +887,7 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}
-	psm, err := api.eth.blockchain.PSMR().ResolveForUserContext(ctx)
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}

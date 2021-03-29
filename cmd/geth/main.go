@@ -397,8 +397,6 @@ func geth(ctx *cli.Context) error {
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
-// Quorum
-// - Enrich eth/les service with PrivateStateAuthzProvider for multitenancy support if prequisites are met
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
@@ -434,7 +432,6 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	ethClient := ethclient.NewClient(rpcClient)
 
 	// Quorum
-	// Set PrivateStateAuthzProvider if multitenancy flag is on AND plugin security is configured
 	if ctx.GlobalBool(utils.MultitenancyFlag.Name) && !stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
 		utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
 	}

@@ -404,11 +404,6 @@ func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chain
 	return bc, err
 }
 
-// PSMR returns the private state metadata resolver.
-func (bc *BlockChain) PSMR() mps.PrivateStateMetadataResolver {
-	return bc.privateStateManager
-}
-
 func (bc *BlockChain) PrivateStateManager() mps.PrivateStateManager {
 	return bc.privateStateManager
 }
