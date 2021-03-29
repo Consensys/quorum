@@ -274,9 +274,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
 
-		if len(st.data) != 64 {
-			data = st.data
-		}
 		if err != nil || !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
