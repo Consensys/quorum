@@ -28,11 +28,13 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 const (
@@ -560,6 +562,16 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	if pool.chainconfig.IsQuorum {
 		// Quorum
+		//if tx.IsPrivateMarker() { TODO(peter): use method to check if marker
+		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+			innerTx, _, _ := private.FetchPrivateTransaction(tx.Data())
+			if innerTx != nil {
+				if err := pool.validateTx(innerTx, local); err != nil {
+					return err
+				}
+			}
+		}
+
 		// Gas price must be zero for Quorum transaction
 		if tx.GasPriceIntCmp(common.Big0) != 0 {
 			return ErrInvalidGasPrice

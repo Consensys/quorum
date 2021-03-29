@@ -660,7 +660,7 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts, task.privateState.MarkerTransactionReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
@@ -803,7 +803,12 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if privateReceipt != nil {
 		logs = append(receipt.Logs, privateReceipt.Logs...)
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(logs, w.current.privateState)
+		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, w.current.privateState)
+	} else {
+		if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), tx.Hash()); markerReceipt != nil {
+			logs = append(logs, markerReceipt.Logs...)
+			w.chain.CheckAndSetPrivateState(markerReceipt.Logs, w.current.privateState)
+		}
 	}
 	return logs, nil
 }

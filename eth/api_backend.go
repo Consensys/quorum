@@ -212,9 +212,14 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	if receipts == nil {
 		return nil, nil
 	}
-	logs := make([][]*types.Log, len(receipts))
+	privateReceipts := b.eth.blockchain.GetPrivateReceiptsByHash(hash)
+
+	logs := make([][]*types.Log, len(receipts)+len(privateReceipts))
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
+	}
+	for i, receipt := range privateReceipts {
+		logs[len(receipts)+i] = receipt.Logs
 	}
 	return logs, nil
 }

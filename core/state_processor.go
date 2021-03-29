@@ -159,10 +159,11 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		used := uint64(0)
 		_, privReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateState, header, innerTx, &used, cfg)
 
-		if err == nil && privReceipt.Logs == nil {
-			privReceipt.Logs = make([]*types.Log, 0)
-		}
 		if privReceipt != nil {
+			if privReceipt.Logs == nil {
+				privReceipt.Logs = make([]*types.Log, 0)
+			}
+			privateState.MarkerTransactionReceipts = append(privateState.MarkerTransactionReceipts, privReceipt)
 			rawdb.WritePrivateTransactionReceipt(bc.db, tx.Hash(), privReceipt)
 		}
 
