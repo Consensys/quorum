@@ -634,6 +634,21 @@ func (w *worker) resultLoop() {
 					log.BlockHash = hash
 				}
 				logs = append(logs, receipt.Logs...)
+
+				if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash); markerReceipt != nil {
+					// add block location fields
+					markerReceipt.BlockHash = hash
+					markerReceipt.BlockNumber = block.Number()
+					markerReceipt.TransactionIndex = uint(i)
+
+					// Update the block hash in all logs since it is now available and not when the
+					// receipt/log of individual transactions were created.
+					for _, log := range markerReceipt.Logs {
+						log.BlockHash = hash
+					}
+					logs = append(logs, markerReceipt.Logs...)
+					rawdb.WritePrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash, markerReceipt)
+				}
 			}
 
 			for i, receipt := range task.privateReceipts {
