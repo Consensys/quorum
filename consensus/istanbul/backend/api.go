@@ -17,6 +17,8 @@
 package backend
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -25,7 +27,7 @@ import (
 
 // API is a user facing RPC API to dump Istanbul state
 type API struct {
-	chain    consensus.ChainReader
+	chain    consensus.ChainHeaderReader
 	istanbul *backend
 }
 
@@ -35,6 +37,11 @@ type BlockSigners struct {
 	Hash       common.Hash
 	Author     common.Address
 	Committers []common.Address
+}
+
+type Status struct {
+	SigningStatus map[common.Address]int `json:"sealerActivity"`
+	NumBlocks     uint64                 `json:"numBlocks"`
 }
 
 // NodeAddress returns the public address that is used to sign block headers in IBFT
@@ -175,4 +182,91 @@ func (api *API) Discard(address common.Address) {
 	defer api.istanbul.candidatesLock.Unlock()
 
 	delete(api.istanbul.candidates, address)
+}
+
+func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNumber) (*Status, error) {
+	var (
+		numBlocks   uint64
+		header      = api.chain.CurrentHeader()
+		start       uint64
+		end         uint64
+		blockNumber rpc.BlockNumber
+	)
+	if startBlockNum != nil && endBlockNum == nil {
+		return nil, errors.New("pass the end block number")
+	}
+
+	if startBlockNum == nil && endBlockNum != nil {
+		return nil, errors.New("pass the start block number")
+	}
+
+	if startBlockNum == nil && endBlockNum == nil {
+		numBlocks = uint64(64)
+		header = api.chain.CurrentHeader()
+		end = header.Number.Uint64()
+		start = end - numBlocks
+		blockNumber = rpc.BlockNumber(header.Number.Int64())
+	} else {
+		end = uint64(*endBlockNum)
+		start = uint64(*startBlockNum)
+		if start > end {
+			return nil, errors.New("start block number should be less than end block number")
+		}
+
+		if end > api.chain.CurrentHeader().Number.Uint64() {
+			return nil, errors.New("end block number should be less than or equal to current block height")
+		}
+
+		numBlocks = end - start
+		header = api.chain.GetHeaderByNumber(end)
+		blockNumber = rpc.BlockNumber(end)
+	}
+
+	signers, err := api.GetValidators(&blockNumber)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if numBlocks >= end {
+		start = 1
+		if end > start {
+			numBlocks = end - start
+		} else {
+			numBlocks = 0
+		}
+	}
+	signStatus := make(map[common.Address]int)
+	for _, s := range signers {
+		signStatus[s] = 0
+	}
+
+	for n := start; n < end; n++ {
+		blockNum := rpc.BlockNumber(int64(n))
+		s, _ := api.GetSignersFromBlock(&blockNum)
+		signStatus[s.Author]++
+
+	}
+	return &Status{
+		SigningStatus: signStatus,
+		NumBlocks:     numBlocks,
+	}, nil
+}
+
+func (api *API) IsValidator(blockNum *rpc.BlockNumber) (bool, error) {
+	var blockNumber rpc.BlockNumber
+	if blockNum != nil {
+		blockNumber = *blockNum
+	} else {
+		header := api.chain.CurrentHeader()
+		blockNumber = rpc.BlockNumber(header.Number.Int64())
+	}
+	s, _ := api.GetValidators(&blockNumber)
+
+	for _, v := range s {
+		if v == api.istanbul.address {
+			return true, nil
+		}
+	}
+	return false, nil
 }

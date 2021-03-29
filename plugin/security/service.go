@@ -17,10 +17,10 @@ type AuthenticationManager interface {
 	IsEnabled(ctx context.Context) (bool, error)
 }
 
-type AuthentiationManagerDeferFunc func() (AuthenticationManager, error)
+type AuthenticationManagerDeferFunc func() (AuthenticationManager, error)
 
 type DeferredAuthenticationManager struct {
-	deferFunc AuthentiationManagerDeferFunc
+	deferFunc AuthenticationManagerDeferFunc
 }
 
 func (d *DeferredAuthenticationManager) Authenticate(ctx context.Context, token string) (*proto.PreAuthenticatedAuthenticationToken, error) {
@@ -39,7 +39,7 @@ func (d *DeferredAuthenticationManager) IsEnabled(ctx context.Context) (bool, er
 	return am.IsEnabled(ctx)
 }
 
-func NewDeferredAuthenticationManager(deferFunc AuthentiationManagerDeferFunc) *DeferredAuthenticationManager {
+func NewDeferredAuthenticationManager(deferFunc AuthenticationManagerDeferFunc) *DeferredAuthenticationManager {
 	return &DeferredAuthenticationManager{
 		deferFunc: deferFunc,
 	}

@@ -1,11 +1,14 @@
 package extension
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/node"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,8 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -31,9 +32,12 @@ type PrivacyService struct {
 	managementContractFacade ManagementContractFacade
 	extClient                Client
 	stopFeed                 event.Feed
+	apiBackendHelper         APIBackendHelper
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
+
+	rpcClient *rpc.Client
 }
 
 var (
@@ -56,47 +60,32 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher) (*PrivacyService, error) {
+func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper) (*PrivacyService, error) {
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		panic("extension: could not connect to ethereum client rpc")
+	}
+
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
 		dataHandler:      handler,
 		stateFetcher:     fetcher,
 		accountManager:   manager,
+		apiBackendHelper: apiBackendHelper,
+		rpcClient:        rpcClient,
 	}
 
-	var err error
 	service.currentContracts, err = service.dataHandler.Load()
 	if err != nil {
 		return nil, errors.New("could not load existing extension contracts: " + err.Error())
 	}
 
+	// Register service to node
+	stack.RegisterAPIs(service.apis())
+	stack.RegisterLifecycle(service)
+
 	return service, nil
-}
-
-func (service *PrivacyService) initialise(node *node.Node) {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
-	rpcClient, err := node.Attach()
-	if err != nil {
-		panic("extension: could not connect to ethereum client rpc")
-	}
-
-	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
-	service.managementContractFacade = NewManagementContractFacade(client)
-	service.extClient = NewInProcessClient(client)
-
-	for _, f := range []func() error{
-		service.watchForNewContracts,       // watch for new extension contract creation event
-		service.watchForCancelledContracts, // watch for extension contract cancellation event
-		service.watchForCompletionEvents,   // watch for extension contract voting complete event
-	} {
-		if err := f(); err != nil {
-			log.Error("")
-		}
-	}
-
 }
 
 func (service *PrivacyService) watchForNewContracts() error {
@@ -157,14 +146,21 @@ func (service *PrivacyService) watchForNewContracts() error {
 						log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
 						continue
 					}
+
+					privateFrom, _, _, _, err := service.ptm.Receive(data)
+					if err != nil || len(privateFrom) == 0 {
+						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+						continue
+					}
+
 					//Find the extension contract in order to interact with it
 					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
 					contractCreator, _ := caller.Creator(nil)
 
-					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}}
+					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
-					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
+					_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
 
 					if err != nil {
 						log.Error("Extension: initiator vote on management contract failed", "error", err)
@@ -266,7 +262,14 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					}
 					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
-					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}})
+					privateFrom, _, _, _, err := service.ptm.Receive(payload)
+					if err != nil || len(privateFrom) == 0 {
+						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+						return
+					}
+					log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
+
+					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
 					if err != nil {
 						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
 						return
@@ -303,7 +306,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 							extraMetaData.ACMerkleRoot = storageRoot
 						}
 					}
-					hashOfStateData, err := service.ptm.Send(entireStateData, "", fetchedParties, &extraMetaData)
+					_, _, hashOfStateData, err := service.ptm.Send(entireStateData, privateFrom, fetchedParties, &extraMetaData)
 
 					if err != nil {
 						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)
@@ -332,12 +335,8 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 	return nil
 }
 
-// node.Service interface methods:
-func (service *PrivacyService) Protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
-}
-
-func (service *PrivacyService) APIs() []rpc.API {
+// utility methods
+func (service *PrivacyService) apis() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "quorumExtension",
@@ -348,8 +347,27 @@ func (service *PrivacyService) APIs() []rpc.API {
 	}
 }
 
-func (service *PrivacyService) Start(p2pServer *p2p.Server) error {
+// node.Lifecycle interface methods:
+
+func (service *PrivacyService) Start() error {
 	log.Debug("extension service: starting")
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	client := ethclient.NewClientWithPTM(service.rpcClient, service.ptm)
+	service.managementContractFacade = NewManagementContractFacade(client)
+	service.extClient = NewInProcessClient(client)
+
+	for _, f := range []func() error{
+		service.watchForNewContracts,       // watch for new extension contract creation event
+		service.watchForCancelledContracts, // watch for extension contract cancellation event
+		service.watchForCompletionEvents,   // watch for extension contract voting complete event
+	} {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -99,6 +99,42 @@ Path of the secret key file: .*UTC--.+--[0-9a-f]{40}
 `)
 }
 
+func TestAccountImport(t *testing.T) {
+	tests := []struct{ name, key, output string }{
+		{
+			name:   "correct account",
+			key:    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			output: "Address: {fcad0b19bb29d4674531d6f115237e16afce377c}\n",
+		},
+		{
+			name:   "invalid character",
+			key:    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef1",
+			output: "Fatal: Failed to load the private key: invalid character '1' at end of key file\n",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			importAccountWithExpect(t, test.key, test.output)
+		})
+	}
+}
+
+func importAccountWithExpect(t *testing.T, key string, expected string) {
+	dir := tmpdir(t)
+	keyfile := filepath.Join(dir, "key.prv")
+	if err := ioutil.WriteFile(keyfile, []byte(key), 0600); err != nil {
+		t.Error(err)
+	}
+	passwordFile := filepath.Join(dir, "password.txt")
+	if err := ioutil.WriteFile(passwordFile, []byte("foobar"), 0600); err != nil {
+		t.Error(err)
+	}
+	geth := runGeth(t, "account", "import", keyfile, "-password", passwordFile)
+	defer geth.ExpectExit()
+	geth.Expect(expected)
+}
+
 func TestAccountNewBadRepeat(t *testing.T) {
 	geth := runGeth(t, "account", "new", "--lightkdf")
 	defer geth.ExpectExit()
@@ -174,25 +210,6 @@ Password: {{.InputLine "foobar"}}
 		if !strings.Contains(geth.StderrText(), m) {
 			t.Errorf("stderr text does not contain %q", m)
 		}
-	}
-}
-
-func TestGethDoesntStartWithoutPrivateTransactionManagerVariableSet(t *testing.T) {
-	defer SetResetPrivateConfig("")()
-
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGeth(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
-
-	expectedText := "the PRIVATE_CONFIG environment variable must be specified for Quorum"
-
-	// changed to expect regexp because fatalf writes the message to stdout/stderr
-	geth.ExpectRegexp(expectedText)
-
-	result := strings.TrimSpace(geth.StderrText())
-	if !strings.Contains(result, expectedText) {
-		geth.Fatalf("bad stderr text. want '%s', got '%s'", expectedText, result)
 	}
 }
 

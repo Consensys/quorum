@@ -38,9 +38,9 @@ func (pmh *privateMessageHandler) mustVerify() bool {
 }
 
 // checks the privacy metadata in the state transition context
-// returns false if TransitionDb needs to exit early
-// true otherwise
-func (pmh *privateMessageHandler) prepare() (bool, error) {
+// returns vmError if there is an error in the EVM execution
+// returns consensusErr if there is an error in the consensus execution
+func (pmh *privateMessageHandler) prepare() (vmError, consensusErr error) {
 	if pmh.receivedPrivacyMetadata != nil {
 		if !pmh.stAPI.IsPrivacyEnhancementsEnabled() && pmh.receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
 			// This situation is only possible if the current node has been upgraded (both quorum and tessera) yet the
@@ -50,18 +50,18 @@ func (pmh *privateMessageHandler) prepare() (bool, error) {
 			// continue to apply new blocks). The resolution should then be to revert to an appropriate block height and
 			// run geth init with the network agreed privacyEnhancementsBlock.
 			// The prepare method signature has been changed to allow returning the relevant error.
-			return false, fmt.Errorf("Privacy enhanced transaction received while privacy enhancements are disabled."+
+			return ErrPrivacyEnhancedReceivedWhenDisabled, fmt.Errorf("Privacy enhanced transaction received while privacy enhancements are disabled."+
 				" Please check your node configuration. EPH=%s", pmh.eph.ToBase64())
 		}
 
 		if pmh.receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(pmh.receivedPrivacyMetadata.ACMerkleRoot) {
-			log.Error("Privacy metadata has empty MR for stateValidation flag")
-			return false, nil
+			log.Error(ErrPrivacyMetadataInvalidMerkleRoot.Error())
+			return ErrPrivacyMetadataInvalidMerkleRoot, nil
 		}
 		privMetadata := types.NewTxPrivacyMetadata(pmh.receivedPrivacyMetadata.PrivacyFlag)
 		pmh.stAPI.SetTxPrivacyMetadata(privMetadata)
 	}
-	return true, nil
+	return nil, nil
 }
 
 //If the list of affected CA Transactions by the time evm executes is different from the list of affected contract transactions returned from Tessera
@@ -86,7 +86,7 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 	log.Trace("Verify hashes of affected contracts", "expectedHashes", pmh.receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 	privacyFlag := pmh.receivedPrivacyMetadata.PrivacyFlag
 	for _, addr := range actualACAddresses {
-		// GetStatePrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
+		// GetPrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
 		// 2. private contracts of type:
 		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"

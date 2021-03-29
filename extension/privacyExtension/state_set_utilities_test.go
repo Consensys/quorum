@@ -53,14 +53,14 @@ func TestLogContainsExtensionTopicWithCorrectHashReturnsTrue(t *testing.T) {
 
 func createStateDb(t *testing.T) *state.StateDB {
 	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"22","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal([]byte(input), &accounts); err != nil {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts, &state.PrivacyMetadata{})
+	success := setState(statedb, accounts, &state.PrivacyMetadata{}, nil)
 	if !success {
 		t.Errorf("unexpected error when setting state")
 	}
@@ -102,14 +102,14 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 
 func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"invalid","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal([]byte(input), &accounts); err != nil {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts, &state.PrivacyMetadata{})
+	success := setState(statedb, accounts, &state.PrivacyMetadata{}, nil)
 	if success {
 		t.Errorf("error expected when setting state")
 	}
@@ -124,16 +124,14 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
-	privacyMetaData, err := statedb.GetStatePrivacyMetadata(address)
-	if err != nil {
-		t.Errorf("expected error to be nil, got err %s", err)
-	}
+	// we don't save PrivacyMetadata if it's standardprivate
+	_, err := statedb.GetPrivacyMetadata(address)
+	assert.Error(t, err, common.ErrNoAccountExtraData)
 
-	assert.NotEqual(t, privacyMetaData.CreationTxHash, hash)
-	privacyMetaData = &state.PrivacyMetadata{hash, engine.PrivacyFlagPartyProtection}
-	statedb.SetStatePrivacyMetadata(address, privacyMetaData)
+	privacyMetaData := &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
+	statedb.SetPrivacyMetadata(address, privacyMetaData)
 
-	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}
@@ -144,7 +142,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	newHash := common.BytesToEncryptedPayloadHash(arbitraryBytes2)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes2))
 
-	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	privacyMetaData, err = statedb.GetPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}

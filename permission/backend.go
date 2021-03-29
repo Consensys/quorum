@@ -14,11 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	"github.com/ethereum/go-ethereum/permission/v1"
-	"github.com/ethereum/go-ethereum/permission/v2"
+	v1 "github.com/ethereum/go-ethereum/permission/v1"
+	v2 "github.com/ethereum/go-ethereum/permission/v2"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -88,10 +87,15 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, 
 		case <-stopChan:
 		}
 	}(wg) // wait for inproc RPC to be ready
+
+	// Register on node
+	stack.RegisterAPIs(p.apis())
+	stack.RegisterLifecycle(p)
+
 	return p, nil
 }
 
-func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
+func (p *PermissionCtrl) Start() error {
 	log.Info("permission service: starting")
 	go func() {
 		log.Info("permission service: starting async")
@@ -100,11 +104,7 @@ func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-func (p *PermissionCtrl) Protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
-}
-
-func (p *PermissionCtrl) APIs() []rpc.API {
+func (p *PermissionCtrl) apis() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "quorumPermission",
