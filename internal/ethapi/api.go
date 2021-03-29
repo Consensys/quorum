@@ -474,7 +474,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2191,7 +2191,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.QuorumUsingPrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2803,13 +2803,9 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 			}
 		}
 
-		//if txnType == FillTransaction || !b.QuorumUsingPrivacyMarkerTransactions() {
 		replaceDataWithHash = true
 		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
-
-		//return
 	}
-	//}
 
 	return
 }

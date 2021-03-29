@@ -158,7 +158,7 @@ func TestFilters(t *testing.T) {
 					Topics:  []common.Hash{hash5},
 				},
 			}
-			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)

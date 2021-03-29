@@ -920,6 +920,25 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
+// GetReceiptsByHash retrieves the receipts for all transactions in a given block.
+func (bc *BlockChain) GetPrivateReceiptsByHash(hash common.Hash) types.Receipts {
+	//if receipts, ok := bc.receiptsCache.Get(hash); ok {
+	//	return receipts.(types.Receipts)
+	//}
+	block := bc.GetBlockByHash(hash)
+	if block == nil {
+		return types.Receipts{}
+	}
+	recs := make([]*types.Receipt, 0)
+	for _, tx := range block.Transactions() {
+		//if tx.IsPrivateMarker() { TODO(peter): use method to check if marker
+		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+			recs = append(recs, rawdb.ReadPrivateTransactionReceipt(bc.db, tx.Hash()))
+		}
+	}
+	return recs
+}
+
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
 // [deprecated by eth/62]
 func (bc *BlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []*types.Block) {
@@ -1998,7 +2017,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if err != nil {
 			return it.index, err
 		}
-		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
+		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts, privateState.MarkerTransactionReceipts); err != nil {
 			return it.index, err
 		}
 		// Update the metrics touched during block commit
