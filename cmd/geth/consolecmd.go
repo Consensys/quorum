@@ -155,12 +155,12 @@ func readTLSClientConfig(endpoint string, ctx *cli.Context) (*tls.Config, bool, 
 func localConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	prepare(ctx)
-	node := makeFullNode(ctx)
-	startNode(ctx, node)
-	defer node.Close()
+	stack, backend := makeFullNode(ctx)
+	startNode(ctx, stack, backend)
+	defer stack.Close()
 
 	// Attach to the newly started node and start the JavaScript console
-	client, err := node.Attach()
+	client, err := stack.Attach()
 	if err != nil {
 		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
@@ -200,10 +200,21 @@ func remoteConsole(ctx *cli.Context) error {
 			path = ctx.GlobalString(utils.DataDirFlag.Name)
 		}
 		if path != "" {
-			if ctx.GlobalBool(utils.TestnetFlag.Name) {
-				path = filepath.Join(path, "testnet")
+			if ctx.GlobalBool(utils.LegacyTestnetFlag.Name) || ctx.GlobalBool(utils.RopstenFlag.Name) {
+				// Maintain compatibility with older Geth configurations storing the
+				// Ropsten database in `testnet` instead of `ropsten`.
+				legacyPath := filepath.Join(path, "testnet")
+				if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+					path = legacyPath
+				} else {
+					path = filepath.Join(path, "ropsten")
+				}
 			} else if ctx.GlobalBool(utils.RinkebyFlag.Name) {
 				path = filepath.Join(path, "rinkeby")
+			} else if ctx.GlobalBool(utils.GoerliFlag.Name) {
+				path = filepath.Join(path, "goerli")
+			} else if ctx.GlobalBool(utils.YoloV1Flag.Name) {
+				path = filepath.Join(path, "yolo-v1")
 			}
 		}
 		endpoint = fmt.Sprintf("%s/geth.ipc", path)
@@ -279,12 +290,12 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 				Transport: http.DefaultTransport,
 			}
 			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
-			client, err = rpc.DialHTTPWithClient(endpoint, customHttpClient)
+			client, _ = rpc.DialHTTPWithClient(endpoint, customHttpClient)
 		case "wss":
-			client, err = rpc.DialWebsocketWithCustomTLS(dialCtx, endpoint, "", tlsConfig)
+			client, _ = rpc.DialWebsocketWithCustomTLS(dialCtx, endpoint, "", tlsConfig)
 		default:
 			log.Warn("unsupported scheme for custom TLS which is only for HTTPS/WSS", "scheme", u.Scheme)
-			client, err = rpc.DialContext(dialCtx, endpoint)
+			client, _ = rpc.DialContext(dialCtx, endpoint)
 		}
 	} else {
 		client, err = rpc.DialContext(dialCtx, endpoint)
@@ -300,12 +311,12 @@ func dialRPC(endpoint string, ctx *cli.Context) (*rpc.Client, error) {
 // everything down.
 func ephemeralConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
-	node := makeFullNode(ctx)
-	startNode(ctx, node)
-	defer node.Close()
+	stack, backend := makeFullNode(ctx)
+	startNode(ctx, stack, backend)
+	defer stack.Close()
 
 	// Attach to the newly started node and start the JavaScript console
-	client, err := node.Attach()
+	client, err := stack.Attach()
 	if err != nil {
 		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}

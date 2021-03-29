@@ -36,11 +36,6 @@ func InitSingleTest() {
 	mrand.Seed(seed)
 }
 
-func InitDebugTest(i int64) {
-	seed = i
-	mrand.Seed(seed)
-}
-
 type FilterTestCase struct {
 	f      *Filter
 	id     string
@@ -97,7 +92,10 @@ func TestInstallFilters(t *testing.T) {
 	InitSingleTest()
 
 	const SizeTestFilters = 256
-	w := New(&Config{})
+
+	stack, w := newNodeWithWhisper(t)
+	defer stack.Close()
+
 	filters := NewFilters(w)
 	tst := generateTestCases(t, SizeTestFilters)
 
@@ -135,7 +133,9 @@ func TestInstallFilters(t *testing.T) {
 func TestInstallSymKeyGeneratesHash(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&Config{})
+	stack, w := newNodeWithWhisper(t)
+	defer stack.Close()
+
 	filters := NewFilters(w)
 	filter, _ := generateFilter(t, true)
 
@@ -162,7 +162,9 @@ func TestInstallSymKeyGeneratesHash(t *testing.T) {
 func TestInstallIdenticalFilters(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&Config{})
+	stack, w := newNodeWithWhisper(t)
+	defer stack.Close()
+
 	filters := NewFilters(w)
 	filter1, _ := generateFilter(t, true)
 
@@ -232,7 +234,9 @@ func TestInstallIdenticalFilters(t *testing.T) {
 func TestInstallFilterWithSymAndAsymKeys(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&Config{})
+	stack, w := newNodeWithWhisper(t)
+	defer stack.Close()
+
 	filters := NewFilters(w)
 	filter1, _ := generateFilter(t, true)
 
@@ -309,8 +313,7 @@ func TestMatchEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new message with seed %d: %s.", seed, err)
 	}
-	env, err := msg.Wrap(params)
-	if err != nil {
+	if _, err = msg.Wrap(params); err != nil {
 		t.Fatalf("failed Wrap with seed %d: %s.", seed, err)
 	}
 
@@ -322,7 +325,7 @@ func TestMatchEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new message with seed %d: %s.", seed, err)
 	}
-	env, err = msg.Wrap(params)
+	env, err := msg.Wrap(params)
 	if err != nil {
 		t.Fatalf("failed Wrap() with seed %d: %s.", seed, err)
 	}
@@ -647,7 +650,9 @@ func TestWatchers(t *testing.T) {
 	var x, firstID string
 	var err error
 
-	w := New(&Config{})
+	stack, w := newNodeWithWhisper(t)
+	defer stack.Close()
+
 	filters := NewFilters(w)
 	tst := generateTestCases(t, NumFilters)
 	for i = 0; i < NumFilters; i++ {

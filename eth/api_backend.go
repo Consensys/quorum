@@ -25,7 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -36,9 +36,13 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -213,17 +217,18 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	return logs, nil
 }
 
-func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
-	return b.eth.blockchain.GetTdByHash(blockHash)
+func (b *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
+	return b.eth.blockchain.GetTdByHash(hash)
 }
 
 func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	statedb := state.(EthAPIState)
-	from := statedb.state.GetOrNewStateObject(msg.From())
-	from.SetBalance(math.MaxBig256)
 	vmError := func() error { return nil }
 
-	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	evmCtx := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	if _, ok := b.SupportsMultitenancy(ctx); ok {
+		evmCtx = core.NewMultitenancyAwareEVMContext(ctx, evmCtx)
+	}
 
 	// Set the private state to public state if contract address is not present in the private state
 	to := common.Address{}
@@ -236,11 +241,15 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 		privateState = statedb.state
 	}
 
-	return vm.NewEVM(context, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
+	return vm.NewEVM(evmCtx, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
 	return b.eth.BlockChain().SubscribeRemovedLogsEvent(ch)
+}
+
+func (b *EthAPIBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return b.eth.miner.SubscribePendingLogs(ch)
 }
 
 func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
@@ -301,6 +310,10 @@ func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, 
 	return b.eth.TxPool().Content()
 }
 
+func (b *EthAPIBackend) TxPool() *core.TxPool {
+	return b.eth.TxPool()
+}
+
 func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
 	return b.eth.TxPool().SubscribeNewTxsEvent(ch)
 }
@@ -341,8 +354,12 @@ func (b *EthAPIBackend) CallTimeOut() time.Duration {
 	return b.evmCallTimeOut
 }
 
-func (b *EthAPIBackend) RPCGasCap() *big.Int {
+func (b *EthAPIBackend) RPCGasCap() uint64 {
 	return b.eth.config.RPCGasCap
+}
+
+func (b *EthAPIBackend) RPCTxFeeCap() float64 {
+	return b.eth.config.RPCTxFeeCap
 }
 
 func (b *EthAPIBackend) BloomStatus() (uint64, uint64) {
@@ -354,6 +371,46 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
 	}
+}
+
+func (b *EthAPIBackend) Engine() consensus.Engine {
+	return b.eth.engine
+}
+
+func (b *EthAPIBackend) CurrentHeader() *types.Header {
+	return b.eth.blockchain.CurrentHeader()
+}
+
+func (b *EthAPIBackend) Miner() *miner.Miner {
+	return b.eth.Miner()
+}
+
+func (b *EthAPIBackend) StartMining(threads int) error {
+	return b.eth.StartMining(threads)
+}
+
+// The validation of pre-requisite for multitenancy is done when EthService
+// is being created. So it's safe to use the config value here.
+func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+		return authToken, true
+	}
+	return nil, false
+}
+
+func (b *EthAPIBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	s, _, err := b.StateAndHeaderByNumber(ctx, number)
+	return s, err
+}
+
+func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
+	if err != nil {
+		log.Error("failed to perform authorization check", "err", err, "granted", string(authToken.RawToken), "ask", attributes)
+		return false, err
+	}
+	return auth, nil
 }
 
 // used by Quorum
@@ -429,11 +486,18 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (s EthAPIState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.GetStatePrivacyMetadata(addr)
+		return s.privateState.GetPrivacyMetadata(addr)
 	}
-	return nil, fmt.Errorf("The provided address is not a private contract: %x", addr)
+	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
+}
+
+func (s EthAPIState) GetManagedParties(addr common.Address) ([]string, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetManagedParties(addr)
+	}
+	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {

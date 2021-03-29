@@ -17,17 +17,21 @@
 package core
 
 import (
+	"context"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/multitenancy"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
+	multitenancy.ContextAware
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
@@ -44,6 +48,12 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	} else {
 		beneficiary = *author
 	}
+	supportsMultitenancy := false
+	// mainly to overcome lost of test cases which pass ChainContext as nil value
+	// nil interface requires this check to make sure we don't get nil pointer reference error
+	if chain != nil && !reflect.ValueOf(chain).IsNil() {
+		_, supportsMultitenancy = chain.SupportsMultitenancy(nil)
+	}
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -55,29 +65,53 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 		Difficulty:  new(big.Int).Set(header.Difficulty),
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+
+		SupportsMultitenancy: supportsMultitenancy,
 	}
+}
+
+// Quorum
+//
+// This EVM context is meant for simulation when doing multitenancy check.
+// It enriches the given EVM context with multitenancy-specific references
+func NewMultitenancyAwareEVMContext(ctx context.Context, evmCtx vm.Context) vm.Context {
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeCreateFunc).(multitenancy.AuthorizeCreateFunc); ok {
+		evmCtx.AuthorizeCreateFunc = f
+	}
+	if f, ok := ctx.Value(multitenancy.CtxKeyAuthorizeMessageCallFunc).(multitenancy.AuthorizeMessageCallFunc); ok {
+		evmCtx.AuthorizeMessageCallFunc = f
+	}
+	return evmCtx
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
 func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
-	var cache map[uint64]common.Hash
+	// Cache will initially contain [refHash.parent],
+	// Then fill up with [refHash.p, refHash.pp, refHash.ppp, ...]
+	var cache []common.Hash
 
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
-		if cache == nil {
-			cache = map[uint64]common.Hash{
-				ref.Number.Uint64() - 1: ref.ParentHash,
+		if len(cache) == 0 {
+			cache = append(cache, ref.ParentHash)
+		}
+		if idx := ref.Number.Uint64() - n - 1; idx < uint64(len(cache)) {
+			return cache[idx]
+		}
+		// No luck in the cache, but we can start iterating from the last element we already know
+		lastKnownHash := cache[len(cache)-1]
+		lastKnownNumber := ref.Number.Uint64() - uint64(len(cache))
+
+		for {
+			header := chain.GetHeader(lastKnownHash, lastKnownNumber)
+			if header == nil {
+				break
 			}
-		}
-		// Try to fulfill the request from the cache
-		if hash, ok := cache[n]; ok {
-			return hash
-		}
-		// Not cached, iterate the blocks and cache the hashes
-		for header := chain.GetHeader(ref.ParentHash, ref.Number.Uint64()-1); header != nil; header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1) {
-			cache[header.Number.Uint64()-1] = header.ParentHash
-			if n == header.Number.Uint64()-1 {
-				return header.ParentHash
+			cache = append(cache, header.ParentHash)
+			lastKnownHash = header.ParentHash
+			lastKnownNumber = header.Number.Uint64() - 1
+			if n == lastKnownNumber {
+				return lastKnownHash
 			}
 		}
 		return common.Hash{}

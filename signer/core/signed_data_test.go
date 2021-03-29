@@ -245,6 +245,10 @@ func TestDomainChainId(t *testing.T) {
 	if _, ok := withoutChainID.Domain.Map()["chainId"]; ok {
 		t.Errorf("Expected the chainId key to not be present in the domain map")
 	}
+	// should encode successfully
+	if _, err := withoutChainID.HashStruct("EIP712Domain", withoutChainID.Domain.Map()); err != nil {
+		t.Errorf("Expected the typedData to encode the domain successfully, got %v", err)
+	}
 	withChainID := core.TypedData{
 		Types: core.Types{
 			"EIP712Domain": []core.Type{
@@ -260,6 +264,10 @@ func TestDomainChainId(t *testing.T) {
 
 	if _, ok := withChainID.Domain.Map()["chainId"]; !ok {
 		t.Errorf("Expected the chainId key be present in the domain map")
+	}
+	// should encode successfully
+	if _, err := withChainID.HashStruct("EIP712Domain", withChainID.Domain.Map()); err != nil {
+		t.Errorf("Expected the typedData to encode the domain successfully, got %v", err)
 	}
 }
 
@@ -358,7 +366,7 @@ func TestJsonFiles(t *testing.T) {
 			continue
 		}
 		var typedData core.TypedData
-		err = json.Unmarshal([]byte(data), &typedData)
+		err = json.Unmarshal(data, &typedData)
 		if err != nil {
 			t.Errorf("Test %d, file %v, json unmarshalling failed: %v", i, fInfo.Name(), err)
 			continue
@@ -390,7 +398,7 @@ func TestFuzzerFiles(t *testing.T) {
 			continue
 		}
 		var typedData core.TypedData
-		err = json.Unmarshal([]byte(data), &typedData)
+		err = json.Unmarshal(data, &typedData)
 		if err != nil {
 			t.Errorf("Test %d, file %v, json unmarshalling failed: %v", i, fInfo.Name(), err)
 			continue

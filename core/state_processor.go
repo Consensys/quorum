@@ -138,7 +138,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	vmenv.SetCurrentTX(tx)
 
 	// Apply the transaction to the current state (included in the env)
-	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
+	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,17 +149,17 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	} else {
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 	}
-	*usedGas += gas
+	*usedGas += result.UsedGas
 
 	// If this is a private transaction, the public receipt should always
 	// indicate success.
-	publicFailed := !(config.IsQuorum && tx.IsPrivate()) && failed
+	publicFailed := !(config.IsQuorum && tx.IsPrivate()) && result.Failed()
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing wether the root touch-delete accounts.
 	receipt := types.NewReceipt(root, publicFailed, *usedGas)
 	receipt.TxHash = tx.Hash()
-	receipt.GasUsed = gas
+	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
@@ -179,9 +179,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		} else {
 			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 		}
-		privateReceipt = types.NewReceipt(privateRoot, failed, *usedGas)
+		privateReceipt = types.NewReceipt(privateRoot, result.Failed(), *usedGas)
 		privateReceipt.TxHash = tx.Hash()
-		privateReceipt.GasUsed = gas
+		privateReceipt.GasUsed = result.UsedGas
 		if msg.To() == nil {
 			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 		}

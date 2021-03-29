@@ -223,7 +223,7 @@ func UpdateDisallowedNodes(dataDir, url string, operation NodeOperation) error {
 func DisconnectNode(node *node.Node, enodeId string, isRaft bool) error {
 	if isRaft {
 		var raftService *raft.RaftService
-		if err := node.Service(&raftService); err == nil {
+		if err := node.Lifecycle(&raftService); err == nil {
 			raftApi := raft.NewPublicRaftAPI(raftService)
 
 			//get the raftId for the given enodeId

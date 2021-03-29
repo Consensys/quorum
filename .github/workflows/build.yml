@@ -9,7 +9,7 @@ on:
     branches:
       - master
 env:
-  GO_VERSION: 1.13
+  GO_VERSION: 1.15.5
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
@@ -23,7 +23,7 @@ jobs:
         # ###[error]    natupnp_test.go:165: not discovered
         # must be sommething with Github Actions VM networking setup.
         # Event Ubuntu requires a workaround
-        os: ["ubuntu-18.04"]
+        os: [ "ubuntu-18.04" ]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -33,7 +33,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@574281d
+        uses: actions/checkout@v2
         with:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}

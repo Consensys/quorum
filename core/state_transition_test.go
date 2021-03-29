@@ -8,25 +8,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
-
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
-
-	"github.com/ethereum/go-ethereum/accounts/abi"
-
-	"github.com/ethereum/go-ethereum/common/math"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -151,10 +147,10 @@ func TestApplyMessage_Private_whenTypicalCreate_Success(t *testing.T) {
 		PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -177,10 +173,10 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1_Success(t *testing.T) 
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -206,12 +202,12 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancements
 
 	evm := newEVM(cfg)
 	evm.ChainConfig().PrivacyEnhancementsBlock = nil
-	_, _, fail, err := ApplyMessage(evm, privateMsg, gp)
+	result, err := ApplyMessage(evm, privateMsg, gp)
 
 	assert.Error(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	// check that there is no privacy metadata for the newly created contract
-	assert.Len(evm.CreatedContracts(), 0, "no contracts createad")
+	assert.Len(evm.CreatedContracts(), 0, "no contracts created")
 	mockPM.Verify(assert)
 }
 
@@ -243,10 +239,10 @@ func TestApplyMessage_Private_whenInteractWithPartyProtectionC1_Success(t *testi
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -271,7 +267,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 		setNonce(1).
 		setTo(c1Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored})
 	//since state validation need ACHashes, MerkleRoot and PrivacyFlag
 	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -281,10 +277,10 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 		ACMerkleRoot: mr,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -318,10 +314,10 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1WithEmptyMRFromTe
 		ACMerkleRoot: common.Hash{},
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -355,10 +351,10 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1WithWrongMRFromTe
 		ACMerkleRoot: common.Hash{123},
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -391,10 +387,10 @@ func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_
 		PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -425,10 +421,10 @@ func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -468,10 +464,10 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsExistingStandardPriv
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -510,10 +506,10 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsNewStandardPrivateC1
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -553,10 +549,10 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPartyProtectionC
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -597,10 +593,10 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1ButMissingC1CreationInTe
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -647,11 +643,11 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InState
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
 	// after ACOTH check updates this is a successful scenario
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -688,7 +684,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	log.Trace("stuff", "c2code", stuff[:])
 
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -699,10 +695,10 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 		ACMerkleRoot: mr,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -735,7 +731,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 		setTo(c2Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
 	// use the correctly calculated MR so that it can't be a source of false positives
-	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
+	mr, _ := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -746,10 +742,10 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 		ACMerkleRoot: mr,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -784,10 +780,10 @@ func TestApplyMessage_Private_whenStandardPrivateC2InteractsWithPublicC1_Fail(t 
 		PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -823,10 +819,10 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPublicC1_Fail(t 
 		PrivacyFlag: engine.PrivacyFlagPartyProtection,
 	}, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	assert.True(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -847,10 +843,10 @@ func TestApplyMessage_Private_whenTxManagerReturnsError_Success(t *testing.T) {
 	//since standard private create only get back PrivacyFlag
 	mockPM.When("Receive").Return(nil, nil, fmt.Errorf("Error during receive"))
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -871,10 +867,10 @@ func TestApplyMessage_Private_whenTxManagerReturnsEmptyResult_Success(t *testing
 	//since standard private create only get back PrivacyFlag
 	mockPM.When("Receive").Return(nil, nil, nil)
 
-	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.False(result.Failed(), "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -892,10 +888,10 @@ func createContract(cfg *config, mockPM *mockPrivateTransactionManager, assert *
 	mockPM.When("Receive").Return(c.create(args...), metadata, nil)
 
 	evm := newEVM(cfg)
-	_, _, fail, err := ApplyMessage(evm, privateMsg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(evm, privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "%s: EVM execution", c.name)
-	assert.False(fail, "%s: Transaction receipt status", c.name)
+	assert.False(result.Failed(), "%s: Transaction receipt status", c.name)
 	mockPM.Verify(assert)
 	createdContracts := evm.CreatedContracts()
 	log.Trace("priv statedb", "evmstatedb", evm.StateDB)
@@ -910,9 +906,9 @@ func createPublicContract(cfg *config, assert *testifyassert.Assertions, c *cont
 	msg := newTypicalPublicMessage(pubcfg)
 
 	evm := newEVM(pubcfg)
-	_, _, fail, err := ApplyMessage(evm, msg, new(GasPool).AddGas(math.MaxUint64))
+	result, err := ApplyMessage(evm, msg, new(GasPool).AddGas(math.MaxUint64))
 	assert.NoError(err, "%s: EVM execution", c.name)
-	assert.False(fail, "%s: Transaction receipt status", c.name)
+	assert.False(result.Failed(), "%s: Transaction receipt status", c.name)
 	createdContracts := evm.CreatedContracts()
 	log.Trace("pub statedb", "evmstatedb", evm.StateDB)
 	assert.Len(createdContracts, 1, "%s: Number of created contracts", c.name)
@@ -996,8 +992,8 @@ type config struct {
 func newConfig() *config {
 	pubDatabase := rawdb.NewMemoryDatabase()
 	privDatabase := rawdb.NewMemoryDatabase()
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(pubDatabase))
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(privDatabase))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(pubDatabase), nil)
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(privDatabase), nil)
 	return &config{
 		privateState: privateState,
 		publicState:  publicState,
@@ -1097,7 +1093,7 @@ func (mpm *mockPrivateTransactionManager) HasFeature(f engine.PrivateTransaction
 	return true
 }
 
-func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	mpm.count["Receive"]++
 	values := mpm.returns["Receive"]
 	var (
@@ -1114,7 +1110,7 @@ func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 	if values[2] != nil {
 		r3 = values[2].(error)
 	}
-	return r1, r2, r3
+	return "", nil, r1, r2, r3
 }
 
 func (mpm *mockPrivateTransactionManager) When(name string) *mockPrivateTransactionManager {
@@ -1269,8 +1265,8 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	expectedGasPool := new(GasPool).AddGas(177988) // only intrinsic gas is deducted
 
 	db := rawdb.NewMemoryDatabase()
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	msg := privateCallMsg{
 		callmsg: callmsg{
 			addr:     common.Address{2},
@@ -1299,10 +1295,10 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 
 	testObject := NewStateTransition(evm, msg, gasPool)
 
-	_, _, failed, err := testObject.TransitionDb()
+	result, err := testObject.TransitionDb()
 
 	assert.NoError(err)
-	assert.False(failed)
+	assert.False(result.Failed())
 
 	assert.Equal(new(big.Int).SetUint64(expectedGasPool.Gas()), new(big.Int).SetUint64(gasPool.Gas()), "gas pool must be calculated correctly")
 	assert.Equal(arbitraryBalance, publicState.GetBalance(evm.Coinbase), "balance must not be changed")
@@ -1344,21 +1340,22 @@ type StubPrivateTransactionManager struct {
 	responses map[string][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	res := spm.responses["Receive"]
 	if err, ok := res[1].(error); ok {
-		return nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return ret, &engine.ExtraMetadata{
+		return "", nil, ret, &engine.ExtraMetadata{
 			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 		}, nil
 	}
-	return nil, nil, nil
+	return "", nil, nil, nil, nil
 }
 
-func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	return spm.Receive(data)
+func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
+	_, sender, data, metadata, err := spm.Receive(hash)
+	return data, sender[0], metadata, err
 }
 
 func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {

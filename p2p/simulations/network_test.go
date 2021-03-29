@@ -41,8 +41,8 @@ func TestSnapshot(t *testing.T) {
 	// create snapshot from ring network
 
 	// this is a minimal service, whose protocol will take exactly one message OR close of connection before quitting
-	adapter := adapters.NewSimAdapter(adapters.Services{
-		"noopwoop": func(ctx *adapters.ServiceContext) (node.Service, error) {
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
+		"noopwoop": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 			return NewNoopService(nil), nil
 		},
 	})
@@ -81,11 +81,13 @@ func TestSnapshot(t *testing.T) {
 
 	// connect nodes in a ring
 	// spawn separate thread to avoid deadlock in the event listeners
+	connectErr := make(chan error, 1)
 	go func() {
 		for i, id := range ids {
 			peerID := ids[(i+1)%len(ids)]
 			if err := network.Connect(id, peerID); err != nil {
-				t.Fatal(err)
+				connectErr <- err
+				return
 			}
 		}
 	}()
@@ -100,9 +102,10 @@ OUTER:
 		select {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
+		case err := <-connectErr:
+			t.Fatal(err)
 		case ev := <-evC:
 			if ev.Type == EventTypeConn && !ev.Control {
-
 				// fail on any disconnect
 				if !ev.Conn.Up {
 					t.Fatalf("unexpected disconnect: %v -> %v", ev.Conn.One, ev.Conn.Other)
@@ -162,8 +165,8 @@ OUTER:
 	// PART II
 	// load snapshot and verify that exactly same connections are formed
 
-	adapter = adapters.NewSimAdapter(adapters.Services{
-		"noopwoop": func(ctx *adapters.ServiceContext) (node.Service, error) {
+	adapter = adapters.NewSimAdapter(adapters.LifecycleConstructors{
+		"noopwoop": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 			return NewNoopService(nil), nil
 		},
 	})
@@ -253,8 +256,8 @@ OuterTwo:
 	t.Run("conns after load", func(t *testing.T) {
 		// Create new network.
 		n := NewNetwork(
-			adapters.NewSimAdapter(adapters.Services{
-				"noopwoop": func(ctx *adapters.ServiceContext) (node.Service, error) {
+			adapters.NewSimAdapter(adapters.LifecycleConstructors{
+				"noopwoop": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 					return NewNoopService(nil), nil
 				},
 			}),
@@ -285,7 +288,7 @@ OuterTwo:
 // with each other and that a snapshot fully represents the desired topology
 func TestNetworkSimulation(t *testing.T) {
 	// create simulation network with 20 testService nodes
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -434,7 +437,7 @@ func createTestNodesWithProperty(property string, count int, network *Network) (
 // It then tests again whilst excluding a node ID from being returned.
 // If a node ID is not returned, or more node IDs than expected are returned, the test fails.
 func TestGetNodeIDs(t *testing.T) {
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -483,7 +486,7 @@ func TestGetNodeIDs(t *testing.T) {
 // It then tests again whilst excluding a node from being returned.
 // If a node is not returned, or more nodes than expected are returned, the test fails.
 func TestGetNodes(t *testing.T) {
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -531,7 +534,7 @@ func TestGetNodes(t *testing.T) {
 // TestGetNodesByID creates a set of nodes and attempts to retrieve a subset of them by ID
 // If a node is not returned, or more nodes than expected are returned, the test fails.
 func TestGetNodesByID(t *testing.T) {
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -576,7 +579,7 @@ func TestGetNodesByID(t *testing.T) {
 // GetNodesByProperty is then checked for correctness by comparing the nodes returned to those initially created.
 // If a node with a property is not found, or more nodes than expected are returned, the test fails.
 func TestGetNodesByProperty(t *testing.T) {
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -621,7 +624,7 @@ func TestGetNodesByProperty(t *testing.T) {
 // GetNodeIDsByProperty is then checked for correctness by comparing the node IDs returned to those initially created.
 // If a node ID with a property is not found, or more nodes IDs than expected are returned, the test fails.
 func TestGetNodeIDsByProperty(t *testing.T) {
-	adapter := adapters.NewSimAdapter(adapters.Services{
+	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
 	network := NewNetwork(adapter, &NetworkConfig{
@@ -702,8 +705,8 @@ func benchmarkMinimalServiceTmp(b *testing.B) {
 		// this is a minimal service, whose protocol will close a channel upon run of protocol
 		// making it possible to bench the time it takes for the service to start and protocol actually to be run
 		protoCMap := make(map[enode.ID]map[enode.ID]chan struct{})
-		adapter := adapters.NewSimAdapter(adapters.Services{
-			"noopwoop": func(ctx *adapters.ServiceContext) (node.Service, error) {
+		adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
+			"noopwoop": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 				protoCMap[ctx.Config.ID] = make(map[enode.ID]chan struct{})
 				svc := NewNoopService(protoCMap[ctx.Config.ID])
 				return svc, nil
@@ -758,27 +761,22 @@ func benchmarkMinimalServiceTmp(b *testing.B) {
 }
 
 func TestNode_UnmarshalJSON(t *testing.T) {
-	t.Run(
-		"test unmarshal of Node up field",
-		func(t *testing.T) {
-			runNodeUnmarshalJSON(t, casesNodeUnmarshalJSONUpField())
-		},
-	)
-	t.Run(
-		"test unmarshal of Node Config field",
-		func(t *testing.T) {
-			runNodeUnmarshalJSON(t, casesNodeUnmarshalJSONConfigField())
-		},
-	)
+	t.Run("up_field", func(t *testing.T) {
+		runNodeUnmarshalJSON(t, casesNodeUnmarshalJSONUpField())
+	})
+	t.Run("config_field", func(t *testing.T) {
+		runNodeUnmarshalJSON(t, casesNodeUnmarshalJSONConfigField())
+	})
 }
 
 func runNodeUnmarshalJSON(t *testing.T, tests []nodeUnmarshalTestCase) {
 	t.Helper()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got Node
-			if err := got.UnmarshalJSON([]byte(tt.marshaled)); err != nil {
+			var got *Node
+			if err := json.Unmarshal([]byte(tt.marshaled), &got); err != nil {
 				expectErrorMessageToContain(t, err, tt.wantErr)
+				got = nil
 			}
 			expectNodeEquality(t, got, tt.want)
 		})
@@ -788,7 +786,7 @@ func runNodeUnmarshalJSON(t *testing.T, tests []nodeUnmarshalTestCase) {
 type nodeUnmarshalTestCase struct {
 	name      string
 	marshaled string
-	want      Node
+	want      *Node
 	wantErr   string
 }
 
@@ -812,7 +810,7 @@ func expectErrorMessageToContain(t *testing.T, got error, want string) {
 	}
 }
 
-func expectNodeEquality(t *testing.T, got Node, want Node) {
+func expectNodeEquality(t *testing.T, got, want *Node) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Node.UnmarshalJSON() = %v, want %v", got, want)
@@ -824,23 +822,17 @@ func casesNodeUnmarshalJSONUpField() []nodeUnmarshalTestCase {
 		{
 			name:      "empty json",
 			marshaled: "{}",
-			want: Node{
-				up: false,
-			},
+			want:      newNode(nil, nil, false),
 		},
 		{
 			name:      "a stopped node",
 			marshaled: "{\"up\": false}",
-			want: Node{
-				up: false,
-			},
+			want:      newNode(nil, nil, false),
 		},
 		{
 			name:      "a running node",
 			marshaled: "{\"up\": true}",
-			want: Node{
-				up: true,
-			},
+			want:      newNode(nil, nil, true),
 		},
 		{
 			name:      "invalid JSON value on valid key",
@@ -867,26 +859,17 @@ func casesNodeUnmarshalJSONConfigField() []nodeUnmarshalTestCase {
 		{
 			name:      "Config field is omitted",
 			marshaled: "{}",
-			want: Node{
-				Config: nil,
-			},
+			want:      newNode(nil, nil, false),
 		},
 		{
 			name:      "Config field is nil",
-			marshaled: "{\"config\": nil}",
-			want: Node{
-				Config: nil,
-			},
+			marshaled: "{\"config\": null}",
+			want:      newNode(nil, nil, false),
 		},
 		{
 			name:      "a non default Config field",
 			marshaled: "{\"config\":{\"name\":\"node_ecdd0\",\"port\":44665}}",
-			want: Node{
-				Config: &adapters.NodeConfig{
-					Name: "node_ecdd0",
-					Port: 44665,
-				},
-			},
+			want:      newNode(nil, &adapters.NodeConfig{Name: "node_ecdd0", Port: 44665}, false),
 		},
 	}
 }

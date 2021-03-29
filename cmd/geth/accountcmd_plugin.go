@@ -284,7 +284,7 @@ func setupAccountPluginForCLI(ctx *cli.Context) (*accountPlugin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create plugin manager: %v", err)
 	}
-	if err := pm.Start(nil); err != nil {
+	if err := pm.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start plugin manager: %v", err)
 	}
 

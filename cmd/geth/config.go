@@ -20,14 +20,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"reflect"
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/dashboard"
+	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -77,11 +78,10 @@ type ethstatsConfig struct {
 }
 
 type gethConfig struct {
-	Eth       eth.Config
-	Shh       whisper.Config
-	Node      node.Config
-	Ethstats  ethstatsConfig
-	Dashboard dashboard.Config
+	Eth      eth.Config
+	Shh      whisper.Config
+	Node     node.Config
+	Ethstats ethstatsConfig
 }
 
 func loadConfig(file string, cfg *gethConfig) error {
@@ -103,19 +103,19 @@ func defaultNodeConfig() node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "shh")
-	cfg.WSModules = append(cfg.WSModules, "eth", "shh")
+	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
+	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
 	return cfg
 }
 
+// makeConfigNode loads geth configuration and creates a blank node instance.
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Load defaults.
 	cfg := gethConfig{
-		Eth:       eth.DefaultConfig,
-		Shh:       whisper.DefaultConfig,
-		Node:      defaultNodeConfig(),
-		Dashboard: dashboard.DefaultConfig,
+		Eth:  eth.DefaultConfig,
+		Shh:  whisper.DefaultConfig,
+		Node: defaultNodeConfig(),
 	}
 
 	// Load config file.
@@ -136,7 +136,6 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
 	utils.SetShhConfig(ctx, stack, &cfg.Shh)
-	utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return stack, cfg
 }
@@ -151,14 +150,14 @@ func enableWhisper(ctx *cli.Context) bool {
 	return false
 }
 
-func makeFullNode(ctx *cli.Context) *node.Node {
+// makeFullNode loads geth configuration and creates the Ethereum backend.
+func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
-	if ctx.GlobalIsSet(utils.OverrideIstanbulFlag.Name) {
-		cfg.Eth.OverrideIstanbul = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideIstanbulFlag.Name))
-	}
 
-	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
+	// Quorum - returning `ethService` too for the Raft and extension service
+	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
 
+	// Quorum
 	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
 	// fails to start
 	if cfg.Node.Plugins != nil {
@@ -170,17 +169,18 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
-	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
-		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
+	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
-	ipcPath := quorumGetPrivateTransactionManager()
-	if ipcPath != "" {
-		utils.RegisterExtensionService(stack, ethChan)
+	if private.IsQuorumPrivacyEnabled() {
+		utils.RegisterExtensionService(stack, ethService)
 	}
+	// End Quorum
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
@@ -199,13 +199,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 	// Configure GraphQL if requested
 	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
-		utils.RegisterGraphQLService(stack, cfg.Node.GraphQLEndpoint(), cfg.Node.GraphQLCors, cfg.Node.GraphQLVirtualHosts, cfg.Node.HTTPTimeouts)
+		utils.RegisterGraphQLService(stack, backend, cfg.Node)
 	}
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
-		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
+		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}
-	return stack
+	return stack, backend
 }
 
 // dumpConfig is the dumpconfig command.
@@ -241,7 +241,7 @@ func dumpConfig(ctx *cli.Context) error {
 func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
-	err := stack.Service(&ethereum)
+	err := stack.Lifecycle(&ethereum)
 	if err != nil {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}
@@ -258,21 +258,6 @@ func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
 	}
 }
 
-// quorumValidatePrivateTransactionManager returns whether the "PRIVATE_CONFIG"
-// environment variable is set
-func quorumValidatePrivateTransactionManager() bool {
-	return os.Getenv("PRIVATE_CONFIG") != ""
-}
-
-//
-func quorumGetPrivateTransactionManager() string {
-	cfgPath := os.Getenv("PRIVATE_CONFIG")
-	if cfgPath != "" && cfgPath != "ignore" {
-		return cfgPath
-	}
-	return ""
-}
-
 // quorumValidatePrivacyEnhancements checks if privacy enhancements are configured the transaction manager supports
 // the PrivacyEnhancements feature
 func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
@@ -283,4 +268,72 @@ func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 			utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
 		}
 	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
+}
+
+// Get private transaction manager configuration
+func QuorumSetupPrivacyConfiguration(ctx *cli.Context) (http.Config, error) {
+	// get default configuration
+	cfg, err := private.GetLegacyEnvironmentConfig()
+	if err != nil {
+		return http.Config{}, err
+	}
+
+	// override the config with command line parameters
+	if ctx.GlobalIsSet(utils.QuorumPTMUnixSocketFlag.Name) {
+		cfg.SetSocket(ctx.GlobalString(utils.QuorumPTMUnixSocketFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMUrlFlag.Name) {
+		cfg.SetHttpUrl(ctx.GlobalString(utils.QuorumPTMUrlFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTimeoutFlag.Name) {
+		cfg.SetTimeout(ctx.GlobalUint(utils.QuorumPTMTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMDialTimeoutFlag.Name) {
+		cfg.SetDialTimeout(ctx.GlobalUint(utils.QuorumPTMDialTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpIdleTimeoutFlag.Name) {
+		cfg.SetHttpIdleConnTimeout(ctx.GlobalUint(utils.QuorumPTMHttpIdleTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpWriteBufferSizeFlag.Name) {
+		cfg.SetHttpWriteBufferSize(ctx.GlobalInt(utils.QuorumPTMHttpWriteBufferSizeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpReadBufferSizeFlag.Name) {
+		cfg.SetHttpReadBufferSize(ctx.GlobalInt(utils.QuorumPTMHttpReadBufferSizeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsModeFlag.Name) {
+		cfg.SetTlsMode(ctx.GlobalString(utils.QuorumPTMTlsModeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsRootCaFlag.Name) {
+		cfg.SetTlsRootCA(ctx.GlobalString(utils.QuorumPTMTlsRootCaFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsClientCertFlag.Name) {
+		cfg.SetTlsClientCert(ctx.GlobalString(utils.QuorumPTMTlsClientCertFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsClientKeyFlag.Name) {
+		cfg.SetTlsClientKey(ctx.GlobalString(utils.QuorumPTMTlsClientKeyFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsInsecureSkipVerify.Name) {
+		cfg.SetTlsInsecureSkipVerify(ctx.Bool(utils.QuorumPTMTlsInsecureSkipVerify.Name))
+	}
+
+	if err = cfg.Validate(); err != nil {
+		return cfg, err
+	}
+	return cfg, nil
 }
