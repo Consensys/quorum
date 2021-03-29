@@ -38,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
@@ -48,7 +47,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
-	"github.com/ethereum/go-ethereum/private"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -300,37 +298,13 @@ func init() {
 	app.Flags = append(app.Flags, metricsFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
-		if err := debug.Setup(ctx); err != nil {
-			return err
-		}
-
-		if err := quorumInitialisePrivacy(ctx); err != nil {
-			return err
-		}
-
-		return nil
+		return debug.Setup(ctx)
 	}
 	app.After = func(ctx *cli.Context) error {
 		debug.Exit()
 		prompt.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
-}
-
-// configure and set up quorum transaction privacy
-func quorumInitialisePrivacy(ctx *cli.Context) error {
-	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = private.InitialiseConnection(cfg)
-	if err != nil {
-		return err
-	}
-	privacyExtension.Init()
-
-	return nil
 }
 
 func main() {
