@@ -17,11 +17,16 @@
 package vm
 
 import (
+	"math"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
+
+// Last address that can be used for a pre-compiled contract
+var QUORUM_MAX_PRECOMPILE = math.MaxInt8
 
 // QuorumPrecompiledContract is an extended interface for native Quorum Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -54,7 +59,8 @@ func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input [
 type privacyMarker struct{}
 
 func PrivacyMarkerAddress() common.Address {
-	return common.BytesToAddress([]byte{0x7f, 0xff, 0xff, 0xff}) //using Address = MaxInt32
+	address := QUORUM_MAX_PRECOMPILE - 1
+	return common.BytesToAddress([]byte{byte(address)})
 }
 
 func (c *privacyMarker) RequiredGas(input []byte) uint64 {
@@ -67,6 +73,11 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 //		input = 20 byte address of sender, 64 byte hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
+
+	// support vanilla ethereum tests where tx is not set
+	if evm.currentTx == nil {
+		return nil, nil
+	}
 
 	if evm.currentTx.IsPrivate() {
 		//only public transactions can call the precompile
