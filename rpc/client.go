@@ -202,7 +202,7 @@ func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) 
 	}
 	c := initClient(conn, randomIDGenerator(), new(serviceRegistry))
 	c.reconnectFunc = connect
-	if providerFunc, found := initctx.Value(CtxPSIProvider).(PSIProviderFunc); found {
+	if providerFunc := PSIProviderFromContext(initctx); providerFunc != nil {
 		c = c.WithPSIProvider(providerFunc)
 	}
 	return c, nil
@@ -243,7 +243,7 @@ func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
 	idBytes := strconv.AppendUint(nil, uint64(id), 10)
 	if conn, ok := c.writeConn.(securityContextSupport); ok {
-		if providerFunc, ok := conn.Resolve().Value(CtxPSIProvider).(PSIProviderFunc); ok {
+		if providerFunc := PSIProviderFromContext(conn.Resolve()); providerFunc != nil {
 			psi, err := providerFunc(context.Background())
 			if err != nil {
 				log.Warn("Generate regular ID without PSI", "err", err)
@@ -688,8 +688,7 @@ func (c *Client) WithPSIProvider(providerFunc PSIProviderFunc) *Client {
 	// which implements securityContextSupport
 	// This is a defensive check
 	if r, ok := c.writeConn.(securityContextSupport); ok {
-		currentCtx := r.Resolve()
-		r.Configure(context.WithValue(currentCtx, CtxPSIProvider, providerFunc))
+		r.Configure(WithPSIProvider(r.Resolve(), providerFunc))
 	}
 	return c
 }

@@ -18,31 +18,6 @@ import (
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
-type securityContextKey string
-type SecurityContext context.Context
-
-const (
-	HttpAuthorizationHeader              = "Authorization"
-	HttpPrivateStateIdentifierHeader     = "Quorum-PSI"
-	QueryPrivateStateIdentifierParamName = "PSI"
-	EnvVarPrivateStateIdentifier         = "QUORUM_PSI"
-	// this key is set by server to indicate if server supports mulitenancy
-	CtxIsMultitenant = securityContextKey("IS_MULTITENANT")
-	// this key is set into the secured context to indicate
-	// the authorized private state being operated on for the request.
-	// the value MUST BE OF TYPE types.PrivateStateIdentifier
-	CtxPrivateStateIdentifier = securityContextKey("PRIVATE_STATE_IDENTIFIER")
-	// this key is set into the request context to indicate
-	// the private state being operated on for the request
-	ctxRequestPrivateStateIdentifier = securityContextKey("REQUEST_PRIVATE_STATE_IDENTIFIER")
-	// this key is exported for WS transport
-	CtxCredentialsProvider = securityContextKey("CREDENTIALS_PROVIDER") // key to save reference to rpc.HttpCredentialsProviderFunc
-	CtxPSIProvider         = securityContextKey("PSI_PROVIDER")         // key to save reference to rpc.PSIProviderFunc
-	// keys used to save values in request context
-	ctxAuthenticationError   = securityContextKey("AUTHENTICATION_ERROR")   // key to save error during authentication before processing the request body
-	CtxPreauthenticatedToken = securityContextKey("PREAUTHENTICATED_TOKEN") // key to save the preauthenticated token once authenticated
-)
-
 type securityContextSupport interface {
 	securityContextConfigurer
 	SecurityContextResolver
@@ -120,7 +95,7 @@ func SecureCall(resolver SecurityContextResolver, method string) (context.Contex
 	if err, hasError := secCtx.Value(ctxAuthenticationError).(error); hasError {
 		return nil, err
 	}
-	if authToken, isPreauthenticated := secCtx.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken); isPreauthenticated {
+	if authToken := PreauthenticatedTokenFromContext(secCtx); authToken != nil {
 		if err := verifyExpiration(authToken); err != nil {
 			return nil, err
 		}
@@ -131,7 +106,7 @@ func SecureCall(resolver SecurityContextResolver, method string) (context.Contex
 			return nil, err
 		}
 		// authorization check for PSI when multitenancy is enabled
-		if isMultitenant, ok := secCtx.Value(CtxIsMultitenant).(bool); ok && isMultitenant {
+		if isMultitenant := IsMultitenantFromContext(secCtx); isMultitenant {
 			var authorizedPSI types.PrivateStateIdentifier
 			var err error
 			// does user provide PSI in the request
@@ -151,7 +126,7 @@ func SecureCall(resolver SecurityContextResolver, method string) (context.Contex
 				}
 				authorizedPSI = requestPSI
 			}
-			secCtx = context.WithValue(secCtx, CtxPrivateStateIdentifier, authorizedPSI)
+			secCtx = WithPrivateStateIdentifier(secCtx, authorizedPSI)
 			log.Debug("Determined authorized PSI", "psi", authorizedPSI)
 		}
 	}
@@ -173,14 +148,14 @@ func AuthenticateHttpRequest(ctx context.Context, r *http.Request, authManager s
 		return
 	} else if !isAuthEnabled {
 		// node is not configured to be multitenant but MPS is enabled
-		securityContext = context.WithValue(securityContext, CtxPrivateStateIdentifier, userProvidedPSI)
+		securityContext = WithPrivateStateIdentifier(securityContext, userProvidedPSI)
 		return
 	}
 	if token, hasToken := extractToken(r); hasToken {
 		if authToken, err := authManager.Authenticate(context.Background(), token); err != nil {
 			securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{err.Error()})
 		} else {
-			securityContext = context.WithValue(securityContext, CtxPreauthenticatedToken, authToken)
+			securityContext = WithPreauthenticatedToken(securityContext, authToken)
 		}
 	} else {
 		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})
@@ -239,7 +214,7 @@ func resolvePSIProvider(ctx context.Context, endpoint string) (newCtx context.Co
 		var f PSIProviderFunc = func(_ context.Context) (types.PrivateStateIdentifier, error) {
 			return types.PrivateStateIdentifier(rawPSI), nil
 		}
-		newCtx = context.WithValue(ctx, CtxPSIProvider, f)
+		newCtx = WithPSIProvider(ctx, f)
 	}
 	return
 }

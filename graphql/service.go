@@ -17,7 +17,6 @@
 package graphql
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/eth"
@@ -106,7 +105,7 @@ func (h *secureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	securityContext := context.WithValue(r.Context(), rpc.CtxIsMultitenant, h.isMultitenant)
+	securityContext := rpc.WithIsMultitenant(r.Context(), h.isMultitenant)
 	// authentication check
 	securityContext = rpc.AuthenticateHttpRequest(securityContext, r, authManager)
 	// authorization check

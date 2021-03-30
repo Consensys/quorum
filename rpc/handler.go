@@ -327,13 +327,17 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 			return securityErrorMessage(msg, err)
 		}
 		h.log.Debug("Enrich call context with values from security context")
-		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
-		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, secCtx.Value(CtxPrivateStateIdentifier))
+		if t := PreauthenticatedTokenFromContext(secCtx); t != nil {
+			cp.ctx = WithPreauthenticatedToken(cp.ctx, t)
+		}
+		if psi, found := PrivateStateIdentifierFromContext(secCtx); found {
+			cp.ctx = WithPrivateStateIdentifier(cp.ctx, psi)
+		}
 	}
 	// try to extract the PSI from the request ID if it is not already there in the context.
 	// this is mainly to serve IPC and InProc transport
-	if cp.ctx.Value(CtxPrivateStateIdentifier) == nil {
-		cp.ctx = context.WithValue(cp.ctx, CtxPrivateStateIdentifier, decodePSI(msg.ID))
+	if _, found := PrivateStateIdentifierFromContext(cp.ctx); !found {
+		cp.ctx = WithPrivateStateIdentifier(cp.ctx, decodePSI(msg.ID))
 	}
 
 	if msg.isSubscribe() {

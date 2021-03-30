@@ -91,7 +91,7 @@ func (s *testService) EchoCtxId(ctx context.Context) interface{} {
 }
 
 func (s *testService) EchoCtxPSI(ctx context.Context) (echoPSIResult, error) {
-	value := ctx.Value(CtxPrivateStateIdentifier)
+	value := ctx.Value(ctxPrivateStateIdentifier)
 	if value == nil {
 		return echoPSIResult{}, fmt.Errorf("no PSI found in the context")
 	}

@@ -173,8 +173,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerFails(t *testing.T) {
 	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.True(t, hasError, "must have error")
 	assert.EqualError(t, actualErr, "internal error")
-	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	assert.False(t, hasAuthToken, "must not be preauthenticated")
+	assert.Nil(t, PreauthenticatedTokenFromContext(captor.context), "must not be preauthenticated")
 }
 
 func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
@@ -187,8 +186,7 @@ func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
 
 	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.False(t, hasError, "must not have error")
-	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	assert.True(t, hasAuthToken, "must be preauthenticated")
+	assert.NotNil(t, PreauthenticatedTokenFromContext(captor.context), "must be preauthenticated")
 }
 
 func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.T) {
@@ -200,8 +198,7 @@ func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.
 
 	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.False(t, hasError, "must not have error")
-	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	assert.False(t, hasAuthToken, "must not be preauthenticated")
+	assert.Nil(t, PreauthenticatedTokenFromContext(captor.context), "must not be preauthenticated")
 }
 
 func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
@@ -214,8 +211,7 @@ func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
 	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
 	assert.True(t, hasError, "must have error")
 	assert.EqualError(t, actualErr, "missing access token")
-	_, hasAuthToken := captor.context.Value(CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	assert.False(t, hasAuthToken, "must not be preauthenticated")
+	assert.Nil(t, PreauthenticatedTokenFromContext(captor.context), "must not be preauthenticated")
 }
 
 func TestAuthenticateHttpRequest_Multitenancy_whenUserNotProvidePSI(t *testing.T) {
@@ -226,7 +222,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenUserNotProvidePSI(t *testing.T
 	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
 
 	assert.Nil(t, captor.context.Value(ctxRequestPrivateStateIdentifier))
-	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(ctxPrivateStateIdentifier))
 }
 
 func TestAuthenticateHttpRequest_Multitenancy_whenPSIInURL(t *testing.T) {
@@ -238,7 +234,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenPSIInURL(t *testing.T) {
 	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
 
 	assert.Equal(t, arbitraryPSI, captor.context.Value(ctxRequestPrivateStateIdentifier))
-	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(ctxPrivateStateIdentifier))
 }
 
 func TestAuthenticateHttpRequest_Multitenancy_whenPSIInHTTPHeader(t *testing.T) {
@@ -251,7 +247,7 @@ func TestAuthenticateHttpRequest_Multitenancy_whenPSIInHTTPHeader(t *testing.T) 
 	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
 
 	assert.Equal(t, arbitraryPSI, captor.context.Value(ctxRequestPrivateStateIdentifier))
-	assert.Nil(t, captor.context.Value(CtxPrivateStateIdentifier))
+	assert.Nil(t, captor.context.Value(ctxPrivateStateIdentifier))
 }
 
 func TestAuthenticateHttpRequest_MPS_whenTypical(t *testing.T) {
@@ -262,7 +258,7 @@ func TestAuthenticateHttpRequest_MPS_whenTypical(t *testing.T) {
 	singleTenantServer.authenticateHttpRequest(arbitraryRequest, captor)
 
 	assert.Nil(t, captor.context.Value(ctxRequestPrivateStateIdentifier))
-	assert.Equal(t, types.DefaultPrivateStateIdentifier, captor.context.Value(CtxPrivateStateIdentifier))
+	assert.Equal(t, types.DefaultPrivateStateIdentifier, captor.context.Value(ctxPrivateStateIdentifier))
 }
 
 type securityContextConfigurerCaptor struct {

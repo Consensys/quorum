@@ -141,7 +141,7 @@ func TestSecureCall_whenTokenExpired(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(-1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 		}},
 	})
@@ -155,7 +155,7 @@ func TestSecureCall_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 			Authorities: []*proto.GrantedAuthority{
 				{
@@ -175,7 +175,7 @@ func TestSecureCall_whenAccessDenied(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 			Authorities: []*proto.GrantedAuthority{
 				{
@@ -195,7 +195,7 @@ func TestSecureCall_whenMethodInJSONMessageIsNotSupported(t *testing.T) {
 	assert := testifyassert.New(t)
 	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
-		{CtxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
+		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
 		}},
 	})
@@ -246,9 +246,8 @@ func TestResolvePSIProvider_whenTypicalEndpoints(t *testing.T) {
 	for _, tc := range testCases {
 		actualCtx := resolvePSIProvider(context.Background(), tc.endpoint)
 
-		testifyassert.NotNil(t, actualCtx.Value(CtxPSIProvider))
-		f, ok := actualCtx.Value(CtxPSIProvider).(PSIProviderFunc)
-		testifyassert.True(t, ok)
+		f := PSIProviderFromContext(actualCtx)
+		testifyassert.NotNil(t, f)
 		actualPSI, err := f(context.Background())
 		testifyassert.NoError(t, err)
 		testifyassert.Equal(t, tc.expectedPSI, actualPSI)
@@ -262,9 +261,8 @@ func TestResolvePSIProvider_whenEnvVariableTakesPrecedence(t *testing.T) {
 	endpoint := "http://aritraryhost?PSI=PS1"
 	actualCtx := resolvePSIProvider(context.Background(), endpoint)
 
-	testifyassert.NotNil(t, actualCtx.Value(CtxPSIProvider))
-	f, ok := actualCtx.Value(CtxPSIProvider).(PSIProviderFunc)
-	testifyassert.True(t, ok)
+	f := PSIProviderFromContext(actualCtx)
+	testifyassert.NotNil(t, f)
 	actualPSI, err := f(context.Background())
 	testifyassert.NoError(t, err)
 	testifyassert.Equal(t, types.ToPrivateStateIdentifier("ENV_PS1"), actualPSI)
@@ -274,7 +272,7 @@ func TestResolvePSIProvider_whenNoPSI(t *testing.T) {
 	endpoint := "data/geth.ipc"
 	actualCtx := resolvePSIProvider(context.Background(), endpoint)
 
-	testifyassert.Nil(t, actualCtx.Value(CtxPSIProvider))
+	testifyassert.Nil(t, PSIProviderFromContext(actualCtx))
 }
 
 func TestEncodePSI_whenTypical(t *testing.T) {

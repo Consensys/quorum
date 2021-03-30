@@ -377,8 +377,8 @@ func TestMPSFilters(t *testing.T) {
 	}
 
 	//test filtering "psi2" logs: gets psi2 logs and top level private receipt logs(no psi)
-	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.PrivateStateIdentifier("psi2"))
-	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("psi2"))
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.ToPrivateStateIdentifier("psi2"))
+	ctx := rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("psi2"))
 	logs, _ = filter.Logs(ctx)
 	if len(logs) != 3 {
 		t.Error("expected 3 logs, got", len(logs))
@@ -386,7 +386,7 @@ func TestMPSFilters(t *testing.T) {
 
 	//test filtering "psi1" logs: gets psi1 logs and top level private receipt logs(no psi)
 	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.PrivateStateIdentifier("psi1"))
-	ctx = context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("psi1"))
+	ctx = rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("psi1"))
 	logs, _ = filter.Logs(ctx)
 	if len(logs) != 3 {
 		t.Error("expected 3 logs, got", len(logs))

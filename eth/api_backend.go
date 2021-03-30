@@ -421,8 +421,8 @@ func (b *EthAPIBackend) StartMining(threads int) error {
 // The validation of pre-requisite for multitenancy is done when EthService
 // is being created. So it's safe to use the config value here.
 func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
+	if authToken != nil && b.eth.config.EnableMultitenancy {
 		return authToken, true
 	}
 	return nil, false

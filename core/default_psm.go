@@ -34,7 +34,7 @@ func (d *DefaultPrivateStateManager) ResolveForManagedParty(_ string) (*types.Pr
 }
 
 func (d *DefaultPrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
-	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
+	psi, ok := rpc.PrivateStateIdentifierFromContext(ctx)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
 	}

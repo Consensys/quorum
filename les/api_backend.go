@@ -309,8 +309,8 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 
 // Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
+	if authToken != nil && b.eth.config.EnableMultitenancy {
 		return authToken, true
 	}
 	return nil, false

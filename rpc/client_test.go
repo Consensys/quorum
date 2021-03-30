@@ -695,7 +695,7 @@ func TestClient_withCredentials_whenTargetingWS(t *testing.T) {
 	var f HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
 		return "Bearer arbitrary_token", nil
 	}
-	ctx := context.WithValue(context.Background(), CtxCredentialsProvider, f)
+	ctx := WithCredentialsProvider(context.Background(), f)
 	authenticatedClient, err := DialContext(ctx, "ws://"+hs.Listener.Addr().String())
 	assert.NoError(t, err)
 

@@ -153,7 +153,7 @@ func (s *Server) Stop() {
 // Perform authentication on the HTTP request. Populate security context with necessary information
 // for subsequent authorization-related activities
 func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextConfigurer) {
-	securityContext := context.WithValue(context.Background(), CtxIsMultitenant, s.isMultitenant)
+	securityContext := WithIsMultitenant(context.Background(), s.isMultitenant)
 	securityContext = AuthenticateHttpRequest(securityContext, r, s.authenticationManager)
 	cfg.Configure(securityContext)
 }

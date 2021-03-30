@@ -162,7 +162,7 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
 
 			extensionAPI := NewPrivateExtensionAPI(service)
-			ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, psm.ID)
+			ctx := rpc.WithPrivateStateIdentifier(context.Background(), psm.ID)
 			_, err = extensionAPI.ApproveExtension(ctx, newContractExtension.ManagementContractAddress, true, txArgs)
 
 			if err != nil {

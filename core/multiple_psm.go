@@ -80,7 +80,7 @@ func (m *MultiplePrivateStateManager) ResolveForManagedParty(managedParty string
 }
 
 func (m *MultiplePrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
-	psi, ok := ctx.Value(rpc.CtxPrivateStateIdentifier).(types.PrivateStateIdentifier)
+	psi, ok := rpc.PrivateStateIdentifierFromContext(ctx)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
 	}

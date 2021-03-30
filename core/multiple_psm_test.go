@@ -250,10 +250,10 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 	assert.Equal(t, psm2, privacyGroupToPrivateStateMetadata(PG2))
 	assert.Error(t, err, "unable to find private state metadata for managed party TEST")
 
-	ctx := context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("RG1"))
+	ctx := rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("RG1"))
 	psm1, _ = mpsm.ResolveForUserContext(ctx)
 	assert.Equal(t, psm1, privacyGroupToPrivateStateMetadata(PG1))
-	ctx = context.WithValue(context.Background(), rpc.CtxPrivateStateIdentifier, types.PrivateStateIdentifier("OTHER"))
+	ctx = rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("OTHER"))
 	_, err = mpsm.ResolveForUserContext(ctx)
 	assert.Error(t, err, "unable to find private state for context psi OTHER")
 	_, err = mpsm.ResolveForUserContext(context.Background())
