@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -615,9 +616,10 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				pubReceipts = make([]*types.Receipt, len(task.receipts))
-				prvReceipts = make([]*types.Receipt, len(task.privateReceipts))
-				logs        []*types.Log
+				pubReceipts         = make([]*types.Receipt, len(task.receipts))
+				prvReceipts         = make([]*types.Receipt, len(task.privateReceipts))
+				logs                []*types.Log
+				markerTxReceiptsAll = make([]*types.Receipt, 0)
 			)
 			offset := len(task.receipts)
 			for i, receipt := range task.receipts {
@@ -635,19 +637,22 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 
-				if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash); markerReceipt != nil {
-					// add block location fields
-					markerReceipt.BlockHash = hash
-					markerReceipt.BlockNumber = block.Number()
-					markerReceipt.TransactionIndex = uint(i)
-
-					// Update the block hash in all logs since it is now available and not when the
-					// receipt/log of individual transactions were created.
-					for _, log := range markerReceipt.Logs {
-						log.BlockHash = hash
+				tx := block.Transaction(receipt.TxHash)
+				if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+					if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash); markerReceipt != nil {
+						// add block location fields
+						markerReceipt.BlockHash = hash
+						markerReceipt.BlockNumber = block.Number()
+						markerReceipt.TransactionIndex = uint(i)
+						// Update the block hash in all logs since it is now available and not when the
+						// receipt/log of individual transactions were created.
+						for _, log := range markerReceipt.Logs {
+							log.BlockHash = hash
+						}
+						logs = append(logs, markerReceipt.Logs...)
+						rawdb.WritePrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash, markerReceipt)
+						markerTxReceiptsAll = append(markerTxReceiptsAll, markerReceipt)
 					}
-					logs = append(logs, markerReceipt.Logs...)
-					rawdb.WritePrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash, markerReceipt)
 				}
 			}
 
@@ -675,7 +680,7 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts, task.privateState.MarkerTransactionReceipts); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts, markerTxReceiptsAll); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
