@@ -5,25 +5,28 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type DefaultPrivateStateManager struct {
-	bc        *BlockChain
+	// Low level persistent database to store final content in
+	db        ethdb.Database
 	repoCache state.Database
 }
 
-func NewDefaultPrivateStateManager(bc *BlockChain) *DefaultPrivateStateManager {
+func NewDefaultPrivateStateManager(db ethdb.Database) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
-		bc:        bc,
-		repoCache: state.NewDatabase(bc.db),
+		db:        db,
+		repoCache: state.NewDatabase(db),
 	}
 }
 
-func (d *DefaultPrivateStateManager) GetPrivateStateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
-	return mps.NewDefaultPrivateStateRepository(d.bc.chainConfig, d.bc.db, d.repoCache, blockHash)
+func (d *DefaultPrivateStateManager) StateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
+	return mps.NewDefaultPrivateStateRepository(d.db, d.repoCache, blockHash)
 }
 
 func (d *DefaultPrivateStateManager) ResolveForManagedParty(_ string) (*types.PrivateStateMetadata, error) {
@@ -49,6 +52,7 @@ func (d *DefaultPrivateStateManager) NotIncludeAny(_ *types.PrivateStateMetadata
 	return false
 }
 
-func (d *DefaultPrivateStateManager) GetCache() state.Database {
-	return d.repoCache
+func (d *DefaultPrivateStateManager) CheckAt(root common.Hash) error {
+	_, err := state.New(rawdb.GetPrivateStateRoot(d.db, root), d.repoCache, nil)
+	return err
 }

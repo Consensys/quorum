@@ -90,9 +90,9 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.chainConfig, blockchain.db, cache, parent.Root())).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, parent.Root())).AnyTimes()
 
-		privateStateRepo, err := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
 
 		publicReceipts, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
@@ -101,19 +101,19 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 
-			emptyState, _ := privateStateRepo.GetDefaultState()
+			emptyState, _ := privateStateRepo.DefaultState()
 			assert.True(t, emptyState.Exist(expectedContractAddress))
 			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
-			ps1, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			ps1, _ := privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi1"))
 			assert.True(t, ps1.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps1.GetCodeSize(expectedContractAddress), 0)
-			ps2, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			ps2, _ := privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi2"))
 			assert.True(t, ps2.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps2.GetCodeSize(expectedContractAddress), 0)
 
 		}
 		//CommitAndWrite to db
-		privateStateRepo.CommitAndWrite(block)
+		privateStateRepo.CommitAndWrite(false, block)
 
 		//managed states test
 		for _, privateReceipt := range privateReceipts {
@@ -186,9 +186,9 @@ func TestMPSReset(t *testing.T) {
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.chainConfig, blockchain.db, cache, parent.Root())).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, parent.Root())).AnyTimes()
 
-		privateStateRepo, err := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
 
 		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
@@ -196,25 +196,25 @@ func TestMPSReset(t *testing.T) {
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
 
-			emptyState, _ := privateStateRepo.GetDefaultState()
+			emptyState, _ := privateStateRepo.DefaultState()
 			assert.True(t, emptyState.Exist(expectedContractAddress))
 			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
-			ps1, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			ps1, _ := privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi1"))
 			assert.True(t, ps1.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps1.GetCodeSize(expectedContractAddress), 0)
-			ps2, _ := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			ps2, _ := privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi2"))
 			assert.True(t, ps2.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps2.GetCodeSize(expectedContractAddress), 0)
 
 			privateStateRepo.Reset()
 
-			emptyState, _ = privateStateRepo.GetDefaultState()
+			emptyState, _ = privateStateRepo.DefaultState()
 			assert.False(t, emptyState.Exist(expectedContractAddress))
 			assert.Equal(t, emptyState.GetCodeSize(expectedContractAddress), 0)
-			ps1, _ = privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi1"))
+			ps1, _ = privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi1"))
 			assert.False(t, ps1.Exist(expectedContractAddress))
 			assert.Equal(t, ps1.GetCodeSize(expectedContractAddress), 0)
-			ps2, _ = privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("psi2"))
+			ps2, _ = privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi2"))
 			assert.False(t, ps2.Exist(expectedContractAddress))
 			assert.Equal(t, ps2.GetCodeSize(expectedContractAddress), 0)
 		}
@@ -239,7 +239,7 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumMPSTestChainConfig)
 
-	mpsm, err := NewMultiplePrivateStateManager(blockchain)
+	mpsm, err := NewMultiplePrivateStateManager(blockchain.db)
 	assert.NoError(t, err)
 	blockchain.SetPrivateStateManager(mpsm)
 

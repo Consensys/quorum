@@ -272,7 +272,7 @@ func (minter *minter) createWork() *work {
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
-	defaultPrivateState, err := privateStateManager.GetDefaultState()
+	defaultPrivateState, err := privateStateManager.DefaultState()
 	if err != nil {
 		panic(fmt.Sprint("failed to get default private state: ", err))
 	}

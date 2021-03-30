@@ -291,7 +291,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-				privateState, _ := privateStateRepo.GetPrivateState(psm.ID)
+				privateState, _ := privateStateRepo.StatePSI(psm.ID)
 				select {
 				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
@@ -316,7 +316,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				break
 			}
 
-			err = privateStateRepo.Commit(block)
+			err = privateStateRepo.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()), block)
 			if err != nil {
 				failed = err
 				break
@@ -484,7 +484,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return nil, err
 	}
-	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +594,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 	if err != nil {
 		return nil, err
 	}
-	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +747,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if err := statedb.Reset(root); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
-		err = privateStateRepo.Commit(block)
+		err = privateStateRepo.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()), block)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -891,7 +891,7 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.H
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}
-	privateStateDb, err := privateStateRepo.GetPrivateState(psm.ID)
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}

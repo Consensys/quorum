@@ -226,7 +226,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	}
 	// Quorum: decorate blockchain with PrivateStateMetadataResolver using Tessera
 	if config.EnableMPS {
-		psm, err := core.NewMultiplePrivateStateManager(eth.blockchain)
+		psm, err := core.NewMultiplePrivateStateManager(chainDb)
 		if err != nil {
 			return nil, err
 		}

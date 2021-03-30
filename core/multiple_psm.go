@@ -7,22 +7,25 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type MultiplePrivateStateManager struct {
-	bc                     *BlockChain
+	// Low level persistent database to store final content in
+	db                     ethdb.Database
 	privateStatesTrieCache state.Database
 
 	residentGroupByKey map[string]*types.PrivateStateMetadata
 	privacyGroupById   map[types.PrivateStateIdentifier]*types.PrivateStateMetadata
 }
 
-func NewMultiplePrivateStateManager(bc *BlockChain) (*MultiplePrivateStateManager, error) {
+func NewMultiplePrivateStateManager(db ethdb.Database) (*MultiplePrivateStateManager, error) {
 	groups, err := private.P.Groups()
 	if err != nil {
 		return nil, err
@@ -57,15 +60,15 @@ func NewMultiplePrivateStateManager(bc *BlockChain) (*MultiplePrivateStateManage
 		convertedGroups = append(convertedGroups, group)
 	}
 	return &MultiplePrivateStateManager{
-		bc:                     bc,
-		privateStatesTrieCache: state.NewDatabase(bc.db),
+		db:                     db,
+		privateStatesTrieCache: state.NewDatabase(db),
 		residentGroupByKey:     residentGroupByKey,
 		privacyGroupById:       privacyGroupById,
 	}, nil
 }
 
-func (m *MultiplePrivateStateManager) GetPrivateStateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
-	return mps.NewMultiplePrivateStateRepository(m.bc.chainConfig, m.bc.db, m.privateStatesTrieCache, blockHash)
+func (m *MultiplePrivateStateManager) StateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
+	return mps.NewMultiplePrivateStateRepository(m.db, m.privateStatesTrieCache, blockHash)
 }
 
 func (m *MultiplePrivateStateManager) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
@@ -100,8 +103,9 @@ func (m *MultiplePrivateStateManager) NotIncludeAny(psm *types.PrivateStateMetad
 	return psm.NotIncludeAny(managedParties...)
 }
 
-func (m *MultiplePrivateStateManager) GetCache() state.Database {
-	return m.privateStatesTrieCache
+func (m *MultiplePrivateStateManager) CheckAt(root common.Hash) error {
+	_, err := state.New(rawdb.GetPrivateStatesTrieRoot(m.db, root), m.privateStatesTrieCache, nil)
+	return err
 }
 
 func privacyGroupToPrivateStateMetadata(group engine.PrivacyGroup) *types.PrivateStateMetadata {

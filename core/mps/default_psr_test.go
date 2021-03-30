@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,9 +18,9 @@ func TestDefaultPSRCopy(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, common.Hash{})
 
-	testState, _ := psr.GetDefaultState()
+	testState, _ := psr.DefaultState()
 
 	for i := byte(0); i < 255; i++ {
 		addr := common.BytesToAddress([]byte{i})
@@ -31,7 +30,7 @@ func TestDefaultPSRCopy(t *testing.T) {
 
 	psrCopy := psr.Copy().(*DefaultPrivateStateRepository)
 
-	testStateCopy, _ := psrCopy.GetDefaultState()
+	testStateCopy, _ := psrCopy.DefaultState()
 
 	// modify all in memory
 	for i := byte(0); i < 255; i++ {
@@ -51,7 +50,6 @@ func TestDefaultPSRCopy(t *testing.T) {
 	go finalise(&wg, testStateCopy)
 	wg.Wait()
 
-	assert.Equal(t, psr.chainConfig, psrCopy.chainConfig)
 	assert.Equal(t, psr.db, psrCopy.db)
 	assert.Equal(t, psr.stateCache, psrCopy.stateCache)
 
@@ -76,9 +74,9 @@ func TestDefaultPSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, common.Hash{})
 
-	testState, _ := psr.GetDefaultState()
+	testState, _ := psr.DefaultState()
 
 	for i := byte(0); i < 255; i++ {
 		addr := common.BytesToAddress([]byte{i})
@@ -102,13 +100,13 @@ func TestDefaultPSRReset(t *testing.T) {
 func TestOnlyPrivateStateAccessible(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, common.Hash{})
 
-	privateState, _ := psr.GetDefaultState()
+	privateState, _ := psr.DefaultState()
 	assert.NotEqual(t, privateState, nil)
-	privateState, _ = psr.GetPrivateState(types.DefaultPrivateStateIdentifier)
+	privateState, _ = psr.StatePSI(types.DefaultPrivateStateIdentifier)
 	assert.NotEqual(t, privateState, nil)
-	_, err := psr.GetPrivateState(types.PrivateStateIdentifier("test"))
+	_, err := psr.StatePSI(types.PrivateStateIdentifier("test"))
 	assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 }
 
@@ -116,11 +114,11 @@ func TestOnlyPrivateStateAccessible(t *testing.T) {
 func TestDefaultPSRCommit(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, common.Hash{})
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)
 
-	testState, _ := psr.GetDefaultState()
+	testState, _ := psr.DefaultState()
 
 	testRoot := testState.IntermediateRoot(false)
 	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
@@ -132,7 +130,7 @@ func TestDefaultPSRCommit(t *testing.T) {
 	}
 	assert.Equal(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
 
-	psr.Commit(block)
+	psr.Commit(false, block)
 
 	//private root updated but not committed
 	assert.NotEqual(t, psr.root, common.Hash{})
@@ -146,11 +144,11 @@ func TestDefaultPSRCommit(t *testing.T) {
 func TestDefaultPSRCommitAndWrite(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewDefaultPrivateStateRepository(params.QuorumTestChainConfig, testdb, testCache, common.Hash{})
+	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, common.Hash{})
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)
 
-	testState, _ := psr.GetDefaultState()
+	testState, _ := psr.DefaultState()
 
 	testRoot := testState.IntermediateRoot(false)
 	assert.Equal(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
@@ -162,7 +160,7 @@ func TestDefaultPSRCommitAndWrite(t *testing.T) {
 	}
 	assert.Equal(t, rawdb.GetPrivateStateRoot(testdb, block.Root()), common.Hash{})
 
-	psr.CommitAndWrite(block)
+	psr.CommitAndWrite(false, block)
 
 	//private root gets committed to db, but isn't updated on psr (only needed for commit)
 	assert.Equal(t, psr.root, common.Hash{})

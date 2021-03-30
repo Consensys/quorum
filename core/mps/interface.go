@@ -13,8 +13,10 @@ import (
 // PrivateStateManager interface separates
 type PrivateStateManager interface {
 	PrivateStateMetadataResolver
-	GetPrivateStateRepository(blockHash common.Hash) (PrivateStateRepository, error)
-	GetCache() state.Database
+	// StateRepository returns repository corresponding to a block hash
+	StateRepository(blockHash common.Hash) (PrivateStateRepository, error)
+	// CheckAt verifies if there's a state being managed at a block hash
+	CheckAt(blockHash common.Hash) error
 }
 
 type PrivateStateMetadataResolver interface {
@@ -30,13 +32,13 @@ type PrivateStateMetadataResolver interface {
 // PrivateStateRepository abstracts how we handle private state(s) including
 // retrieving from and peristing private states to the underlying database
 type PrivateStateRepository interface {
-	GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error)
-	CommitAndWrite(block *types.Block) error
-	Commit(block *types.Block) error
+	StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error)
+	CommitAndWrite(isEIP158 bool, block *types.Block) error
+	Commit(isEIP158 bool, block *types.Block) error
 	Copy() PrivateStateRepository
 	Reset() error
-	GetDefaultState() (*state.StateDB, error)
-	GetDefaultStateMetadata() *types.PrivateStateMetadata
+	DefaultState() (*state.StateDB, error)
+	DefaultStateMetadata() *types.PrivateStateMetadata
 	IsMPS() bool
 	MergeReceipts(pub, priv types.Receipts) types.Receipts
 }

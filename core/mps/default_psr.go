@@ -9,14 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 // DefaultPrivateStateRepository acts as the single private state in the original
 // Quorum design.
 type DefaultPrivateStateRepository struct {
-	chainConfig *params.ChainConfig
-	db          ethdb.Database
+	db ethdb.Database
 	// cache of stateDB
 	stateCache state.Database
 	// stateDB gives access to the underlying state
@@ -24,7 +22,7 @@ type DefaultPrivateStateRepository struct {
 	root    common.Hash
 }
 
-func NewDefaultPrivateStateRepository(chainConfig *params.ChainConfig, db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
+func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
 
 	statedb, err := state.New(root, cache, nil)
@@ -33,19 +31,18 @@ func NewDefaultPrivateStateRepository(chainConfig *params.ChainConfig, db ethdb.
 	}
 
 	return &DefaultPrivateStateRepository{
-		chainConfig: chainConfig,
-		db:          db,
-		stateCache:  cache,
-		stateDB:     statedb,
-		root:        root,
+		db:         db,
+		stateCache: cache,
+		stateDB:    statedb,
+		root:       root,
 	}, nil
 }
 
-func (dpsr *DefaultPrivateStateRepository) GetDefaultState() (*state.StateDB, error) {
+func (dpsr *DefaultPrivateStateRepository) DefaultState() (*state.StateDB, error) {
 	return dpsr.stateDB, nil
 }
 
-func (dpsr *DefaultPrivateStateRepository) GetDefaultStateMetadata() *types.PrivateStateMetadata {
+func (dpsr *DefaultPrivateStateRepository) DefaultStateMetadata() *types.PrivateStateMetadata {
 	return types.DefaultPrivateStateMetadata
 }
 
@@ -53,7 +50,7 @@ func (dpsr *DefaultPrivateStateRepository) IsMPS() bool {
 	return false
 }
 
-func (dpsr *DefaultPrivateStateRepository) GetPrivateState(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+func (dpsr *DefaultPrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	if psi != types.DefaultPrivateStateIdentifier {
 		return nil, fmt.Errorf("only the 'private' psi is supported by the default private state manager")
 	}
@@ -66,8 +63,8 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits the private state and writes to disk
-func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) error {
-	privateRoot, err := dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
+	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
 		return err
 	}
@@ -80,19 +77,18 @@ func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(block *types.Block) er
 }
 
 // Commit commits the private state only
-func (dpsr *DefaultPrivateStateRepository) Commit(block *types.Block) error {
+func (dpsr *DefaultPrivateStateRepository) Commit(isEIP158 bool, block *types.Block) error {
 	var err error
-	dpsr.root, err = dpsr.stateDB.Commit(dpsr.chainConfig.IsEIP158(block.Number()))
+	dpsr.root, err = dpsr.stateDB.Commit(isEIP158)
 	return err
 }
 
 func (dpsr *DefaultPrivateStateRepository) Copy() PrivateStateRepository {
 	return &DefaultPrivateStateRepository{
-		chainConfig: dpsr.chainConfig,
-		db:          dpsr.db,
-		stateCache:  dpsr.stateCache,
-		stateDB:     dpsr.stateDB.Copy(),
-		root:        dpsr.root,
+		db:         dpsr.db,
+		stateCache: dpsr.stateCache,
+		stateDB:    dpsr.stateDB.Copy(),
+		root:       dpsr.root,
 	}
 }
 

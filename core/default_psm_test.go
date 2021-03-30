@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//Tests GetDefaultState, GetPrivateState, CommitAndWrite
+//Tests DefaultState, StatePSI, CommitAndWrite
 func TestLegacyPrivateStateCreated(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -35,7 +35,7 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		privateStateRepo, _ := blockchain.PrivateStateManager().GetPrivateStateRepository(parent.Root())
+		privateStateRepo, _ := blockchain.PrivateStateManager().StateRepository(parent.Root())
 
 		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 
@@ -43,18 +43,18 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 			expectedContractAddress := privateReceipt.ContractAddress
 
 			assert.False(t, privateStateRepo.IsMPS())
-			privateState, _ := privateStateRepo.GetDefaultState()
+			privateState, _ := privateStateRepo.DefaultState()
 			assert.True(t, privateState.Exist(expectedContractAddress))
 			assert.NotEqual(t, privateState.GetCodeSize(expectedContractAddress), 0)
-			defaultPrivateState, _ := privateStateRepo.GetPrivateState(types.DefaultPrivateStateIdentifier)
+			defaultPrivateState, _ := privateStateRepo.StatePSI(types.DefaultPrivateStateIdentifier)
 			assert.True(t, defaultPrivateState.Exist(expectedContractAddress))
 			assert.NotEqual(t, defaultPrivateState.GetCodeSize(expectedContractAddress), 0)
-			_, err := privateStateRepo.GetPrivateState(types.PrivateStateIdentifier("empty"))
+			_, err := privateStateRepo.StatePSI(types.PrivateStateIdentifier("empty"))
 			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 
 		}
 		//CommitAndWrite to db
-		privateStateRepo.CommitAndWrite(block)
+		privateStateRepo.CommitAndWrite(false, block)
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
@@ -90,7 +90,7 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	mpsm := NewDefaultPrivateStateManager(blockchain)
+	mpsm := NewDefaultPrivateStateManager(blockchain.db)
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, types.DefaultPrivateStateMetadata)

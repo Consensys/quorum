@@ -90,7 +90,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		//
 		// in both cases, privateStateRepo is responsible to return the appropriate
 		// private state for execution and a bool flag to enable the privacy execution
-		privateStateDB, err := privateStateRepo.GetDefaultState()
+		privateStateDB, err := privateStateRepo.DefaultState()
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -110,7 +110,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
 			allLogs = append(allLogs, privateReceipt.Logs...)
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.GetDefaultStateMetadata().ID)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
 			// handling the auxiliary receipt from MPS execution
 			if mpsReceipt != nil {
 				privateReceipt.PSReceipts = mpsReceipt.PSReceipts
@@ -144,7 +144,7 @@ func (p *StateProcessor) handleMPS(ti int, tx *types.Transaction, block *types.B
 			return db
 		}
 		privateStateDBFactory := func(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
-			db, err := privateStateRepo.GetPrivateState(psi)
+			db, err := privateStateRepo.StatePSI(psi)
 			if err != nil {
 				return nil, err
 			}

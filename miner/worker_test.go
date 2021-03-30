@@ -554,7 +554,7 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
 	defer w.close()
 
-	mockpsm.EXPECT().GetPrivateStateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(chainConfig, db, cache, b.BlockChain().CurrentBlock().ParentHash())).AnyTimes()
+	mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(db, cache, b.BlockChain().CurrentBlock().ParentHash())).AnyTimes()
 	b.BlockChain().SetPrivateStateManager(mockpsm)
 
 	newBlock := make(chan *types.Block)

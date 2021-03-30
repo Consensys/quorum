@@ -286,7 +286,7 @@ func (w *worker) pending(psi types.PrivateStateIdentifier) (*types.Block, *state
 	if w.snapshotState == nil {
 		return nil, nil, nil
 	}
-	privateState, err := w.current.privateStateRepo.GetPrivateState(psi)
+	privateState, err := w.current.privateStateRepo.StatePSI(psi)
 	if err != nil {
 		log.Error("Unable to retrieve private state", "psi", psi, "err", err)
 		return nil, nil, nil
@@ -797,14 +797,14 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
-	privateStateDB, err := privateStateRepo.GetDefaultState()
+	privateStateDB, err := privateStateRepo.DefaultState()
 	if err != nil {
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
-	privateStateSnaphots[privateStateRepo.GetDefaultStateMetadata().ID] = privateStateDB.Snapshot()
+	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
 	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS())
 	if err != nil {
 		publicStateDB.RevertToSnapshot(snap)
@@ -820,7 +820,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if privateReceipt != nil {
 		logs = append(logs, privateReceipt.Logs...)
 		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.GetDefaultStateMetadata().ID)
+		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
 		// handling the auxiliary receipt from MPS execution
 		if mpsReceipt != nil {
 			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
@@ -1140,7 +1140,7 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 // revertToPrivateStateSnapshots attempts to revert all private states to the provided snapshots
 func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateIdentifier]int) {
 	for psi, snapshot := range snapshots {
-		privateState, err := w.current.privateStateRepo.GetPrivateState(psi)
+		privateState, err := w.current.privateStateRepo.StatePSI(psi)
 		if err == nil {
 			privateState.RevertToSnapshot(snapshot)
 		} else {
@@ -1169,7 +1169,7 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsR
 			return db
 		}
 		privateStateDBFactory := func(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
-			db, err := privateStateRepo.GetPrivateState(psi)
+			db, err := privateStateRepo.StatePSI(psi)
 			if err != nil {
 				return nil, err
 			}

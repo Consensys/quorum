@@ -148,7 +148,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		privateStateRepo, repoErr := blockchain.PrivateStateManager().GetPrivateStateRepository(block.ParentHash())
+		privateStateRepo, repoErr := blockchain.PrivateStateManager().StateRepository(block.ParentHash())
 		if repoErr != nil {
 			return repoErr
 		}

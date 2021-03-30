@@ -269,7 +269,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
-	bc.privateStateManager = NewDefaultPrivateStateManager(bc)
+	bc.privateStateManager = NewDefaultPrivateStateManager(bc.db)
 
 	var err error
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
@@ -310,7 +310,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Quorum
-	if _, err := state.New(rawdb.GetPrivateStateRoot(bc.db, head.Root()), bc.privateStateManager.GetCache(), nil); err != nil {
+	if err := bc.privateStateManager.CheckAt(head.Root()); err != nil {
 		log.Warn("Head private state missing, resetting chain", "number", head.Number(), "hash", head.Hash())
 		return nil, bc.Reset()
 	}
@@ -452,12 +452,12 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Quorum
-	if privateStateRepository, err := bc.privateStateManager.GetPrivateStateRepository(currentBlock.Root()); err != nil {
+	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
 		if privateStateRepository == nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
 			return bc.Reset()
 		}
-		if _, err := privateStateRepository.GetDefaultState(); err != nil {
+		if _, err := privateStateRepository.DefaultState(); err != nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
 			return bc.Reset()
 		}
@@ -708,7 +708,7 @@ func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentif
 		return nil, nil, err
 	}
 
-	privateStateDb, privateStateDbErr := privateStateRepo.GetPrivateState(psi)
+	privateStateDb, privateStateDbErr := privateStateRepo.StatePSI(psi)
 	if privateStateDbErr != nil {
 		return nil, nil, privateStateDbErr
 	}
@@ -725,7 +725,7 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, mps.PrivateStat
 		return nil, nil, publicStateDbErr
 	}
 
-	privateStateRepo, privateStateRepoErr := bc.privateStateManager.GetPrivateStateRepository(root)
+	privateStateRepo, privateStateRepoErr := bc.privateStateManager.StateRepository(root)
 	if privateStateRepoErr != nil {
 		return nil, nil, privateStateRepoErr
 	}
@@ -1576,7 +1576,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
-	err = psManager.CommitAndWrite(block)
+	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1953,7 +1953,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			return it.index, err
 		}
 		// Quorum
-		privateStateRepo, err := bc.privateStateManager.GetPrivateStateRepository(parent.Root)
+		privateStateRepo, err := bc.privateStateManager.StateRepository(parent.Root)
 		if err != nil {
 			return it.index, err
 		}
