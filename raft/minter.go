@@ -301,7 +301,7 @@ func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 	}
 
 	go func() {
-		minter.mux.Post(core.PendingLogsEvent{Logs: copiedLogs})
+		minter.eth.pendingLogsFeed.Send(copiedLogs)
 		minter.mux.Post(core.PendingStateEvent{})
 	}()
 }

@@ -35,6 +35,8 @@ type RaftService struct {
 	minter           *minter
 	nodeKey          *ecdsa.PrivateKey
 	calcGasLimitFunc func(block *types.Block) uint64
+
+	pendingLogsFeed *event.Feed
 }
 
 func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
@@ -48,6 +50,7 @@ func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uin
 		startPeers:       startPeers,
 		nodeKey:          stack.GetNodeKey(),
 		calcGasLimitFunc: e.CalcGasLimit,
+		pendingLogsFeed:  e.ConsensusServicePendingLogsFeed(),
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)
