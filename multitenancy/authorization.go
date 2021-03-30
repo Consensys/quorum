@@ -18,11 +18,11 @@ var (
 	ErrPSINotFound      = errors.New("no private state identifiers found")
 )
 
-// Authoriz performs authorization check for security attributes against
+// IsAuthorized performs authorization check for security attributes against
 // the granted access inside the pre-authenticated access token.
-func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, secAttributes ...*PrivateStateSecurityAttribute) (bool, error) {
+func IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, secAttributes ...*PrivateStateSecurityAttribute) (bool, error) {
 	for _, attr := range secAttributes {
-		isAuthorized, err := authorize(authToken, attr)
+		isAuthorized, err := isAuthorized(authToken, attr)
 		if err != nil {
 			return false, err
 		}
@@ -33,9 +33,9 @@ func Authorize(authToken *proto.PreAuthenticatedAuthenticationToken, secAttribut
 	return true, nil
 }
 
-// Authoriz performs authorization check for one security attribute against
+// isAuthorized performs authorization check for one security attribute against
 // the granted access inside the pre-authenticated access token.
-func authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *PrivateStateSecurityAttribute) (bool, error) {
+func isAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attr *PrivateStateSecurityAttribute) (bool, error) {
 	query := url.Values{}
 	if attr.nodeEOA != nil {
 		query.Set(QueryNodeEOA, toHexAddress(attr.nodeEOA))
@@ -63,8 +63,8 @@ func authorize(authToken *proto.PreAuthenticatedAuthenticationToken, attr *Priva
 	return false, nil
 }
 
-// AuthorizePSI performs only authorization checks for PSI
-func AuthorizePSI(authToken *proto.PreAuthenticatedAuthenticationToken, psi types.PrivateStateIdentifier) (bool, error) {
+// IsPSIAuthorized performs only authorization checks for PSI
+func IsPSIAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, psi types.PrivateStateIdentifier) (bool, error) {
 	// compare the security attribute with the granted list
 	for _, granted := range authToken.GetAuthorities() {
 		grantedValue, err := url.Parse(granted.GetRaw())

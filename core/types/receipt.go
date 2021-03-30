@@ -206,9 +206,14 @@ func (r *Receipt) Size() common.StorageSize {
 // entire content of a receipt, as opposed to only the consensus fields originally.
 type ReceiptForStorage Receipt
 
+// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
+// into an RLP stream.
+// Quorum:
+// - added logic to support multiple private state
+// - original EncodeRLP is now encodeRLPOrig
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	if r.PSReceipts == nil {
-		return r.EncodeRLPOrig(w)
+		return r.encodeRLPOrig(w)
 	}
 	enc := &storedMPSReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
@@ -235,9 +240,8 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, enc)
 }
 
-// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
-// into an RLP stream.
-func (r *ReceiptForStorage) EncodeRLPOrig(w io.Writer) error {
+// encodeRLPOrig is the original from upstream
+func (r *ReceiptForStorage) encodeRLPOrig(w io.Writer) error {
 	enc := &storedReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
 		CumulativeGasUsed: r.CumulativeGasUsed,
@@ -382,6 +386,11 @@ func (r Receipts) GetRlp(i int) []byte {
 	return bytes
 }
 
+// DeriveFields fills the receipts with their computed fields based on consensus
+// data and contextual infos like containing block and transactions.
+// Quorum:
+// - Provide additional support for Multiple Private State
+// - Original DeriveFields func is now deriveFieldsOrig
 func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
 	//flatten all the receipts
 
@@ -428,11 +437,11 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	// now we have all the receipts, so derive all their fields
 	for _, receipts := range allReceipts {
 		casted := Receipts(receipts)
-		if err := casted.DeriveFieldsOrig(config, hash, number, txs); err != nil {
+		if err := casted.deriveFieldsOrig(config, hash, number, txs); err != nil {
 			return err
 		}
 	}
-	if err := Receipts(allPublic).DeriveFieldsOrig(config, hash, number, txs); err != nil {
+	if err := Receipts(allPublic).deriveFieldsOrig(config, hash, number, txs); err != nil {
 		return err
 	}
 
@@ -456,9 +465,8 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	return nil
 }
 
-// DeriveFields fills the receipts with their computed fields based on consensus
-// data and contextual infos like containing block and transactions.
-func (r Receipts) DeriveFieldsOrig(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
+// deriveFieldsOrig is the original DeriveFields from upstream
+func (r Receipts) deriveFieldsOrig(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
 	signer := MakeSigner(config, new(big.Int).SetUint64(number))
 
 	logIndex := uint(0)

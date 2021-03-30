@@ -135,7 +135,7 @@ func TestAuthorizePSI(t *testing.T) {
 
 	for _, tc := range testCases {
 		log.Debug("Test case :: " + tc.msg)
-		actual, err := AuthorizePSI(toToken(tc.granted), tc.ask)
+		actual, err := IsPSIAuthorized(toToken(tc.granted), tc.ask)
 		assert.NoError(t, err, tc.msg)
 		assert.Equal(t, tc.isAuthorized, actual, tc.msg)
 	}
@@ -205,7 +205,7 @@ func TestAuthorize(t *testing.T) {
 
 	for _, tc := range testCases {
 		log.Debug("Test case :: " + tc.msg)
-		actual, err := Authorize(toToken(tc.granted), tc.ask)
+		actual, err := IsAuthorized(toToken(tc.granted), tc.ask)
 		assert.NoError(t, err, tc.msg)
 		assert.Equal(t, tc.isAuthorized, actual, tc.msg)
 	}

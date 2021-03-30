@@ -158,7 +158,7 @@ func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextCon
 	cfg.Configure(securityContext)
 }
 
-func (s *Server) SupportsMultitenancy(b bool) {
+func (s *Server) ConfigureMultitenancy(b bool) {
 	s.isMultitenant = b
 }
 

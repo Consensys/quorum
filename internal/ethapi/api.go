@@ -1778,7 +1778,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 			return common.Hash{}, err
 		}
 		privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, from)
-		if isAuthorized, _ := multitenancy.Authorize(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+		if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
 			return common.Hash{}, multitenancy.ErrNotAuthorized
 		}
 	}

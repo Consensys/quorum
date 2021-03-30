@@ -23,9 +23,9 @@ type SecurityContext context.Context
 
 const (
 	HttpAuthorizationHeader              = "Authorization"
-	HttpPrivateStateIdentifierHeader     = "GoQuorum-PSI"
+	HttpPrivateStateIdentifierHeader     = "Quorum-PSI"
 	QueryPrivateStateIdentifierParamName = "PSI"
-	EnvVarPrivateStateIdentifier         = "GOQUORUM_PSI"
+	EnvVarPrivateStateIdentifier         = "QUORUM_PSI"
 	// this key is set by server to indicate if server supports mulitenancy
 	CtxIsMultitenant = securityContextKey("IS_MULTITENANT")
 	// this key is set into the secured context to indicate
@@ -62,7 +62,7 @@ type securityError struct{ message string }
 type HttpCredentialsProviderFunc func(ctx context.Context) (string, error)
 
 // Provider function to return a string value which will be
-// 1. injected in `goquorum-psi` http request header for HTTP/WS transports
+// 1. injected in HttpPrivateStateIdentifierHeader http request header for HTTP/WS transports
 // 2. encoded in JSON MessageID for IPC/InProc transports
 type PSIProviderFunc func(ctx context.Context) (types.PrivateStateIdentifier, error)
 
@@ -142,7 +142,7 @@ func SecureCall(resolver SecurityContextResolver, method string) (context.Contex
 					return nil, err
 				}
 			} else {
-				isAuthorized, err := multitenancy.AuthorizePSI(authToken, requestPSI)
+				isAuthorized, err := multitenancy.IsPSIAuthorized(authToken, requestPSI)
 				if err != nil {
 					return nil, err
 				}

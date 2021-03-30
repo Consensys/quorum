@@ -1,5 +1,5 @@
 // This package contains logic for multi-tenancy feature.
-// It encapsulates how to authorize a PSI of a tenant and the scope design specification
+// It encapsulates how to isAuthorized a PSI of a tenant and the scope design specification
 // to be used by Operator when setting up access token scope for a client.
 //
 // Query param `node.eoa` and `self.eoa` can be multiple

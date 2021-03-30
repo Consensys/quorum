@@ -118,7 +118,7 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 			return err
 		}
 		privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithNodeEOA(address)
-		if isAuthorized, _ := multitenancy.Authorize(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+		if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
 			return multitenancy.ErrNotAuthorized
 		}
 	}

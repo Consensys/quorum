@@ -750,6 +750,6 @@ func (n *Node) Lifecycle(lifecycle interface{}) error {
 //
 // configureMultitenancy enables multitenancy flag in rpc.Server
 func (n *Node) configureMultitenancy(handler *rpc.Server) *rpc.Server {
-	handler.SupportsMultitenancy(n.config.EnableMultitenancy)
+	handler.ConfigureMultitenancy(n.config.EnableMultitenancy)
 	return handler
 }
