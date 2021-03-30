@@ -100,9 +100,23 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 
 		return nil, nil
 	}
+	//validate the tx is signed
+	signedBy := tx.From()
+	if signedBy.String() == (common.Address{}).String() || signedBy.String() != fromAddr.String() {
+		// the private tx is signed by someone else or is not properly signed, abort
+		// still need to increment the public nonce
+		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+	}
 
+	nonceBefore := evm.PublicState().GetNonce(fromAddr)
 	_, err = c.runUsingNewEVM(evm, *tx)
 
+	nonceAfter := evm.PublicState().GetNonce(fromAddr)
+	if nonceBefore == nonceAfter {
+		// the nonce wasn't incremented for some reason, usually if an error occurred during processing
+		// this will need to be incremented to keep in line with non-party nodes
+		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+	}
 	return nil, err
 }
 
