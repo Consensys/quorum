@@ -34,6 +34,7 @@ func (c *core) handleRequest(request *Request) error {
 
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
+		c.newRoundChangeTimer()
 		c.sendPreprepareMsg(request)
 	}
 	return nil
