@@ -19,6 +19,7 @@ package utils
 
 import (
 	"flag"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
 	"os"
 	"path"
@@ -159,6 +160,11 @@ func TestQuorumConfigFlags(t *testing.T) {
 	}
 	defer os.Remove(privateKeyFile)
 
+	privateKey, err := crypto.HexToECDSA(privateKeyData)
+	if err != nil {
+		t.Fatalf("Failed to load private key, error: %v", err)
+	}
+
 	fs := &flag.FlagSet{}
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	arbitraryEthConfig := &eth.Config{}
@@ -189,7 +195,7 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.Equal(t, 12*time.Second, arbitraryEthConfig.EVMCallTimeOut, "EVMCallTimeOut value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.EnableMultitenancy, "MultitenancyFlag value is incorrect")
 	assert.Equal(t, false, arbitraryEthConfig.QuorumPrivacyMarkerTransactionsEnabled, "QuorumDisablePrivacyMarker value is incorrect")
-	//assert.Equal(t, need key value here, arbitraryEthConfig.QuorumPrivacyMarkerSigningKey, "QuorumPrivacyMarkerSigningKey value is incorrect")
+	assert.Equal(t, privateKey, arbitraryEthConfig.QuorumPrivacyMarkerSigningKey, "QuorumPrivacyMarkerSigningKey value is incorrect")
 	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
 	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
