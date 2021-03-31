@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -90,16 +91,16 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	mpsm := NewDefaultPrivateStateManager(blockchain.db)
+	mpsm := newDefaultPrivateStateManager(blockchain.db)
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
-	assert.Equal(t, psm1, types.DefaultPrivateStateMetadata)
+	assert.Equal(t, psm1, mps.DefaultPrivateStateMetadata)
 
 	ctx := rpc.WithPrivateStateIdentifier(context.Background(), types.DefaultPrivateStateIdentifier)
 	psm1, _ = mpsm.ResolveForUserContext(ctx)
-	assert.Equal(t, psm1, &types.PrivateStateMetadata{ID: "private", Type: types.Resident})
+	assert.Equal(t, psm1, &mps.PrivateStateMetadata{ID: "private", Type: mps.Resident})
 	psm1, _ = mpsm.ResolveForUserContext(context.Background())
-	assert.Equal(t, psm1, &types.PrivateStateMetadata{ID: "private", Type: types.Resident})
+	assert.Equal(t, psm1, &mps.PrivateStateMetadata{ID: "private", Type: mps.Resident})
 
 	assert.Equal(t, mpsm.PSIs(), []types.PrivateStateIdentifier{types.DefaultPrivateStateIdentifier})
 }

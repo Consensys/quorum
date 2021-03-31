@@ -269,9 +269,12 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
-	bc.privateStateManager = NewDefaultPrivateStateManager(bc.db)
 
 	var err error
+	// Quorum: attempt to initialize PSM
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, chainConfig.IsMPS); err != nil {
+		return nil, err
+	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
 	if err != nil {
 		return nil, err

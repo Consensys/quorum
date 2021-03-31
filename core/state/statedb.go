@@ -288,6 +288,7 @@ func (s *StateDB) Exist(addr common.Address) bool {
 	if s.getStateObject(addr) != nil {
 		return true
 	}
+	// Quorum: refer to emptyStateDB field documentation for more information
 	if s.emptyStateDB != nil {
 		return s.emptyStateDB.Exist(addr)
 	}
@@ -301,6 +302,7 @@ func (s *StateDB) Empty(addr common.Address) bool {
 	if so != nil {
 		return so.empty()
 	}
+	// Quorum: refer to emptyStateDB field documentation for more information
 	if s.emptyStateDB != nil {
 		return s.emptyStateDB.Empty(addr)
 	}
@@ -321,13 +323,15 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	if stateObject != nil {
 		return stateObject.Nonce()
 	}
+
+	// Quorum: refer to emptyStateDB field documentation for more information
 	if s.emptyStateDB != nil {
 		return s.emptyStateDB.GetNonce(addr)
 	}
-
 	return 0
 }
 
+// Quorum
 func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
@@ -339,6 +343,7 @@ func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, err
 	return nil, nil
 }
 
+// Quorum
 func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
@@ -350,6 +355,7 @@ func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*Privac
 	return nil, nil
 }
 
+// Quorum
 func (self *StateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {

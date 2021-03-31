@@ -8,6 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const (
+	PrivacyGroupResident = "RESIDENT"
+	PrivacyGroupLegacy   = "LEGACY"
+	PrivacyGroupPantheon = "PANTHEON"
+)
+
 var (
 	ErrPrivateTxManagerNotinUse                          = errors.New("private transaction manager is not in use")
 	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")

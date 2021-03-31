@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -286,14 +287,14 @@ type mockPrivateTransactionManager struct {
 	returns map[string][]interface{}
 }
 
-func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+func (mpsmr *mockPSMR) ResolveForManagedParty(managedParty string) (*mps.PrivateStateMetadata, error) {
 	values := mpsmr.returns["ResolveForManagedParty"]
 	var (
-		r1 *types.PrivateStateMetadata
+		r1 *mps.PrivateStateMetadata
 		r2 error
 	)
 	if values[0] != nil {
-		r1 = values[0].(*types.PrivateStateMetadata)
+		r1 = values[0].(*mps.PrivateStateMetadata)
 	}
 	if values[1] != nil {
 		r2 = values[1].(error)

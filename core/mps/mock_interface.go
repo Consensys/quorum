@@ -38,10 +38,10 @@ func (m *MockPrivateStateManager) EXPECT() *MockPrivateStateManagerMockRecorder 
 }
 
 // ResolveForManagedParty mocks base method.
-func (m *MockPrivateStateManager) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+func (m *MockPrivateStateManager) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveForManagedParty", managedParty)
-	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret0, _ := ret[0].(*PrivateStateMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -53,10 +53,10 @@ func (mr *MockPrivateStateManagerMockRecorder) ResolveForManagedParty(managedPar
 }
 
 // ResolveForUserContext mocks base method.
-func (m *MockPrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+func (m *MockPrivateStateManager) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveForUserContext", ctx)
-	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret0, _ := ret[0].(*PrivateStateMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -82,7 +82,7 @@ func (mr *MockPrivateStateManagerMockRecorder) PSIs() *gomock.Call {
 }
 
 // NotIncludeAny mocks base method.
-func (m *MockPrivateStateManager) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+func (m *MockPrivateStateManager) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{psm}
 	for _, a := range managedParties {
@@ -153,10 +153,10 @@ func (m *MockPrivateStateMetadataResolver) EXPECT() *MockPrivateStateMetadataRes
 }
 
 // ResolveForManagedParty mocks base method.
-func (m *MockPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+func (m *MockPrivateStateMetadataResolver) ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveForManagedParty", managedParty)
-	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret0, _ := ret[0].(*PrivateStateMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -168,10 +168,10 @@ func (mr *MockPrivateStateMetadataResolverMockRecorder) ResolveForManagedParty(m
 }
 
 // ResolveForUserContext mocks base method.
-func (m *MockPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+func (m *MockPrivateStateMetadataResolver) ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveForUserContext", ctx)
-	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret0, _ := ret[0].(*PrivateStateMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -197,7 +197,7 @@ func (mr *MockPrivateStateMetadataResolverMockRecorder) PSIs() *gomock.Call {
 }
 
 // NotIncludeAny mocks base method.
-func (m *MockPrivateStateMetadataResolver) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+func (m *MockPrivateStateMetadataResolver) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{psm}
 	for _, a := range managedParties {
@@ -325,10 +325,10 @@ func (mr *MockPrivateStateRepositoryMockRecorder) DefaultState() *gomock.Call {
 }
 
 // DefaultStateMetadata mocks base method.
-func (m *MockPrivateStateRepository) DefaultStateMetadata() *types.PrivateStateMetadata {
+func (m *MockPrivateStateRepository) DefaultStateMetadata() *PrivateStateMetadata {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DefaultStateMetadata")
-	ret0, _ := ret[0].(*types.PrivateStateMetadata)
+	ret0, _ := ret[0].(*PrivateStateMetadata)
 	return ret0
 }
 

@@ -18,7 +18,7 @@ type DefaultPrivateStateManager struct {
 	repoCache state.Database
 }
 
-func NewDefaultPrivateStateManager(db ethdb.Database) *DefaultPrivateStateManager {
+func newDefaultPrivateStateManager(db ethdb.Database) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:        db,
 		repoCache: state.NewDatabase(db),
@@ -29,16 +29,16 @@ func (d *DefaultPrivateStateManager) StateRepository(blockHash common.Hash) (mps
 	return mps.NewDefaultPrivateStateRepository(d.db, d.repoCache, blockHash)
 }
 
-func (d *DefaultPrivateStateManager) ResolveForManagedParty(_ string) (*types.PrivateStateMetadata, error) {
-	return types.DefaultPrivateStateMetadata, nil
+func (d *DefaultPrivateStateManager) ResolveForManagedParty(_ string) (*mps.PrivateStateMetadata, error) {
+	return mps.DefaultPrivateStateMetadata, nil
 }
 
-func (d *DefaultPrivateStateManager) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
+func (d *DefaultPrivateStateManager) ResolveForUserContext(ctx context.Context) (*mps.PrivateStateMetadata, error) {
 	psi, ok := rpc.PrivateStateIdentifierFromContext(ctx)
 	if !ok {
 		psi = types.DefaultPrivateStateIdentifier
 	}
-	return &types.PrivateStateMetadata{ID: psi, Type: types.Resident}, nil
+	return &mps.PrivateStateMetadata{ID: psi, Type: mps.Resident}, nil
 }
 
 func (d *DefaultPrivateStateManager) PSIs() []types.PrivateStateIdentifier {
@@ -47,7 +47,7 @@ func (d *DefaultPrivateStateManager) PSIs() []types.PrivateStateIdentifier {
 	}
 }
 
-func (d *DefaultPrivateStateManager) NotIncludeAny(_ *types.PrivateStateMetadata, _ ...string) bool {
+func (d *DefaultPrivateStateManager) NotIncludeAny(_ *mps.PrivateStateMetadata, _ ...string) bool {
 	// with default implementation, all managedParties are members of the psm
 	return false
 }

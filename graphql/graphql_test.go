@@ -428,15 +428,15 @@ func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
 type StubPSMR struct {
 }
 
-func (psmr *StubPSMR) ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error) {
+func (psmr *StubPSMR) ResolveForManagedParty(managedParty string) (*mps.PrivateStateMetadata, error) {
 	panic("implement me")
 }
-func (psmr *StubPSMR) ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error) {
-	return types.DefaultPrivateStateMetadata, nil
+func (psmr *StubPSMR) ResolveForUserContext(ctx context.Context) (*mps.PrivateStateMetadata, error) {
+	return mps.DefaultPrivateStateMetadata, nil
 }
 func (psmr *StubPSMR) PSIs() []types.PrivateStateIdentifier {
 	panic("implement me")
 }
-func (psmr *StubPSMR) NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool {
+func (psmr *StubPSMR) NotIncludeAny(psm *mps.PrivateStateMetadata, managedParties ...string) bool {
 	return false
 }

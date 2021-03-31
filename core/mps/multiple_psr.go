@@ -29,8 +29,7 @@ type MultiplePrivateStateRepository struct {
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
-func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*MultiplePrivateStateRepository, error) {
-	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, previousBlockHash)
+func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
@@ -57,11 +56,11 @@ func (ms *managedState) Copy() *managedState {
 }
 
 func (mpsr *MultiplePrivateStateRepository) DefaultState() (*state.StateDB, error) {
-	return mpsr.StatePSI(types.EmptyPrivateStateMetadata.ID)
+	return mpsr.StatePSI(EmptyPrivateStateMetadata.ID)
 }
 
-func (mpsr *MultiplePrivateStateRepository) DefaultStateMetadata() *types.PrivateStateMetadata {
-	return types.EmptyPrivateStateMetadata
+func (mpsr *MultiplePrivateStateRepository) DefaultStateMetadata() *PrivateStateMetadata {
+	return EmptyPrivateStateMetadata
 }
 
 func (mpsr *MultiplePrivateStateRepository) IsMPS() bool {
@@ -84,7 +83,7 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 	if err != nil {
 		return nil, err
 	}
-	if psi != types.EmptyPrivateStateMetadata.ID {
+	if psi != EmptyPrivateStateMetadata.ID {
 		emptyState, err := mpsr.DefaultState()
 		if err != nil {
 			return nil, err
@@ -197,7 +196,7 @@ func (mpsr *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receip
 	for _, receipt := range priv {
 		publicReceipt := m[receipt.TxHash]
 		publicReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
-		publicReceipt.PSReceipts[types.EmptyPrivateStateMetadata.ID] = receipt
+		publicReceipt.PSReceipts[EmptyPrivateStateMetadata.ID] = receipt
 		for psi, receipt := range receipt.PSReceipts {
 			publicReceipt.PSReceipts[psi] = receipt
 		}

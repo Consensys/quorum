@@ -250,7 +250,6 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	quorumValidateConsensus(ethereum, isRaft)
 
 	quorumValidatePrivacyEnhancements(ethereum)
-	quorumValidateMPS(ethereum)
 }
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
@@ -286,14 +285,6 @@ func quorumInitialisePrivacy(ctx *cli.Context) error {
 	privacyExtension.Init()
 
 	return nil
-}
-
-// quorumValidateMPS checks if multiple private states is enabled the transaction manager supports the
-// MultiplePrivateStates feature
-func quorumValidateMPS(ethereum *eth.Ethereum) {
-	if ethereum.BlockChain().Config().IsMPS && !private.P.HasFeature(engine.MultiplePrivateStates) {
-		utils.Fatalf("Cannot start quorum with multiple private states enabled while the transaction manager does not support it")
-	}
 }
 
 // Get private transaction manager configuration

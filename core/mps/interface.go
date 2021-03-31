@@ -20,13 +20,13 @@ type PrivateStateManager interface {
 }
 
 type PrivateStateMetadataResolver interface {
-	ResolveForManagedParty(managedParty string) (*types.PrivateStateMetadata, error)
-	ResolveForUserContext(ctx context.Context) (*types.PrivateStateMetadata, error)
+	ResolveForManagedParty(managedParty string) (*PrivateStateMetadata, error)
+	ResolveForUserContext(ctx context.Context) (*PrivateStateMetadata, error)
 	// PSIs returns list of types.PrivateStateIdentifier being managed
 	PSIs() []types.PrivateStateIdentifier
 	// NotIncludeAny returns true if NONE of the managedParties is a member
 	// of the given psm, otherwise returns false
-	NotIncludeAny(psm *types.PrivateStateMetadata, managedParties ...string) bool
+	NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool
 }
 
 // PrivateStateRepository abstracts how we handle private state(s) including
@@ -38,7 +38,7 @@ type PrivateStateRepository interface {
 	Copy() PrivateStateRepository
 	Reset() error
 	DefaultState() (*state.StateDB, error)
-	DefaultStateMetadata() *types.PrivateStateMetadata
+	DefaultStateMetadata() *PrivateStateMetadata
 	IsMPS() bool
 	MergeReceipts(pub, priv types.Receipts) types.Receipts
 }

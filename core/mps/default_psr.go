@@ -42,8 +42,8 @@ func (dpsr *DefaultPrivateStateRepository) DefaultState() (*state.StateDB, error
 	return dpsr.stateDB, nil
 }
 
-func (dpsr *DefaultPrivateStateRepository) DefaultStateMetadata() *types.PrivateStateMetadata {
-	return types.DefaultPrivateStateMetadata
+func (dpsr *DefaultPrivateStateRepository) DefaultStateMetadata() *PrivateStateMetadata {
+	return DefaultPrivateStateMetadata
 }
 
 func (dpsr *DefaultPrivateStateRepository) IsMPS() bool {

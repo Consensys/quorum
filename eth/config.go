@@ -199,12 +199,4 @@ type Config struct {
 
 	// Quorum
 	EnableMultitenancy bool `toml:"-"`
-
-	// Quorum
-	//
-	// This flag is to determine if EthService should decorate the blockchhain
-	// with PrivateStateMetadataResolver sourced from private.PrivateTransactionManager.
-	// It depends on 2 values: ChainConfig.IsMPS and engine.MultiplePrivateStates
-	// feature of private.PrivateTransactionManager
-	EnableMPS bool `toml:"-"`
 }

@@ -862,7 +862,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	}
 }
 
-func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *types.PrivateStateMetadata) types.Message {
+func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateStateMetadata) types.Message {
 	if msg.IsPrivate() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
 		if api.eth.blockchain.PrivateStateManager().NotIncludeAny(psm, managedParties...) {

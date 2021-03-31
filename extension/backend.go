@@ -51,16 +51,17 @@ var (
 type stopEvent struct {
 }
 
-func (service *PrivacyService) client(psi types.PrivateStateIdentifier) Client {
+func (service *PrivacyService) newEthClient(psi types.PrivateStateIdentifier) *ethclient.Client {
 	rpcClient, _ := service.node.AttachWithPSI(psi)
-	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
-	return NewInProcessClient(client)
+	return ethclient.NewClientWithPTM(rpcClient, service.ptm)
+}
+
+func (service *PrivacyService) client(psi types.PrivateStateIdentifier) Client {
+	return NewInProcessClient(service.newEthClient(psi))
 }
 
 func (service *PrivacyService) managementContract(psi types.PrivateStateIdentifier) ManagementContractFacade {
-	rpcClient, _ := service.node.AttachWithPSI(psi)
-	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
-	return NewManagementContractFacade(client)
+	return NewManagementContractFacade(service.newEthClient(psi))
 }
 
 func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subscription) {
@@ -119,8 +120,8 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 			CreationData:              tx.Data(),
 		}
 
-		data := common.BytesToEncryptedPayloadHash(tx.Data())
-		privateFrom, _, _, _, err := service.ptm.Receive(data)
+		enclaveKey := common.BytesToEncryptedPayloadHash(tx.Data())
+		privateFrom, _, _, _, err := service.ptm.Receive(enclaveKey)
 		if err != nil {
 			log.Error("Error receiving private payload", "error", err)
 			service.mu.Unlock()
@@ -141,10 +142,10 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 
 		// if party is sender then complete self voting
 
-		isSender, _ := service.ptm.IsSender(data)
+		isSender, _ := service.ptm.IsSender(enclaveKey)
 
 		if isSender {
-			fetchedParties, err := service.ptm.GetParticipants(data)
+			fetchedParties, err := service.ptm.GetParticipants(enclaveKey)
 			if err != nil || len(fetchedParties) == 0 {
 				log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
 				return

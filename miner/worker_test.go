@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"encoding/base64"
 	"math/big"
 	"math/rand"
 	"sync/atomic"
@@ -31,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -513,19 +514,19 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 }
 
-var PSI1PSM = types.PrivateStateMetadata{
+var PSI1PSM = mps.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
 	Description: "private state 1",
-	Type:        types.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }
 
-var PSI2PSM = types.PrivateStateMetadata{
+var PSI2PSM = mps.PrivateStateMetadata{
 	ID:          "psi2",
 	Name:        "psi2",
 	Description: "private state 2",
-	Type:        types.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }
 
@@ -534,6 +535,25 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	mockptm := private.NewMockPrivateTransactionManager(mockCtrl)
+	mockptm.EXPECT().HasFeature(engine.MultiplePrivateStates).Return(true)
+	mockptm.EXPECT().Groups().Return([]engine.PrivacyGroup{
+		{
+			Type:           "RESIDENT",
+			Name:           PSI1PSM.Name,
+			PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte(PSI1PSM.ID)),
+			Description:    "Resident Group 1",
+			From:           "",
+			Members:        []string{"psi1"},
+		},
+		{
+			Type:           "RESIDENT",
+			Name:           PSI2PSM.Name,
+			PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte(PSI2PSM.ID)),
+			Description:    "Resident Group 2",
+			From:           "",
+			Members:        []string{"psi2"},
+		},
+	}, nil)
 
 	saved := private.P
 	defer func() {
@@ -545,17 +565,11 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	chainConfig := params.AllCliqueProtocolChanges
 	chainConfig.IsQuorum = true
 	chainConfig.IsMPS = true
-	cache := state.NewDatabase(db)
 	defer func() { chainConfig.IsQuorum = false }()
 	defer func() { chainConfig.IsMPS = false }()
 
-	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
-
 	w, b := newTestWorker(t, chainConfig, clique.New(chainConfig.Clique, db), db, 0)
 	defer w.close()
-
-	mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(db, cache, b.BlockChain().CurrentBlock().ParentHash())).AnyTimes()
-	b.BlockChain().SetPrivateStateManager(mockpsm)
 
 	newBlock := make(chan *types.Block)
 	listenNewBlock := func() {
@@ -587,8 +601,6 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		randomPrivateTx := b.newRandomTx(true, true)
 		mockptm.EXPECT().Receive(common.BytesToEncryptedPayloadHash(randomPrivateTx.Data())).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
-		mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
-		mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 		mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 		expectedContractAddress := crypto.CreateAddress(randomPrivateTx.From(), randomPrivateTx.Nonce())
 		b.txPool.AddLocal(randomPrivateTx)

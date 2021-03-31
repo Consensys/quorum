@@ -79,18 +79,20 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+	mockptm.EXPECT().HasFeature(engine.MultiplePrivateStates).Return(true)
+	mockptm.EXPECT().Groups().Return(PrivacyGroups, nil).AnyTimes()
 
 	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
 	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	cache := state.NewDatabase(blockchain.db)
-	blockchain.SetPrivateStateManager(mockpsm)
+	blockchain.privateStateManager = mockpsm
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, parent.Root())).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
@@ -175,18 +177,20 @@ func TestMPSReset(t *testing.T) {
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"psi1", "psi2"}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+	mockptm.EXPECT().HasFeature(engine.MultiplePrivateStates).Return(true)
+	mockptm.EXPECT().Groups().Return(PrivacyGroups, nil).AnyTimes()
 
 	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
 	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
+	blockchain.privateStateManager = mockpsm
 	cache := state.NewDatabase(blockchain.db)
-	blockchain.SetPrivateStateManager(mockpsm)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, parent.Root())).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
@@ -235,17 +239,16 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 
 	mockptm.EXPECT().Receive(gomock.Not(common.EncryptedPayloadHash{})).Return("", []string{"AAA", "CCC"}, common.FromHex(testCode), nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
+	mockptm.EXPECT().HasFeature(engine.MultiplePrivateStates).Return(true)
 	mockptm.EXPECT().Groups().Return(PrivacyGroups, nil).AnyTimes()
 
 	_, _, blockchain := buildTestChain(1, params.QuorumMPSTestChainConfig)
 
-	mpsm, err := NewMultiplePrivateStateManager(blockchain.db)
-	assert.NoError(t, err)
-	blockchain.SetPrivateStateManager(mpsm)
+	mpsm := blockchain.privateStateManager
 
 	psm1, _ := mpsm.ResolveForManagedParty("AAA")
 	psm2, _ := mpsm.ResolveForManagedParty("CCC")
-	_, err = mpsm.ResolveForManagedParty("TEST")
+	_, err := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, privacyGroupToPrivateStateMetadata(PG1))
 	assert.Equal(t, psm2, privacyGroupToPrivateStateMetadata(PG2))
 	assert.Error(t, err, "unable to find private state metadata for managed party TEST")
@@ -264,19 +267,19 @@ func TestPrivateStateMetadataResolver(t *testing.T) {
 	assert.Contains(t, mpsm.PSIs(), types.PrivateStateIdentifier("LEGACY1"))
 }
 
-var PSI1PSM = types.PrivateStateMetadata{
+var PSI1PSM = mps.PrivateStateMetadata{
 	ID:          "psi1",
 	Name:        "psi1",
 	Description: "private state 1",
-	Type:        types.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }
 
-var PSI2PSM = types.PrivateStateMetadata{
+var PSI2PSM = mps.PrivateStateMetadata{
 	ID:          "psi2",
 	Name:        "psi2",
 	Description: "private state 2",
-	Type:        types.Resident,
+	Type:        mps.Resident,
 	Addresses:   nil,
 }
 

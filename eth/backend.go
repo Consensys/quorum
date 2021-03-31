@@ -174,8 +174,6 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		quorumConsensusProtocolVersions = quorumProtocol.Versions
 		quorumConsensusProtocolLengths = quorumProtocol.Lengths
 	}
-	config.EnableMPS = config.EnableMPS && chainConfig.IsMPS
-	log.Info("Supporting Multiple Private States", "mps", config.EnableMPS, "chainConfig.IsMPS", chainConfig.IsMPS)
 
 	// force to set the istanbul etherbase to node key address
 	if chainConfig.Istanbul != nil {
@@ -223,14 +221,6 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
-	}
-	// Quorum: decorate blockchain with PrivateStateMetadataResolver using Tessera
-	if config.EnableMPS {
-		psm, err := core.NewMultiplePrivateStateManager(chainDb)
-		if err != nil {
-			return nil, err
-		}
-		eth.blockchain.SetPrivateStateManager(psm)
 	}
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {

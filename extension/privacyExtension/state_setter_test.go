@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
@@ -107,7 +108,7 @@ func TestExtensionHandler_UuidIsOwn_WrongPSIFails(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty": {&types.PrivateStateMetadata{ID: "psi1", Type: types.Resident}, nil},
+			"ResolveForManagedParty": {&mps.PrivateStateMetadata{ID: "psi1", Type: mps.Resident}, nil},
 		},
 	}
 	handler.SetPSMR(psmr)
@@ -131,7 +132,7 @@ func TestExtensionHandler_UuidIsOwn_DecryptPayloadFails(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty": {&types.PrivateStateMetadata{ID: "psi1", Type: types.Resident}, nil},
+			"ResolveForManagedParty": {&mps.PrivateStateMetadata{ID: "psi1", Type: mps.Resident}, nil},
 		},
 	}
 	handler.SetPSMR(psmr)
@@ -155,7 +156,7 @@ func TestExtensionHandler_UuidIsOwn_AddressDoesntMatch(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty": {&types.PrivateStateMetadata{ID: "psi1", Type: types.Resident}, nil},
+			"ResolveForManagedParty": {&mps.PrivateStateMetadata{ID: "psi1", Type: mps.Resident}, nil},
 		},
 	}
 	handler.SetPSMR(psmr)
@@ -182,7 +183,7 @@ func TestExtensionHandler_UuidIsOwn_AddressMatches(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty": {&types.PrivateStateMetadata{ID: "psi1", Type: types.Resident}, nil},
+			"ResolveForManagedParty": {&mps.PrivateStateMetadata{ID: "psi1", Type: mps.Resident}, nil},
 		},
 	}
 	handler.SetPSMR(psmr)
@@ -206,7 +207,7 @@ func TestExtensionHandler_UuidIsOwn_PrivatePSMRSucceeds(t *testing.T) {
 	handler := NewExtensionHandler(ptm)
 	psmr := &mockPSMR{
 		returns: map[string][]interface{}{
-			"ResolveForManagedParty": {&types.PrivateStateMetadata{ID: "private", Type: types.Resident}, nil},
+			"ResolveForManagedParty": {&mps.PrivateStateMetadata{ID: "private", Type: mps.Resident}, nil},
 		},
 	}
 	handler.SetPSMR(psmr)

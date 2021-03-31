@@ -1,13 +1,14 @@
-package types
+package mps
 
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewPrivateStateMetadata_whenTypical(t *testing.T) {
-	psi := ToPrivateStateIdentifier("arbitrary")
+	psi := types.ToPrivateStateIdentifier("arbitrary")
 	testObject := NewPrivateStateMetadata(psi, "name", "desc", Resident, []string{"a"})
 
 	assert.Equal(t, psi, testObject.ID)
@@ -19,7 +20,7 @@ func TestNewPrivateStateMetadata_whenTypical(t *testing.T) {
 }
 
 func TestNewPrivateStateMetadata_whenNoIndex(t *testing.T) {
-	psi := ToPrivateStateIdentifier("arbitrary")
+	psi := types.ToPrivateStateIdentifier("arbitrary")
 	testObject := NewPrivateStateMetadata(psi, "name", "desc", Resident, nil)
 
 	assert.Equal(t, psi, testObject.ID)
@@ -33,7 +34,7 @@ func TestNewPrivateStateMetadata_whenNoIndex(t *testing.T) {
 func TestPrivateStateMetadata_NotIncludeAny_whenTypical(t *testing.T) {
 	pk1 := "arbitrary pk1"
 	pk2 := "arbitrary pk2"
-	testObject := NewPrivateStateMetadata(ToPrivateStateIdentifier("arbitrary"), "name", "desc", Resident, []string{pk1, pk2})
+	testObject := NewPrivateStateMetadata(types.ToPrivateStateIdentifier("arbitrary"), "name", "desc", Resident, []string{pk1, pk2})
 
 	assert.True(t, testObject.NotIncludeAny("arbitrary pk"))
 }
@@ -41,7 +42,7 @@ func TestPrivateStateMetadata_NotIncludeAny_whenTypical(t *testing.T) {
 func TestPrivateStateMetadata_NotIncludeAny_whenMatch(t *testing.T) {
 	pk1 := "arbitrary pk1"
 	pk2 := "arbitrary pk2"
-	testObject := NewPrivateStateMetadata(ToPrivateStateIdentifier("arbitrary"), "name", "desc", Resident, []string{pk1, pk2})
+	testObject := NewPrivateStateMetadata(types.ToPrivateStateIdentifier("arbitrary"), "name", "desc", Resident, []string{pk1, pk2})
 
 	assert.False(t, testObject.NotIncludeAny(pk1))
 }
