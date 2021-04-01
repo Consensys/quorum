@@ -19,7 +19,6 @@ package utils
 
 import (
 	"flag"
-	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
 	"os"
 	"path"
@@ -29,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"

@@ -79,6 +79,11 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		return nil, nil
 	}
 
+	if evm.currentTx.To() == nil || evm.currentTx.To().String() != PrivacyMarkerAddress().String() || evm.depth != 0 {
+		// only supporting direct precompile calls so far
+		return nil, nil
+	}
+
 	if evm.currentTx.IsPrivate() {
 		//only public transactions can call the precompile
 		log.Warn("Private transaction called precompile", "tx hash", evm.currentTx.Hash())
@@ -86,7 +91,7 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	}
 
 	data := evm.currentTx.Data()
-	tx, _, err := private.FetchPrivateTransaction(data) //TODO: should use returned metadata...
+	tx, _, err := private.FetchPrivateTransaction(data)
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, err
@@ -117,6 +122,7 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		// the private tx is signed by someone else or is not properly signed, abort
 		// still need to increment the public nonce
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+		return nil, nil
 	}
 
 	nonceBefore := evm.PublicState().GetNonce(fromAddr)
