@@ -506,3 +506,18 @@ func (r Receipts) deriveFieldsOrig(config *params.ChainConfig, hash common.Hash,
 	}
 	return nil
 }
+
+// Quorum
+//
+// Flatten takes a list of private receipts, which will be the "private" PSI receipt,
+// and flatten all the MPS receipts into a single list, which the bloom can work with
+func (r Receipts) Flatten() []*Receipt {
+	var flattenedReceipts []*Receipt
+	for _, privReceipt := range r {
+		flattenedReceipts = append(flattenedReceipts, privReceipt)
+		for _, psReceipt := range privReceipt.PSReceipts {
+			flattenedReceipts = append(flattenedReceipts, psReceipt)
+		}
+	}
+	return flattenedReceipts
+}

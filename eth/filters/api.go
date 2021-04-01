@@ -396,7 +396,14 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if !found || f.typ != LogsSubscription {
 		return nil, fmt.Errorf("filter not found")
 	}
-
+	// Quorum:
+	// - Make sure the tenant has access to the filter
+	// - Even when MPS or Multitenancy is not enabled, the DefaultPrivateStateIdentifier values
+	// will be populated in both context and filter criteria. So this check is safe without
+	// the need of checking for multitenancy enablement
+	if psm.ID != f.crit.PSI {
+		return nil, fmt.Errorf("filter not found for %v", psm.ID)
+	}
 	var filter *Filter
 	if f.crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
