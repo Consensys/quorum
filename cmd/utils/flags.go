@@ -844,9 +844,9 @@ var (
 		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
 	}
 
-	QuorumDisablePrivacyMarker = cli.BoolFlag{
-		Name:  "privacymarker.disable",
-		Usage: "If specified, then privacy marker transactions are disabled.",
+	QuorumEnablePrivacyMarker = cli.BoolFlag{
+		Name:  "privacymarker.enable",
+		Usage: "If specified, then privacy marker transactions are enabled.",
 	}
 
 	QuorumPrivacyMarkerSigningKeyFile = cli.StringFlag{
@@ -1685,9 +1685,9 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
 
-	cfg.QuorumPrivacyMarkerTransactionsEnabled = true
-	if ctx.GlobalIsSet(QuorumDisablePrivacyMarker.Name) {
-		cfg.QuorumPrivacyMarkerTransactionsEnabled = false
+	cfg.QuorumPrivacyMarkerTransactionsEnabled = false
+	if ctx.GlobalIsSet(QuorumEnablePrivacyMarker.Name) {
+		cfg.QuorumPrivacyMarkerTransactionsEnabled = true
 	}
 
 	if ctx.GlobalIsSet(QuorumPrivacyMarkerSigningKeyFile.Name) {
