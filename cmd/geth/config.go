@@ -154,6 +154,11 @@ func enableWhisper(ctx *cli.Context) bool {
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 
+	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	}
+
 	// Quorum - returning `ethService` too for the Raft and extension service
 	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
 
@@ -170,11 +175,6 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
-	}
-
-	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
-	if err := quorumInitialisePrivacy(ctx); err != nil {
-		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
