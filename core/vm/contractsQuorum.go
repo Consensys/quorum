@@ -134,7 +134,7 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		// this will need to be incremented to keep in line with non-party nodes
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 	}
-	return nil, err
+	return nil, nil
 }
 
 func (c *privacyMarker) runUsingNewEVM(evm *EVM, tx types.Transaction) ([]byte, error) {
