@@ -149,7 +149,7 @@ jobs:
     if: always()
     name: 'Notify'
     needs:
-      - build
+      - build-binary
       - deploy-cloudsmith
       - publish-docker
       - draft-release
