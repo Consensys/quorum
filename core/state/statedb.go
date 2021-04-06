@@ -115,16 +115,6 @@ type StateDB struct {
 	SnapshotAccountReads time.Duration
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
-
-	// Quorum
-	//
-	// The empty state is the private state where all private transactions are executed "as if" the private state is not a party.
-	// ALL private transactions are being applied to this state (with empty private transaction payload). It allows the public
-	// state to progress as usual (increasing the public state nonce when transactions are sent/contracts are created).
-	// The empty state also allows us not to execute the non party transactions for each of the managed private states.
-	//
-	// emptyStateDB in the empty state is nil
-	emptyStateDB *StateDB
 }
 
 // New creates a new state from a given trie.
@@ -180,11 +170,6 @@ func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Da
 		return nil, nil, err
 	}
 	return state, privateState, nil
-}
-
-// see the PrivateStateService for details about the necessity of the emptyStateDB
-func (self *StateDB) SetEmptyState(empty *StateDB) {
-	self.emptyStateDB = empty
 }
 
 // setError remembers the first non-nil error it is called with.
@@ -285,14 +270,7 @@ func (s *StateDB) SubRefund(gas uint64) {
 // Exist reports whether the given account address exists in the state.
 // Notably this also returns true for suicided accounts.
 func (s *StateDB) Exist(addr common.Address) bool {
-	if s.getStateObject(addr) != nil {
-		return true
-	}
-	// Quorum: refer to emptyStateDB field documentation for more information
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.Exist(addr)
-	}
-	return false
+	return s.getStateObject(addr) != nil
 }
 
 // Empty returns whether the state object is either non-existent
@@ -301,10 +279,6 @@ func (s *StateDB) Empty(addr common.Address) bool {
 	so := s.getStateObject(addr)
 	if so != nil {
 		return so.empty()
-	}
-	// Quorum: refer to emptyStateDB field documentation for more information
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.Empty(addr)
 	}
 	return true
 }
@@ -323,11 +297,6 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	if stateObject != nil {
 		return stateObject.Nonce()
 	}
-
-	// Quorum: refer to emptyStateDB field documentation for more information
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.GetNonce(addr)
-	}
 	return 0
 }
 
@@ -337,9 +306,6 @@ func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, err
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
 	}
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.GetPrivacyMetadata(addr)
-	}
 	return nil, nil
 }
 
@@ -348,9 +314,6 @@ func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*Privac
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetCommittedPrivacyMetadata()
-	}
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.GetCommittedStatePrivacyMetadata(addr)
 	}
 	return nil, nil
 }

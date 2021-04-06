@@ -206,6 +206,23 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 
 		bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psMetadata.ID)
 	}
+	// handle the rest of the PSIs (by executing the transaction as non party)
+	for _, psi := range bc.PrivateStateManager().PSIs() {
+		if _, found := mpsReceipt.PSReceipts[psi]; found {
+			continue
+		}
+		privateStateDB, err := privateStateDBFactory(psi)
+		if err != nil {
+			return nil, err
+		}
+		publicStateDB := publicStateDBFactory()
+		// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
+		// we don't care about the empty receipt (as we'll execute the transaction on the empty state anyway)
+		_, _, err = ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, true)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return mpsReceipt, nil
 }
 

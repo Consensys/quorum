@@ -119,7 +119,14 @@ func TestMultiplePSRReset(t *testing.T) {
 	testState, _ := psr.StatePSI(types.PrivateStateIdentifier("test"))
 	privState, _ := psr.StatePSI(types.DefaultPrivateStateIdentifier)
 
-	for i := byte(0); i < 255; i++ {
+	addr := common.BytesToAddress([]byte{255})
+	testState.AddBalance(addr, big.NewInt(int64(255)))
+	privState.AddBalance(addr, big.NewInt(int64(255)))
+
+	// have something to revert to (rather than empty state)
+	psr.CommitAndWrite(false, types.NewBlockWithHeader(&types.Header{Root: common.Hash{}}))
+
+	for i := byte(0); i < 254; i++ {
 		addr := common.BytesToAddress([]byte{i})
 		testState.AddBalance(addr, big.NewInt(int64(i)))
 		privState.AddBalance(addr, big.NewInt(int64(i)))
@@ -127,7 +134,7 @@ func TestMultiplePSRReset(t *testing.T) {
 	testState.Finalise(false)
 	privState.Finalise(false)
 
-	for i := byte(0); i < 255; i++ {
+	for i := byte(0); i < 254; i++ {
 		addr := common.BytesToAddress([]byte{i})
 		assert.True(t, testState.Exist(addr))
 		assert.True(t, privState.Exist(addr))
@@ -135,11 +142,14 @@ func TestMultiplePSRReset(t *testing.T) {
 
 	psr.Reset()
 
-	for i := byte(0); i < 255; i++ {
+	for i := byte(0); i < 254; i++ {
 		addr := common.BytesToAddress([]byte{i})
 		assert.False(t, testState.Exist(addr))
 		assert.False(t, privState.Exist(addr))
 	}
+	addr = common.BytesToAddress([]byte{255})
+	assert.True(t, testState.Exist(addr))
+	assert.True(t, privState.Exist(addr))
 }
 
 //TestCreatingManagedStates tests that managed states are created and added to managedState map

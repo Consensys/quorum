@@ -84,6 +84,7 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
 	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
+	mockpsm.EXPECT().PSIs().Return([]types.PrivateStateIdentifier{PSI1PSM.ID, PSI2PSM.ID, types.DefaultPrivateStateIdentifier, types.ToPrivateStateIdentifier("other")}).AnyTimes()
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	cache := state.NewDatabase(blockchain.db)
@@ -131,11 +132,11 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.PrivateStateIdentifier("psi2"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			//contract should exist on default private state (delegated to emptystate) but no contract code
+			//contract should exist on default private state but no contract code
 			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.DefaultPrivateStateIdentifier)
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			//contract should exist on random state (delegated to emptystate) but no contract code
+			//contract should exist on random state but no contract code
 			_, privDb, _ = blockchain.StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
@@ -182,6 +183,7 @@ func TestMPSReset(t *testing.T) {
 
 	mockpsm.EXPECT().ResolveForManagedParty("psi1").Return(&PSI1PSM, nil).AnyTimes()
 	mockpsm.EXPECT().ResolveForManagedParty("psi2").Return(&PSI2PSM, nil).AnyTimes()
+	mockpsm.EXPECT().PSIs().Return([]types.PrivateStateIdentifier{PSI1PSM.ID, PSI2PSM.ID}).AnyTimes()
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	blockchain.privateStateManager = mockpsm

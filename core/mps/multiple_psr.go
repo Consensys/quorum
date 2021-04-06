@@ -74,29 +74,38 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 	if found {
 		return ms.stateDb, nil
 	}
-	privateStatesTrieRoot, err := mpsr.trie.TryGet([]byte(psi))
+	privateStateRoot, err := mpsr.trie.TryGet([]byte(psi))
 	if err != nil {
 		return nil, err
 	}
-	stateCache := state.NewDatabase(mpsr.db)
-	statedb, err := state.New(common.BytesToHash(privateStatesTrieRoot), stateCache, nil)
-	if err != nil {
-		return nil, err
-	}
-	if psi != EmptyPrivateStateMetadata.ID {
+	var stateCache state.Database
+	var stateDB *state.StateDB
+	if privateStateRoot == nil && psi != EmptyPrivateStateMetadata.ID {
+		// this is the first time we are trying to use this private state so branch from the empty state
 		emptyState, err := mpsr.DefaultState()
 		if err != nil {
 			return nil, err
 		}
-		statedb.SetEmptyState(emptyState)
+		mpsr.mux.Lock()
+		ms := mpsr.managedStates[EmptyPrivateStateMetadata.ID]
+		mpsr.mux.Unlock()
+
+		stateDB = emptyState.Copy()
+		stateCache = ms.stateCache
+	} else {
+		stateCache = state.NewDatabase(mpsr.db)
+		stateDB, err = state.New(common.BytesToHash(privateStateRoot), stateCache, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
 	mpsr.managedStates[psi] = &managedState{
 		stateCache: stateCache,
-		stateDb:    statedb,
+		stateDb:    stateDB,
 	}
-	return statedb, nil
+	return stateDB, nil
 }
 
 func (mpsr *MultiplePrivateStateRepository) Reset() error {
@@ -106,6 +115,11 @@ func (mpsr *MultiplePrivateStateRepository) Reset() error {
 		root, err := mpsr.trie.TryGet([]byte(psi))
 		if err != nil {
 			return err
+		}
+		// if this was a newly created private state (branched from the empty state) - remove it from the managedStates map
+		if root == nil {
+			delete(mpsr.managedStates, psi)
+			continue
 		}
 		err = managedState.stateDb.Reset(common.BytesToHash(root))
 		if err != nil {
