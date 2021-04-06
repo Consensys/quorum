@@ -85,8 +85,25 @@ jobs:
         # for PR, only selective tests are run.
         # More comprehensive suites are scheduled to run in master
         tag:
-          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
-          - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/typical::raft'
+          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - 'gcmode && block-sync && networks/template::raft-3plus1'
+          - 'gcmode && block-sync && networks/template::istanbul-3plus1'
+          - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
+          - 'validator-management && networks/template::istanbul-3plus1'
+          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/plugins::raft'
+          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+          - 'basic-rpc-security || networks/plugins::raft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
+          - 'migration && networks/template::raft-4nodes'
+          - 'migration && networks/template::istanbul-4nodes'
+          - 'permissions-v1 && networks/template::raft-3plus1'
+          - 'permissions-v2 && networks/template::raft-3plus1'
+          - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          - 'multitenancy && networks/plugins::raft-multitenancy'
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
@@ -98,14 +115,36 @@ jobs:
         run: |
           tar xfvz docker-image/quorum-pr.tar.gz
           docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
           echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      # START: remove the below once PR is ready
+      - name: Login to GitHub Packages Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: quorumbot
+          password: ${{ secrets.QUORUMBOT_PAT }}
+      - name: 'Load AccTests and Tessera Docker Images'
+        run: |
+          tessera_docker_image="quorumengineering/tessera:latest"
+          acctests_docker_image="docker.pkg.github.com/consensysquorum/quorum-acceptance-tests/acctests:dev-privacy-precompile"
+          docker pull $tessera_docker_image
+          echo "TF_VAR_tessera_docker_image={ name = \"$tessera_docker_image\", local = true }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_enhancements={ block = 0, enabled = false }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          docker pull $acctests_docker_image
+          # replacing the acctests image to run
+          docker tag $acctests_docker_image quorumengineering/acctests:latest
+      # END
       - name: 'Run acceptance tests'
         run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
           docker run --rm \
             --network host \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
-            -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:pr", local = true }' \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
             quorumengineering/acctests:latest test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
