@@ -90,19 +90,25 @@ func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common
 }
 
 // checks if the contract being extended is a public contract
-func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
+func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) (bool, error) {
 	// check if the passed contract is public contract
 	chain := api.privacyService.stateFetcher.chainAccessor
-	publicStateDb, _, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), types.DefaultPrivateStateIdentifier)
-	return publicStateDb != nil && publicStateDb.Exist(toExtend)
+	publicStateDb, _, err := chain.StateAtPSI(chain.CurrentBlock().Root(), types.DefaultPrivateStateIdentifier)
+	if err != nil {
+		return false, err
+	}
+	return publicStateDb != nil && publicStateDb.Exist(toExtend), nil
 }
 
 // checks if the contract being extended is available on the node
-func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi types.PrivateStateIdentifier, toExtend common.Address) bool {
+func (api *PrivateExtensionAPI) checkIfPrivateStateExists(psi types.PrivateStateIdentifier, toExtend common.Address) (bool, error) {
 	// check if the private contract exists on the node extending the contract
 	chain := api.privacyService.stateFetcher.chainAccessor
-	_, privateStateDb, _ := chain.StateAtPSI(chain.CurrentBlock().Root(), psi)
-	return privateStateDb != nil && privateStateDb.GetCode(toExtend) != nil
+	_, privateStateDb, err := chain.StateAtPSI(chain.CurrentBlock().Root(), psi)
+	if err != nil {
+		return false, err
+	}
+	return privateStateDb != nil && privateStateDb.GetCode(toExtend) != nil, nil
 }
 
 func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address common.Address, txa ethapi.SendTxArgs) error {
@@ -212,11 +218,15 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	}
 
 	// check if a public contract is being extended
-	if api.checkIfPublicContract(toExtend) {
+	isPublic, err := api.checkIfPublicContract(toExtend)
+	if err != nil {
+		return "", err
+	}
+	if isPublic {
 		return "", errors.New("extending a public contract!!! not allowed")
 	}
 
-	err := api.doMultiTenantChecks(ctx, txa.From, txa)
+	err = api.doMultiTenantChecks(ctx, txa.From, txa)
 	if err != nil {
 		return "", err
 	}
@@ -232,7 +242,11 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	}
 
 	// check if a private contract exists
-	if !api.checkIfPrivateStateExists(psm.ID, toExtend) {
+	privateContractExists, err := api.checkIfPrivateStateExists(psm.ID, toExtend)
+	if err != nil {
+		return "", err
+	}
+	if !privateContractExists {
 		return "", errors.New("extending a non-existent private contract!!! not allowed")
 	}
 

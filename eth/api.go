@@ -374,8 +374,7 @@ func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, block
 	if block == nil {
 		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
 	}
-	publicState, privateState, err := api.eth.BlockChain().StateAtPSI(block.Root(), psm.ID)
-	return publicState, privateState, err
+	return api.eth.BlockChain().StateAtPSI(block.Root(), psm.ID)
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over

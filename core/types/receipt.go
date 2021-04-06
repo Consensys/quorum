@@ -73,7 +73,7 @@ type Receipt struct {
 	// in which receipts are produced per PSI.
 	//
 	// This nested structure would not have more than 2 levels.
-	PSReceipts map[PrivateStateIdentifier]*Receipt
+	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
 }
 
 type receiptMarshaling struct {

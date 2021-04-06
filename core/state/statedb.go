@@ -650,9 +650,6 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
 	}
-	if s.emptyStateDB != nil {
-		return s.emptyStateDB.getStateObject(addr)
-	}
 	return nil
 }
 

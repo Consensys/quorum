@@ -291,7 +291,11 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-				privateState, _ := privateStateRepo.StatePSI(psm.ID)
+				privateState, err := privateStateRepo.StatePSI(psm.ID)
+				if err != nil {
+					failed = err
+					break
+				}
 				select {
 				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
@@ -862,6 +866,10 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	}
 }
 
+// clearMessageDataIfNonParty sets the message data to empty hash in case the private state is not party to the
+// transaction. The effect is that when the private tx payload is resolved using the privacy manager the private part of
+// the transaction is not retrieved and the transaction is being executed as if the node/private state is not party to
+// the transaction.
 func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateStateMetadata) types.Message {
 	if msg.IsPrivate() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))

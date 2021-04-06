@@ -241,7 +241,11 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 		}
 		log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
 
-		txPsi, _ := service.apiBackendHelper.PSMR().ResolveForManagedParty(privateFrom)
+		txPsi, err := service.apiBackendHelper.PSMR().ResolveForManagedParty(privateFrom)
+		if err != nil {
+			log.Error("Extension: unable to resolve private state metadata for sender", "error", err)
+			return
+		}
 		if txPsi.ID != psi {
 			return
 		}
