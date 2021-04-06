@@ -75,7 +75,8 @@ func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot comm
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
 // with the number given as identifier (i.e. block number).
 func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts, markerReceipts types.Receipts) error {
-	allReceipts := make([]*types.Receipt, 0)
+	allReceiptsCount := len(receipts) + len(markerReceipts)
+	allReceipts := make([]*types.Receipt, 0, allReceiptsCount)
 	allReceipts = append(allReceipts, receipts...)
 	allReceipts = append(allReceipts, markerReceipts...)
 	rbloom := types.CreateBloom(allReceipts)
