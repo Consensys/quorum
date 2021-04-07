@@ -178,49 +178,37 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	if err != nil {
 		return nil, err
 	}
+	targetPsi := make(map[types.PrivateStateIdentifier]struct{})
 	for _, managedParty := range managedParties {
 		psMetadata, err := bc.PrivateStateManager().ResolveForManagedParty(managedParty)
 		if err != nil {
 			return nil, err
 		}
-		// if we already handled this private state skip it
-		if _, found := mpsReceipt.PSReceipts[psMetadata.ID]; found {
-			continue
-		}
-		privateStateDB, err := privateStateDBFactory(psMetadata.ID)
-		if err != nil {
-			return nil, err
-		}
-		publicStateDB := publicStateDBFactory()
-		// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-		_, receipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, false)
-		if err != nil {
-			return nil, err
-		}
-		// set the PSI for each log (so that the filter system knows for what private state they are)
-		for _, log := range receipt.Logs {
-			log.PSI = psMetadata.ID
-			mpsReceipt.Logs = append(mpsReceipt.Logs, log)
-		}
-		mpsReceipt.PSReceipts[psMetadata.ID] = receipt
-
-		bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psMetadata.ID)
+		targetPsi[psMetadata.ID] = struct{}{}
 	}
-	// handle the rest of the PSIs (by executing the transaction as non party)
+	// execute in all the managed private states
+	// TODO this could be enhanced to run in parallel
 	for _, psi := range bc.PrivateStateManager().PSIs() {
-		if _, found := mpsReceipt.PSReceipts[psi]; found {
-			continue
-		}
+		_, applyAsParty := targetPsi[psi]
 		privateStateDB, err := privateStateDBFactory(psi)
 		if err != nil {
 			return nil, err
 		}
 		publicStateDB := publicStateDBFactory()
-		// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
-		// we don't care about the empty receipt (as we'll execute the transaction on the empty state anyway)
-		_, _, err = ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, true)
+		_, receipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty)
 		if err != nil {
 			return nil, err
+		}
+		// set the PSI for each log (so that the filter system knows for what private state they are)
+		// we don't care about the empty receipt (as we'll execute the transaction on the empty state anyway)
+		if applyAsParty {
+			for _, log := range receipt.Logs {
+				log.PSI = psi
+				mpsReceipt.Logs = append(mpsReceipt.Logs, log)
+			}
+			mpsReceipt.PSReceipts[psi] = receipt
+
+			bc.CheckAndSetPrivateState(receipt.Logs, privateStateDB, psi)
 		}
 	}
 	return mpsReceipt, nil
