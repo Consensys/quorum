@@ -62,7 +62,9 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(ctx context.Contex
 
 // checks if the voter has already voted on the contract.
 func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) bool {
-	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
+	psiManagementContractClient := api.privacyService.managementContract(psi)
+	defer psiManagementContractClient.Close()
+	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	voted, _ := caller.CheckIfVoted(&opts)
@@ -71,7 +73,9 @@ func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.A
 
 // checks if the contract extension is completed
 func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (bool, error) {
-	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
+	psiManagementContractClient := api.privacyService.managementContract(psi)
+	defer psiManagementContractClient.Close()
+	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	status, err := caller.CheckIfExtensionFinished(&opts)
@@ -83,7 +87,9 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 
 // returns the contract being extended for the given management contract
 func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (common.Address, error) {
-	caller, _ := api.privacyService.managementContract(psi).Caller(addressToVoteOn)
+	psiManagementContractClient := api.privacyService.managementContract(psi)
+	defer psiManagementContractClient.Close()
+	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
 	return caller.ContractToExtend(&opts)
@@ -171,7 +177,9 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 		return "", err
 	}
 
-	voterList, err := api.privacyService.managementContract(psi).GetAllVoters(addressToVoteOn)
+	psiManagementContractClient := api.privacyService.managementContract(psi)
+	defer psiManagementContractClient.Close()
+	voterList, err := psiManagementContractClient.GetAllVoters(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +196,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 	}
 
 	//Find the extension contract in order to interact with it
-	extender, err := api.privacyService.managementContract(psi).Transactor(addressToVoteOn)
+	extender, err := psiManagementContractClient.Transactor(addressToVoteOn)
 	if err != nil {
 		return "", err
 	}
@@ -297,8 +305,10 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", err
 	}
 
+	psiManagementContractClient := api.privacyService.managementContract(psm.ID)
+	defer psiManagementContractClient.Close()
 	//Deploy the contract
-	tx, err := api.privacyService.managementContract(psm.ID).Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey)
+	tx, err := psiManagementContractClient.Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey)
 	if err != nil {
 		return "", err
 	}
@@ -339,7 +349,9 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", err
 	}
 
-	caller, err := api.privacyService.managementContract(psm.ID).Caller(extensionContract)
+	psiManagementContractClient := api.privacyService.managementContract(psm.ID)
+	defer psiManagementContractClient.Close()
+	caller, err := psiManagementContractClient.Caller(extensionContract)
 	if err != nil {
 		return "", err
 	}
@@ -351,7 +363,7 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 		return "", errNotCreator
 	}
 
-	extender, err := api.privacyService.managementContract(psm.ID).Transactor(extensionContract)
+	extender, err := psiManagementContractClient.Transactor(extensionContract)
 	if err != nil {
 		return "", err
 	}

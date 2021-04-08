@@ -52,7 +52,11 @@ type stopEvent struct {
 }
 
 func (service *PrivacyService) newEthClient(psi types.PrivateStateIdentifier) *ethclient.Client {
-	rpcClient, _ := service.node.AttachWithPSI(psi)
+	rpcClient, err := service.node.AttachWithPSI(psi)
+	if err != nil {
+		// AttachWithPSI does not return non-nil error. This is just a defensive check
+		panic("this should not happen: " + err.Error())
+	}
 	return ethclient.NewClientWithPTM(rpcClient, service.ptm)
 }
 
@@ -99,7 +103,8 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 
 	cb := func(foundLog types.Log) {
 		service.mu.Lock()
-
+		psiClient := service.client(psi)
+		defer psiClient.Close()
 		tx, _ := service.client(psi).TransactionByHash(foundLog.TxHash)
 		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
@@ -156,8 +161,10 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 				return
 			}
 
+			psiManagementContractClient := service.managementContract(psi)
+			defer psiManagementContractClient.Close()
 			//Find the extension contract in order to interact with it
-			caller, _ := service.managementContract(psi).Caller(newContractExtension.ManagementContractAddress)
+			caller, _ := psiManagementContractClient.Caller(newContractExtension.ManagementContractAddress)
 			contractCreator, _ := caller.Creator(nil)
 
 			txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
@@ -208,8 +215,10 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 			return
 		}
 
+		psiManagementContractClient := service.managementContract(psi)
+		defer psiManagementContractClient.Close()
 		//Find the extension contract in order to interact with it
-		caller, err := service.managementContract(psi).Caller(l.Address)
+		caller, err := psiManagementContractClient.Caller(l.Address)
 		if err != nil {
 			log.Error("service.managementContractFacade.Caller", "address", l.Address.Hex(), "error", err)
 			return
@@ -294,7 +303,7 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 		}
 		hashofStateDataBase64 := hashOfStateData.ToBase64()
 
-		transactor, err := service.managementContract(psi).Transactor(l.Address)
+		transactor, err := psiManagementContractClient.Transactor(l.Address)
 		if err != nil {
 			log.Error("service.managementContractFacade.Transactor", "address", l.Address.Hex(), "error", err)
 			return

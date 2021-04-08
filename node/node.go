@@ -154,6 +154,9 @@ func New(conf *Config) (*Node, error) {
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
 	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
 
+	// Quorum
+	node.configureMultitenancy(node.inprocHandler, node.ipc.srv)
+
 	return node, nil
 }
 
@@ -365,7 +368,6 @@ func (n *Node) startRPC() error {
 		if err := n.ipc.start(n.rpcAPIs); err != nil {
 			return err
 		}
-		n.configureMultitenancy(n.ipc.srv)
 	}
 
 	tls, auth, err := n.GetSecuritySupports()
@@ -435,7 +437,6 @@ func (n *Node) startInProc() error {
 			return err
 		}
 	}
-	n.configureMultitenancy(n.inprocHandler)
 	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
@@ -749,7 +750,8 @@ func (n *Node) Lifecycle(lifecycle interface{}) error {
 // Quorum
 //
 // configureMultitenancy enables multitenancy flag in rpc.Server
-func (n *Node) configureMultitenancy(handler *rpc.Server) *rpc.Server {
-	handler.ConfigureMultitenancy(n.config.EnableMultitenancy)
-	return handler
+func (n *Node) configureMultitenancy(handlers ...*rpc.Server) {
+	for _, handler := range handlers {
+		handler.ConfigureMultitenancy(n.config.EnableMultitenancy)
+	}
 }
