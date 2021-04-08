@@ -106,6 +106,8 @@ jobs:
           - 'permissions-v2 && networks/template::raft-3plus1'
           - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
           - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          - 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
+          - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
