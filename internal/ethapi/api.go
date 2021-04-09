@@ -1936,6 +1936,19 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		return common.Hash{}, err
 	}
 	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
+		tx := tx
+		// If we are sending a Privacy Marker Transaction, then we can about checking the actual private transaction
+		// as the public tx will not be doing anything of note
+		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+			tx, _, err = private.FetchPrivateTransaction(tx.Data())
+			if err != nil {
+				return common.Hash{}, err
+			}
+		}
+		innerFrom, err := types.Sender(signer, tx)
+		if err != nil {
+			return common.Hash{}, err
+		}
 		originalTx := tx
 		// for private transaction, private payload will be retrieved from Tessera to build the original transaction
 		// in order to supply to the simulation engine
@@ -1958,7 +1971,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 				return common.Hash{}, fmt.Errorf("missing privateFrom")
 			}
 		}
-		err := performMultitenancyChecks(ctx, authToken, b, from, originalTx, &PrivateTxArgs{
+		err = performMultitenancyChecks(ctx, authToken, b, innerFrom, originalTx, &PrivateTxArgs{
 			PrivateFrom: privateFrom,
 			PrivateFor:  privateFor,
 		})
