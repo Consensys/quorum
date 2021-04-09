@@ -2911,7 +2911,15 @@ var checkForContractAddress = function(contract, callback){
 
                 contract._eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
                     if(receipt && !callbackFired) {
-
+                        // if receipt has no contractAddress it may be a Quorum public marker transaction
+                        // check if there is a transaction receipt for the internal private transaction
+                        if(!receipt.contractAddress) {
+                            contract._eth.getPrivateTransactionReceipt(contract.transactionHash, function(e, privateReceipt){
+                                if(privateReceipt.contractAddress) {
+                                    receipt = privateReceipt
+                                }
+                            })
+                        }
                         contract._eth.getCode(receipt.contractAddress, function(e, code){
                             /*jshint maxcomplexity: 6 */
 
