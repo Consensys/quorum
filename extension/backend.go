@@ -5,21 +5,20 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/node"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -398,7 +397,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
 
-	if service.apiBackendHelper.QuorumUsingPrivacyMarkerTransactions() {
+	if service.apiBackendHelper.QuorumCreatePrivacyMarkerTransactions() {
 		privKey, _ := service.apiBackendHelper.QuorumPrivacyMarkerSigningKey()
 		keyedTransactor := bind.NewKeyedTransactor(privKey)
 		txArgs.MarkerTransactionSignerFunc = keyedTransactor.Signer

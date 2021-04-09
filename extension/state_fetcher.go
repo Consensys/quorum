@@ -30,7 +30,7 @@ type APIBackendHelper interface {
 	multitenancy.AuthorizationProvider
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 	CurrentBlock() *types.Block
-	QuorumUsingPrivacyMarkerTransactions() bool
+	QuorumCreatePrivacyMarkerTransactions() bool
 	QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error)
 }
 

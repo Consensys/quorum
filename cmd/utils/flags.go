@@ -846,7 +846,7 @@ var (
 
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
 		Name:  "privacymarker.enable",
-		Usage: "If specified, then privacy marker transactions are enabled.",
+		Usage: "If specified, then creation of privacy marker transactions is enabled.",
 	}
 
 	QuorumPrivacyMarkerSigningKeyFile = cli.StringFlag{

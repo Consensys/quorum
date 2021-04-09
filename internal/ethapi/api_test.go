@@ -494,6 +494,9 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 
 	keystore, fromAcct, toAcct := createKeystore(t)
 
+	params.QuorumTestChainConfig.PMTProcessingBlock = big.NewInt(0)
+	defer func() { params.QuorumTestChainConfig.PMTProcessingBlock = nil }()
+
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
 	stbBackend.quorumPrivacyMarkerTransactionsEnabled = true
@@ -749,7 +752,7 @@ func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.S
 	panic("implement me")
 }
 
-func (sb *StubBackend) QuorumUsingPrivacyMarkerTransactions() bool {
+func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
 	return sb.quorumPrivacyMarkerTransactionsEnabled
 }
 

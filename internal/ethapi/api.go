@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"net/http"
 	"strings"
@@ -42,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -474,7 +474,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2191,7 +2191,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
 		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2266,7 +2266,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
-	if s.b.QuorumUsingPrivacyMarkerTransactions() {
+	if s.b.QuorumCreatePrivacyMarkerTransactions() {
 		tx, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, tx, RawTransaction)
 		if err != nil {
 			log.Warn("Failed to create privacy marker for raw transaction", "from", tx.From(), "to", tx.To(), "value", tx.Value(), "err", err)

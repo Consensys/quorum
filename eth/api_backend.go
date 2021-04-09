@@ -420,8 +420,8 @@ func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 	return auth, nil
 }
 
-func (b *EthAPIBackend) QuorumUsingPrivacyMarkerTransactions() bool {
-	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+func (b *EthAPIBackend) QuorumCreatePrivacyMarkerTransactions() bool {
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsPMTProcessingEnabled(b.eth.blockchain.CurrentBlock().Number())
 }
 
 func (b *EthAPIBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
