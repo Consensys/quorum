@@ -492,8 +492,3 @@ func (st *StateTransition) AffectedContracts() []common.Address {
 }
 
 // End Quorum - Privacy Enhancements
-
-// Quorum
-func (st *StateTransition) IsPMTProcessingEnabled() bool {
-	return st.evm.ChainConfig().IsPMTProcessingEnabled(st.evm.BlockNumber)
-}

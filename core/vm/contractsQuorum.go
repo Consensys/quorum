@@ -126,7 +126,7 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	}
 
 	nonceBefore := evm.PublicState().GetNonce(fromAddr)
-	_, err = c.runUsingNewEVM(evm, *tx)
+	_, _ = c.runUsingNewEVM(evm, *tx)
 
 	nonceAfter := evm.PublicState().GetNonce(fromAddr)
 	if nonceBefore == nonceAfter {

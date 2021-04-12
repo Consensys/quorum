@@ -348,7 +348,7 @@ type ChainConfig struct {
 	// to track multiple changes to maxCodeSize
 	MaxCodeSizeConfig        []MaxCodeConfigStruct `json:"maxCodeSizeConfig,omitempty"`
 	PrivacyEnhancementsBlock *big.Int              `json:"privacyEnhancementsBlock,omitempty"`
-	PMTProcessingBlock       *big.Int              `json:"pmtProcessingBlock,omitempty"`
+	QuorumPrecompilesV1Block *big.Int              `json:"quorumPrecompilesV1Block,omitempty"`
 
 	// End of Quorum specific configs
 }
@@ -398,7 +398,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v YOLO v1: %v PrivacyEnhancements: %v PMTProcessing %v Engine: %v}",
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v YOLO v1: %v PrivacyEnhancements: %v QuorumPrecompilesV1 %v Engine: %v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -416,7 +416,7 @@ func (c *ChainConfig) String() string {
 		c.MuirGlacierBlock,
 		c.YoloV1Block,
 		c.PrivacyEnhancementsBlock,
-		c.PMTProcessingBlock,
+		c.QuorumPrecompilesV1Block,
 		engine,
 	)
 }
@@ -626,9 +626,9 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 
 // Quorum
 //
-// IsPMTProcessingBlockEnabled returns whether num represents a block number after the PMTProcessing enabled fork
-func (c *ChainConfig) IsPMTProcessingEnabled(num *big.Int) bool {
-	return isForked(c.PMTProcessingBlock, num)
+// Check whether num represents a block number after the QuorumPrecompilesV1 enabled fork
+func (c *ChainConfig) IsQuorumPrecompilesV1Enabled(num *big.Int) bool {
+	return isForked(c.QuorumPrecompilesV1Block, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -761,8 +761,8 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 	if isForkIncompatible(c.PrivacyEnhancementsBlock, newcfg.PrivacyEnhancementsBlock, head) {
 		return newCompatError("Privacy Enhancements fork block", c.PrivacyEnhancementsBlock, newcfg.PrivacyEnhancementsBlock)
 	}
-	if isForkIncompatible(c.PMTProcessingBlock, newcfg.PMTProcessingBlock, head) {
-		return newCompatError("PMT Processing fork block", c.PMTProcessingBlock, newcfg.PMTProcessingBlock)
+	if isForkIncompatible(c.QuorumPrecompilesV1Block, newcfg.QuorumPrecompilesV1Block, head) {
+		return newCompatError("PMT Processing fork block", c.QuorumPrecompilesV1Block, newcfg.QuorumPrecompilesV1Block)
 	}
 	return nil
 }
@@ -832,7 +832,8 @@ type Rules struct {
 	IsHomestead, IsEIP150, IsEIP155, IsEIP158               bool
 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
 	IsYoloV1                                                bool
-	IsPrivacyEnhancementsEnabled                            bool
+	IsPrivacyEnhancementsEnabled                            bool //Quorum
+	IsQuorumPrecompilesV1                                   bool //Quorum
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -852,6 +853,7 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		IsPetersburg:                 c.IsPetersburg(num),
 		IsIstanbul:                   c.IsIstanbul(num),
 		IsYoloV1:                     c.IsYoloV1(num),
-		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
+		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num), //Quorum
+		IsQuorumPrecompilesV1:        c.IsQuorumPrecompilesV1Enabled(num), //Quorum
 	}
 }

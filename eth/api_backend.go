@@ -421,7 +421,7 @@ func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 }
 
 func (b *EthAPIBackend) QuorumCreatePrivacyMarkerTransactions() bool {
-	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsPMTProcessingEnabled(b.eth.blockchain.CurrentBlock().Number())
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsQuorumPrecompilesV1Enabled(b.eth.blockchain.CurrentBlock().Number())
 }
 
 func (b *EthAPIBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
