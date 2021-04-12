@@ -105,7 +105,7 @@ func New(conf *Config) (*Node, error) {
 
 	node := &Node{
 		config:        conf,
-		inprocHandler: rpc.NewServer(),
+		inprocHandler: rpc.NewProtectedServer(nil, conf.EnableMultitenancy),
 		eventmux:      new(event.TypeMux),
 		log:           conf.Logger,
 		stop:          make(chan struct{}),
@@ -150,12 +150,9 @@ func New(conf *Config) (*Node, error) {
 	// End Quorum
 
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
-	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
-
-	// Quorum
-	node.configureMultitenancy(node.inprocHandler, node.ipc.srv)
+	node.http = newHTTPServer(node.log, conf.HTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ipc = newIPCServer(node.log, conf.IPCEndpoint()).withMultitenancy(node.config.EnableMultitenancy)
 
 	return node, nil
 }
@@ -381,7 +378,6 @@ func (n *Node) startRPC() error {
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
-			IsMultitenant:      n.config.EnableMultitenancy,
 		}
 		server := n.http
 		if err := server.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
@@ -396,9 +392,8 @@ func (n *Node) startRPC() error {
 	if n.config.WSHost != "" {
 		server := n.wsServerForPort(n.config.WSPort)
 		config := wsConfig{
-			Modules:       n.config.WSModules,
-			Origins:       n.config.WSOrigins,
-			IsMultitenant: n.config.EnableMultitenancy,
+			Modules: n.config.WSModules,
+			Origins: n.config.WSOrigins,
 		}
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
@@ -745,13 +740,4 @@ func (n *Node) Lifecycle(lifecycle interface{}) error {
 	}
 
 	return ErrServiceUnknown
-}
-
-// Quorum
-//
-// configureMultitenancy enables multitenancy flag in rpc.Server
-func (n *Node) configureMultitenancy(handlers ...*rpc.Server) {
-	for _, handler := range handlers {
-		handler.ConfigureMultitenancy(n.config.EnableMultitenancy)
-	}
 }

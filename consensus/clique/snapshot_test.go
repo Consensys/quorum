@@ -450,7 +450,7 @@ func TestClique(t *testing.T) {
 		// Pass all the headers through clique and ensure tallying succeeds
 		chain, err := core.NewBlockChain(db, nil, &config, engine, vm.Config{}, nil, nil)
 		if err != nil {
-			t.Errorf("test %d`: failed to create test chain: %v", i, err)
+			t.Errorf("test %d: failed to create test chain: %v", i, err)
 			continue
 		}
 		failed := false

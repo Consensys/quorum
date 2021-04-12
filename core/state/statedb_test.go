@@ -29,11 +29,10 @@ import (
 	"testing"
 	"testing/quick"
 
-	"github.com/ethereum/go-ethereum/private/engine"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -783,58 +782,6 @@ func TestStorageRoot(t *testing.T) {
 }
 
 // End Quorum
-
-// Quorum - NewDual
-
-func TestStorageRootNewDual(t *testing.T) {
-
-	var (
-		pubMem                 = rawdb.NewMemoryDatabase()
-		privMem                = rawdb.NewMemoryDatabase()
-		pubDb                  = NewDatabase(pubMem)
-		privDb                 = NewDatabase(privMem)
-		pubState, privState, _ = NewDual(common.Hash{}, pubDb, nil, privMem, privDb, nil)
-		addr                   = common.Address{1}
-		key                    = common.Hash{1}
-		value                  = common.Hash{42}
-
-		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	)
-
-	args := []struct {
-		db    Database
-		state *StateDB
-	}{
-		{
-			pubDb, pubState,
-		},
-		{
-			privDb, privState,
-		},
-	}
-
-	for _, arg := range args {
-		so := arg.state.GetOrNewStateObject(addr)
-
-		emptyRoot := so.storageRoot(arg.db)
-		if emptyRoot != empty {
-			t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
-		}
-
-		// add a bit of state
-		so.SetState(arg.db, key, value)
-		arg.state.Commit(false)
-
-		root := so.storageRoot(arg.db)
-		expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
-
-		if expected != root {
-			t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
-		}
-	}
-}
-
-// End Quorum - NewDual
 
 // Quorum - Privacy Enhancements
 func TestPrivacyMetadataIsSavedOnStateDbCommit(t *testing.T) {

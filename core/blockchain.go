@@ -697,12 +697,16 @@ func (bc *BlockChain) State() (*state.StateDB, mps.PrivateStateRepository, error
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
+// Quorum
+//
 // StatePSI returns a new mutable public state and a mutable private state for given PSI,
 // based on the current HEAD block.
 func (bc *BlockChain) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
 	return bc.StateAtPSI(bc.CurrentBlock().Root(), psi)
 }
 
+// Quorum
+//
 // StatePSI returns a new mutable public state and a mutable private state for the given PSI,
 // based on a particular point in time.
 func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {

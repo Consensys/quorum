@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -155,21 +154,6 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		}
 	}
 	return sdb, nil
-}
-
-// Quorum
-// NewDual - Create a public and private state from a given public and private tree
-// TODO - rebase - this is not used (except in tests). It was used in the trace APIs. Should we remove it?
-func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Database, privateDb Database, privateSnaps *snapshot.Tree) (state, privateState *StateDB, err error) {
-	state, err = New(root, db, snaps)
-	if err != nil {
-		return nil, nil, err
-	}
-	privateState, err = New(rawdb.GetPrivateStateRoot(ethDb, root), privateDb, privateSnaps)
-	if err != nil {
-		return nil, nil, err
-	}
-	return state, privateState, nil
 }
 
 // setError remembers the first non-nil error it is called with.
