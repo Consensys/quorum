@@ -271,7 +271,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		rawTx = c.createPrivateTransaction(rawTx, payload)
 
 		if opts.MarkerTransactionSignerFunc != nil {
-			rawTx, _ = c.CreateMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
+			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
 			opts.PrivateFor = nil
 			opts.From = opts.MarkerTransactionFrom
 			opts.Signer = opts.MarkerTransactionSignerFunc
@@ -299,7 +299,8 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	return signedTx, nil
 }
 
-func (c *BoundContract) CreateMarkerTx(opts *TransactOpts, tx *types.Transaction, args PrivateTxArgs) (*types.Transaction, error) {
+// (Quorum) createMarkerTx creates a new public privacy marker transaction for the given private tx, distributing tx to the specified privateFor recipients
+func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction, args PrivateTxArgs) (*types.Transaction, error) {
 	// Choose signer to sign transaction
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")

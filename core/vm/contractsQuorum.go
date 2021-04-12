@@ -20,7 +20,6 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -63,7 +62,7 @@ func PrivacyMarkerAddress() common.Address {
 	return common.BytesToAddress([]byte{byte(address)})
 }
 
-func (c *privacyMarker) RequiredGas(input []byte) uint64 {
+func (c *privacyMarker) RequiredGas(_ []byte) uint64 {
 	return uint64(0)
 }
 
@@ -71,7 +70,7 @@ func (c *privacyMarker) RequiredGas(input []byte) uint64 {
 // Retrieves private transaction from Tessera and executes it.
 // If we are not a participant, then just ensure public state remains in sync.
 //		input = 20 byte address of sender, 64 byte hash for the private transaction
-func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
+func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
 
 	// support vanilla ethereum tests where tx is not set
@@ -126,7 +125,10 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 	}
 
 	nonceBefore := evm.PublicState().GetNonce(fromAddr)
-	_, _ = c.runUsingNewEVM(evm, *tx)
+	if _, err := evm.InnerApply(tx); err != nil {
+		log.Warn("Unable to apply PMT's inner tx to EVM", "err", err)
+		return nil, err
+	}
 
 	nonceAfter := evm.PublicState().GetNonce(fromAddr)
 	if nonceBefore == nonceAfter {
@@ -135,9 +137,4 @@ func (c *privacyMarker) Run(evm *EVM, input []byte) ([]byte, error) {
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 	}
 	return nil, nil
-}
-
-func (c *privacyMarker) runUsingNewEVM(evm *EVM, tx types.Transaction) ([]byte, error) {
-	_, err := evm.InnerApply(&tx)
-	return nil, err
 }
