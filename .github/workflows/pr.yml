@@ -101,7 +101,7 @@ jobs:
         run: |
           make geth
           mkdir -p build/artifact
-          tar cfvz build/artifact/geth_issue1168_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+          tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
@@ -114,7 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goarch: [ "linux_amd64", "darwin_amd64" ]
+        goarch: [ "darwin_amd64" ]
     runs-on: ubuntu-latest
     steps:
       - name: 'Prepare environment'
@@ -135,11 +135,11 @@ jobs:
           format: "raw"
           owner: "consensys"
           repo: "go-quorum"
-          file: "artifact/${{ matrix.goarch }}/geth_issue1168_${{ matrix.goarch }}.tar.gz"
-          name: "geth_issue1168_${{ matrix.goarch }}.tar.gz"
+          file: "artifact/${{ matrix.goarch }}/geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
+          name: "geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
           summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
           description: "See https://github.com/ConsenSys/quorum/"
-          version: "issue1168"
+          version: "${{ steps.env.outputs.version }}"
   acceptance-tests:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
