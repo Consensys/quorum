@@ -121,7 +121,7 @@ jobs:
         id: env
         run: |
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-          echo "::set-output name=version::${GITHUB_REF##*/}"
+          echo "::set-output name=version::issue1168"
       - name: 'Download artifacts'
         uses: actions/download-artifact@v2
         with:
