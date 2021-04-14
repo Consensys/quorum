@@ -126,6 +126,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifact
+      - name: 'List Artifacts'
+          run: |
+            ls artifact/
+            ls artifact/${{ matrix.goarch }}/
       - name: 'Upload artifacts to Cloudsmith'
         id: push
         uses: cloudsmith-io/action@master
