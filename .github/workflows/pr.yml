@@ -73,6 +73,73 @@ jobs:
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
+  build-binary:
+    name: 'Build binary for ${{ matrix.os }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "macos-latest" ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Setup Go ${{ env.GO_VERSION }}'
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: 'Prepare environment'
+        id: env
+        run: |
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          echo "::set-output name=key::$(go env GOOS)_$(go env GOARCH)"
+          echo "::set-output name=version::issue1168"
+      - name: 'Check out project files'
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.WORKING_DIR }}
+      - name: 'Build geth'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          make geth
+          mkdir -p build/artifact
+          tar cfvz build/artifact/geth_issue1168_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+          path: ${{ env.WORKING_DIR }}/build/artifact
+          name: ${{ steps.env.outputs.key }}
+  deploy-cloudsmith:
+    name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
+    needs:
+      - build-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [ "linux_amd64", "darwin_amd64" ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Prepare environment'
+        id: env
+        run: |
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          echo "::set-output name=version::${GITHUB_REF##*/}"
+      - name: 'Download artifacts'
+        uses: actions/download-artifact@v2
+        with:
+          path: artifact
+      - name: 'Upload artifacts to Cloudsmith'
+        id: push
+        uses: cloudsmith-io/action@master
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+          command: "push"
+          format: "raw"
+          owner: "consensys"
+          repo: "go-quorum"
+          file: "artifact/${{ matrix.goarch }}/geth_issue1168_${{ matrix.goarch }}.tar.gz"
+          name: "geth_issue1168_${{ matrix.goarch }}.tar.gz"
+          summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
+          description: "See https://github.com/ConsenSys/quorum/"
+          version: "issue1168"
   acceptance-tests:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
