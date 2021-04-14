@@ -142,11 +142,15 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
-	// changes to manipulate the chain id for migration from 2.0.2 and below version to 2.0.3
-	// version of Quorum  - this is applicable for v2.0.3 onwards
 	if chainConfig.IsQuorum {
+		// changes to manipulate the chain id for migration from 2.0.2 and below version to 2.0.3
+		// version of Quorum  - this is applicable for v2.0.3 onwards
 		if (chainConfig.ChainID != nil && chainConfig.ChainID.Int64() == 1) || config.NetworkId == 1 {
 			return nil, errors.New("Cannot have chain id or network id as 1.")
+		}
+
+		if config.QuorumPrivacyMarkerTransactionsEnabled && chainConfig.QuorumPrecompilesV1Block == nil {
+			return nil, errors.New("Privacy marker transactions require quorumPrecompilesV1Block to be set in genesis.json")
 		}
 	}
 
