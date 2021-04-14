@@ -247,6 +247,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
+	// the same transaction object is used for multiple executions (clear the privacy metadata - it should be updated after privacyManager.receive)
+	// when running in parallel for multiple private states is implemented - a copy of the tx may be used
+	tx.SetTxPrivacyMetadata(nil)
 	vmenv.SetCurrentTX(tx)
 
 	// Apply the transaction to the current state (included in the env)
