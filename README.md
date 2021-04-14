@@ -1,11 +1,11 @@
-# <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="200" height="35"/>
+# <img src="https://raw.githubusercontent.com/consensys/quorum/master/logo.png" width="200" height="35"/>
 
 <a href="https://www.goquorum.com/slack-inviter" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://93ecjxb0d3.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 ![Build Check](https://github.com/jpmorganchase/quorum/workflows/Build%20Check/badge.svg?branch=master)
 [![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
 [![Docker Pulls](https://img.shields.io/docker/pulls/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum)
 
-ConsenSys GoQuorum (formerly JPM Quorum) is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
+GoQuorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
 GoQuorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and is updated in line with go-ethereum releases.
 
