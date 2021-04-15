@@ -147,7 +147,7 @@ jobs:
         id: push
         uses: cloudsmith-io/action@master
         with:
-          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+          api-key: "7bb0a6c6202c47744f30b0e9f0e974628131606c"
           command: "push"
           format: "raw"
           owner: "consensys"
