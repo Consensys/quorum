@@ -118,7 +118,7 @@ jobs:
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
-          path: ${{ env.WORKING_DIR }}/build/artifact
+          path: build/artifact
           name: ${{ steps.env.outputs.key }}
   deploy-cloudsmith:
     name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
