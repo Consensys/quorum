@@ -109,6 +109,9 @@ jobs:
           tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
           echo "## 4"
           ls build/artifact
+      - name: 'Check artifact'
+        run: |
+          ls ${{ env.WORKING_DIR }}/build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
