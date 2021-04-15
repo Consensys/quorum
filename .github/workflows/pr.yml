@@ -110,6 +110,7 @@ jobs:
           echo "## 4"
           ls build/artifact
       - name: 'Check artifact'
+        working-directory: ${{ env.WORKING_DIR }}
         run: |
           ls ${{ env.WORKING_DIR }}
           ls ${{ env.WORKING_DIR }}/build
