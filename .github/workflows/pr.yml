@@ -101,9 +101,13 @@ jobs:
         run: |
           make geth
           mkdir -p build/artifact
+          echo "## 1"
           ls build/
+          echo "## 2"
           ls build/bin/
+          echo "## 3"
           tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+          echo "## 4"
           ls build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
