@@ -127,7 +127,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	nonceBefore := evm.PublicState().GetNonce(fromAddr)
 	if _, err := evm.InnerApply(tx); err != nil {
 		log.Warn("Unable to apply PMT's inner tx to EVM", "err", err)
-		return nil, err
+		// we continue as we must ensure the nonce is updated and don't want to fail the PMT execution due to the invalid internal tx
 	}
 
 	nonceAfter := evm.PublicState().GetNonce(fromAddr)
