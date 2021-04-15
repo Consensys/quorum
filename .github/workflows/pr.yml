@@ -113,12 +113,13 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           ls ${{ env.WORKING_DIR }}
-          ls ${{ env.WORKING_DIR }}/build
-          ls ${{ env.WORKING_DIR }}/build/artifact
+          ls build
+          ls build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
+        working-directory: ${{ env.WORKING_DIR }}
         with:
-          path: ${{ env.WORKING_DIR }}/build/artifact
+          path: build/artifact
           name: ${{ steps.env.outputs.key }}
   deploy-cloudsmith:
     name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
