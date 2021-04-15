@@ -508,6 +508,11 @@ web3._extend({
 			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
+			name: 'getPrivacyPrecompileAddress',
+			call: 'eth_getPrivacyPrecompileAddress',
+			params: 0,
+		}),
+		new web3._extend.Method({
 			name: 'getContractPrivacyMetadata',
 			call: 'eth_getContractPrivacyMetadata',
 			params: 1

@@ -117,6 +117,10 @@ func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	}, nil
 }
 
+func (s *PublicEthereumAPI) GetPrivacyPrecompileAddress() common.Address {
+	return vm.PrivacyMarkerAddress()
+}
+
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
 type PublicTxPoolAPI struct {
 	b Backend
