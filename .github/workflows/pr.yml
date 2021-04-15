@@ -111,6 +111,8 @@ jobs:
           ls build/artifact
       - name: 'Check artifact'
         run: |
+          ls ${{ env.WORKING_DIR }}
+          ls ${{ env.WORKING_DIR }}/build
           ls ${{ env.WORKING_DIR }}/build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
