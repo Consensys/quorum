@@ -2,7 +2,6 @@ package extension
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 
@@ -31,7 +30,6 @@ type APIBackendHelper interface {
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
 	CurrentBlock() *types.Block
 	QuorumCreatePrivacyMarkerTransactions() bool
-	QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error)
 }
 
 // StateFetcher manages retrieving state from the database and returning it in

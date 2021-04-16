@@ -64,10 +64,9 @@ type TransactOpts struct {
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 
 	// Quorum
-	PrivateFrom                 string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor                  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
-	MarkerTransactionSignerFunc SignerFn
-	MarkerTransactionFrom       common.Address
+	PrivateFrom              string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor               []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	IsUsingPrivacyPrecompile bool
 }
 
 // FilterOpts is the collection of options to fine tune filtering for events
@@ -268,13 +267,11 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, err
 		}
 		payload = hash.Bytes()
-		rawTx = c.createPrivateTransaction(rawTx, payload)
+		rawTx = c.createPrivateTransaction(rawTx, payload, opts.IsUsingPrivacyPrecompile)
 
-		if opts.MarkerTransactionSignerFunc != nil {
+		if opts.IsUsingPrivacyPrecompile {
 			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
 			opts.PrivateFor = nil
-			opts.From = opts.MarkerTransactionFrom
-			opts.Signer = opts.MarkerTransactionSignerFunc
 		}
 	}
 
@@ -317,10 +314,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 
 	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
 
-	nonce, err := c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.MarkerTransactionFrom)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
+	nonce := signedTx.Nonce() - 1
 	return types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
 }
 
@@ -438,12 +432,20 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]interface{}, event strin
 
 // Quorum
 // createPrivateTransaction replaces the payload of private transaction to the hash from Tessera/Constellation
-func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte) *types.Transaction {
+func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte, isUsingPrivacyPrecompile bool) *types.Transaction {
 	var privateTx *types.Transaction
-	if tx.To() == nil {
-		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+
+	var nonce uint64
+	if isUsingPrivacyPrecompile {
+		nonce = tx.Nonce() + 1
 	} else {
-		privateTx = types.NewTransaction(tx.Nonce(), c.address, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+		nonce = tx.Nonce()
+	}
+
+	if tx.To() == nil {
+		privateTx = types.NewContractCreation(nonce, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+	} else {
+		privateTx = types.NewTransaction(nonce, c.address, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
 	}
 	privateTx.SetPrivate()
 	return privateTx

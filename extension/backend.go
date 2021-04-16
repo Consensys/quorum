@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
@@ -396,13 +395,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
-
-	if service.apiBackendHelper.QuorumCreatePrivacyMarkerTransactions() {
-		privKey, _ := service.apiBackendHelper.QuorumPrivacyMarkerSigningKey()
-		keyedTransactor := bind.NewKeyedTransactor(privKey)
-		txArgs.MarkerTransactionSignerFunc = keyedTransactor.Signer
-		txArgs.MarkerTransactionFrom = crypto.PubkeyToAddress(privKey.PublicKey)
-	}
+	txArgs.IsUsingPrivacyPrecompile = service.apiBackendHelper.QuorumCreatePrivacyMarkerTransactions()
 
 	if txa.GasPrice != nil {
 		txArgs.GasPrice = txa.GasPrice.ToInt()

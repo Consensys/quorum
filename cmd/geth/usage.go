@@ -258,7 +258,6 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.AllowedFutureBlockTimeFlag,
 			utils.MultitenancyFlag,
 			utils.QuorumEnablePrivacyMarker,
-			utils.QuorumPrivacyMarkerSigningKeyFile,
 		},
 	},
 	{

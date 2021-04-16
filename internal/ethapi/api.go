@@ -479,9 +479,16 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	// Quorum
 	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
-		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
+		// Look up the wallet containing the requested signer
+		account := accounts.Account{Address: args.From}
+		wallet, err := s.am.Find(account)
 		if err != nil {
-			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+
+		signed, err = createSignedPrivacyMarkerTransaction(signed, &args.PrivateTxArgs, wallet, account, s.b)
+		if err != nil {
+			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -1855,6 +1862,10 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		if err != nil {
 			return err
 		}
+		// when using PMTs the internal private tx must have the next nonce because the PMT will use the current nonce
+		if args.IsPrivate() && b.QuorumCreatePrivacyMarkerTransactions() {
+			nonce = nonce + 1
+		}
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 	}
 	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
@@ -2209,9 +2220,9 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
-		signed, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, signed, NormalTransaction)
+		signed, err = createSignedPrivacyMarkerTransaction(signed, &args.PrivateTxArgs, wallet, account, s.b)
 		if err != nil {
-			log.Warn("Failed to create privacy marker for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2283,13 +2294,6 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
-	if s.b.QuorumCreatePrivacyMarkerTransactions() {
-		tx, err = createPrivacyMarkerTransaction(ctx, s.b, &args.PrivateTxArgs, tx, RawTransaction)
-		if err != nil {
-			log.Warn("Failed to create privacy marker for raw transaction", "from", tx.From(), "to", tx.To(), "value", tx.Value(), "err", err)
-			return common.Hash{}, err
-		}
-	}
 	return SubmitTransaction(ctx, s.b, tx, "", args.PrivateFor, true)
 }
 
@@ -2927,73 +2931,38 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 	return
 }
 
-// Quorum
-// If privacy marker transactions are enabled then replace transaction with a new one which masks the 'From'
-// and 'To' addresses:
-// - send signed tx to transaction manager, along with privacy metadata
-// - Replacing the 'To' address with the address of a precompile,
-// - Sign the transaction with an alternate wallet.
-func createPrivacyMarkerTransaction(ctx context.Context, b Backend, privateTxArgs *PrivateTxArgs, tx *types.Transaction, txnType TransactionType) (*types.Transaction, error) {
+// (Quorum) createSignedPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed private tx.
+// The PMT is signed by the given account in the wallet.
+// The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
+// privacy manager hash for the private tx.
+func createSignedPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs, wallet accounts.Wallet, account accounts.Account, b Backend) (*types.Transaction, error) {
+	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
 
-	log.Trace("creating privacy marker transaction", "from", tx.From(), "to", tx.To())
-
-	var txnHash common.EncryptedPayloadHash
-	var err error
-	switch txnType {
-	case FillTransaction:
-		return nil, errors.New("FillTransaction is not supported as a privacy marker transaction")
-	case RawTransaction:
-		data := new(bytes.Buffer)
-		err = json.NewEncoder(data).Encode(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		_, _, txnHash, err = private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
-
-		if err != nil {
-			return nil, err
-		}
-	case NormalTransaction:
-		data := new(bytes.Buffer)
-		err = json.NewEncoder(data).Encode(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		_, _, txnHash, err = private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	signingKey, err := b.QuorumPrivacyMarkerSigningKey()
+	data := new(bytes.Buffer)
+	err := json.NewEncoder(data).Encode(privateTx)
 	if err != nil {
-		log.Error("Failed to retrieve private key for signing privacy marker transaction", "err", err)
 		return nil, err
 	}
-	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
-	from := crypto.PubkeyToAddress(signingKey.PublicKey)
 
-	nonce, err := b.GetPoolNonce(ctx, from)
+	_, _, txnHash, err := private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
 	if err != nil {
-		log.Error("Failed to calculate nonce for privacy marker transaction", "err", err)
 		return nil, err
 	}
+
+	// the private tx has been created with +1 the current account nonce - the PMT needs the current account nonce so that it gets executed.
+	nonce := privateTx.Nonce() - 1
 
 	//TODO (peter): sender should be removed when possible
-	senderAndHash := append(tx.From().Bytes(), txnHash.Bytes()...)
+	senderAndHash := append(privateTx.From().Bytes(), txnHash.Bytes()...)
 
-	privacyMarkerTx := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), senderAndHash)
+	pmt := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
 
-	signedPrivacyMarkerTx, err := types.SignTx(privacyMarkerTx, signer, signingKey)
-	if err != nil {
-		log.Error("Failed to sign privacy marker transaction", "err", err)
-		return nil, err
+	var pmtChainID *big.Int
+	if config := b.ChainConfig(); config.IsEIP155(b.CurrentBlock().Number()) {
+		pmtChainID = config.ChainID
 	}
 
-	return signedPrivacyMarkerTx, nil
+	return wallet.SignTx(account, pmt, pmtChainID)
 }
 
 // Quorum

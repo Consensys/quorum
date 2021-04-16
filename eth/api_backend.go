@@ -18,7 +18,6 @@ package eth
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -33,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -422,19 +420,6 @@ func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAu
 
 func (b *EthAPIBackend) QuorumCreatePrivacyMarkerTransactions() bool {
 	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsQuorumPrecompilesV1Enabled(b.eth.blockchain.CurrentBlock().Number())
-}
-
-func (b *EthAPIBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
-	if b.eth.config.QuorumPrivacyMarkerSigningKey == nil {
-		// using random key for every transaction
-		key, err := crypto.GenerateKey()
-		if err != nil {
-			return nil, err
-		}
-		return key, nil
-	}
-
-	return b.eth.config.QuorumPrivacyMarkerSigningKey, nil
 }
 
 // used by Quorum

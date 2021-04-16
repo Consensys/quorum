@@ -846,12 +846,7 @@ var (
 
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
 		Name:  "privacymarker.enable",
-		Usage: "If specified, then creation of privacy marker transactions is enabled.",
-	}
-
-	QuorumPrivacyMarkerSigningKeyFile = cli.StringFlag{
-		Name:  "privacymarker.signingkeyfile",
-		Usage: "Key file to use for signing privacy marker transactions (else uses a random key).",
+		Usage: "Enable use of privacy marker transactions (PMT) for this node.",
 	}
 
 	// Quorum Private Transaction Manager connection options
@@ -1684,19 +1679,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
-
-	cfg.QuorumPrivacyMarkerTransactionsEnabled = false
-	if ctx.GlobalIsSet(QuorumEnablePrivacyMarker.Name) {
-		cfg.QuorumPrivacyMarkerTransactionsEnabled = true
-	}
-
-	if ctx.GlobalIsSet(QuorumPrivacyMarkerSigningKeyFile.Name) {
-		key, err := crypto.LoadECDSA(ctx.GlobalString(QuorumPrivacyMarkerSigningKeyFile.Name))
-		if err != nil {
-			return fmt.Errorf("failed to load private key specified in %v: %v", QuorumPrivacyMarkerSigningKeyFile.Name, err)
-		}
-		cfg.QuorumPrivacyMarkerSigningKey = key
-	}
+	cfg.QuorumPrivacyMarkerTransactionsEnabled = ctx.GlobalBool(QuorumEnablePrivacyMarker.Name)
 
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)

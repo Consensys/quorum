@@ -182,7 +182,6 @@ var (
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
 		utils.QuorumEnablePrivacyMarker,
-		utils.QuorumPrivacyMarkerSigningKeyFile,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,
 		utils.QuorumPTMTimeoutFlag,
