@@ -486,9 +486,20 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 			return common.Hash{}, err
 		}
 
-		signed, err = createSignedPrivacyMarkerTransaction(signed, &args.PrivateTxArgs, wallet, account, s.b)
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+
+		var pmtChainID *big.Int // PMT is public so will have different chainID used in signing compared to the internal tx
+		if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+			pmtChainID = config.ChainID
+		}
+
+		signed, err = wallet.SignTxWithPassphrase(account, passwd, pmt, pmtChainID)
+		if err != nil {
+			log.Warn("Failed to sign privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2220,9 +2231,20 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
-		signed, err = createSignedPrivacyMarkerTransaction(signed, &args.PrivateTxArgs, wallet, account, s.b)
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+
+		var pmtChainID *big.Int // PMT is public so will have different chainID used in signing compared to the internal tx
+		if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+			pmtChainID = config.ChainID
+		}
+
+		signed, err = wallet.SignTx(account, pmt, pmtChainID)
+		if err != nil {
+			log.Warn("Failed to sign privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
 		}
 	}
@@ -2931,11 +2953,10 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 	return
 }
 
-// (Quorum) createSignedPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed private tx.
-// The PMT is signed by the given account in the wallet.
+// (Quorum) createPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed privateTx.
 // The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
 // privacy manager hash for the private tx.
-func createSignedPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs, wallet accounts.Wallet, account accounts.Account, b Backend) (*types.Transaction, error) {
+func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
 	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
 
 	data := new(bytes.Buffer)
@@ -2957,12 +2978,7 @@ func createSignedPrivacyMarkerTransaction(privateTx *types.Transaction, privateT
 
 	pmt := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
 
-	var pmtChainID *big.Int
-	if config := b.ChainConfig(); config.IsEIP155(b.CurrentBlock().Number()) {
-		pmtChainID = config.ChainID
-	}
-
-	return wallet.SignTx(account, pmt, pmtChainID)
+	return pmt, nil
 }
 
 // Quorum
