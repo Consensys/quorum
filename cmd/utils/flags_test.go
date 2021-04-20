@@ -175,8 +175,6 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(MultitenancyFlag.Name, "true"))
 	fs.Bool(QuorumEnablePrivacyMarker.Name, true, "")
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumEnablePrivacyMarker.Name, "true"))
-	fs.String(QuorumPrivacyMarkerSigningKeyFile.Name, "", "")
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumPrivacyMarkerSigningKeyFile.Name, privateKeyFile))
 	fs.Uint64(IstanbulRequestTimeoutFlag.Name, 0, "")
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulRequestTimeoutFlag.Name, "23"))
 	fs.Uint64(IstanbulBlockPeriodFlag.Name, 0, "")
