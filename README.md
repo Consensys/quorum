@@ -18,7 +18,7 @@ Key enhancements over go-ethereum:
     * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
 * [__Peer Permissioning__](https://docs.goquorum.consensys.net/en/stable/Concepts/Permissioning/PermissionsOverview/) - node/peer permissioning, ensuring only known parties can join the network
 * [__Account Management__](https://docs.goquorum.consensys.net/en/stable/Concepts/AccountManagement/) - GoQuorum introduced account plugins, which allows GoQuorum or clef to be extended with alternative methods of managing accounts including external vaults.
-* [__Pluggable Architecture__](https://docs.goquorum.consensys.net/en/stable/Concepts/AccountManagement/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of GoQuorum features.
+* [__Pluggable Architecture__](https://docs.goquorum.consensys.net/en/stable/Concepts/Plugins/Plugins/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of GoQuorum features.
 * __Higher Performance__ - GoQuorum offers significantly higher performance throughput than public geth
 
 ## Architecture
