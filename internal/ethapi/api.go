@@ -455,6 +455,24 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
+	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
+	var err error
+	var pmtNonce uint64
+	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+		if args.Nonce != nil {
+			pmtNonce = uint64(*args.Nonce)
+		} else {
+			pmtNonce, err = s.b.GetPoolNonce(ctx, args.From)
+			if err != nil {
+				return common.Hash{}, err
+			}
+		}
+
+		privateTxNonce := pmtNonce + 1
+		args.Nonce = (*hexutil.Uint64)(&privateTxNonce)
+		log.Info("got nonces for PMT and internal private tx", "addr", args.From.Hex(), "pmtNonce", pmtNonce, "privateTxNonce", privateTxNonce)
+	}
+
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
@@ -486,7 +504,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 			return common.Hash{}, err
 		}
 
-		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -1873,10 +1891,6 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		if err != nil {
 			return err
 		}
-		// when using PMTs the internal private tx must have the next nonce because the PMT will use the current nonce
-		if args.IsPrivate() && b.QuorumCreatePrivacyMarkerTransactions() {
-			nonce = nonce + 1
-		}
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 	}
 	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
@@ -2192,12 +2206,28 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
+	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
+	var pmtNonce uint64
+	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+		if args.Nonce != nil {
+			pmtNonce = uint64(*args.Nonce)
+		} else {
+			pmtNonce, err = s.b.GetPoolNonce(ctx, args.From)
+			if err != nil {
+				return common.Hash{}, err
+			}
+		}
+
+		privateTxNonce := pmtNonce + 1
+		args.Nonce = (*hexutil.Uint64)(&privateTxNonce)
+		log.Info("got nonces for PMT and internal private tx", "addr", args.From.Hex(), "pmtNonce", pmtNonce, "privateTxNonce", privateTxNonce)
+	}
+
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
 
-	// Quorum
 	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
@@ -2231,7 +2261,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
-		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -2956,7 +2986,7 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 // (Quorum) createPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed privateTx.
 // The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
 // privacy manager hash for the private tx.
-func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
+func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
 	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
 
 	data := new(bytes.Buffer)
@@ -2970,13 +3000,10 @@ func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs 
 		return nil, err
 	}
 
-	// the private tx has been created with +1 the current account nonce - the PMT needs the current account nonce so that it gets executed.
-	nonce := privateTx.Nonce() - 1
-
 	//TODO (peter): sender should be removed when possible
 	senderAndHash := append(privateTx.From().Bytes(), txnHash.Bytes()...)
 
-	pmt := types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
+	pmt := types.NewTransaction(pmtNonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
 
 	return pmt, nil
 }

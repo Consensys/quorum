@@ -264,6 +264,8 @@ type TxPool struct {
 	reorgDoneCh     chan chan struct{}
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
+
+	quorumCreatePrivacyMarkerTransactions func() bool
 }
 
 type txpoolResetRequest struct {
@@ -775,7 +777,11 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
-	pool.pendingNonces.set(addr, tx.Nonce()+1)
+	if tx.To() != nil && *tx.To() == vm.PrivacyMarkerAddress() && pool.quorumCreatePrivacyMarkerTransactions() {
+		pool.pendingNonces.set(addr, tx.Nonce()+2)
+	} else {
+		pool.pendingNonces.set(addr, tx.Nonce()+1)
+	}
 
 	// Successful promotion, bump the heartbeat
 	pool.beats[addr] = time.Now()
@@ -1123,7 +1129,11 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		highestPending := list.LastElement()
-		pool.pendingNonces.set(addr, highestPending.Nonce()+1)
+		if highestPending.To() != nil && *highestPending.To() == vm.PrivacyMarkerAddress() && pool.quorumCreatePrivacyMarkerTransactions() {
+			pool.pendingNonces.set(addr, highestPending.Nonce()+2)
+		} else {
+			pool.pendingNonces.set(addr, highestPending.Nonce()+1)
+		}
 	}
 	pool.mu.Unlock()
 
@@ -1490,6 +1500,10 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.pending, addr)
 		}
 	}
+}
+
+func (pool *TxPool) SetQuorumCreatePrivacyMarkerTransactions(fn func() bool) {
+	pool.quorumCreatePrivacyMarkerTransactions = fn
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
