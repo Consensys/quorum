@@ -7,7 +7,9 @@ import (
 	"path"
 )
 
-const DefaultPublicKeyFile = "Central.pgp.pk"
+// For Cloudsmith, this references to the latest GPG key
+// being setup in the repo
+const DefaultPublicKeyFile = "gpg.key"
 
 // Local Implementation of plugin.Verifier
 type LocalVerifier struct {
