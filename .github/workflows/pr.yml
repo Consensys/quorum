@@ -8,51 +8,6 @@ on:
 env:
   GO_VERSION: 1.15.5
 jobs:
-  lint:
-    name: 'Code linters'
-    runs-on: ubuntu-18.04
-    steps:
-      - name: 'Setup Go ${{ env.GO_VERSION }}'
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: 'Check out project files'
-        uses: actions/checkout@v2
-        with:
-          submodules: false
-      - name: 'Prepare environment'
-        run: |
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - name: 'Run code linters'
-        run: |
-          GO111MODULE=on make lint
-  unit-tests:
-    name: 'Unit tests in ${{ matrix.os }}'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-18.04"]
-    env:
-      QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: 'Setup Go ${{ env.GO_VERSION }}'
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: 'Check out project files'
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: 'Prepare environment'
-        run: |
-          # https://github.com/actions/virtual-environments/issues/798
-          sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - name: 'Run unit tests'
-        run: |
-          make test
   docker-build:
     name: 'Build Docker image'
     runs-on: ubuntu-18.04
@@ -74,7 +29,7 @@ jobs:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
   acceptance-tests:
-    name: Acceptance tests (${{ matrix.tag }})
+    name: Acceptance tests (${{ matrix.tag }}) (privacy-enhancements=${{matrix.privacy-enhancements}}, quorum-precompiles-v1=${{matrix.quorum-precompiles-v1}}, privacy-marker-transactions=${{matrix.privacy-marker-transactions}})
     needs:
       - docker-build
     if: success()
@@ -85,25 +40,73 @@ jobs:
         # for PR, only selective tests are run.
         # More comprehensive suites are scheduled to run in master
         tag:
-          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/typical::raft'
-          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
           - 'gcmode && block-sync && networks/template::raft-3plus1'
           - 'gcmode && block-sync && networks/template::istanbul-3plus1'
           - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
           - 'validator-management && networks/template::istanbul-3plus1'
-          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/plugins::raft'
-          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
-          - '(basic && !graphql) || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
-          - '(basic && !graphql) || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
           - 'basic-rpc-security || networks/plugins::raft-rpc-security'
           - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
           - 'migration && networks/template::raft-4nodes'
           - 'migration && networks/template::istanbul-4nodes'
-          - 'permissions-v1 && networks/template::raft-3plus1'
+          - 'permissions-v1: && networks/template::raft-3plus1'
           - 'permissions-v2 && networks/template::raft-3plus1'
           - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
           - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
           - 'multitenancy && networks/plugins::raft-multitenancy'
+        privacy-enhancements: [false]
+        quorum-precompiles-v1: [false, true]
+        privacy-marker-transactions: [false]
+        include:
+          -   tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: true
+              quorum-precompiles-v1: false
+              privacy-marker-transactions: false
+          -   tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: true
+              quorum-precompiles-v1: false
+              privacy-marker-transactions: false
+          -   tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: true
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: true
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/plugins::raft'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(multitenancy || privacy-precompile-enabled) && networks/plugins::raft-multitenancy'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
@@ -128,11 +131,13 @@ jobs:
           password: ${{ secrets.QUORUMBOT_PAT }}
       - name: 'Load AccTests and Tessera Docker Images'
         run: |
-          tessera_docker_image="quorumengineering/tessera:latest"
+          tessera_docker_image="quorumengineering/tessera:develop"
           acctests_docker_image="docker.pkg.github.com/consensysquorum/quorum-acceptance-tests/acctests:dev-privacy-precompile"
           docker pull $tessera_docker_image
           echo "TF_VAR_tessera_docker_image={ name = \"$tessera_docker_image\", local = true }" >> ${{ steps.setup.outputs.dockerEnvFile }}
-          echo "TF_VAR_privacy_enhancements={ block = 0, enabled = false }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_enhancements={ block = 0, enabled = ${{ matrix.privacy-enhancements}} }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_quorum_precompiles_v1={ block = 0, enabled = ${{ matrix.quorum-precompiles-v1}} }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_marker_transactions=${{ matrix.privacy-marker-transactions}}" >> ${{ steps.setup.outputs.dockerEnvFile }}
           docker pull $acctests_docker_image
           # replacing the acctests image to run
           docker tag $acctests_docker_image quorumengineering/acctests:latest
