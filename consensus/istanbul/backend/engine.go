@@ -806,6 +806,9 @@ func sigHash(header *types.Header, isQbftConsensus bool) (hash common.Hash) {
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *backend) SealHash(header *types.Header) common.Hash {
+	if sb.IsQIBFTConsensus() {
+		header.Coinbase = sb.address
+	}
 	return sigHash(header, sb.IsQIBFTConsensus())
 }
 
