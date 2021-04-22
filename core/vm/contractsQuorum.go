@@ -93,7 +93,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	tx, _, err := private.FetchPrivateTransaction(data)
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
-		return nil, err
+		return nil, nil
 	}
 
 	//TODO (peter): sender from tx data should be removed when possible
