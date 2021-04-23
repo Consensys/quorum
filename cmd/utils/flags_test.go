@@ -33,8 +33,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var privateKeyData = `4087a65ecc0ccde73e750763388a0f0f2d4d425b4010469b95d18d3b17fcb120`
-
 func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
 	arbitraryCLIContext := cli.NewContext(nil, &flag.FlagSet{}, nil)
