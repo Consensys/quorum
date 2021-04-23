@@ -17,7 +17,6 @@
 package eth
 
 import (
-	"crypto/ecdsa"
 	"math/big"
 	"os"
 	"os/user"
@@ -202,5 +201,4 @@ type Config struct {
 	EnableMultitenancy bool
 
 	QuorumPrivacyMarkerTransactionsEnabled bool
-	QuorumPrivacyMarkerSigningKey          *ecdsa.PrivateKey
 }

@@ -2,7 +2,6 @@ package ethapi
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -484,9 +483,9 @@ func TestSubmitPrivateTransaction(t *testing.T) {
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
 	assert.True(stbBackend.txThatWasSent.IsPrivate(), "must be a private transaction")
-	assert.Equal(stbBackend.txThatWasSent.From(), fromAcct.Address, "incorrect 'From' address on transaction")
-	assert.Equal(*stbBackend.txThatWasSent.To(), toAcct.Address, "incorrect 'To' address on transaction")
-	assert.Equal(stbBackend.txThatWasSent.Nonce(), uint64(123), "incorrect nonce on transaction")
+	assert.Equal(fromAcct.Address, stbBackend.txThatWasSent.From(), "incorrect 'From' address on transaction")
+	assert.Equal(toAcct.Address, *stbBackend.txThatWasSent.To(), "incorrect 'To' address on transaction")
+	assert.Equal(uint64(123), stbBackend.txThatWasSent.Nonce(), "incorrect nonce on transaction")
 }
 
 func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
@@ -502,7 +501,6 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	stbBackend.quorumPrivacyMarkerTransactionsEnabled = true
 	stbBackend.ks = keystore
 	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
-	stbBackend.poolNonce = 999
 
 	privateAccountAPI := NewPrivateAccountAPI(stbBackend, nil)
 
@@ -517,10 +515,9 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
 	assert.False(stbBackend.txThatWasSent.IsPrivate(), "transaction was private, instead of privacy marker transaction (public)")
-	assert.NotEqual(stbBackend.txThatWasSent.From(), fromAcct.Address, "different 'From' address expected for privacy marker precompile")
-	assert.Equal(*stbBackend.txThatWasSent.To(), vm.PrivacyMarkerAddress(), "transaction 'To' address should be privacy marker precompile")
-	assert.Equal(stbBackend.txThatWasSent.Nonce(), stbBackend.poolNonce, "incorrect nonce on transaction")
-	assert.True(stbBackend.quorumPrivacyMarkerSigningKeyCalled, "privacy marker transaction signing key was not used")
+	assert.Equal(fromAcct.Address, stbBackend.txThatWasSent.From(), "expected private marker transaction to have same 'from' address as internal private tx")
+	assert.Equal(vm.PrivacyMarkerAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' address should be privacy marker precompile")
+	assert.Equal(uint64(nonce), stbBackend.txThatWasSent.Nonce(), "incorrect nonce on transaction")
 }
 
 func createKeystore(t *testing.T) (*keystore.KeyStore, accounts.Account, accounts.Account) {
@@ -537,7 +534,6 @@ func createKeystore(t *testing.T) (*keystore.KeyStore, accounts.Account, account
 
 type StubBackend struct {
 	getEVMCalled                           bool
-	quorumPrivacyMarkerSigningKeyCalled    bool
 	sendTxCalled                           bool
 	txThatWasSent                          *types.Transaction
 	mockAccountExtraDataStateGetter        *vm.MockAccountExtraDataStateGetter
@@ -754,15 +750,6 @@ func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.S
 
 func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
 	return sb.quorumPrivacyMarkerTransactionsEnabled
-}
-
-func (sb *StubBackend) QuorumPrivacyMarkerSigningKey() (*ecdsa.PrivateKey, error) {
-	sb.quorumPrivacyMarkerSigningKeyCalled = true
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
 }
 
 type StubMinimalApiState struct {

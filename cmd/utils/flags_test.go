@@ -22,13 +22,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
@@ -154,17 +152,6 @@ func Test_SplitTagsFlag(t *testing.T) {
 }
 
 func TestQuorumConfigFlags(t *testing.T) {
-	privateKeyFile := filepath.Join(os.TempDir(), "privateKeyFile.key")
-	if err := ioutil.WriteFile(privateKeyFile, []byte(privateKeyData), 0600); err != nil {
-		t.Fatalf("Failed to create privacy marker transaction key file for unit test, error: %v", err)
-	}
-	defer os.Remove(privateKeyFile)
-
-	privateKey, err := crypto.HexToECDSA(privateKeyData)
-	if err != nil {
-		t.Fatalf("Failed to load private key, error: %v", err)
-	}
-
 	fs := &flag.FlagSet{}
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	arbitraryEthConfig := &eth.Config{}
@@ -193,7 +180,6 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.Equal(t, 12*time.Second, arbitraryEthConfig.EVMCallTimeOut, "EVMCallTimeOut value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.EnableMultitenancy, "MultitenancyFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.QuorumPrivacyMarkerTransactionsEnabled, "QuorumEnablePrivacyMarker value is incorrect")
-	assert.Equal(t, privateKey, arbitraryEthConfig.QuorumPrivacyMarkerSigningKey, "QuorumPrivacyMarkerSigningKey value is incorrect")
 	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
 	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
