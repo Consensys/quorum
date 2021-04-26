@@ -5,8 +5,9 @@ go 1.15
 // Quorum - Replace Go modules that use modifications done by us
 replace (
 	github.com/coreos/etcd => github.com/Consensys/etcd v3.3.13-quorum197+incompatible
-	github.com/ethereum/go-ethereum/crypto/secp256k1 => github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20210223160031-6e8585c2a9ad
+	github.com/ethereum/go-ethereum/crypto/secp256k1 => ./crypto/secp256k1
 )
+
 // End Quorum
 
 require (
