@@ -94,6 +94,9 @@ type Ethereum struct {
 	// Quorum - Multitenancy
 	// contractAuthzProvider is set after node starts instead in New()
 	contractAuthzProvider multitenancy.ContractAuthorizationProvider
+
+	// Quorum - consensus as eth-service (e.g. raft)
+	consensusServicePendingLogsFeed *event.Feed
 }
 
 // Quorum
@@ -153,18 +156,19 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	}
 
 	eth := &Ethereum{
-		config:            config,
-		chainDb:           chainDb,
-		eventMux:          stack.EventMux(),
-		accountManager:    stack.AccountManager(),
-		engine:            CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
-		closeBloomHandler: make(chan struct{}),
-		networkID:         config.NetworkId,
-		gasPrice:          config.Miner.GasPrice,
-		etherbase:         config.Miner.Etherbase,
-		bloomRequests:     make(chan chan *bloombits.Retrieval),
-		bloomIndexer:      NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
-		p2pServer:         stack.Server(),
+		config:                          config,
+		chainDb:                         chainDb,
+		eventMux:                        stack.EventMux(),
+		accountManager:                  stack.AccountManager(),
+		engine:                          CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		closeBloomHandler:               make(chan struct{}),
+		networkID:                       config.NetworkId,
+		gasPrice:                        config.Miner.GasPrice,
+		etherbase:                       config.Miner.Etherbase,
+		bloomRequests:                   make(chan chan *bloombits.Retrieval),
+		bloomIndexer:                    NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
+		p2pServer:                       stack.Server(),
+		consensusServicePendingLogsFeed: new(event.Feed),
 	}
 
 	// Quorum: Set protocol Name/Version
@@ -636,4 +640,19 @@ func (s *Ethereum) Stop() error {
 
 func (s *Ethereum) CalcGasLimit(block *types.Block) uint64 {
 	return core.CalcGasLimit(block, s.config.Miner.GasFloor, s.config.Miner.GasCeil)
+}
+
+// (Quorum)
+// ConsensusServicePendingLogsFeed returns an event.Feed.  When the consensus protocol does not use eth.worker (e.g. raft), the event.Feed should be used to send logs from transactions included in the pending block
+func (s *Ethereum) ConsensusServicePendingLogsFeed() *event.Feed {
+	return s.consensusServicePendingLogsFeed
+}
+
+// (Quorum)
+// SubscribePendingLogs starts delivering logs from transactions included in the consensus engine's pending block to the given channel.
+func (s *Ethereum) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
+	if s.config.RaftMode {
+		return s.consensusServicePendingLogsFeed.Subscribe(ch)
+	}
+	return s.miner.SubscribePendingLogs(ch)
 }
