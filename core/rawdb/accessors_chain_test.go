@@ -412,9 +412,14 @@ func TestAncientStorage(t *testing.T) {
 	}
 	// Use a fake hash for data retrieval, nothing should be returned.
 	fakeHash := common.BytesToHash([]byte{0x01, 0x02, 0x03})
-	if blob := ReadHeaderRLP(db, fakeHash, number); len(blob) != 0 {
-		t.Fatalf("invalid header returned")
+
+	// Quorum
+	// We skip the hash `crypto.Keccak256Hash(data)` check
+	if blob := ReadHeaderRLP(db, fakeHash, number); len(blob) == 0 {
+		t.Fatalf("invalid header returned, should return a valid blob as we don't verify the hash")
 	}
+	// End Quorum
+
 	if blob := ReadBodyRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid body returned")
 	}
