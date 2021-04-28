@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
@@ -47,8 +49,8 @@ func TestPluginManager_ProvidersPopulation(t *testing.T) {
 	}, false, false, "")
 
 	testifyassert.NoError(t, err)
-	testifyassert.Equal(t, "arbitrary-helloWorld-1.0.0", testObject.initializedPlugins[HelloWorldPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
-	testifyassert.Equal(t, "foo-bar-2.0.0", testObject.initializedPlugins[arbitraryPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
+	testifyassert.Equal(t, fmt.Sprintf("arbitrary-helloWorld-1.0.0-%s-%s", runtime.GOOS, runtime.GOARCH), testObject.initializedPlugins[HelloWorldPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
+	testifyassert.Equal(t, fmt.Sprintf("foo-bar-2.0.0-%s-%s", runtime.GOOS, runtime.GOARCH), testObject.initializedPlugins[arbitraryPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
 }
 
 func TestPluginManager_GetPluginTemplate_whenTypical(t *testing.T) {
