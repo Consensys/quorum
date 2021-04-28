@@ -2,12 +2,14 @@ package plugin
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +21,24 @@ func TestCentralClient_PublicKey(t *testing.T) {
 	arbitraryConfig := &PluginCentralConfiguration{
 		BaseURL:      arbitraryServer.URL,
 		PublicKeyURI: DefaultPublicKeyFile,
+	}
+
+	testObject := NewPluginCentralClient(arbitraryConfig)
+
+	actualValue, err := testObject.PublicKey()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, arbitraryPubKey, actualValue)
+}
+
+func TestCentralClient_PublicKey_RelativePath(t *testing.T) {
+	arbitraryServer := newTestServer("/aa/"+DefaultPublicKeyFile, arbitraryPubKey)
+	defer arbitraryServer.Close()
+	arbitraryConfig := &PluginCentralConfiguration{
+		BaseURL:      arbitraryServer.URL + "/aa/bb/cc/", // without postfix /, the relative path would be diff
+		PublicKeyURI: "../../" + DefaultPublicKeyFile,
 	}
 
 	testObject := NewPluginCentralClient(arbitraryConfig)
@@ -56,11 +76,13 @@ func TestCentralClient_PluginSignature(t *testing.T) {
 		Name:    "arbitrary-plugin",
 		Version: "1.0.0",
 	}
-	arbitraryServer := newTestServer("/"+arbitraryDef.RemotePath()+"/"+arbitraryDef.SignatureFileName(), validSignature)
+	expectedPath := fmt.Sprintf("/maven/bin/%s/%s/%s-%s-%s-%s-sha256.checksum.asc", arbitraryDef.Name, arbitraryDef.Version, arbitraryDef.Name, arbitraryDef.Version, runtime.GOOS, runtime.GOARCH)
+	arbitraryServer := newTestServer(expectedPath, validSignature)
 	defer arbitraryServer.Close()
 	arbitraryConfig := &PluginCentralConfiguration{
 		BaseURL: arbitraryServer.URL,
 	}
+	arbitraryConfig.SetDefaults()
 
 	testObject := NewPluginCentralClient(arbitraryConfig)
 
@@ -85,11 +107,13 @@ func TestCentralClient_PluginDistribution(t *testing.T) {
 		Version: "1.0.0",
 	}
 	arbitraryData := []byte("arbitrary data")
-	arbitraryServer := newTestServer("/"+arbitraryDef.RemotePath()+"/"+arbitraryDef.DistFileName(), arbitraryData)
+	expectedPath := fmt.Sprintf("/maven/bin/%s/%s/%s-%s-%s-%s.zip", arbitraryDef.Name, arbitraryDef.Version, arbitraryDef.Name, arbitraryDef.Version, runtime.GOOS, runtime.GOARCH)
+	arbitraryServer := newTestServer(expectedPath, arbitraryData)
 	defer arbitraryServer.Close()
 	arbitraryConfig := &PluginCentralConfiguration{
 		BaseURL: arbitraryServer.URL,
 	}
+	arbitraryConfig.SetDefaults()
 
 	testObject := NewPluginCentralClient(arbitraryConfig)
 
