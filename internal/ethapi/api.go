@@ -2172,6 +2172,12 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	}()
 
 	var contractAddr common.Address
+
+	// if privacy precompile is enabled then we must pre-increment the nonce to mimic the execution of the PMT before the internal private tx
+	if b.QuorumCreatePrivacyMarkerTransactions() {
+		evm.StateDB.SetNonce(addr, evm.StateDB.GetNonce(addr)+1)
+	}
+
 	// even the creation of a contract (init code) can invoke other contracts
 	if tx.To() != nil {
 		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
