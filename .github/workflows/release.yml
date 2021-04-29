@@ -52,6 +52,7 @@ jobs:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
+        working-directory: ${{ env.WORKING_DIR }}
         run: |
           make geth
           mkdir -p build/artifact
