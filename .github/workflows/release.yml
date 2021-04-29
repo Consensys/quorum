@@ -37,11 +37,16 @@ jobs:
           upx --version || echo
           make geth
           ./build/bin/geth version
-          mkdir -p build/artifact
-          tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
-      - name: 'Upload artifact'
+          tar cfvz build/bin/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+      - name: 'Upload artifact 1'
         uses: actions/upload-artifact@v2
         with:
-          path: ${{ env.WORKING_DIR }}/build/artifact
+          path: ${{ env.WORKING_DIR }}/build/bin/geth
           name: ${{ steps.env.outputs.key }}
+          if-no-files-found: error
+      - name: 'Upload artifact 2'
+        uses: actions/upload-artifact@v2
+        with:
+          path: ${{ env.WORKING_DIR }}/build/bin/geth*.tar.gz
+          name: ${{ steps.env.outputs.key }}-tar
           if-no-files-found: error
