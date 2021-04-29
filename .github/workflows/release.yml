@@ -57,11 +57,10 @@ jobs:
           make geth
           mkdir -p build/artifact
           tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
-          ls build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
-          path: build/artifact/*
+          path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
           if-no-files-found: error
   deploy-cloudsmith:
