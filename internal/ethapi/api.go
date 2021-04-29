@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -1654,6 +1655,17 @@ type PrivateTxArgs struct {
 	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
+func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend) error {
+	if args.PrivateFor != nil && len(args.PrivateFrom) == 0 && b.ChainConfig().IsMPS {
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return err
+		}
+		args.PrivateFrom = psm.Addresses[0]
+	}
+	return nil
+}
+
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.GasPrice == nil {
@@ -1715,17 +1727,8 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.PrivateTxType == "" {
 		args.PrivateTxType = "restricted"
 	}
-	if args.IsPrivate() {
-		if len(args.PrivateFrom) == 0 && b.ChainConfig().IsMPS {
-			psm, err := b.PSMR().ResolveForUserContext(ctx)
-			if err != nil {
-				return err
-			}
-			args.PrivateFrom = psm.Addresses[0]
-		}
-	}
+	return args.SetDefaultPrivateFrom(ctx, b)
 	//End-Quorum
-	return nil
 }
 
 func (args *SendTxArgs) inputOrData() (result []byte) {
@@ -1972,6 +1975,9 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	}
 
 	// Quorum
+	if err := args.SetDefaultPrivateFrom(ctx, s.b); err != nil {
+		return common.Hash{}, err
+	}
 	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
@@ -2460,6 +2466,19 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
 		err = fmt.Errorf("PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
 		return
+	}
+
+	// validate that PrivateFrom is one of the addresses of the private state resolved from the user context
+	if b.ChainConfig().IsMPS {
+		var psm *mps.PrivateStateMetadata
+		psm, err = b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return
+		}
+		if psm.NotIncludeAny(privateTxArgs.PrivateFrom) {
+			err = fmt.Errorf("The PrivateFrom (%s) address does not match the specified private state (%s) ", privateTxArgs.PrivateFrom, psm.ID)
+			return
+		}
 	}
 
 	if len(tx.Data()) > 0 {
