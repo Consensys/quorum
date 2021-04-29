@@ -52,16 +52,17 @@ jobs:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
-        working-directory: ${{ env.WORKING_DIR }}
         run: |
           make geth
           mkdir -p build/artifact
           tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+          ls build/artifact
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
-          path: build/artifact
+          path: build/artifact/*
           name: ${{ steps.env.outputs.key }}
+          if-no-files-found: error
   deploy-cloudsmith:
     name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
     needs:
