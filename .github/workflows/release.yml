@@ -52,11 +52,11 @@ jobs:
           submodules: recursive
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
-          working-directory: ${{ env.WORKING_DIR }}
-          run: |
-            make geth
-            mkdir -p build/artifact
-            tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          make geth
+          mkdir -p build/artifact
+          tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
