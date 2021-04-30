@@ -20,22 +20,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/sha3"
 	"io/ioutil"
 	"math/big"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/sha3"
 )
 
 func TestBuildSchema(t *testing.T) {
