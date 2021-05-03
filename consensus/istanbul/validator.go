@@ -17,6 +17,8 @@
 package istanbul
 
 import (
+	"bytes"
+	"sort"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -34,16 +36,39 @@ type Validator interface {
 
 type Validators []Validator
 
-func (slice Validators) Len() int {
-	return len(slice)
+func (vs validatorSorter) Len() int {
+	return len(vs.validators)
 }
 
-func (slice Validators) Less(i, j int) bool {
-	return strings.Compare(slice[i].String(), slice[j].String()) < 0
+func (vs validatorSorter) Swap(i, j int) {
+	vs.validators[i], vs.validators[j] = vs.validators[j], vs.validators[i]
 }
 
-func (slice Validators) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
+func (vs validatorSorter) Less(i, j int) bool {
+	return vs.by(vs.validators[i], vs.validators[j])
+}
+
+type validatorSorter struct {
+	validators Validators
+	by         validatorSortByFunc
+}
+
+type validatorSortByFunc func(v1 Validator, v2 Validator) bool
+
+var ValidatorSortByStringFunc validatorSortByFunc = func(v1 Validator, v2 Validator) bool {
+	return strings.Compare(v1.String(), v2.String()) < 0
+}
+
+var ValidatorSortByByteFunc validatorSortByFunc = func(v1 Validator, v2 Validator) bool {
+	return bytes.Compare(v1.Address().Bytes(), v2.Address().Bytes()) < 0
+}
+
+func (by validatorSortByFunc) Sort(validators []Validator) {
+	v := &validatorSorter{
+		validators: validators,
+		by:         by,
+	}
+	sort.Sort(v)
 }
 
 // ----------------------------------------------------------------------------
@@ -73,6 +98,9 @@ type ValidatorSet interface {
 	F() int
 	// Get proposer policy
 	Policy() ProposerPolicy
+
+	// SortValidators sorts the validators based on the configured By function
+	SortValidators()
 }
 
 // ----------------------------------------------------------------------------

@@ -80,7 +80,9 @@ func testParameterizedCase(
 	preparesNotForTargetRound int,
 	isJustified bool) {
 
-	validatorSet := validator.NewSet(generateValidators(quorumSize), istanbul.RoundRobin)
+	pp := istanbul.NewRoundRobinProposerPolicy()
+	pp.Use(istanbul.ValidatorSortByByteFunc)
+	validatorSet := validator.NewSet(generateValidators(quorumSize), pp)
 	block := makeBlock(1)
 	var round int64 = 10
 	var targetPreparedRound int64 = 5

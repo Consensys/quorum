@@ -656,6 +656,8 @@ func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	// Check if qibft Consensus needs to be used after chain is set
 	if sb.IsQIBFTConsensus() {
 		sb.core = qibftCore.New(sb, sb.config)
+		sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
+		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
 	} else {
 		sb.core = istanbulCore.New(sb, sb.config)
 	}

@@ -207,7 +207,7 @@ func generateValidators(n int) []common.Address {
 }
 
 func newTestValidatorSet(n int) istanbul.ValidatorSet {
-	return validator.NewSet(generateValidators(n), istanbul.RoundRobin)
+	return validator.NewSet(generateValidators(n), istanbul.NewRoundRobinProposerPolicy())
 }
 
 // FIXME: int64 is needed for N and F
@@ -219,7 +219,7 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 	config := istanbul.DefaultConfig
 
 	for i := uint64(0); i < n; i++ {
-		vset := validator.NewSet(addrs, istanbul.RoundRobin)
+		vset := validator.NewSet(addrs, istanbul.NewRoundRobinProposerPolicy())
 		backend := sys.NewBackend(i)
 		backend.peers = vset
 		backend.address = vset.GetByIndex(i).Address()

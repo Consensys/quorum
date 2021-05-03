@@ -205,6 +205,9 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 		}
 	}
 
+	// Remove ValidatorSet added to ProposerPolicy registry, if not done, the registry keeps increasing size with each block height
+	sb.config.ProposerPolicy.ClearRegistry()
+
 	// update block's header
 	block = block.WithSeal(h)
 
@@ -422,6 +425,7 @@ func (sb *backend) StartQIBFTConsensus() error {
 	sb.core = qibftCore.New(sb, sb.config)
 
 	sb.logger.Trace("Starting qibft")
+	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
 	if err := sb.core.Start(); err != nil {
 		return err
 	}

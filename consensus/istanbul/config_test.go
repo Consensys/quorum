@@ -14,34 +14,33 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package validator
+package istanbul
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func New(addr common.Address) istanbul.Validator {
-	return &defaultValidator{
-		address: addr,
+func TestProposerPolicy_UnmarshalTOML(t *testing.T) {
+	input := []byte(`
+		id = 2
+	`)
+	expectedId := ProposerPolicyId(2)
+	var p ProposerPolicy
+	assert.NoError(t, p.UnmarshalTOML(input))
+
+	assert.Equal(t, expectedId, p.Id, "ProposerPolicyId mismatch")
+}
+
+func TestProposerPolicy_MarshalTOML(t *testing.T) {
+	output := []byte(
+		`id = 1
+`)
+	p := &ProposerPolicy{Id: 1}
+	b, err := p.MarshalTOML()
+	if err != nil {
+		t.Errorf("error marshalling ProposerPolicy: %v", err)
 	}
-}
-
-func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.ValidatorSet {
-	return newDefaultSet(addrs, policy)
-}
-
-func ExtractValidators(extraData []byte) []common.Address {
-	// get the validator addresses
-	addrs := make([]common.Address, (len(extraData) / common.AddressLength))
-	for i := 0; i < len(addrs); i++ {
-		copy(addrs[i][:], extraData[i*common.AddressLength:])
-	}
-
-	return addrs
-}
-
-// Check whether the extraData is presented in prescribed form
-func ValidExtraData(extraData []byte) bool {
-	return len(extraData)%common.AddressLength == 0
+	assert.Equal(t, output, b, "ProposerPolicy MarshalTOML mismatch")
 }

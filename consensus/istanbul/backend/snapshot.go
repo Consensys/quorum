@@ -389,8 +389,8 @@ type snapshotJSON struct {
 	Tally  map[common.Address]Tally `json:"tally"`
 
 	// for validator set
-	Validators []common.Address        `json:"validators"`
-	Policy     istanbul.ProposerPolicy `json:"policy"`
+	Validators []common.Address          `json:"validators"`
+	Policy     istanbul.ProposerPolicyId `json:"policy"`
 }
 
 func (s *Snapshot) toJSONStruct() *snapshotJSON {
@@ -401,7 +401,7 @@ func (s *Snapshot) toJSONStruct() *snapshotJSON {
 		Votes:      s.Votes,
 		Tally:      s.Tally,
 		Validators: s.validators(),
-		Policy:     s.ValSet.Policy(),
+		Policy:     s.ValSet.Policy().Id,
 	}
 }
 
@@ -417,7 +417,10 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 	s.Hash = j.Hash
 	s.Votes = j.Votes
 	s.Tally = j.Tally
-	s.ValSet = validator.NewSet(j.Validators, j.Policy)
+
+	// Setting the By function to ValidatorSortByStringFunc should be fine, as the validator do not change only the order changes
+	pp := &istanbul.ProposerPolicy{Id: j.Policy, By: istanbul.ValidatorSortByStringFunc}
+	s.ValSet = validator.NewSet(j.Validators, pp)
 	return nil
 }
 

@@ -242,7 +242,7 @@ func newTestValidatorSet(n int) (istanbul.ValidatorSet, []*ecdsa.PrivateKey) {
 		keys[i] = privateKey
 		addrs[i] = crypto.PubkeyToAddress(privateKey.PublicKey)
 	}
-	vset := validator.NewSet(addrs, istanbul.RoundRobin)
+	vset := validator.NewSet(addrs, istanbul.NewRoundRobinProposerPolicy())
 	sort.Sort(keys) //Keys need to be sorted by its public key address
 	return vset, keys
 }

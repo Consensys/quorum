@@ -16,29 +16,97 @@
 
 package istanbul
 
-import "math/big"
+import (
+	"math/big"
 
-type ProposerPolicy uint64
+	"github.com/naoina/toml"
+)
+
+type ProposerPolicyId uint64
 
 const (
-	RoundRobin ProposerPolicy = iota
+	RoundRobin ProposerPolicyId = iota
 	Sticky
 )
 
+// ProposerPolicy represents the Validator Proposer Policy
+type ProposerPolicy struct {
+	Id       ProposerPolicyId    // Could be RoundRobin or Sticky
+	Registry []ValidatorSet      // Holds the ValidatorSet for a given block height
+	By       validatorSortByFunc // func that defines how the ValidatorSet should be sorted
+}
+
+// NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByStringFunc as default sort function
+func NewRoundRobinProposerPolicy() *ProposerPolicy {
+	return NewProposerPolicy(RoundRobin)
+}
+
+// NewStickyProposerPolicy return a Sticky ProposerPolicy with ValidatorSortByStringFunc as default sort function
+func NewStickyProposerPolicy() *ProposerPolicy {
+	return NewProposerPolicy(Sticky)
+}
+
+func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
+	return &ProposerPolicy{Id: id, By: ValidatorSortByStringFunc}
+}
+
+type proposerPolicyToml struct {
+	Id ProposerPolicyId
+}
+
+func (p *ProposerPolicy) MarshalTOML() ([]byte, error) {
+	pp := &proposerPolicyToml{Id: p.Id}
+	return toml.Marshal(pp)
+}
+
+func (p *ProposerPolicy) UnmarshalTOML(input []byte) error {
+	var pp proposerPolicyToml
+	err := toml.Unmarshal(input, &pp)
+	if err != nil {
+		return err
+	}
+	p.Id = pp.Id
+	p.By = ValidatorSortByStringFunc
+	return nil
+}
+
+// Use sets the validatorSortByFunc for the given ProposerPolicy and sorts the validatorSets according to it
+func (p *ProposerPolicy) Use(v validatorSortByFunc) {
+	p.By = v
+
+	for _, validatorSet := range p.Registry {
+		validatorSet.SortValidators()
+	}
+}
+
+// RegisterValidatorSet stores the given ValidatorSet in the policy registry
+func (p *ProposerPolicy) RegisterValidatorSet(valSet ValidatorSet) {
+	if len(p.Registry) == 0 {
+		p.Registry = []ValidatorSet{valSet}
+	} else {
+		p.Registry = append(p.Registry, valSet)
+	}
+}
+
+// ClearRegistry removes any ValidatorSet from the ProposerPolicy registry
+func (p *ProposerPolicy) ClearRegistry() {
+	p.Registry = nil
+}
+
 type Config struct {
-	RequestTimeout         uint64         `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockPeriod            uint64         `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	ProposerPolicy         ProposerPolicy `toml:",omitempty"` // The policy for proposer selection
-	Epoch                  uint64         `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
-	Ceil2Nby3Block         *big.Int       `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	AllowedFutureBlockTime uint64         `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	QibftBlock             *big.Int       `toml:",omitempty"` // Fork block at which block confirmations are done using qibft consensus instead of ibft
+	RequestTimeout         uint64          `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
+	BlockPeriod            uint64          `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	ProposerPolicy         *ProposerPolicy `toml:",omitempty"` // The policy for proposer selection
+	Epoch                  uint64          `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
+	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	QibftBlock             *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qibft consensus instead of ibft
 }
 
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
 	BlockPeriod:            1,
-	ProposerPolicy:         RoundRobin,
+	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
 	AllowedFutureBlockTime: 0,

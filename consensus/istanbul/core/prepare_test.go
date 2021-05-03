@@ -263,7 +263,7 @@ func TestVerifyPrepare(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
 	peer := validator.New(getPublicKeyAddress(privateKey))
-	valSet := validator.NewSet([]common.Address{peer.Address()}, istanbul.RoundRobin)
+	valSet := validator.NewSet([]common.Address{peer.Address()}, istanbul.NewRoundRobinProposerPolicy())
 
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 
