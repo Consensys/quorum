@@ -49,19 +49,45 @@ jobs:
       - name: 'Check out project files'
         uses: actions/checkout@v2
         with:
-          submodules: recursive
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
+        # For MacOS, We use gtar and run purge command to workaround issue
+        # https://github.com/actions/virtual-environments/issues/2619
+        id: build
         working-directory: ${{ env.WORKING_DIR }}
-        run: |
+        run: |-
           make geth
           mkdir -p build/artifact
-          tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+          tar_file=build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz
+
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            sudo /usr/sbin/purge
+            gtar cfvz ${tar_file} -C build/bin geth
+          else
+            tar cfvz ${tar_file} -C build/bin geth
+          fi
+
+          echo "::set-output name=tar_file::${tar_file}"
+          echo "::set-output name=checksum::$(shasum -a 256 build/bin/geth | awk '{print $1}')"
+      - name: 'Verify tarball'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |-
+          cp ${{ steps.build.outputs.tar_file }} ${{ runner.temp }}
+          pushd ${{ runner.temp}}
+          tar xfvz *.tar.gz
+          actual_checksum=$(shasum -a 256 geth | awk '{print $1}')
+          echo "Checksum: ${actual_checksum}"
+          popd
+          if [ "${{ steps.build.outputs.checksum }}" != "${actual_checksum}" ]; then
+            echo "::error::geth checksum validation fails"
+            exit 1
+          fi
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
-          path: build/artifact
+          path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
+          if-no-files-found: error
   deploy-cloudsmith:
     name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
     needs:
