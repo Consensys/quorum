@@ -273,12 +273,12 @@ func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 
 	// set timeout based on the round number
-	timeout := time.Duration(c.config.RequestTimeout) * time.Millisecond
+	baseTimeout := time.Duration(c.config.RequestTimeout) * time.Millisecond
 	round := c.current.Round().Uint64()
-	if round > 0 {
-		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
-	}
-	c.logger.Info("QBFT: New Round Timer", "timeout", timeout)
+
+	timeout := baseTimeout * time.Duration(math.Pow(2, float64(round)))
+
+	c.logger.Trace("QBFT: New Round Timer", "round", round, "timeout", timeout.Seconds())
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})
