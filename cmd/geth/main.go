@@ -159,6 +159,7 @@ var (
 		utils.GpoPercentileFlag,
 		utils.LegacyGpoPercentileFlag,
 		utils.GpoMaxGasPriceFlag,
+		utils.GpoIgnoreGasPriceFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
