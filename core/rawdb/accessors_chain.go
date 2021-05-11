@@ -337,7 +337,11 @@ func HasHeader(db ethdb.Reader, hash common.Hash, number uint64) bool {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db ethdb.Reader, hash common.Hash, number uint64) *types.Header {
-	_, header := readHeaderRLP(db, hash, number)
+	data, header := readHeaderRLP(db, hash, number)
+	if data == nil {
+		log.Trace("header data not found in ancient or level db", "hash", hash)
+		return nil
+	}
 	if header == nil {
 		log.Error("Invalid block header RLP", "hash", hash)
 		return nil
