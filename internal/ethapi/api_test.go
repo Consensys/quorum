@@ -146,7 +146,7 @@ func setup() {
 
 func teardown() {
 	log.Root().SetHandler(log.DiscardHandler())
-}:w
+}
 
 func TestDoEstimateGas_whenNoValueTx_Homestead(t *testing.T) {
 	assert := assert.New(t)
