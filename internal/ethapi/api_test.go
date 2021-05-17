@@ -148,7 +148,7 @@ func teardown() {
 	log.Root().SetHandler(log.DiscardHandler())
 }
 
-func TestDoEstimateGas_whenNoValueTx_Homestead(t *testing.T) {
+func TestDoEstimateGas_whenNoValueTx_Pre_Istanbul(t *testing.T) {
 	assert := assert.New(t)
 
 	estimation, err := DoEstimateGas(arbitraryCtx, &StubBackend{CurrentHeadNumber: big.NewInt(10)}, callTxArgs, rpc.BlockNumberOrHashWithNumber(10), math.MaxInt64)
