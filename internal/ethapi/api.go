@@ -1157,8 +1157,10 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 
 	//if the transaction has a value then it cannot be private, so we can skip this check
 	if args.Value != nil && args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
-		homestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
-		istanbul := b.ChainConfig().IsIstanbul(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
+		currentBlockHeight := b.CurrentHeader().Number
+		homestead := b.ChainConfig().IsHomestead(currentBlockHeight)
+		istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
+
 		var data []byte
 		if args.Data == nil {
 			data = nil
