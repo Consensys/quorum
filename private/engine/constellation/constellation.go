@@ -70,6 +70,10 @@ func (g *constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, erro
 	return false, engine.ErrPrivateTxManagerNotSupported
 }
 
+func (ptm *constellation) Groups() ([]engine.PrivacyGroup, error) {
+	return nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (g *constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
 	return nil, engine.ErrPrivateTxManagerNotSupported
 }

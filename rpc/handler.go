@@ -321,14 +321,25 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 //   before the actual processing of the call. It also populates context with preauthenticated
 //   token so the responsible RPC method can leverage if needed (e.g: in multi tenancy)
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
-	if r, ok := h.conn.(securityContextResolver); ok {
-		if err := secureCall(r, msg); err != nil {
+	if r, ok := h.conn.(SecurityContextResolver); ok {
+		secCtx, err := SecureCall(r, msg.Method)
+		if err != nil {
 			return securityErrorMessage(msg, err)
 		}
-		secCtx := r.Resolve()
-		h.log.Debug("Enrich call context with token from security context")
-		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
+		h.log.Debug("Enrich call context with values from security context")
+		if t := PreauthenticatedTokenFromContext(secCtx); t != nil {
+			cp.ctx = WithPreauthenticatedToken(cp.ctx, t)
+		}
+		if psi, found := PrivateStateIdentifierFromContext(secCtx); found {
+			cp.ctx = WithPrivateStateIdentifier(cp.ctx, psi)
+		}
 	}
+	// try to extract the PSI from the request ID if it is not already there in the context.
+	// this is mainly to serve IPC and InProc transport
+	if _, found := PrivateStateIdentifierFromContext(cp.ctx); !found {
+		cp.ctx = WithPrivateStateIdentifier(cp.ctx, decodePSI(msg.ID))
+	}
+
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -31,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/golang/mock/gomock"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -401,6 +403,44 @@ func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 	assert.Error(err, "invalid privacyFlag")
 }
 
+func TestHandlePrivateTransaction_whenPrivateFromDoesNotMatchPrivateState(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(mps.NewPrivateStateMetadata("PS1", "PS1", "", mps.Resident, []string{"some address"}), nil).AnyTimes()
+
+	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &MPSStubBackend{psmr: mockpsm}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Error(err, "The PrivateFrom (arbitrary private from) address does not match the specified private state (PS1) ")
+}
+
+func TestHandlePrivateTransaction_whenPrivateFromMatchesPrivateState(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(mps.NewPrivateStateMetadata("PS1", "PS1", "", mps.Resident, []string{"some address"}), nil).AnyTimes()
+
+	// empty data field means that checkAndHandlePrivateTransaction exits without doing handlePrivateTransaction
+	emptyTx := types.NewContractCreation(
+		0,
+		big.NewInt(0),
+		hexutil.MustDecodeUint64("0x47b760"),
+		big.NewInt(0),
+		nil)
+
+	mpsTxArgs := &PrivateTxArgs{
+		PrivateFrom: "some address",
+		PrivateFor:  []string{"arbitrary party 1", "arbitrary party 2"},
+	}
+	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &MPSStubBackend{psmr: mockpsm}, emptyTx, mpsTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Nil(err)
+}
+
 func TestHandlePrivateTransaction_withPartyProtectionTxAndPrivacyEnhancementsIsDisabled(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = 1
@@ -504,7 +544,7 @@ func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.
 	return sb.mockAccountExtraDataStateGetter, nil
 }
 
-func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.PrivateStateSecurityAttribute) (bool, error) {
 	panic("implement me")
 }
 
@@ -685,6 +725,23 @@ func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 
 func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	panic("implement me")
+}
+
+func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	panic("implement me")
+}
+
+type MPSStubBackend struct {
+	StubBackend
+	psmr mps.PrivateStateMetadataResolver
+}
+
+func (msb *MPSStubBackend) ChainConfig() *params.ChainConfig {
+	return params.QuorumMPSTestChainConfig
+}
+
+func (sb *MPSStubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return sb.psmr
 }
 
 type StubMinimalApiState struct {

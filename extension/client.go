@@ -14,6 +14,7 @@ type Client interface {
 	NextNonce(from common.Address) (uint64, error)
 	TransactionByHash(hash common.Hash) (*types.Transaction, error)
 	TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error)
+	Close()
 }
 
 type InProcessClient struct {
@@ -43,4 +44,8 @@ func (client *InProcessClient) TransactionByHash(hash common.Hash) (*types.Trans
 
 func (client *InProcessClient) TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error) {
 	return client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
+}
+
+func (client *InProcessClient) Close() {
+	client.client.Close()
 }

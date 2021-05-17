@@ -27,15 +27,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/plugin/security"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -105,7 +105,7 @@ func New(conf *Config) (*Node, error) {
 
 	node := &Node{
 		config:        conf,
-		inprocHandler: rpc.NewServer(),
+		inprocHandler: rpc.NewProtectedServer(nil, conf.EnableMultitenancy),
 		eventmux:      new(event.TypeMux),
 		log:           conf.Logger,
 		stop:          make(chan struct{}),
@@ -150,9 +150,9 @@ func New(conf *Config) (*Node, error) {
 	// End Quorum
 
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
-	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
+	node.http = newHTTPServer(node.log, conf.HTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ipc = newIPCServer(node.log, conf.IPCEndpoint()).withMultitenancy(node.config.EnableMultitenancy)
 
 	return node, nil
 }
@@ -353,6 +353,8 @@ func (n *Node) closeDataDir() {
 // configureRPC is a helper method to configure all the various RPC endpoints during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server when appropriate
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
@@ -365,7 +367,7 @@ func (n *Node) startRPC() error {
 		}
 	}
 
-	tls, auth, err := n.getSecuritySupports()
+	tls, auth, err := n.GetSecuritySupports()
 	if err != nil {
 		return err
 	}
@@ -377,10 +379,11 @@ func (n *Node) startRPC() error {
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
 		}
-		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
+		server := n.http
+		if err := server.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
 		}
-		if err := n.http.enableRPC(n.rpcAPIs, config, auth); err != nil {
+		if err := server.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
@@ -421,6 +424,8 @@ func (n *Node) stopRPC() {
 }
 
 // startInProc registers all RPC APIs on the inproc server.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server
 func (n *Node) startInProc() error {
 	for _, api := range n.rpcAPIs {
 		if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
@@ -494,6 +499,15 @@ func (n *Node) RegisterHandler(name, path string, handler http.Handler) {
 // Attach creates an RPC client attached to an in-process API handler.
 func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
+}
+
+// AttachWithPSI creates a PSI-specific RPC client attached to an in-process API handler.
+func (n *Node) AttachWithPSI(psi types.PrivateStateIdentifier) (*rpc.Client, error) {
+	client, err := n.Attach()
+	if err != nil {
+		return nil, err
+	}
+	return client.WithPSI(psi), nil
 }
 
 // RPCHandler returns the in-process RPC request handler.
@@ -658,7 +672,7 @@ func (n *Node) closeDatabases() (errors []error) {
 }
 
 // Quorum
-func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+func (n *Node) GetSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
 	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
 		sp := new(plugin.SecurityPluginTemplate)
 		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
