@@ -235,9 +235,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if in.evm.quorumReadOnly && operation.writes {
 			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
 		}
-		if err := in.evm.captureOperationMode(operation.writes); err != nil {
-			return nil, err
-		}
 		// If the operation is valid, enforce and write restrictions
 		if in.readOnly && in.evm.chainRules.IsByzantium {
 			// If the interpreter is operating in readonly mode, make sure no

@@ -39,7 +39,6 @@ import (
 	lpc "github.com/ethereum/go-ethereum/les/lespay/client"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -73,17 +72,6 @@ type LightEthereum struct {
 	netRPCService  *ethapi.PublicNetAPI
 
 	p2pServer *p2p.Server
-
-	// Quorum - Multitenancy
-	// contractAuthzProvider is set after node starts instead in New()
-	contractAuthzProvider multitenancy.ContractAuthorizationProvider
-}
-
-// Quorum
-//
-// Set the decision manager for multitenancy support
-func (s *LightEthereum) SetContractAuthorizationManager(dm multitenancy.ContractAuthorizationProvider) {
-	s.contractAuthzProvider = dm
 }
 
 // New creates an instance of the light client.

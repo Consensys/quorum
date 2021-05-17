@@ -31,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -245,6 +244,11 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc
 		rpcSub      = notifier.CreateSubscription()
 		matchedLogs = make(chan []*types.Log)
 	)
+	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	crit.PSI = psm.ID
 
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), matchedLogs)
 	if err != nil {
@@ -289,8 +293,13 @@ type FilterCriteria ethereum.FilterQuery
 // In case "fromBlock" > "toBlock" an error is returned.
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
-func (api *PublicFilterAPI) NewFilter(crit FilterCriteria) (rpc.ID, error) {
+func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) (rpc.ID, error) {
 	logs := make(chan []*types.Log)
+	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return rpc.ID(""), err
+	}
+	crit.PSI = psm.ID
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
 	if err != nil {
 		return rpc.ID(""), err
@@ -325,10 +334,14 @@ func (api *PublicFilterAPI) NewFilter(crit FilterCriteria) (rpc.ID, error) {
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
+	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var filter *Filter
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics)
+		filter = NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics, psm.ID)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		begin := rpc.LatestBlockNumber.Int64()
@@ -340,18 +353,14 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 			end = crit.ToBlock.Int64()
 		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics)
+		filter = NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics, psm.ID)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	authLogs, err := api.filterUnAuthorized(ctx, logs)
-	if err != nil {
-		return nil, err
-	}
-	return returnLogs(authLogs), err
+	return returnLogs(logs), err
 }
 
 // UninstallFilter removes the filter with the given filter id.
@@ -376,6 +385,10 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
+	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
 	api.filtersMu.Unlock()
@@ -383,11 +396,18 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if !found || f.typ != LogsSubscription {
 		return nil, fmt.Errorf("filter not found")
 	}
-
+	// Quorum:
+	// - Make sure the tenant has access to the filter
+	// - Even when MPS or Multitenancy is not enabled, the DefaultPrivateStateIdentifier values
+	// will be populated in both context and filter criteria. So this check is safe without
+	// the need of checking for multitenancy enablement
+	if psm.ID != f.crit.PSI {
+		return nil, fmt.Errorf("filter not found for %v", psm.ID)
+	}
 	var filter *Filter
 	if f.crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics)
+		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics, psm.ID)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		begin := rpc.LatestBlockNumber.Int64()
@@ -399,18 +419,14 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 			end = f.crit.ToBlock.Int64()
 		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics)
+		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics, psm.ID)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	authLogs, err := api.filterUnAuthorized(ctx, logs)
-	if err != nil {
-		return nil, err
-	}
-	return returnLogs(authLogs), nil
+	return returnLogs(logs), nil
 }
 
 // GetFilterChanges returns the logs for the filter with the given id since
@@ -440,11 +456,7 @@ func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (in
 		case LogsSubscription, MinedAndPendingLogsSubscription:
 			logs := f.logs
 			f.logs = nil
-			authLogs, err := api.filterUnAuthorized(ctx, logs)
-			if err != nil {
-				return nil, err
-			}
-			return returnLogs(authLogs), nil
+			return returnLogs(logs), nil
 		}
 	}
 
@@ -586,33 +598,4 @@ func decodeTopic(s string) (common.Hash, error) {
 		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for topic", len(b), common.HashLength)
 	}
 	return common.BytesToHash(b), err
-}
-
-// Quorum
-// Perform authorization check for each logs based on the contract addresses
-func (api *PublicFilterAPI) filterUnAuthorized(ctx context.Context, logs []*types.Log) ([]*types.Log, error) {
-	if len(logs) == 0 {
-		return logs, nil
-	}
-	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
-		filteredLogs := make([]*types.Log, 0)
-		for _, l := range logs {
-			extraDataReader, err := api.backend.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
-			if err != nil {
-				return nil, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
-			}
-			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
-			managedParties, err := extraDataReader.GetManagedParties(l.Address)
-			if errors.Is(err, common.ErrNotPrivateContract) {
-				attrBuilder.Public()
-			} else if err != nil {
-				return nil, fmt.Errorf("contract %s not found in the index due to %s", l.Address.Hex(), err.Error())
-			}
-			if ok, _ := api.backend.IsAuthorized(ctx, authToken, attrBuilder.Parties(managedParties).Build()); ok {
-				filteredLogs = append(filteredLogs, l)
-			}
-		}
-		return filteredLogs, nil
-	}
-	return logs, nil
 }

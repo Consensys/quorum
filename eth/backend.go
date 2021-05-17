@@ -47,7 +47,6 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -91,19 +90,8 @@ type Ethereum struct {
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
-	// Quorum - Multitenancy
-	// contractAuthzProvider is set after node starts instead in New()
-	contractAuthzProvider multitenancy.ContractAuthorizationProvider
-
 	// Quorum - consensus as eth-service (e.g. raft)
 	consensusServicePendingLogsFeed *event.Feed
-}
-
-// Quorum
-//
-// Set the decision manager for multitenancy support
-func (s *Ethereum) SetContractAuthorizationProvider(dm multitenancy.ContractAuthorizationProvider) {
-	s.contractAuthzProvider = dm
 }
 
 // New creates a new Ethereum object (including the

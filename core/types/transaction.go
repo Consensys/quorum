@@ -66,10 +66,6 @@ type Transaction struct {
 	privacyMetadata *PrivacyMetadata
 }
 
-type PrivacyMetadata struct {
-	PrivacyFlag engine.PrivacyFlagType
-}
-
 type txdata struct {
 	AccountNonce uint64          `json:"nonce"    gencodec:"required"`
 	Price        *big.Int        `json:"gasPrice" gencodec:"required"`
@@ -551,6 +547,14 @@ func (m Message) IsPrivate() bool {
 	return m.isPrivate
 }
 
+// overriding msg.data so that when tesseera.receive is invoked we get nothing back
+func (m Message) WithEmptyPrivateData(b bool) Message {
+	if b {
+		m.data = common.EncryptedPayloadHash{}.Bytes()
+	}
+	return m
+}
+
 func (tx *Transaction) IsPrivate() bool {
 	if tx.data.V == nil {
 		return false
@@ -575,6 +579,12 @@ func (tx *Transaction) SetPrivate() {
 	} else {
 		tx.data.V.SetUint64(37)
 	}
+}
+
+// PrivacyMetadata encapsulates privacy information to be attached
+// to a transaction being processed
+type PrivacyMetadata struct {
+	PrivacyFlag engine.PrivacyFlagType
 }
 
 // End Quorum

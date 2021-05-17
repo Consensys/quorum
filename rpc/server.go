@@ -52,21 +52,26 @@ type Server struct {
 	// Quorum
 	// The implementation would authenticate the token coming from a request
 	authenticationManager security.AuthenticationManager
+	isMultitenant         bool
 }
 
 // Quorum
-// Create a server which is protected by authManager
-func NewProtectedServer(authManager security.AuthenticationManager) *Server {
+// Create a server which is protected by authManager and indicates if multitenancy is supported
+func NewProtectedServer(authManager security.AuthenticationManager, isMultitenant bool) *Server {
 	server := NewServer()
 	if authManager != nil {
 		server.authenticationManager = authManager
 	}
+	server.isMultitenant = isMultitenant
 	return server
 }
 
 // NewServer creates a new server instance with no registered handlers.
 func NewServer() *Server {
-	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1, authenticationManager: security.NewDisabledAuthenticationManager()}
+	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1,
+		authenticationManager: security.NewDisabledAuthenticationManager(),
+		isMultitenant:         false,
+	}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server}
@@ -148,27 +153,13 @@ func (s *Server) Stop() {
 // Perform authentication on the HTTP request. Populate security context with necessary information
 // for subsequent authorization-related activities
 func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextConfigurer) {
-	securityContext := context.Background()
-	defer func() {
-		cfg.Configure(securityContext)
-	}()
-	if isAuthEnabled, err := s.authenticationManager.IsEnabled(context.Background()); err != nil {
-		// this indicates a failure in the plugin. We don't want any subsequent request unchecked
-		log.Error("failure when checking if authentication manager is enabled", "err", err)
-		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"internal error"})
-		return
-	} else if !isAuthEnabled {
-		return
-	}
-	if token, hasToken := extractToken(r); hasToken {
-		if authToken, err := s.authenticationManager.Authenticate(context.Background(), token); err != nil {
-			securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{err.Error()})
-		} else {
-			securityContext = context.WithValue(securityContext, CtxPreauthenticatedToken, authToken)
-		}
-	} else {
-		securityContext = context.WithValue(securityContext, ctxAuthenticationError, &securityError{"missing access token"})
-	}
+	securityContext := WithIsMultitenant(context.Background(), s.isMultitenant)
+	securityContext = AuthenticateHttpRequest(securityContext, r, s.authenticationManager)
+	cfg.Configure(securityContext)
+}
+
+func (s *Server) EnableMultitenancy(b bool) {
+	s.isMultitenant = b
 }
 
 // RPCService gives meta information about the server.

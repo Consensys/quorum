@@ -204,7 +204,7 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
-	tls, auth, err := api.node.getSecuritySupports()
+	tls, auth, err := api.node.GetSecuritySupports()
 	if err != nil {
 		return false, err
 	}
@@ -263,7 +263,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
-	tls, auth, err := api.node.getSecuritySupports()
+	tls, auth, err := api.node.GetSecuritySupports()
 	if err != nil {
 		return false, err
 	}

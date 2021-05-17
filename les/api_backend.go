@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -36,7 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/light"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
@@ -50,6 +50,10 @@ type LesApiBackend struct {
 
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
+}
+
+func (b *LesApiBackend) PSMR() mps.PrivateStateMetadataResolver {
+	panic("not supported")
 }
 
 func (b *LesApiBackend) CurrentBlock() *types.Block {
@@ -305,8 +309,8 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 
 // Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
+	if authToken != nil && b.eth.config.EnableMultitenancy {
 		return authToken, true
 	}
 	return nil, false
@@ -316,13 +320,3 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
 }
-
-func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
-	auth, err := b.eth.contractAuthzProvider.IsAuthorized(ctx, authToken, attributes...)
-	if err != nil {
-		return false, err
-	}
-	return auth, nil
-}
-
-// End Quorum
