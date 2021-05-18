@@ -611,6 +611,11 @@ web3._extend({
 			inputFormatter: [null]
 		}),
 		new web3._extend.Method({
+			name: 'getPSI',
+			call: 'eth_getPSI',
+			params: 0
+		}),
+		new web3._extend.Method({
             name: 'getPrivateTransaction',
             call: 'eth_getPrivateTransactionByHash',
             params: 1,

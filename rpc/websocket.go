@@ -155,15 +155,25 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tl
 	if tlsConfig != nil {
 		dialer.TLSClientConfig = tlsConfig
 	}
+	ctx = resolvePSIProvider(ctx, endpoint)
 
-	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
+	credProviderFunc := CredentialsProviderFromContext(ctx)
+	psiProviderFunc := PSIProviderFromContext(ctx)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
-		if hasCredProviderFunc {
+		if credProviderFunc != nil {
 			token, err := credProviderFunc(ctx)
 			if err != nil {
 				log.Warn("unable to obtain credentials from provider", "err", err)
 			} else {
 				header.Set(HttpAuthorizationHeader, token)
+			}
+		}
+		if psiProviderFunc != nil {
+			psi, err := psiProviderFunc(ctx)
+			if err != nil {
+				log.Warn("unable to obtain PSI from provider", "err", err)
+			} else {
+				header.Set(HttpPrivateStateIdentifierHeader, psi.String())
 			}
 		}
 		conn, resp, err := dialer.DialContext(ctx, endpoint, header)

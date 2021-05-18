@@ -13,9 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -32,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/golang/mock/gomock"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +47,20 @@ var (
 		PrivateFrom: arbitraryPrivateFrom,
 		PrivateFor:  arbitraryPrivateFor,
 	}
-	arbitraryFrom = common.BytesToAddress([]byte("arbitrary address"))
+	arbitraryFrom         = common.BytesToAddress([]byte("arbitrary address"))
+	arbitraryTo           = common.BytesToAddress([]byte("arbitrary address to"))
+	arbitraryGas          = uint64(200000)
+	arbitraryZeroGasPrice = big.NewInt(0)
+	arbitraryZeroValue    = big.NewInt(0)
+	arbitraryEmptyData    = new([]byte)
+	callTxArgs            = CallArgs{
+		From:     &arbitraryFrom,
+		To:       &arbitraryTo,
+		Gas:      (*hexutil.Uint64)(&arbitraryGas),
+		GasPrice: (*hexutil.Big)(arbitraryZeroGasPrice),
+		Value:    (*hexutil.Big)(arbitraryZeroValue),
+		Data:     (*hexutil.Bytes)(arbitraryEmptyData),
+	}
 
 	arbitrarySimpleStorageContractEncryptedPayloadHash = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash"))
 
@@ -142,6 +158,24 @@ func setup() {
 func teardown() {
 	log.Root().SetHandler(log.DiscardHandler())
 	os.RemoveAll(workdir)
+}
+
+func TestDoEstimateGas_whenNoValueTx_Pre_Istanbul(t *testing.T) {
+	assert := assert.New(t)
+
+	estimation, err := DoEstimateGas(arbitraryCtx, &StubBackend{CurrentHeadNumber: big.NewInt(10)}, callTxArgs, rpc.BlockNumberOrHashWithNumber(10), math.MaxInt64)
+
+	assert.NoError(err, "gas estimation")
+	assert.Equal(hexutil.Uint64(25352), estimation, "estimation for a public or private tx")
+}
+
+func TestDoEstimateGas_whenNoValueTx_Istanbul(t *testing.T) {
+	assert := assert.New(t)
+
+	estimation, err := DoEstimateGas(arbitraryCtx, &StubBackend{IstanbulBlock: big.NewInt(0), CurrentHeadNumber: big.NewInt(10)}, callTxArgs, rpc.BlockNumberOrHashWithNumber(10), math.MaxInt64)
+
+	assert.NoError(err, "gas estimation")
+	assert.Equal(hexutil.Uint64(22024), estimation, "estimation for a public or private tx")
 }
 
 func TestSimulateExecution_whenStandardPrivateCreation(t *testing.T) {
@@ -379,6 +413,44 @@ func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 	assert.Error(err, "invalid privacyFlag")
 }
 
+func TestHandlePrivateTransaction_whenPrivateFromDoesNotMatchPrivateState(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(mps.NewPrivateStateMetadata("PS1", "PS1", "", mps.Resident, []string{"some address"}), nil).AnyTimes()
+
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &MPSStubBackend{psmr: mockpsm}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Error(err, "The PrivateFrom (arbitrary private from) address does not match the specified private state (PS1) ")
+}
+
+func TestHandlePrivateTransaction_whenPrivateFromMatchesPrivateState(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(mockCtrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(mps.NewPrivateStateMetadata("PS1", "PS1", "", mps.Resident, []string{"some address"}), nil).AnyTimes()
+
+	// empty data field means that checkAndHandlePrivateTransaction exits without doing handlePrivateTransaction
+	emptyTx := types.NewContractCreation(
+		0,
+		big.NewInt(0),
+		hexutil.MustDecodeUint64("0x47b760"),
+		big.NewInt(0),
+		nil)
+
+	mpsTxArgs := &PrivateTxArgs{
+		PrivateFrom: "some address",
+		PrivateFor:  []string{"arbitrary party 1", "arbitrary party 2"},
+	}
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &MPSStubBackend{psmr: mockpsm}, emptyTx, mpsTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Nil(err)
+}
+
 func TestHandlePrivateTransaction_withPartyProtectionTxAndPrivacyEnhancementsIsDisabled(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = 1
@@ -542,10 +614,13 @@ type StubBackend struct {
 	accountManager                         *accounts.Manager
 	ks                                     *keystore.KeyStore
 	poolNonce                              uint64
+
+	IstanbulBlock                          *big.Int
+	CurrentHeadNumber                      *big.Int
 }
 
 func (sb *StubBackend) CurrentHeader() *types.Header {
-	panic("implement me")
+	return &types.Header{Number: sb.CurrentHeadNumber}
 }
 
 func (sb *StubBackend) Engine() consensus.Engine {
@@ -553,14 +628,14 @@ func (sb *StubBackend) Engine() consensus.Engine {
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	return nil, sb.multitenancySupported
+	return nil, false
 }
 
 func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	return sb.mockAccountExtraDataStateGetter, nil
 }
 
-func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.ContractSecurityAttribute) (bool, error) {
+func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.PrivateStateSecurityAttribute) (bool, error) {
 	panic("implement me")
 }
 
@@ -573,7 +648,12 @@ func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.Mi
 		Difficulty: big.NewInt(0),
 		GasLimit:   0,
 	}, nil, &arbitraryFrom)
-	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, params.QuorumTestChainConfig, vm.Config{}), nil, nil
+	vmError := func() error {
+		return nil
+	}
+	config := params.QuorumTestChainConfig
+	config.IstanbulBlock = sb.IstanbulBlock
+	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, config, vm.Config{}), vmError, nil
 }
 
 func (sb *StubBackend) CurrentBlock() *types.Block {
@@ -746,6 +826,23 @@ func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 
 func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	panic("implement me")
+}
+
+func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	panic("implement me")
+}
+
+type MPSStubBackend struct {
+	StubBackend
+	psmr mps.PrivateStateMetadataResolver
+}
+
+func (msb *MPSStubBackend) ChainConfig() *params.ChainConfig {
+	return params.QuorumMPSTestChainConfig
+}
+
+func (sb *MPSStubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return sb.psmr
 }
 
 func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {

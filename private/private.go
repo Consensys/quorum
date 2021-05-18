@@ -44,6 +44,8 @@ type PrivateTransactionManager interface {
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
 	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
+
+	Groups() ([]engine.PrivacyGroup, error)
 }
 
 // This loads any config specified via the legacy environment variable

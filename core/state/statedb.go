@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -160,20 +159,6 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 	return sdb, nil
 }
 
-// Quorum
-// NewDual - Create a public and private state from a given public and private tree
-func NewDual(root common.Hash, db Database, snaps *snapshot.Tree, ethDb ethdb.Database, privateDb Database, privateSnaps *snapshot.Tree) (state, privateState *StateDB, err error) {
-	state, err = New(root, db, snaps)
-	if err != nil {
-		return nil, nil, err
-	}
-	privateState, err = New(rawdb.GetPrivateStateRoot(ethDb, root), privateDb, privateSnaps)
-	if err != nil {
-		return nil, nil, err
-	}
-	return state, privateState, nil
-}
-
 // setError remembers the first non-nil error it is called with.
 func (s *StateDB) setError(err error) {
 	if s.dbErr == nil {
@@ -279,7 +264,10 @@ func (s *StateDB) Exist(addr common.Address) bool {
 // or empty according to the EIP161 specification (balance = nonce = code = 0)
 func (s *StateDB) Empty(addr common.Address) bool {
 	so := s.getStateObject(addr)
-	return so == nil || so.empty()
+	if so != nil {
+		return so.empty()
+	}
+	return true
 }
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
@@ -296,10 +284,10 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	if stateObject != nil {
 		return stateObject.Nonce()
 	}
-
 	return 0
 }
 
+// Quorum
 func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
@@ -308,6 +296,7 @@ func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, err
 	return nil, nil
 }
 
+// Quorum
 func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
@@ -316,6 +305,7 @@ func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*Privac
 	return nil, nil
 }
 
+// Quorum
 func (self *StateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {

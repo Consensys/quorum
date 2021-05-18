@@ -1414,7 +1414,9 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
 		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 	}
-
+	if ctx.GlobalIsSet(MultitenancyFlag.Name) {
+		cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+	}
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -2242,6 +2244,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		l := ctx.GlobalUint64(TxLookupLimitFlag.Name)
 		limit = &l
 	}
+	// TODO should multiple private states work with import/export/inspect commands
 	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)

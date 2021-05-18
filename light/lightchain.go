@@ -236,7 +236,7 @@ func (lc *LightChain) Genesis() *types.Block {
 	return lc.genesisBlock
 }
 
-func (lc *LightChain) StateCache() (state.Database, state.Database) {
+func (lc *LightChain) StateCache() state.Database {
 	panic("not implemented")
 }
 

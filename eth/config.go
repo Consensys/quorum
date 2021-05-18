@@ -198,7 +198,7 @@ type Config struct {
 	EVMCallTimeOut time.Duration
 
 	// Quorum
-	EnableMultitenancy bool
+	EnableMultitenancy bool `toml:"-"`
 
 	QuorumPrivacyMarkerTransactionsEnabled bool
 }

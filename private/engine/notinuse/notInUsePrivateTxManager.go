@@ -17,6 +17,10 @@ func (ptm *PrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHas
 	panic("implement me")
 }
 
+func (ptm *PrivateTransactionManager) Groups() ([]engine.PrivacyGroup, error) {
+	panic("implement me")
+}
+
 func (ptm *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
 	panic("implement me")
 }

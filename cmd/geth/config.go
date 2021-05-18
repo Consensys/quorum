@@ -111,6 +111,12 @@ func defaultNodeConfig() node.Config {
 
 // makeConfigNode loads geth configuration and creates a blank node instance.
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
+	// Quorum: Must occur before setQuorumConfig, as it needs an initialised PTM to be enabled
+	// 		   Extension Service and Multitenancy feature validation also depend on PTM availability
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	}
+
 	// Load defaults.
 	cfg := gethConfig{
 		Eth:  eth.DefaultConfig,

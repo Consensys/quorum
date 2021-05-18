@@ -80,10 +80,12 @@ var (
 
 	// this is the place holder for future solution of the plugin central
 	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
-		CertFingerprint:       "",
-		BaseURL:               "https://dl.bintray.com/quorumengineering/quorum-plugins",
-		PublicKeyURI:          "/.pgp/" + DefaultPublicKeyFile,
-		InsecureSkipTLSVerify: false,
+		CertFingerprint:        "",
+		BaseURL:                "https://artifacts.consensys.net/public/quorum-go-plugins/",
+		PublicKeyURI:           DefaultPublicKeyFile,
+		InsecureSkipTLSVerify:  false,
+		PluginDistPathTemplate: "maven/bin/{{.Name}}/{{.Version}}/{{.Name}}-{{.Version}}-{{.OS}}-{{.Arch}}.zip",
+		PluginSigPathTemplate:  "maven/bin/{{.Name}}/{{.Version}}/{{.Name}}-{{.Version}}-{{.OS}}-{{.Arch}}-sha256.checksum.asc",
 	}
 )
 
@@ -146,24 +148,17 @@ func ReadMultiFormatConfig(config interface{}) ([]byte, error) {
 	}
 }
 
-// return remote folder storing the plugin distribution file and signature file
-//
-// e.g.: my-plugin/v1.0.0/darwin-amd64
-func (m *PluginDefinition) RemotePath() string {
-	return fmt.Sprintf("%s/v%s/%s-%s", m.Name, m.Version, runtime.GOOS, runtime.GOARCH)
-}
-
-// return plugin name and version
+// return plugin distribution name. i.e.: <Name>-<Version>-<OS>-<Arch>
 func (m *PluginDefinition) FullName() string {
-	return fmt.Sprintf("%s-%s", m.Name, m.Version)
+	return fmt.Sprintf("%s-%s-%s-%s", m.Name, m.Version, runtime.GOOS, runtime.GOARCH)
 }
 
-// return plugin distribution file name
+// return plugin distribution file name stored locally
 func (m *PluginDefinition) DistFileName() string {
 	return fmt.Sprintf("%s.zip", m.FullName())
 }
 
-// return plugin distribution signature file name
+// return plugin distribution signature file name stored locally
 func (m *PluginDefinition) SignatureFileName() string {
 	return fmt.Sprintf("%s.sha256sum.asc", m.DistFileName())
 }
@@ -215,6 +210,8 @@ func (s *Settings) GetPluginDefinition(name PluginInterfaceName) (*PluginDefinit
 func (s *Settings) SetDefaults() {
 	if s.CentralConfig == nil {
 		s.CentralConfig = quorumPluginCentralConfiguration
+	} else {
+		s.CentralConfig.SetDefaults()
 	}
 }
 
@@ -248,6 +245,29 @@ type PluginCentralConfiguration struct {
 	BaseURL               string `json:"baseURL" toml:""`
 	PublicKeyURI          string `json:"publicKeyURI" toml:""`
 	InsecureSkipTLSVerify bool   `json:"insecureSkipTLSVerify" toml:""`
+
+	// URL path template to the plugin distribution file.
+	// It uses Golang text template.
+	PluginDistPathTemplate string `json:"pluginDistPathTemplate" toml:""`
+	// URL path template to the plugin sha256 checksum signature file.
+	// It uses Golang text template.
+	PluginSigPathTemplate string `json:"pluginSigPathTemplate" toml:""`
+}
+
+// populate default values from quorumPluginCentralConfiguration
+func (c *PluginCentralConfiguration) SetDefaults() {
+	if len(c.BaseURL) == 0 {
+		c.BaseURL = quorumPluginCentralConfiguration.BaseURL
+	}
+	if len(c.PublicKeyURI) == 0 {
+		c.PublicKeyURI = quorumPluginCentralConfiguration.PublicKeyURI
+	}
+	if len(c.PluginDistPathTemplate) == 0 {
+		c.PluginDistPathTemplate = quorumPluginCentralConfiguration.PluginDistPathTemplate
+	}
+	if len(c.PluginSigPathTemplate) == 0 {
+		c.PluginSigPathTemplate = quorumPluginCentralConfiguration.PluginSigPathTemplate
+	}
 }
 
 // support URI format with 'env' scheme during JSON/TOML/TEXT unmarshalling

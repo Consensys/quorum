@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -54,7 +55,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -523,7 +523,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 	// /Quorum
 
-	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
+	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
 // SignTransaction will create a transaction from the given arguments and
@@ -673,6 +673,15 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 // ChainId returns the chainID value for transaction replay protection.
 func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
 	return (*hexutil.Big)(s.b.ChainConfig().ChainID)
+}
+
+// GetPSI - retunrs the PSI that was resolved based on the client request
+func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	return psm.ID.String(), nil
 }
 
 // BlockNumber returns the block number of the chain head.
@@ -1001,38 +1010,8 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	defer cancel()
 
 	msg := args.ToMessage(globalGasCap)
-
-	enrichedCtx := ctx
-	// create callbacks to support runtime multitenancy checks during the run
-	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
-		var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
-			var readSecAttr *multitenancy.ContractSecurityAttribute
-			if len(msg.Data()) == 0 { // public READ
-				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).ToEOA(*msg.To()).Public().Read().Build()
-			} else {
-				currentBlock := b.CurrentBlock().Number().Int64()
-				extraDataReader, err := b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
-				if err != nil {
-					return false, false, fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
-				}
-				managedParties, err := extraDataReader.GetManagedParties(contractAddress)
-				isPrivate := true
-				if errors.Is(err, common.ErrNotPrivateContract) {
-					isPrivate = false
-				} else if err != nil {
-					return false, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
-				}
-				readSecAttr = multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
-			}
-			authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
-			log.Trace("Authorized Message Call", "read", authorizedRead, "address", contractAddress.Hex(), "securityAttribute", readSecAttr)
-			return authorizedRead, false, nil
-		}
-		enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeMessageCallFunc, authorizeMessageCallFunc)
-	}
-
 	// Get a new instance of the EVM.
-	evm, vmError, err := b.GetEVM(enrichedCtx, msg, state, header)
+	evm, vmError, err := b.GetEVM(ctx, msg, state, header)
 	if err != nil {
 		return nil, err
 	}
@@ -1230,8 +1209,10 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 
 	//if the transaction has a value then it cannot be private, so we can skip this check
 	if args.Value != nil && args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
-		homestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
-		istanbul := b.ChainConfig().IsIstanbul(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
+		currentBlockHeight := b.CurrentHeader().Number
+		homestead := b.ChainConfig().IsHomestead(currentBlockHeight)
+		istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
+
 		var data []byte
 		if args.Data == nil {
 			data = nil
@@ -1662,26 +1643,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
-		extraDataReader, err := s.b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(blockNumber))
-		if err != nil {
-			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
-		}
-
-		filteredLogs := make([]*types.Log, 0)
-		for _, l := range receipt.Logs {
-			ok, err := s.isContractAuthorized(ctx, authToken, extraDataReader, l.Address)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				filteredLogs = append(filteredLogs, l)
-			}
-		}
-		fields["logs"] = filteredLogs
-		receiptClone := &types.Receipt{PostState: receipt.PostState, Status: receipt.Status, Logs: filteredLogs}
-		fields["logsBloom"] = types.CreateBloom(types.Receipts{receiptClone})
-	}
 	return fields, nil
 }
 
@@ -1774,41 +1735,7 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
-		extraDataReader, err := s.b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(blockNumber))
-		if err != nil {
-			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
-		}
-
-		filteredLogs := make([]*types.Log, 0)
-		for _, l := range receipt.Logs {
-			ok, err := s.isContractAuthorized(ctx, authToken, extraDataReader, l.Address)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				filteredLogs = append(filteredLogs, l)
-			}
-		}
-		fields["logs"] = filteredLogs
-		receiptClone := &types.Receipt{PostState: receipt.PostState, Status: receipt.Status, Logs: filteredLogs}
-		fields["logsBloom"] = types.CreateBloom(types.Receipts{receiptClone})
-	}
 	return fields, nil
-}
-
-func (s *PublicTransactionPoolAPI) isContractAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, extraDataReader vm.AccountExtraDataStateGetter, addr common.Address) (bool, error) {
-	attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
-	managedParties, err := extraDataReader.GetManagedParties(addr)
-	if errors.Is(err, common.ErrNotPrivateContract) {
-		attrBuilder.Public()
-	} else if err != nil {
-		return false, fmt.Errorf("contract %s not found in the index due to %s", addr.Hex(), err.Error())
-	}
-
-	ok, _ := s.b.IsAuthorized(ctx, authToken, attrBuilder.Parties(managedParties).Build())
-
-	return ok, nil
 }
 
 // Quorum: if signing a private TX, set with tx.SetPrivate() before calling this method.
@@ -1874,6 +1801,17 @@ type PrivateTxArgs struct {
 	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
+func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend) error {
+	if args.PrivateFor != nil && len(args.PrivateFrom) == 0 && b.ChainConfig().IsMPS {
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return err
+		}
+		args.PrivateFrom = psm.Addresses[0]
+	}
+	return nil
+}
+
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.GasPrice == nil {
@@ -1935,8 +1873,8 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.PrivateTxType == "" {
 		args.PrivateTxType = "restricted"
 	}
+	return args.SetDefaultPrivateFrom(ctx, b)
 	//End-Quorum
-	return nil
 }
 
 func (args *SendTxArgs) inputOrData() (result []byte) {
@@ -1958,7 +1896,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
-func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, privateFor []string, isRaw bool) (common.Hash, error) {
+func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, isRaw bool) (common.Hash, error) {
 	// If the transaction fee cap is already specified, ensure the
 	// fee of the given transaction is _reasonable_.
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), b.RPCTxFeeCap()); err != nil {
@@ -1975,10 +1913,12 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if err != nil {
 		return common.Hash{}, err
 	}
-	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
+	// Quorum
+	// Need to do authorization check for Ethereum Account being used in signing.
+	// We only care about private transactions (or the private transaction relating to a privacy marker)
+	if token, ok := b.SupportsMultitenancy(ctx); ok {
 		tx := tx
-		// If we are sending a Privacy Marker Transaction, then we can about checking the actual private transaction
-		// as the public tx will not be doing anything of note
+		// If we are sending a Privacy Marker Transaction, then get the private txn details
 		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
 			tx, _, err = private.FetchPrivateTransaction(tx.Data())
 			if err != nil {
@@ -1989,38 +1929,23 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		if err != nil {
 			return common.Hash{}, err
 		}
-		originalTx := tx
-		// for private transaction, private payload will be retrieved from Tessera to build the original transaction
-		// in order to supply to the simulation engine
-		if tx.IsPrivate() {
-			if isRaw {
-				// for raw private transaction, the privateFrom will be derived when retrieving the private payload from Tessera
-				originalTx, privateFrom, err = buildPrivateTransactionFromRaw(tx)
-				if err != nil {
-					return common.Hash{}, err
-				}
-			} else {
-				originalTx, err = buildPrivateTransaction(tx)
-				if err != nil {
-					return common.Hash{}, err
-				}
-			}
-			originalTx.SetPrivate()
-			// enforcing privateFrom present
-			if privateFrom == "" {
-				return common.Hash{}, fmt.Errorf("missing privateFrom")
-			}
-		}
-		err = performMultitenancyChecks(ctx, authToken, b, innerFrom, originalTx, &PrivateTxArgs{
-			PrivateFrom: privateFrom,
-			PrivateFor:  privateFor,
-		})
-		if err != nil {
-			return common.Hash{}, err
-		}
-	}
-	// End Quorum
 
+	    if tx.IsPrivate() {
+    		psm, err := b.PSMR().ResolveForUserContext(ctx)
+	    	if err != nil {
+		    	return common.Hash{}, err
+		    }
+		    eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+		    psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
+		    if err != nil {
+    			return common.Hash{}, err
+    		}
+	    	privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+		    if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+			    return common.Hash{}, multitenancy.ErrNotAuthorized
+		    }
+	    }
+	}
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
@@ -2034,96 +1959,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	}
 	return tx.Hash(), nil
 
-}
-
-// Quorum
-//
-// performMultitenancyChecks is to use the given transaction and construct
-// expected security attributes being checked against entitled ones. The
-// transaction is fed into the simulation engine in order to determine the impact.
-func performMultitenancyChecks(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken,
-	b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) error {
-
-	if tx.IsPrivate() {
-		// before running simulation, we verify the ownership of privateFrom
-		// user must be entitled for all actions
-		// READ and WRITE actions are taking Parties into consideration so
-		// we need to populate it with privateFrom
-		if authorized, _ := b.IsAuthorized(ctx, authToken, multitenancy.FullAccessContractSecurityAttributes(fromEOA, privateArgs.PrivateFrom)...); !authorized {
-			return multitenancy.ErrNotAuthorized
-		}
-	}
-	currentBlock := b.CurrentBlock().Number().Int64()
-	extraDataReader, err := b.AccountExtraDataStateGetterByNumber(ctx, rpc.BlockNumber(currentBlock))
-	if err != nil {
-		return fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
-	}
-	// create callbacks to support runtime multitenancy checks during simulation
-	createContractSA := multitenancy.NewContractSecurityAttributeBuilder().
-		FromEOA(fromEOA).PrivateIf(tx.IsPrivate()).Create().PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom).Build()
-	authorizedCreate, _ := b.IsAuthorized(ctx, authToken, createContractSA)
-	log.Debug("Authorized Contract Creation", "create", authorizedCreate, "securityAttribute", createContractSA)
-	var authorizeCreateFunc multitenancy.AuthorizeCreateFunc = func() bool {
-		return authorizedCreate
-	}
-	var authorizeMessageCallFunc multitenancy.AuthorizeMessageCallFunc = func(contractAddress common.Address) (bool, bool, error) {
-		managedParties, err := extraDataReader.GetManagedParties(contractAddress)
-		isPrivate := true
-		if errors.Is(err, common.ErrNotPrivateContract) {
-			isPrivate = false
-		} else if err != nil {
-			return false, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
-		}
-		readSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Read().Build()
-		authorizedRead, _ := b.IsAuthorized(ctx, authToken, readSecAttr)
-		log.Trace("Authorized Message Call", "read", authorizedRead, "address", contractAddress.Hex(), "securityAttribute", readSecAttr)
-		writeSecAttr := multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).PrivateIf(isPrivate).PartiesOnlyIf(isPrivate, managedParties).Write().Build()
-		authorizedWrite, _ := b.IsAuthorized(ctx, authToken, writeSecAttr)
-		log.Trace("Authorized Message Call", "write", authorizedWrite, "address", contractAddress.Hex(), "securityAttribute", writeSecAttr)
-		return authorizedRead, authorizedWrite, nil
-	}
-	enrichedCtx := ctx
-	enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeCreateFunc, authorizeCreateFunc)
-	enrichedCtx = context.WithValue(enrichedCtx, multitenancy.CtxKeyAuthorizeMessageCallFunc, authorizeMessageCallFunc)
-	if _, err := runSimulation(enrichedCtx, b, fromEOA, tx); err != nil {
-		log.Error("Simulated execution for multitenancy", "error", err)
-		return err
-	}
-	return nil
-}
-
-// Quorum
-//
-// Retrieve private payload and construct the original transaction
-func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {
-	_, _, privatePayload, _, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
-	if revErr != nil {
-		return nil, revErr
-	}
-	var privateTx *types.Transaction
-	if tx.To() == nil {
-		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-	} else {
-		privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-	}
-	return privateTx, nil
-}
-
-// Quorum
-//
-// Retrieve private payload and construct the original transaction along with privateFrom information
-func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, string, error) {
-	privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(common.BytesToEncryptedPayloadHash(tx.Data()))
-	if revErr != nil {
-		return nil, "", revErr
-	}
-	var privateTx *types.Transaction
-	if tx.To() == nil {
-		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-	} else {
-		privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-	}
-	return privateTx, privateFrom, nil
 }
 
 // runSimulation runs a simulation of the given transaction.
@@ -2286,7 +2121,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 	// /Quorum
 
-	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, args.PrivateFor, false)
+	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
 // FillTransaction fills the defaults (nonce, gas, gasPrice) on a given unsigned transaction,
@@ -2330,7 +2165,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	return SubmitTransaction(ctx, s.b, tx, "", nil, false)
+	return SubmitTransaction(ctx, s.b, tx, "", true)
 }
 
 // Quorum
@@ -2344,6 +2179,10 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, err
 	}
 
+	// Quorum
+	if err := args.SetDefaultPrivateFrom(ctx, s.b); err != nil {
+		return common.Hash{}, err
+	}
 	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
@@ -2352,7 +2191,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
-	return SubmitTransaction(ctx, s.b, tx, "", args.PrivateFor, true)
+	return SubmitTransaction(ctx, s.b, tx, args.PrivateFrom, true)
 }
 
 // DistributePrivateTransaction will perform the simulation checks and send the private transactions data to the other
@@ -2823,9 +2662,13 @@ func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, arg
 }
 
 // GetQuorumPayload returns the contents of a private transaction
-func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error) {
+func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex string) (string, error) {
 	if !private.IsQuorumPrivacyEnabled() {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
 	}
 	if len(digestHex) < 3 {
 		return "", fmt.Errorf("Invalid digest hex")
@@ -2837,6 +2680,8 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if err != nil {
 		return "", err
 	}
+
+	//if hash has `from` account prepended (for privacy marker transaction), then must discard that
 	if len(b) == 84 {
 		b = b[20:]
 	}
@@ -2844,14 +2689,18 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	_, _, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	_, managedParties, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
+	}
+	if s.b.PSMR().NotIncludeAny(psm, managedParties...) {
+		return "0x", nil
 	}
 	return fmt.Sprintf("0x%x", data), nil
 }
 
 // Quorum
+// for raw private transaction, privateTxArgs.privateFrom will be updated with value from Tessera when payload is retrieved
 func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, replaceDataWithHash bool, hash common.EncryptedPayloadHash, err error) {
 	replaceDataWithHash = false
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
@@ -2866,6 +2715,19 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
 		err = fmt.Errorf("PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
 		return
+	}
+
+	// validate that PrivateFrom is one of the addresses of the private state resolved from the user context
+	if b.ChainConfig().IsMPS {
+		var psm *mps.PrivateStateMetadata
+		psm, err = b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return
+		}
+		if psm.NotIncludeAny(privateTxArgs.PrivateFrom) {
+			err = fmt.Errorf("The PrivateFrom (%s) address does not match the specified private state (%s) ", privateTxArgs.PrivateFrom, psm.ID)
+			return
+		}
 	}
 
 	if len(tx.Data()) > 0 {
@@ -2890,7 +2752,8 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 }
 
 // Quorum
-// If transaction is raw, the tx payload is indeed the hash of the encrypted payload
+// If transaction is raw, the tx payload is indeed the hash of the encrypted payload.
+// Then the sender key will set to privateTxArgs.privateFrom.
 //
 // For private transaction, run a simulated execution in order to
 // 1. Find all affected private contract accounts then retrieve encrypted payload hashes of their creation txs
@@ -2921,11 +2784,12 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address) (hash common.EncryptedPayloadHash, err error) {
 	data := tx.Data()
 	hash = common.BytesToEncryptedPayloadHash(data)
-	privatePayload, _, _, err := private.P.ReceiveRaw(hash)
-	if err != nil {
-		return
+	privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
+	if revErr != nil {
+		return common.EncryptedPayloadHash{}, revErr
 	}
-	log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
+	log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload), "privateFrom", privateFrom)
+	privateTxArgs.PrivateFrom = privateFrom
 	var privateTx *types.Transaction
 	if tx.To() == nil {
 		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)

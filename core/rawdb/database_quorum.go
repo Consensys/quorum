@@ -30,6 +30,7 @@ import (
 
 var (
 	privateRootPrefix           = []byte("P")
+	privateStatesTrieRootPrefix = []byte("PSTP")
 	privateBloomPrefix          = []byte("Pb")
 	quorumEIP155ActivatedPrefix = []byte("quorum155active")
 	// Quorum
@@ -57,6 +58,11 @@ func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	return common.BytesToHash(root)
 }
 
+func GetPrivateStatesTrieRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(privateStatesTrieRootPrefix, blockRoot[:]...))
+	return common.BytesToHash(root)
+}
+
 func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
 	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
 	return common.BytesToHash(root)
@@ -64,6 +70,10 @@ func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) com
 
 func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
+}
+
+func WritePrivateStatesTrieRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(privateStatesTrieRootPrefix, blockRoot[:]...), root[:])
 }
 
 // WriteRootHashMapping stores the mapping between root hash of state trie and
@@ -79,7 +89,7 @@ func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Rec
 	allReceipts := make([]*types.Receipt, 0, allReceiptsCount)
 	allReceipts = append(allReceipts, receipts...)
 	allReceipts = append(allReceipts, markerReceipts...)
-	rbloom := types.CreateBloom(allReceipts)
+	rbloom := types.CreateBloom(allReceipts.Flatten())
 	return db.Put(append(privateBloomPrefix, encodeBlockNumber(number)...), rbloom[:])
 }
 
