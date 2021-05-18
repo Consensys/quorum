@@ -2424,7 +2424,7 @@ func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, arg
 
 // GetQuorumPayload returns the contents of a private transaction
 func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex string) (string, error) {
-	if private.P == nil {
+	if !private.IsQuorumPrivacyEnabled() {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
 	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
