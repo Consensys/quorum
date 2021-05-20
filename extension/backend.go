@@ -378,7 +378,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
-	txArgs.IsUsingPrivacyPrecompile = service.apiBackendHelper.QuorumCreatePrivacyMarkerTransactions()
+	txArgs.IsUsingPrivacyPrecompile = service.apiBackendHelper.IsPrivacyMarkerTransactionCreationEnabled()
 
 	if txa.GasPrice != nil {
 		txArgs.GasPrice = txa.GasPrice.ToInt()

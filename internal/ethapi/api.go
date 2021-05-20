@@ -457,7 +457,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
 	var err error
 	var pmtNonce uint64
-	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		if args.Nonce != nil {
 			pmtNonce = uint64(*args.Nonce)
 		} else {
@@ -495,7 +495,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		// Look up the wallet containing the requested signer
 		account := accounts.Account{Address: args.From}
 		wallet, err := s.am.Find(account)
@@ -2033,7 +2033,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	var contractAddr common.Address
 
 	// if privacy precompile is enabled then we must pre-increment the nonce to mimic the execution of the PMT before the internal private tx
-	if b.QuorumCreatePrivacyMarkerTransactions() {
+	if b.IsPrivacyMarkerTransactionCreationEnabled() {
 		evm.StateDB.SetNonce(addr, evm.StateDB.GetNonce(addr)+1)
 	}
 
@@ -2073,7 +2073,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
 	var pmtNonce uint64
-	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		if args.Nonce != nil {
 			pmtNonce = uint64(*args.Nonce)
 		} else {
@@ -2125,7 +2125,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
