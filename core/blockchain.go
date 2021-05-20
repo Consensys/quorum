@@ -2050,9 +2050,17 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if err != nil {
 			return it.index, err
 		}
+
+		// Quorum
+		privateState, err := privateStateRepo.DefaultState() //TODO (Satpal): should this call `privateStateRepo.StatePSI(privateStateIdentifier)`?
+		if err != nil {
+			return it.index, err
+		}
 		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts, privateState.MarkerTransactionReceipts); err != nil {
 			return it.index, err
 		}
+		// End Quorum
+
 		// Update the metrics touched during block commit
 		accountCommitTimer.Update(statedb.AccountCommits)   // Account commits are complete, we can mark them
 		storageCommitTimer.Update(statedb.StorageCommits)   // Storage commits are complete, we can mark them

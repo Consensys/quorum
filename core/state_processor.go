@@ -271,20 +271,20 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	vmenv.InnerApply = func(innerTx *types.Transaction) (*types.Receipt, error) {
 		defer func() {
 			statedb.Prepare(tx.Hash(), header.Hash(), txIndex)
-			privateState.Prepare(tx.Hash(), header.Hash(), txIndex)
+			privateStateDB.Prepare(tx.Hash(), header.Hash(), txIndex)
 		}()
 		statedb.Prepare(innerTx.Hash(), header.Hash(), txIndex)
-		privateState.Prepare(innerTx.Hash(), header.Hash(), txIndex)
+		privateStateDB.Prepare(innerTx.Hash(), header.Hash(), txIndex)
 
 		singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 		used := uint64(0)
-		_, privReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateState, header, innerTx, &used, cfg)
+		_, privReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateStateDB, header, innerTx, &used, cfg, forceNonParty)
 
 		if privReceipt != nil {
 			if privReceipt.Logs == nil {
 				privReceipt.Logs = make([]*types.Log, 0)
 			}
-			privateState.MarkerTransactionReceipts = append(privateState.MarkerTransactionReceipts, privReceipt)
+			privateStateDB.MarkerTransactionReceipts = append(privateStateDB.MarkerTransactionReceipts, privReceipt)
 			rawdb.WritePrivateTransactionReceipt(bc.db, tx.Hash(), privReceipt)
 		}
 

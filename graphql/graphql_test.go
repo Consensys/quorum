@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
@@ -35,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -165,7 +165,7 @@ func TestQuorumSchema_PublicTransaction(t *testing.T) {
 	private.P = &stubPrivateTransactionManager{}
 
 	publicTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("some random public payload"))
-	publicTxQuery := &Transaction{tx: publicTx}
+	publicTxQuery := &Transaction{tx: publicTx, backend: &StubBackend{}}
 	isPrivate, err := publicTxQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -269,7 +269,7 @@ func TestQuorumSchema_PrivateMarkerTransaction(t *testing.T) {
 
 	privateMarkerTx := types.NewTransaction(0, from, big.NewInt(0), 0, big.NewInt(0), append(from.Bytes(), encryptedPrivateTxHash.Bytes()...))
 
-	pmtQuery := &Transaction{tx: privateMarkerTx}
+	pmtQuery := &Transaction{tx: privateMarkerTx, backend: &StubBackend{}}
 	isPrivate, err := pmtQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -320,7 +320,7 @@ func TestQuorumSchema_PrivateMarkerTransaction(t *testing.T) {
 }
 
 func TestQuorumTransaction_getReceipt_defaultReceiptGetter(t *testing.T) {
-	graphqlTx := &Transaction{tx: &types.Transaction{}}
+	graphqlTx := &Transaction{tx: &types.Transaction{}, backend: &StubBackend{}}
 
 	if graphqlTx.receiptGetter != nil {
 		t.Fatalf("Expect nil receiptGetter: actual %v", graphqlTx.receiptGetter)
@@ -571,5 +571,9 @@ func (psmr *StubPSMR) PSIs() []types.PrivateStateIdentifier {
 	panic("implement me")
 }
 func (psmr *StubPSMR) NotIncludeAny(psm *mps.PrivateStateMetadata, managedParties ...string) bool {
+	return false
+}
+
+func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
 	return false
 }
