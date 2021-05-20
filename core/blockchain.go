@@ -1053,7 +1053,7 @@ func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.
 
 	privateReceipts := make([]*types.Receipt, 0)
 	for i, tx := range block.Transactions() {
-		if vm.IsPrivacyMarkerTransaction(tx) {
+		if tx.IsPrivacyMarker() {
 			receipt := allReceipts[i]
 			if receipt.PSReceipts != nil && receipt.PSReceipts[psm.ID] != nil {
 				privateReceipts = append(privateReceipts, receipt.PSReceipts[psm.ID])

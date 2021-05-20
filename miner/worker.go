@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -648,7 +647,7 @@ func (w *worker) resultLoop() {
 				// If this was a public privacy marker transaction then there will be an associated private receipt to handle.
 				if receipt.PSReceipts != nil {
 					tx := block.Transaction(receipt.TxHash)
-					if vm.IsPrivacyMarkerTransaction(tx) {
+					if tx.IsPrivacyMarker() {
 						for _, markerReceipt := range receipt.PSReceipts {
 							markerReceipt.BlockHash = hash
 							markerReceipt.BlockNumber = block.Number()

@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -458,7 +457,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
 
 	nonce := signedTx.Nonce() - 1
-	return types.NewTransaction(nonce, vm.PrivacyMarkerAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
+	return types.NewTransaction(nonce, common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

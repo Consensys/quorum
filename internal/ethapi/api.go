@@ -117,7 +117,7 @@ func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 }
 
 func (s *PublicEthereumAPI) GetPrivacyPrecompileAddress() common.Address {
-	return vm.PrivacyMarkerAddress()
+	return common.QuorumPrivacyPrecompileContractAddress()
 }
 
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
@@ -1943,7 +1943,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if token, ok := b.SupportsMultitenancy(ctx); ok {
 		tx := tx
 		// If we are sending a Privacy Marker Transaction, then get the private txn details
-		if vm.IsPrivacyMarkerTransaction(tx) {
+		if tx.IsPrivacyMarker() {
 			tx, _, err = private.FetchPrivateTransaction(tx.Data())
 			if err != nil {
 				return common.Hash{}, err
@@ -2906,7 +2906,7 @@ func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transactio
 	//TODO (peter): sender should be removed when possible
 	senderAndHash := append(privateTx.From().Bytes(), txnHash.Bytes()...)
 
-	pmt := types.NewTransaction(pmtNonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
+	pmt := types.NewTransaction(pmtNonce, common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
 
 	return pmt, nil
 }

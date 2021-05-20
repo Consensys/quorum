@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin"
@@ -534,7 +533,7 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 		result SignTxResponse
 		msgs   *ValidationMessages
 	)
-	if args.IsPrivate || args.To.Address() == vm.PrivacyMarkerAddress() {
+	if args.IsPrivate || args.To.Address() == common.QuorumPrivacyPrecompileContractAddress() {
 		msgs = new(ValidationMessages)
 	} else {
 		msgs, err = api.validator.ValidateTransaction(methodSelector, &args)

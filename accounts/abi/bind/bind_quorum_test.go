@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +83,7 @@ func TestBoundContract_Transact_ContractCreation_PrivacyPrecompile(t *testing.T)
 
 	// verify the private marker transaction
 	wantPMTNonce := uint64(senderNonce)
-	wantPMTTo := vm.PrivacyMarkerAddress()
+	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
 	wantPMTData := append(common.Address{}.Bytes(), tmPrivateTxHash.Bytes()...)
 
 	require.Equal(t, wantPMTNonce, pmt.Nonce())
@@ -167,7 +166,7 @@ func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
 
 	// verify the private marker transaction
 	wantPMTNonce := uint64(senderNonce)
-	wantPMTTo := vm.PrivacyMarkerAddress()
+	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
 	wantPMTData := append(common.Address{}.Bytes(), tmPrivateTxHash.Bytes()...)
 
 	require.Equal(t, wantPMTNonce, pmt.Nonce())
