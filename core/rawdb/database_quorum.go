@@ -82,13 +82,15 @@ func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot comm
 	return db.Put(append(stateRootToExtraDataRootPrefix, stateRoot[:]...), extraDataRoot[:])
 }
 
-// WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
+// WritePrivateBlockBloom creates a bloom filter for the given private receipts and saves it to the database
 // with the number given as identifier (i.e. block number).
-func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts, markerReceipts types.Receipts) error {
-	allReceiptsCount := len(receipts.Flatten()) + len(markerReceipts)
+func WritePrivateBlockBloom(db ethdb.Database, number uint64, privateReceipts types.Receipts, markerPrivateReceipts types.Receipts) error {
+	flattenedPrivateTxns := privateReceipts.Flatten()
+	flattenedMarkerTxns := markerPrivateReceipts.Flatten()
+	allReceiptsCount := len(flattenedPrivateTxns) + len(flattenedMarkerTxns)
 	allReceipts := make([]*types.Receipt, 0, allReceiptsCount)
-	allReceipts = append(allReceipts, receipts...)
-	allReceipts = append(allReceipts, markerReceipts...)
+	allReceipts = append(allReceipts, flattenedPrivateTxns...)
+	allReceipts = append(allReceipts, flattenedMarkerTxns...)
 	rbloom := types.CreateBloom(allReceipts)
 	return db.Put(append(privateBloomPrefix, encodeBlockNumber(number)...), rbloom[:])
 }
