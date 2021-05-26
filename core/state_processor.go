@@ -319,11 +319,11 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		}
 
 		defer func() {
-			statedb.Prepare(tx.Hash(), header.Hash(), txIndex)
-			privateStateDB.Prepare(tx.Hash(), header.Hash(), txIndex)
+			statedb.Prepare(tx.Hash(), statedb.BlockHash(), txIndex)
+			privateStateDB.Prepare(tx.Hash(), privateStateDB.BlockHash(), txIndex)
 		}()
-		statedb.Prepare(innerTx.Hash(), header.Hash(), txIndex)
-		privateStateDB.Prepare(innerTx.Hash(), header.Hash(), txIndex)
+		statedb.Prepare(innerTx.Hash(), statedb.BlockHash(), txIndex)
+		privateStateDB.Prepare(innerTx.Hash(), privateStateDB.BlockHash(), txIndex)
 
 		singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 		used := uint64(0)
