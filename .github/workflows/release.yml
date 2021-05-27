@@ -26,7 +26,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
           repository: ${{ secrets.DOCKER_REPO }}
-          tags: ${{ steps.extract.outputs.image_tag }}, ${{ steps.extract.outputs.image_tag_minor_latest }}
+          tags: ${{ steps.extract.outputs.image_tag }}, ${{ steps.extract.outputs.image_tag_minor_latest }}, latest
           add_git_labels: true
   build-binary:
     name: 'Build binary for ${{ matrix.os }}'
@@ -49,19 +49,45 @@ jobs:
       - name: 'Check out project files'
         uses: actions/checkout@v2
         with:
-          submodules: recursive
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
+        # For MacOS, We use gtar and run purge command to workaround issue
+        # https://github.com/actions/virtual-environments/issues/2619
+        id: build
         working-directory: ${{ env.WORKING_DIR }}
-        run: |
+        run: |-
           make geth
           mkdir -p build/artifact
-          tar cfvz build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz -C build/bin geth
+          tar_file=build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz
+
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            sudo /usr/sbin/purge
+            gtar cfvz ${tar_file} -C build/bin geth
+          else
+            tar cfvz ${tar_file} -C build/bin geth
+          fi
+
+          echo "::set-output name=tar_file::${tar_file}"
+          echo "::set-output name=checksum::$(shasum -a 256 build/bin/geth | awk '{print $1}')"
+      - name: 'Verify tarball'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |-
+          cp ${{ steps.build.outputs.tar_file }} ${{ runner.temp }}
+          pushd ${{ runner.temp}}
+          tar xfvz *.tar.gz
+          actual_checksum=$(shasum -a 256 geth | awk '{print $1}')
+          echo "Checksum: ${actual_checksum}"
+          popd
+          if [ "${{ steps.build.outputs.checksum }}" != "${actual_checksum}" ]; then
+            echo "::error::geth checksum validation fails"
+            exit 1
+          fi
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
           path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
+          if-no-files-found: error
   deploy-cloudsmith:
     name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
     needs:
@@ -98,7 +124,7 @@ jobs:
   draft-release:
     name: 'Draft Github release'
     needs:
-      - deploy-bintray
+      - deploy-cloudsmith
       - publish-docker
     runs-on: ubuntu-18.04
     steps:
@@ -108,8 +134,6 @@ jobs:
         id: release_notes
         run: |
           git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-          package="${{ secrets.BINTRAY_PACKAGE }}"
-          repo="${package%/*}"
           file="generated-release-notes.md"
           current_version="${GITHUB_REF##*/}"
           last_version=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1  --max-count=1`)
@@ -119,13 +143,16 @@ jobs:
           curl -q -s -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/search/issues?q=repo:ConsenSys/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
             >> $file
-          # pulling file hashes from Bintray
+          # pulling file hashes from Cloudsmith
           echo "" >> $file
           echo "| Filename | SHA256 Hash |" >> $file
           echo "|:---------|:------------|" >> $file
-          curl -q -s -u ${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_API_KEY}} "https://api.bintray.com/packages/$package/versions/$current_version/files" \
-          	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/'"$repo"'/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
-          	>> $file
+          curl --request GET \
+            --url "https://api.cloudsmith.io/v1/packages/consensys/go-quorum/?query=version:$current_version" \
+            --header 'Accept: application/json' \
+            --header 'X-Api-Key: ${{ secrets.CLOUDSMITH_API_KEY }}' \
+                    	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](\(.cdn_url))|`\(.checksum_sha256)`|"' -r \
+                    	>> $file
           content=$(cat $file)
           # escape newline
           content="${content//'%'/'%25'}"
@@ -148,8 +175,8 @@ jobs:
     if: always()
     name: 'Notify'
     needs:
-      - build
-      - deploy-bintray
+      - build-binary
+      - deploy-cloudsmith
       - publish-docker
       - draft-release
     runs-on: ubuntu-18.04

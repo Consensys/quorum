@@ -8,12 +8,27 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const (
+	PrivacyGroupResident = "RESIDENT"
+	PrivacyGroupLegacy   = "LEGACY"
+	PrivacyGroupPantheon = "PANTHEON"
+)
+
 var (
 	ErrPrivateTxManagerNotinUse                          = errors.New("private transaction manager is not in use")
 	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")
 	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not support this operation")
 	ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements = errors.New("private transaction manager does not support privacy enhancements")
 )
+
+type PrivacyGroup struct {
+	Type           string   `json:"type"`
+	Name           string   `json:"name"`
+	PrivacyGroupId string   `json:"privacyGroupId"`
+	Description    string   `json:"description"`
+	From           string   `json:"from"`
+	Members        []string `json:"members"`
+}
 
 // Additional information for the private transaction that Private Transaction Manager carries
 type ExtraMetadata struct {
@@ -85,9 +100,10 @@ func (f PrivacyFlagType) Validate() error {
 type PrivateTransactionManagerFeature uint64
 
 const (
-	None                PrivateTransactionManagerFeature = iota                                          // 0
-	PrivacyEnhancements PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
-	MultiTenancy        PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 2
+	None                  PrivateTransactionManagerFeature = iota                                          // 0
+	PrivacyEnhancements   PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
+	MultiTenancy          PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 2
+	MultiplePrivateStates PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 4
 )
 
 type FeatureSet struct {

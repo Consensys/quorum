@@ -6,29 +6,31 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // ChainAccessor provides methods to fetch state and blocks from the local blockchain
 type ChainAccessor interface {
-	multitenancy.ContextAware
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
-	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
-	State() (*state.StateDB, *state.StateDB, error)
+	StateAt(root common.Hash) (*state.StateDB, mps.PrivateStateRepository, error)
+	StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error)
+	State() (*state.StateDB, mps.PrivateStateRepository, error)
 	CurrentBlock() *types.Block
 }
 
-// Only extract required methods from ethService.APIBackend
+// Only extract required methods from EthAPIBackend
 type APIBackendHelper interface {
-	multitenancy.AuthorizationProvider
 	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+	PSMR() mps.PrivateStateMetadataResolver
 	CurrentBlock() *types.Block
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
@@ -52,8 +54,8 @@ func (fetcher *StateFetcher) getCurrentBlockHash() common.Hash {
 // GetAddressStateFromBlock is a public method that combines the other
 // functions of a StateFetcher, retrieving the state of an address at a given
 // block, represented in JSON.
-func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, addressToFetch common.Address) ([]byte, error) {
-	privateState, err := fetcher.privateState(blockHash)
+func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, addressToFetch common.Address, psi types.PrivateStateIdentifier) ([]byte, error) {
+	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +67,9 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 }
 
 // privateState returns the private state database for a given block hash.
-func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
+func (fetcher *StateFetcher) privateState(blockHash common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	block := fetcher.chainAccessor.GetBlockByHash(blockHash)
-	_, privateState, err := fetcher.chainAccessor.StateAt(block.Root())
+	_, privateState, err := fetcher.chainAccessor.StateAtPSI(block.Root(), psi)
 
 	return privateState, err
 }
@@ -90,8 +92,8 @@ func (fetcher *StateFetcher) addressStateAsJson(privateState *state.StateDB, add
 }
 
 // returns the privacy metadata
-func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address common.Address) (*state.PrivacyMetadata, error) {
-	privateState, err := fetcher.privateState(blockHash)
+func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) (*state.PrivacyMetadata, error) {
+	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +107,8 @@ func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address c
 }
 
 // returns the privacy metadata
-func (fetcher *StateFetcher) GetStorageRoot(blockHash common.Hash, address common.Address) (common.Hash, error) {
-	privateState, err := fetcher.privateState(blockHash)
+func (fetcher *StateFetcher) GetStorageRoot(blockHash common.Hash, address common.Address, psi types.PrivateStateIdentifier) (common.Hash, error) {
+	privateState, err := fetcher.privateState(blockHash, psi)
 	if err != nil {
 		return common.Hash{}, err
 	}

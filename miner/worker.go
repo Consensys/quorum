@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -93,9 +94,10 @@ type environment struct {
 	txs      []*types.Transaction
 	receipts []*types.Receipt
 
-	privateReceipts []*types.Receipt
-	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateState *state.StateDB
+	// Quorum
+	privateReceipts  []*types.Receipt
+	privateStateRepo mps.PrivateStateRepository
+	// End Quorum
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -105,9 +107,10 @@ type task struct {
 	block     *types.Block
 	createdAt time.Time
 
-	privateReceipts []*types.Receipt
-	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateState *state.StateDB
+	// Quorum
+	privateReceipts  []*types.Receipt
+	privateStateRepo mps.PrivateStateRepository
+	// End Quorum
 }
 
 const (
@@ -276,14 +279,19 @@ func (w *worker) enablePreseal() {
 }
 
 // pending returns the pending state and corresponding block.
-func (w *worker) pending() (*types.Block, *state.StateDB, *state.StateDB) {
+func (w *worker) pending(psi types.PrivateStateIdentifier) (*types.Block, *state.StateDB, *state.StateDB) {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
 	if w.snapshotState == nil {
 		return nil, nil, nil
 	}
-	return w.snapshotBlock, w.snapshotState.Copy(), w.current.privateState.Copy()
+	privateState, err := w.current.privateStateRepo.StatePSI(psi)
+	if err != nil {
+		log.Error("Unable to retrieve private state", "psi", psi, "err", err)
+		return nil, nil, nil
+	}
+	return w.snapshotBlock, w.snapshotState.Copy(), privateState.Copy()
 }
 
 // pendingBlock returns pending block.
@@ -650,12 +658,26 @@ func (w *worker) resultLoop() {
 					log.BlockHash = hash
 				}
 				logs = append(logs, receipt.Logs...)
+
+				for _, psReceipt := range receipt.PSReceipts {
+					// add block location fields
+					psReceipt.BlockHash = hash
+					psReceipt.BlockNumber = block.Number()
+					psReceipt.TransactionIndex = uint(i + offset)
+
+					// Update the block hash in all logs since it is now available and not when the
+					// receipt/log of individual transactions were created.
+					for _, log := range psReceipt.Logs {
+						log.BlockHash = hash
+					}
+					logs = append(logs, psReceipt.Logs...)
+				}
 			}
 
-			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
+			allReceipts := task.privateStateRepo.MergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateState, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateStateRepo, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -679,41 +701,20 @@ func (w *worker) resultLoop() {
 	}
 }
 
-// Given a slice of public receipts and an overlapping (smaller) slice of
-// private receipts, return a new slice where the default for each location is
-// the public receipt but we take the private receipt in each place we have
-// one.
-func mergeReceipts(pub, priv types.Receipts) types.Receipts {
-	m := make(map[common.Hash]*types.Receipt)
-	for _, receipt := range pub {
-		m[receipt.TxHash] = receipt
-	}
-	for _, receipt := range priv {
-		m[receipt.TxHash] = receipt
-	}
-
-	ret := make(types.Receipts, 0, len(pub))
-	for _, pubReceipt := range pub {
-		ret = append(ret, m[pubReceipt.TxHash])
-	}
-
-	return ret
-}
-
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, privateState, err := w.chain.StateAt(parent.Root())
+	publicState, privateStateRepo, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	env := &environment{
-		signer:       types.MakeSigner(w.chainConfig, header.Number),
-		state:        publicState,
-		ancestors:    mapset.NewSet(),
-		family:       mapset.NewSet(),
-		uncles:       mapset.NewSet(),
-		header:       header,
-		privateState: privateState,
+		signer:           types.MakeSigner(w.chainConfig, header.Number),
+		state:            publicState,
+		ancestors:        mapset.NewSet(),
+		family:           mapset.NewSet(),
+		uncles:           mapset.NewSet(),
+		header:           header,
+		privateStateRepo: privateStateRepo,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -785,25 +786,46 @@ func (w *worker) updateSnapshot() {
 }
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
-	snap := w.current.state.Snapshot()
-	privateSnap := w.current.privateState.Snapshot()
-
+	workerEnv := w.current
+	publicStateDB := workerEnv.state
+	snap := publicStateDB.Snapshot()
+	privateStateRepo := workerEnv.privateStateRepo
 	txnStart := time.Now()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+
+	mpsReceipt, privateStateSnaphots, err := w.handleMPS(tx, coinbase)
 	if err != nil {
-		w.current.state.RevertToSnapshot(snap)
-		w.current.privateState.RevertToSnapshot(privateSnap)
+		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
 	}
-	w.current.txs = append(w.current.txs, tx)
-	w.current.receipts = append(w.current.receipts, receipt)
+	privateStateDB, err := privateStateRepo.DefaultState()
+	if err != nil {
+		w.revertToPrivateStateSnapshots(privateStateSnaphots)
+		return nil, err
+	}
+	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
+	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
+	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS())
+	if err != nil {
+		publicStateDB.RevertToSnapshot(snap)
+		w.revertToPrivateStateSnapshots(privateStateSnaphots)
+		return nil, err
+	}
+	workerEnv.txs = append(workerEnv.txs, tx)
+	workerEnv.receipts = append(workerEnv.receipts, receipt)
 	log.EmitCheckpoint(log.TxCompleted, "tx", tx.Hash().Hex(), "time", time.Since(txnStart))
 
 	logs := receipt.Logs
+
 	if privateReceipt != nil {
-		logs = append(receipt.Logs, privateReceipt.Logs...)
-		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(logs, w.current.privateState)
+		logs = append(logs, privateReceipt.Logs...)
+		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
+		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+		// handling the auxiliary receipt from MPS execution
+		if mpsReceipt != nil {
+			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
+			logs = append(logs, mpsReceipt.Logs...)
+		}
 	}
 	return logs, nil
 }
@@ -865,9 +887,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			continue
 		}
 		// Start executing the transaction
-		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-		w.current.privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-
 		logs, err := w.commitTransaction(tx, coinbase)
 		switch err {
 		case core.ErrGasLimitReached:
@@ -1062,7 +1081,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	privateReceipts := copyReceipts(w.current.privateReceipts) // Quorum
 
 	s := w.current.state.Copy()
-	ps := w.current.privateState.Copy() // Quorum
+	psrCopy := w.current.privateStateRepo.Copy()
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err
@@ -1072,7 +1091,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateState: ps, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateStateRepo: psrCopy, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,
@@ -1114,4 +1133,51 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
 	}
 	return new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
+}
+
+// Quorum
+//
+// revertToPrivateStateSnapshots attempts to revert all private states to the provided snapshots
+func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateIdentifier]int) {
+	for psi, snapshot := range snapshots {
+		privateState, err := w.current.privateStateRepo.StatePSI(psi)
+		if err == nil {
+			privateState.RevertToSnapshot(snapshot)
+		} else {
+			log.Warn("unable to revert to snapshot", "psi", psi, "snapshot", snapshot, "err", err)
+		}
+	}
+}
+
+// Quorum
+//
+// handling MPS scenario for a private transaction. It also captures the snapshot
+// before applying the transaction
+//
+// handleMPS returns the auxiliary receipt and the non-nil snapshots.
+//
+// Caller must check for error and reverts private states.
+func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
+	workerEnv := w.current
+	privateStateRepo := workerEnv.privateStateRepo
+	// make sure we don't return NIL map
+	privateStateSnaphots = make(map[types.PrivateStateIdentifier]int)
+	if tx.IsPrivate() && privateStateRepo.IsMPS() {
+		publicStateDBFactory := func() *state.StateDB {
+			db := workerEnv.state.Copy()
+			db.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
+			return db
+		}
+		privateStateDBFactory := func(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+			db, err := privateStateRepo.StatePSI(psi)
+			if err != nil {
+				return nil, err
+			}
+			db.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
+			privateStateSnaphots[psi] = db.Snapshot()
+			return db, nil
+		}
+		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig())
+	}
+	return
 }

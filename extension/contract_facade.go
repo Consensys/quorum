@@ -16,6 +16,7 @@ type ManagementContractFacade interface {
 	Deploy(args *bind.TransactOpts, toExtend common.Address, recipientAddress common.Address, recipientHash string) (*types.Transaction, error)
 
 	GetAllVoters(addressToVoteOn common.Address) ([]common.Address, error)
+	Close()
 }
 
 type EthclientManagementContractFacade struct {
@@ -58,4 +59,8 @@ func (facade EthclientManagementContractFacade) GetAllVoters(addressToVoteOn com
 		voters = append(voters, voter)
 	}
 	return voters, nil
+}
+
+func (facade EthclientManagementContractFacade) Close() {
+	facade.client.Close()
 }

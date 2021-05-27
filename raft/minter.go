@@ -268,15 +268,19 @@ func (minter *minter) createWork() *work {
 		Time:       uint64(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAt(parent.Root())
+	publicState, privateStateManager, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
+	}
+	defaultPrivateState, err := privateStateManager.DefaultState()
+	if err != nil {
+		panic(fmt.Sprint("failed to get default private state: ", err))
 	}
 
 	return &work{
 		config:       minter.config,
 		publicState:  publicState,
-		privateState: privateState,
+		privateState: defaultPrivateState,
 		header:       header,
 	}
 }
@@ -301,7 +305,7 @@ func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 	}
 
 	go func() {
-		minter.mux.Post(core.PendingLogsEvent{Logs: copiedLogs})
+		minter.eth.pendingLogsFeed.Send(copiedLogs)
 		minter.mux.Post(core.PendingStateEvent{})
 	}()
 }
@@ -409,7 +413,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	var author *common.Address
 	var vmConf vm.Config
 	txnStart := time.Now()
-	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf)
+	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, true)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)

@@ -330,9 +330,16 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 		return &hexutil.Bytes{}, err
 	}
 	if tx.IsPrivate() {
-		_, _, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return &hexutil.Bytes{}, err
+		}
+		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		if err != nil || tx == nil {
 			return &hexutil.Bytes{}, err
+		}
+		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
+			return &hexutil.Bytes{}, nil
 		}
 		ret := hexutil.Bytes(privateInputData)
 		return &ret, nil
@@ -770,7 +777,11 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 		hash = header.Hash()
 	}
 	// Construct the range filter
-	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics)
+	psm, err := b.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, psm.ID)
 
 	// Run the filter and return all the logs
 	return runFilter(ctx, b.backend, filter)
@@ -1020,7 +1031,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", nil, true)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", true)
 	return hash, err
 }
 
@@ -1063,7 +1074,11 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 	// Construct the range filter
-	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics)
+	psm, err := r.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, psm.ID)
 	return runFilter(ctx, r.backend, filter)
 }
 

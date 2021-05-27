@@ -52,6 +52,8 @@ type httpConn struct {
 	// Quorum
 	// To return value being populated in Authorization request header
 	credentialsProvider HttpCredentialsProviderFunc
+	// psiProvider returns a value being populated in HttpPrivateStateIdentifierHeader
+	psiProvider PSIProviderFunc
 }
 
 // httpConn is treated specially by Client.
@@ -76,11 +78,11 @@ func (hc *httpConn) closed() <-chan interface{} {
 	return hc.closeCh
 }
 
-func (hc *httpConn) Configure(_ securityContext) {
+func (hc *httpConn) Configure(_ SecurityContext) {
 	// Client doesn't need to implement this
 }
 
-func (hc *httpConn) Resolve() securityContext {
+func (hc *httpConn) Resolve() SecurityContext {
 	// Client doesn't need to implement this
 	return context.Background()
 }
@@ -126,10 +128,11 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 
-	initctx := context.Background()
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)
 	headers.Set("content-type", contentType)
+	initctx := resolvePSIProvider(context.Background(), endpoint)
+
 	return newClient(initctx, func(context.Context) (ServerCodec, error) {
 		hc := &httpConn{
 			client:  client,
@@ -213,6 +216,13 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 			log.Warn("unable to obtain http credentials from provider", "err", err)
 		} else {
 			req.Header.Set(HttpAuthorizationHeader, token)
+		}
+	}
+	if hc.psiProvider != nil {
+		if psi, err := hc.psiProvider(ctx); err != nil {
+			log.Warn("unable to obtain PSI from provider", "err", err)
+		} else {
+			req.Header.Set(HttpPrivateStateIdentifierHeader, psi.String())
 		}
 	}
 	// End Quorum

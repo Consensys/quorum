@@ -192,6 +192,7 @@ type Config struct {
 	Plugins                *plugin.Settings `toml:",omitempty"`
 	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
 	EnableNodePermission bool `toml:",omitempty"`
+	EnableMultitenancy   bool `toml:",omitempty"` // comes from MultitenancyFlag flag
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into

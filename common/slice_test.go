@@ -24,9 +24,10 @@ import (
 
 func TestContainsAll_whenTypical(t *testing.T) {
 	source := []string{"1", "2"}
-	target := []string{"1", "2"}
+	target1 := []string{"3"}
+	target2 := []string{"1", "2"}
 
-	assert.True(t, ContainsAll(source, target))
+	assert.True(t, ContainsAll(source, target1, target2))
 }
 
 func TestContainsAll_whenNot(t *testing.T) {

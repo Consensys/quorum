@@ -52,14 +52,14 @@ type DataError interface {
 // multiple go-routines concurrently.
 // Quorum:
 //   As ServerCodec is used in both client and server implementation, we extend it with the interfaces
-//   securityContextConfigurer & securityContextResolver to hold authorization-related information
+//   securityContextConfigurer & SecurityContextResolver to hold authorization-related information
 //   which is then used by rpc/handler to enforce the security
 type ServerCodec interface {
 	readBatch() (msgs []*jsonrpcMessage, isBatch bool, err error)
 	close()
 	jsonWriter
 	securityContextConfigurer
-	securityContextResolver
+	SecurityContextResolver
 }
 
 // jsonWriter can write JSON messages to its underlying connection.

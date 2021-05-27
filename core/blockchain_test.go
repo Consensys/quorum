@@ -148,7 +148,11 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, statedb, vm.Config{})
+		privateStateRepo, repoErr := blockchain.PrivateStateManager().StateRepository(block.ParentHash())
+		if repoErr != nil {
+			return repoErr
+		}
+		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
@@ -2867,7 +2871,7 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 	diskdb := rawdb.NewMemoryDatabase()
 	gspec.MustCommit(diskdb)
 	chain, err := NewBlockChain(diskdb, nil, params.TestChainConfig, engine, vm.Config{
-		//Debug:  true,
+		//Debug: true,
 		//Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
