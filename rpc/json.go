@@ -174,7 +174,7 @@ type jsonCodec struct {
 
 	// Quorum
 	// holding the security context for underlying connection
-	secCtx securityContext
+	secCtx SecurityContext
 }
 
 // NewFuncCodec creates a codec which uses the given functions to read and write. If conn
@@ -242,11 +242,11 @@ func (c *jsonCodec) closed() <-chan interface{} {
 	return c.closeCh
 }
 
-func (c *jsonCodec) Configure(secCtx securityContext) {
+func (c *jsonCodec) Configure(secCtx SecurityContext) {
 	c.secCtx = secCtx
 }
 
-func (c *jsonCodec) Resolve() securityContext {
+func (c *jsonCodec) Resolve() SecurityContext {
 	return c.secCtx
 }
 

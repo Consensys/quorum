@@ -599,6 +599,11 @@ web3._extend({
 			params: 1,
 			inputFormatter: [null]
 		}),
+		new web3._extend.Method({
+			name: 'getPSI',
+			call: 'eth_getPSI',
+			params: 0
+		}),
 		// END-QUORUM
 	],
 	properties: [
