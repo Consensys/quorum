@@ -74,6 +74,10 @@ type Receipt struct {
 	//
 	// This nested structure would not have more than 2 levels.
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
+
+	// TODO ricardolyn: do not include this as part of the receipt hash in the tried saved in the block
+	RevertReason string `json:"revertReason,omitempty"`
+	// End Quorum
 }
 
 type receiptMarshaling struct {
@@ -93,6 +97,8 @@ type receiptRLP struct {
 	Logs              []*Log
 }
 
+// Quorum
+
 // storedMPSReceiptRLP is the storage encoding of a receipt which contains
 // receipts per PSI
 type storedMPSReceiptRLP struct {
@@ -106,12 +112,14 @@ type storedPSIToReceiptMapEntry struct {
 	Key   PrivateStateIdentifier
 	Value storedReceiptRLP
 }
+// End Quorum
 
 // storedReceiptRLP is the storage encoding of a receipt.
 type storedReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
+	RevertReason	  string
 }
 
 // v4StoredReceiptRLP is the storage encoding of a receipt used in database version 4.
@@ -211,6 +219,7 @@ type ReceiptForStorage Receipt
 // Quorum:
 // - added logic to support multiple private state
 // - original EncodeRLP is now encodeRLPOrig
+//TODO ricardolyn
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	if r.PSReceipts == nil {
 		return r.encodeRLPOrig(w)
@@ -246,6 +255,7 @@ func (r *ReceiptForStorage) encodeRLPOrig(w io.Writer) error {
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
 		CumulativeGasUsed: r.CumulativeGasUsed,
 		Logs:              make([]*LogForStorage, len(r.Logs)),
+		RevertReason: (*Receipt)(r).RevertReason,
 	}
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
@@ -322,6 +332,7 @@ func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	}
 	r.CumulativeGasUsed = stored.CumulativeGasUsed
 	r.Logs = make([]*Log, len(stored.Logs))
+	r.RevertReason = stored.RevertReason
 	for i, log := range stored.Logs {
 		r.Logs[i] = (*Log)(log)
 	}

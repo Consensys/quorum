@@ -286,6 +286,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
+	// Quorum
 	var privateReceipt *types.Receipt
 	if config.IsQuorum && tx.IsPrivate() {
 		var privateRoot []byte
@@ -304,6 +305,23 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
+
+	// TODO ricardolyn ApplyTransaction #1: save revert reason into the receipt for private?
+	revertReasonBytes := result.Revert()
+	log.Error("ricardolyn ApplyTransaction #1", "revertReasonBytes", revertReasonBytes)
+	log.Error("ricardolyn ApplyTransaction #2", "result.Err", result.Err)
+	if revertReasonBytes != nil {
+		revertReason := hexutil.Encode(revertReasonBytes)
+		log.Error("ricardolyn ApplyTransaction #3", "revertReasonBytes", revertReason)
+		if publicFailed {
+			receipt.RevertReason = revertReason
+			log.Error("ricardolyn ApplyTransaction #4", "publicFailed", publicFailed)
+		} else {
+			log.Error("ricardolyn ApplyTransaction #5", "publicFailed", publicFailed)
+			privateReceipt.RevertReason = revertReason
+		}
+	}
+	// End Quorum
 
 	return receipt, privateReceipt, err
 }
