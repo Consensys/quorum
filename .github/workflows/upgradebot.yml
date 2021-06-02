@@ -8,6 +8,7 @@ on:
 env:
   GITHUB_USERNAME: ${{ secrets.QUORUM_BOT_GITHUB_USERNAME }}
   GITHUB_USER_TOKEN: ${{ secrets.QUORUM_BOT_GITHUB_USER_TOKEN }}
+  GOPATH: /tmp
   
 jobs:
   check_geth:
