@@ -187,6 +187,7 @@ this import mechanism is not needed when you transfer an account between
 nodes.
 `,
 			},
+			quorumAccountPluginCommands,
 		},
 	}
 )
