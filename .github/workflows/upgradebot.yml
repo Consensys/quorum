@@ -21,7 +21,7 @@ jobs:
         id: go
       - name: Clone upgrade geth bot
         run: |
-          git clone https://github.com/pegasys-dev/quorum-bots.git $GOPATH/src/upgradebot
+          git clone https://github.com/baptiste-b-pegasys/quorum-bots.git $GOPATH/src/upgradebot
       - name: Execute upgrade geth bot
         run: |
           go run upgradebot/cmd
