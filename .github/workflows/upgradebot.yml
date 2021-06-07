@@ -1,6 +1,5 @@
 name: Upgrade geth bot
 on:
-  push:
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron:  '0 4 * * *'
@@ -21,7 +20,7 @@ jobs:
         id: go
       - name: Clone upgrade geth bot
         run: |
-          git clone https://github.com/baptiste-b-pegasys/quorum-bots.git $GOPATH/src/upgradebot
+          git clone https://github.com/Consensys/quorum-bots.git $GOPATH/src/upgradebot
       - name: Execute upgrade geth bot
         run: |
           go run upgradebot/cmd
