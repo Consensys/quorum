@@ -1,4 +1,4 @@
-name: Upgrade geth bot
+name: Run Geth Upgrade
 on:
   workflow_dispatch:
   schedule:
