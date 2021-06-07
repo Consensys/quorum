@@ -3,7 +3,7 @@ on:
   push:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '0 6,12 * * *'
+    - cron:  '0 4 * * *'
 
 env:
   GITHUB_USERNAME: ${{ secrets.QUORUM_BOT_GITHUB_USERNAME }}
