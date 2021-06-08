@@ -39,9 +39,7 @@ func (c *core) Stop() error {
 	c.stopTimer()
 	c.unsubscribeEvents()
 
-	// Not waiting for handlerWg to stop, as it was blocking legacy IBFT consensus to stop
-	// and new events will be handled by qibft consensus
-	// c.handlerWg.Wait()
+	c.handlerWg.Wait()
 	return nil
 }
 
