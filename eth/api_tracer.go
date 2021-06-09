@@ -830,6 +830,26 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, args ethapi.CallArgs,
 	msg := args.ToMessage(api.eth.APIBackend.RPCGasCap())
 	vmctx := core.NewEVMContext(msg, header, api.eth.blockchain, nil)
 
+	// Quorum: we run the call with privateState as publicState to check if we have a result, if it is not empty, then it is a private call
+	var noTracerConfig *TraceConfig
+	if config != nil {
+		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
+		noTracerConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
+			Reexec:    config.Reexec,
+			Timeout:   config.Timeout,
+		}
+	}
+	res, err := api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
+	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                      // check there is a result
+		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
+			return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
+		}
+		return res, err // return private result with no tracer
+	} else if err == nil && !ok {
+		return nil, fmt.Errorf("can not cast traceTx result to *ethapi.ExecutionResult: %#v, %#v", res, err) // better error formatting than "method handler failed"
+	}
+	// / Quorum
 	return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
 }
 
