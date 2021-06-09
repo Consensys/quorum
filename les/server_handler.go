@@ -481,7 +481,8 @@ func (h *serverHandler) handleMsg(p *clientPeer, wg *sync.WaitGroup) error {
 						p.bumpInvalid()
 						continue
 					}
-					triedb := h.blockchain.StateCache().TrieDB()
+					statedb := h.blockchain.StateCache()
+					triedb := statedb.TrieDB()
 
 					account, err := h.getAccount(triedb, header.Root, common.BytesToHash(request.AccKey))
 					if err != nil {
@@ -489,7 +490,7 @@ func (h *serverHandler) handleMsg(p *clientPeer, wg *sync.WaitGroup) error {
 						p.bumpInvalid()
 						continue
 					}
-					code, err := h.blockchain.StateCache().ContractCode(common.BytesToHash(request.AccKey), common.BytesToHash(account.CodeHash))
+					code, err := statedb.ContractCode(common.BytesToHash(request.AccKey), common.BytesToHash(account.CodeHash))
 					if err != nil {
 						p.Log().Warn("Failed to retrieve account code", "block", header.Number, "hash", header.Hash(), "account", common.BytesToHash(request.AccKey), "codehash", common.BytesToHash(account.CodeHash), "err", err)
 						continue
