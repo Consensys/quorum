@@ -55,6 +55,12 @@ type Database interface {
 
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
+
+	// Quorum
+	//
+	// accountExtraDataLinker maintains mapping between root hash of the state trie
+	// and root hash of state.AccountExtraData trie.
+	AccountExtraDataLinker() rawdb.AccountExtraDataLinker
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
@@ -115,9 +121,10 @@ func NewDatabase(db ethdb.Database) Database {
 func NewDatabaseWithCache(db ethdb.Database, cache int, journal string) Database {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &cachingDB{
-		db:            trie.NewDatabaseWithCache(db, cache, journal),
-		codeSizeCache: csc,
-		codeCache:     fastcache.New(codeCacheSize),
+		db:                     trie.NewDatabaseWithCache(db, cache, journal),
+		codeSizeCache:          csc,
+		codeCache:              fastcache.New(codeCacheSize),
+		accountExtraDataLinker: rawdb.NewAccountExtraDataLinker(db), // Quorum
 	}
 }
 
@@ -125,6 +132,16 @@ type cachingDB struct {
 	db            *trie.Database
 	codeSizeCache *lru.Cache
 	codeCache     *fastcache.Cache
+
+	// Quorum
+	//
+	// accountExtraDataLinker maintains mapping between state root and state.AccountExtraData root.
+	// As this struct is the backing store for state, this gives the reference to the linker when needed.
+	accountExtraDataLinker rawdb.AccountExtraDataLinker
+}
+
+func (db *cachingDB) AccountExtraDataLinker() rawdb.AccountExtraDataLinker {
+	return db.accountExtraDataLinker
 }
 
 // OpenTrie opens the main account trie at a specific root hash.

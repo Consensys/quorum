@@ -196,6 +196,10 @@ type NoRewardEngine struct {
 	rewardsOn bool
 }
 
+func (sb *NoRewardEngine) Protocol() consensus.Protocol {
+	return consensus.NorewardsProtocol
+}
+
 func (e *NoRewardEngine) Author(header *types.Header) (common.Address, error) {
 	return e.inner.Author(header)
 }
@@ -493,7 +497,7 @@ func (api *RetestethAPI) mineBlock() error {
 			}
 		}
 	}
-	statedb, err := api.blockchain.StateAt(parent.Root())
+	statedb, pvtstdb, err := api.blockchain.StateAtPSI(parent.Root(), types.DefaultPrivateStateIdentifier)
 	if err != nil {
 		return err
 	}
@@ -516,13 +520,14 @@ func (api *RetestethAPI) mineBlock() error {
 				statedb.Prepare(tx.Hash(), common.Hash{}, txCount)
 				snap := statedb.Snapshot()
 
-				receipt, err := core.ApplyTransaction(
+				receipt, _, err := core.ApplyTransaction(
 					api.chainConfig,
 					api.blockchain,
 					&api.author,
 					gasPool,
-					statedb,
+					statedb, pvtstdb,
 					header, tx, &header.GasUsed, *api.blockchain.GetVMConfig(),
+					false,
 				)
 				if err != nil {
 					statedb.RevertToSnapshot(snap)
@@ -660,13 +665,14 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, err = api.blockchain.StateAt(root)
+		statedb, _, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
 	} else {
+		var pvtst *state.StateDB
 		root = parentHeader.Root
-		statedb, err = api.blockchain.StateAt(root)
+		statedb, pvtst, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
@@ -677,7 +683,7 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 			msg, _ := tx.AsMessage(signer)
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
-			vmenv := vm.NewEVM(context, statedb, api.blockchain.Config(), vm.Config{})
+			vmenv := vm.NewEVM(context, statedb, pvtst, api.blockchain.Config(), vm.Config{})
 			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return AccountRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
@@ -717,7 +723,7 @@ func (api *RetestethAPI) AccountRange(ctx context.Context,
 func (api *RetestethAPI) GetBalance(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (*math.HexOrDecimal256, error) {
 	//fmt.Printf("GetBalance %x, block %d\n", address, blockNr)
 	header := api.blockchain.GetHeaderByNumber(uint64(blockNr))
-	statedb, err := api.blockchain.StateAt(header.Root)
+	statedb, _, err := api.blockchain.StateAt(header.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -726,7 +732,7 @@ func (api *RetestethAPI) GetBalance(ctx context.Context, address common.Address,
 
 func (api *RetestethAPI) GetCode(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (hexutil.Bytes, error) {
 	header := api.blockchain.GetHeaderByNumber(uint64(blockNr))
-	statedb, err := api.blockchain.StateAt(header.Root)
+	statedb, _, err := api.blockchain.StateAt(header.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -735,7 +741,7 @@ func (api *RetestethAPI) GetCode(ctx context.Context, address common.Address, bl
 
 func (api *RetestethAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNr math.HexOrDecimal64) (uint64, error) {
 	header := api.blockchain.GetHeaderByNumber(uint64(blockNr))
-	statedb, err := api.blockchain.StateAt(header.Root)
+	statedb, _, err := api.blockchain.StateAt(header.Root)
 	if err != nil {
 		return 0, err
 	}
@@ -770,13 +776,14 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 	var err error
 	if parentHeader == nil || int(txIndex) >= len(block.Transactions()) {
 		root = header.Root
-		statedb, err = api.blockchain.StateAt(root)
+		statedb, _, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return StorageRangeResult{}, err
 		}
 	} else {
+		var pvtstdb *state.StateDB
 		root = parentHeader.Root
-		statedb, err = api.blockchain.StateAt(root)
+		statedb, pvtstdb, err = api.blockchain.StateAtPSI(root, types.DefaultPrivateStateIdentifier)
 		if err != nil {
 			return StorageRangeResult{}, err
 		}
@@ -787,7 +794,7 @@ func (api *RetestethAPI) StorageRangeAt(ctx context.Context,
 			msg, _ := tx.AsMessage(signer)
 			context := core.NewEVMContext(msg, block.Header(), api.blockchain, nil)
 			// Not yet the searched for transaction, execute on top of the current state
-			vmenv := vm.NewEVM(context, statedb, api.blockchain.Config(), vm.Config{})
+			vmenv := vm.NewEVM(context, statedb, pvtstdb, api.blockchain.Config(), vm.Config{})
 			if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				return StorageRangeResult{}, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 			}
@@ -905,7 +912,7 @@ func retesteth(ctx *cli.Context) error {
 		IdleTimeout:  120 * time.Second,
 	}
 	httpEndpoint := fmt.Sprintf("%s:%d", ctx.GlobalString(utils.HTTPListenAddrFlag.Name), ctx.Int(rpcPortFlag.Name))
-	httpServer, _, err := node.StartHTTPEndpoint(httpEndpoint, RetestethHTTPTimeouts, handler)
+	httpServer, _, _, err := node.StartHTTPEndpoint(httpEndpoint, RetestethHTTPTimeouts, handler, nil)
 	if err != nil {
 		utils.Fatalf("Could not start RPC api: %v", err)
 	}

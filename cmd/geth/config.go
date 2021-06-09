@@ -24,15 +24,18 @@ import (
 	"reflect"
 	"unicode"
 
-	cli "gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/naoina/toml"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -106,6 +109,12 @@ func defaultNodeConfig() node.Config {
 
 // makeConfigNode loads geth configuration and creates a blank node instance.
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
+	// Quorum: Must occur before setQuorumConfig, as it needs an initialised PTM to be enabled
+	// 		   Extension Service and Multitenancy feature validation also depend on PTM availability
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	}
+
 	// Load defaults.
 	cfg := gethConfig{
 		Eth:  eth.DefaultConfig,
@@ -147,7 +156,28 @@ func checkWhisper(ctx *cli.Context) {
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 
-	backend := utils.RegisterEthService(stack, &cfg.Eth)
+	// Quorum - returning `ethService` too for the Raft and extension service
+	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Quorum
+	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
+	// fails to start
+	if cfg.Node.Plugins != nil {
+		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
+	}
+
+	if cfg.Node.IsPermissionEnabled() {
+		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name))
+	}
+
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
+	}
+
+	if private.IsQuorumPrivacyEnabled() {
+		utils.RegisterExtensionService(stack, ethService)
+	}
+	// End Quorum
 
 	checkWhisper(ctx)
 	// Configure GraphQL if requested
@@ -188,4 +218,105 @@ func dumpConfig(ctx *cli.Context) error {
 	dump.Write(out)
 
 	return nil
+}
+
+// quorumValidateEthService checks quorum features that depend on the ethereum service
+func quorumValidateEthService(stack *node.Node, isRaft bool) {
+	var ethereum *eth.Ethereum
+
+	err := stack.Lifecycle(&ethereum)
+	if err != nil {
+		utils.Fatalf("Error retrieving Ethereum service: %v", err)
+	}
+
+	quorumValidateConsensus(ethereum, isRaft)
+
+	quorumValidatePrivacyEnhancements(ethereum)
+}
+
+// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
+func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
+	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().Clique == nil {
+		utils.Fatalf("Consensus not specified. Exiting!!")
+	}
+}
+
+// quorumValidatePrivacyEnhancements checks if privacy enhancements are configured the transaction manager supports
+// the PrivacyEnhancements feature
+func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
+	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
+	if privacyEnhancementsBlock != nil {
+		log.Info("Privacy enhancements is configured to be enabled from block ", "height", privacyEnhancementsBlock)
+		if !private.P.HasFeature(engine.PrivacyEnhancements) {
+			utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
+		}
+	}
+}
+
+// configure and set up quorum transaction privacy
+func quorumInitialisePrivacy(ctx *cli.Context) error {
+	cfg, err := QuorumSetupPrivacyConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = private.InitialiseConnection(cfg)
+	if err != nil {
+		return err
+	}
+	privacyExtension.Init()
+
+	return nil
+}
+
+// Get private transaction manager configuration
+func QuorumSetupPrivacyConfiguration(ctx *cli.Context) (http.Config, error) {
+	// get default configuration
+	cfg, err := private.GetLegacyEnvironmentConfig()
+	if err != nil {
+		return http.Config{}, err
+	}
+
+	// override the config with command line parameters
+	if ctx.GlobalIsSet(utils.QuorumPTMUnixSocketFlag.Name) {
+		cfg.SetSocket(ctx.GlobalString(utils.QuorumPTMUnixSocketFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMUrlFlag.Name) {
+		cfg.SetHttpUrl(ctx.GlobalString(utils.QuorumPTMUrlFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTimeoutFlag.Name) {
+		cfg.SetTimeout(ctx.GlobalUint(utils.QuorumPTMTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMDialTimeoutFlag.Name) {
+		cfg.SetDialTimeout(ctx.GlobalUint(utils.QuorumPTMDialTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpIdleTimeoutFlag.Name) {
+		cfg.SetHttpIdleConnTimeout(ctx.GlobalUint(utils.QuorumPTMHttpIdleTimeoutFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpWriteBufferSizeFlag.Name) {
+		cfg.SetHttpWriteBufferSize(ctx.GlobalInt(utils.QuorumPTMHttpWriteBufferSizeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMHttpReadBufferSizeFlag.Name) {
+		cfg.SetHttpReadBufferSize(ctx.GlobalInt(utils.QuorumPTMHttpReadBufferSizeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsModeFlag.Name) {
+		cfg.SetTlsMode(ctx.GlobalString(utils.QuorumPTMTlsModeFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsRootCaFlag.Name) {
+		cfg.SetTlsRootCA(ctx.GlobalString(utils.QuorumPTMTlsRootCaFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsClientCertFlag.Name) {
+		cfg.SetTlsClientCert(ctx.GlobalString(utils.QuorumPTMTlsClientCertFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsClientKeyFlag.Name) {
+		cfg.SetTlsClientKey(ctx.GlobalString(utils.QuorumPTMTlsClientKeyFlag.Name))
+	}
+	if ctx.GlobalIsSet(utils.QuorumPTMTlsInsecureSkipVerify.Name) {
+		cfg.SetTlsInsecureSkipVerify(ctx.Bool(utils.QuorumPTMTlsInsecureSkipVerify.Name))
+	}
+
+	if err = cfg.Validate(); err != nil {
+		return cfg, err
+	}
+	return cfg, nil
 }
