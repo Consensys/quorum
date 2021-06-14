@@ -73,6 +73,10 @@ type Config struct {
 	// in memory.
 	DataDir string
 
+	// RaftLogDir is the file system folder the node use for raft-state, raft-snap and
+	// raft-wal folders.
+	RaftLogDir string
+
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
 

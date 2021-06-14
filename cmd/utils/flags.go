@@ -121,6 +121,11 @@ var (
 		Usage: "Data directory for the databases and keystore",
 		Value: DirectoryString(node.DefaultDataDir()),
 	}
+	RaftLogDirFlag = DirectoryFlag{
+		Name:  "raftlogdir",
+		Usage: "Raft log directory for the raft-state, raft-snap and raft-wal folders",
+		Value: DirectoryString(node.DefaultDataDir()),
+	}
 	AncientFlag = DirectoryFlag{
 		Name:  "datadir.ancient",
 		Usage: "Data directory for ancient chain segments (default = inside chaindata)",
@@ -1386,6 +1391,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
 	setDataDir(ctx, cfg)
+	setRaftLogDir(ctx, cfg)
 	setSmartCard(ctx, cfg)
 
 	if ctx.GlobalIsSet(ExternalSignerFlag.Name) {
@@ -1459,6 +1465,14 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	}
 	if err := SetPlugins(ctx, cfg); err != nil {
 		Fatalf(err.Error())
+	}
+}
+
+func setRaftLogDir(ctx *cli.Context, cfg *node.Config) {
+	if ctx.GlobalIsSet(RaftLogDirFlag.Name) {
+		cfg.RaftLogDir = ctx.GlobalString(RaftLogDirFlag.Name)
+	} else {
+		cfg.RaftLogDir = cfg.DataDir
 	}
 }
 
@@ -2017,7 +2031,7 @@ func RegisterPermissionService(stack *node.Node, useDns bool) {
 
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethService *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
-	datadir := ctx.GlobalString(DataDirFlag.Name)
+	raftLogDir := nodeCfg.RaftLogDir // default value is set either 'datadir' or 'raftlogdir'
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
@@ -2055,7 +2069,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		}
 	}
 
-	_, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, datadir, useDns)
+	_, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, raftLogDir, useDns)
 	if err != nil {
 		Fatalf("raft: Failed to register the Raft service: %v", err)
 	}
