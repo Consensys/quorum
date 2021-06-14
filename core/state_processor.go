@@ -18,6 +18,7 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/mps"
@@ -308,16 +309,11 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// TODO ricardolyn ApplyTransaction #1: save revert reason into the receipt for private?
 	revertReasonBytes := result.Revert()
-	log.Error("ricardolyn ApplyTransaction #1", "revertReasonBytes", revertReasonBytes)
-	log.Error("ricardolyn ApplyTransaction #2", "result.Err", result.Err)
 	if revertReasonBytes != nil {
 		revertReason := hexutil.Encode(revertReasonBytes)
-		log.Error("ricardolyn ApplyTransaction #3", "revertReasonBytes", revertReason)
 		if publicFailed {
 			receipt.RevertReason = revertReason
-			log.Error("ricardolyn ApplyTransaction #4", "publicFailed", publicFailed)
 		} else {
-			log.Error("ricardolyn ApplyTransaction #5", "publicFailed", publicFailed)
 			privateReceipt.RevertReason = revertReason
 		}
 	}
