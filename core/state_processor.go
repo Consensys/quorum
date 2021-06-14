@@ -307,14 +307,15 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
 
-	// TODO ricardolyn ApplyTransaction #1: save revert reason into the receipt for private?
+	// Save revert reason if feature enabled
+	// TODO ricardolyn: check CLI argument
 	revertReasonBytes := result.Revert()
 	if revertReasonBytes != nil {
 		revertReason := hexutil.Encode(revertReasonBytes)
-		if publicFailed {
-			receipt.RevertReason = revertReason
-		} else {
+		if config.IsQuorum && tx.IsPrivate() {
 			privateReceipt.RevertReason = revertReason
+		} else {
+			receipt.RevertReason = revertReason
 		}
 	}
 	// End Quorum

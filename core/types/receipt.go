@@ -502,7 +502,6 @@ func (r Receipts) GetRlp(i int) []byte {
 // Quorum:
 // - Provide additional support for Multiple Private State
 // - Original DeriveFields func is now deriveFieldsOrig
-// TODO ricardolyn
 func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
 	//flatten all the receipts
 
