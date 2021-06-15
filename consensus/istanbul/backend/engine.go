@@ -768,7 +768,7 @@ func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	for i := 0; i < len(headers)/2; i++ {
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
-	snap, err := snap.apply(headers, sb.IsQIBFTConsensusCrossed(), sb.qbftBlockNumber())
+	snap, err := snap.apply(headers, sb.IsQIBFTConsensus(), sb.qbftBlockNumber())
 	if err != nil {
 		return nil, err
 	}

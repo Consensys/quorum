@@ -355,13 +355,19 @@ func (sb *backend) Close() error {
 
 // IsQIBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQIBFTConsensus() bool {
-	return sb.isQIBFTConsensusForGivenBlockDiff(0)
-}
+	// If qibftBlock is not defined in genesis, then use legacy ibft
+	if sb.config.QibftBlock == nil {
+		return false
+	}
 
-// IsQIBFTConsensusCrossed returns whether qbft consensus block has crossed
-// This is useful to see when the snapshot headers should be applied
-func (sb *backend) IsQIBFTConsensusCrossed() bool {
-	return sb.isQIBFTConsensusForGivenBlockDiff(1)
+	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0 {
+		return true
+	}
+
+	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= 0 {
+		return true
+	}
+	return false
 }
 
 // IsQIBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
@@ -375,23 +381,6 @@ func (sb *backend) IsQIBFTConsensusForHeader(header *types.Header) bool {
 	}
 
 	if sb.chain != nil && header.Number.Cmp(sb.config.QibftBlock) >= 0 {
-		return true
-	}
-	return false
-}
-
-// isQIBFTConsensusForGivenBlockDiff returns whether qbft block has crossed by equal or more than the given difference
-func (sb *backend) isQIBFTConsensusForGivenBlockDiff(diff int) bool {
-	// If qibftBlock is not defined in genesis, then use legacy ibft
-	if sb.config.QibftBlock == nil {
-		return false
-	}
-
-	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0 {
-		return true
-	}
-
-	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= diff {
 		return true
 	}
 	return false
