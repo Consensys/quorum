@@ -308,7 +308,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	}
 
 	// Save revert reason if feature enabled
-	if bc.saveRevertReason {
+	if bc != nil && bc.saveRevertReason {
 		revertReasonBytes := result.Revert()
 		if revertReasonBytes != nil {
 			revertReason := hexutil.Encode(revertReasonBytes)
