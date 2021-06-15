@@ -272,7 +272,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	var err error
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, chainConfig.IsMPS); err != nil {
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, cacheConfig, chainConfig.IsMPS); err != nil {
 		return nil, err
 	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)

@@ -91,7 +91,7 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	mpsm := newDefaultPrivateStateManager(blockchain.db)
+	mpsm := newDefaultPrivateStateManager(blockchain.db, defaultCacheConfig)
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, mps.DefaultPrivateStateMetadata)
