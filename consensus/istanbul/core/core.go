@@ -203,7 +203,7 @@ func (c *core) startNewRound(round *big.Int) {
 	if round.Uint64() == 0 && c.backend.IsQIBFTConsensus() {
 		logger.Trace("Starting qibft consensus as qibftBlock has passed")
 		if err := c.backend.StartQIBFTConsensus(); err != nil {
-			// TODO Do we panic or continue and try to start qibft when processing the next sequence
+			// If err is returned, then QIBFT consensus is started for the next block
 			logger.Error("Unable to start QIBFT Consensus, retrying for the next block", "error", err)
 		}
 	}

@@ -1739,10 +1739,8 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
-	//log.Warn("QBFT: CALLING INSERT CHAIN CHAIN CHAIN", "len", len(chain))
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
-		//log.Warn("QBFT: BUT CHAIN IS EMPTY :(")
 		return 0, nil
 	}
 
@@ -1756,7 +1754,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
 		block = chain[i]
-		//log.Warn("QBFT: BLOCK", "#", block.Number())
 		prev = chain[i-1]
 		if block.NumberU64() != prev.NumberU64()+1 || block.ParentHash() != prev.Hash() {
 			// Chain broke ancestry, log a message (programming error) and skip insertion
@@ -1786,8 +1783,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, error) {
-	//log.Warn("QBFT: insertChain INTERNAL")
-
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 		log.Debug("Premature abort during blocks processing")
@@ -1819,16 +1814,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		headers[i] = block.Header()
 		seals[i] = verifySeals
 	}
-	//log.Warn("QBFT: insertChain INTERNAL 1")
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
 	defer close(abort)
-	//log.Warn("QBFT: insertChain INTERNAL 2")
 
 	// Peek the error for the first block to decide the directing import logic
 	it := newInsertIterator(chain, results, bc.validator)
 
 	block, err := it.next()
-	//log.Warn("QBFT: insertChain INTERNAL 3", "err", err)
 
 	// Left-trim all the known blocks
 	if err == ErrKnownBlock {
@@ -1900,7 +1892,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		return it.index, err
 	}
 
-	//log.Warn("QBFT: insertChain INTERNAL 4")
 	// No validation errors for the first block (or chain prefix skipped)
 	for ; block != nil && err == nil || err == ErrKnownBlock; block, err = it.next() {
 		// If the chain is terminating, stop processing blocks
