@@ -99,10 +99,10 @@ var errNoLeaderElected = errors.New("no leader is currently elected")
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool, p2pServer *p2p.Server) (*ProtocolManager, error) {
-	waldir := fmt.Sprintf("%s/raft-wal", datadir)
-	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
-	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, raftLogDir string, minter *minter, downloader *downloader.Downloader, useDns bool, p2pServer *p2p.Server) (*ProtocolManager, error) {
+	waldir := fmt.Sprintf("%s/raft-wal", raftLogDir)
+	snapdir := fmt.Sprintf("%s/raft-snap", raftLogDir)
+	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", raftLogDir)
 
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
