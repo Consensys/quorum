@@ -87,7 +87,6 @@ func (c *core) handlePrepare(prepare *message.Prepare) error {
 		for _, m := range c.current.QBFTPrepares.Values() {
 			c.QBFTPreparedPrepares = append(
 				c.QBFTPreparedPrepares,
-				&prepare.SignedPreparePayload,
 				message.NewSignedPreparePayload(
 					m.View().Sequence, m.View().Round, m.(*message.Prepare).Digest, m.Signature(), m.Source()))
 		}
