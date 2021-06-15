@@ -1564,13 +1564,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	from, _ := types.Sender(signer, tx)
 
-	// Quorum
-	var revertReason *string
-	if receipt.RevertReason != "" {
-		revertReason = &receipt.RevertReason
-	}
-	// End Quorum
-
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
@@ -1583,8 +1576,13 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
-		"revertReason":      revertReason, // Quorum
 	}
+
+	// Quorum
+	if receipt.RevertReason != "" {
+		fields["revertReason"] = receipt.RevertReason
+	}
+	// End Quorum
 
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {

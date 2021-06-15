@@ -308,14 +308,15 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	}
 
 	// Save revert reason if feature enabled
-	// TODO ricardolyn: check CLI argument
-	revertReasonBytes := result.Revert()
-	if revertReasonBytes != nil {
-		revertReason := hexutil.Encode(revertReasonBytes)
-		if config.IsQuorum && tx.IsPrivate() {
-			privateReceipt.RevertReason = revertReason
-		} else {
-			receipt.RevertReason = revertReason
+	if bc.saveRevertReason {
+		revertReasonBytes := result.Revert()
+		if revertReasonBytes != nil {
+			revertReason := hexutil.Encode(revertReasonBytes)
+			if config.IsQuorum && tx.IsPrivate() {
+				privateReceipt.RevertReason = revertReason
+			} else {
+				receipt.RevertReason = revertReason
+			}
 		}
 	}
 	// End Quorum

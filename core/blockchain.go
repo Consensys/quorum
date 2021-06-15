@@ -216,9 +216,12 @@ type BlockChain struct {
 	terminateInsert func(common.Hash, uint64) bool                                   // Testing hook used to terminate ancient receipt chain insertion.
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
+	// Quorum
 	isMultitenant bool // if this blockchain supports multitenancy
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
+	saveRevertReason    bool // if we should save the revert reasons in the Tx Receipts
+	// End Quorum
 }
 
 // function pointer for updating private state
@@ -2665,6 +2668,17 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
 }
 
+// Quorum
 func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	return nil, bc.isMultitenant
+}
+
+// Quorum
+func (bc *BlockChain) SaveRevertReason(enabled bool) {
+	bc.saveRevertReason = enabled
+}
+
+// Quorum
+func (bc *BlockChain) SaveRevertReasonEnabled() bool {
+	return bc.saveRevertReason
 }
