@@ -22,15 +22,17 @@ type Chain struct {
 	chainConfig *params.ChainConfig
 }
 
-func (c *Chain) WriteTo(writer io.Writer) (int64, error) {
+/* unused & causing go vet warning
+func (c *Chain) WriteTo(writer io.Writer) error {
 	for _, block := range c.blocks {
 		if err := rlp.Encode(writer, block); err != nil {
-			return 0, err
+			return err
 		}
 	}
 
-	return 0, nil // TODO(bbo): size
+	return nil
 }
+*/
 
 // Len returns the length of the chain.
 func (c *Chain) Len() int {
