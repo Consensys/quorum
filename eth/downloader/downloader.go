@@ -2079,7 +2079,7 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 	if localHeight == 0 && frozen > 0 {
 		// statedb was removed and is being recovered now
 		// we trust the peer height and sync upto that
-		remoteHeader, err = d.fetchHeight(p)
+		remoteHeader, _, err = d.fetchHead(p) // #21529
 	} else {
 		remoteHeader, err = d.fetchHeader(p, hash)
 	}
@@ -2101,13 +2101,11 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 		d.syncInitHook(localHeight, remoteHeight)
 	}
 
-	pivot := uint64(0)
-
 	fetchers := []func() error{
 		func() error { return d.fetchBoundedHeaders(p, localHeight+1, remoteHeight) },
 		func() error { return d.fetchBodies(localHeight + 1) },
-		func() error { return d.fetchReceipts(localHeight + 1) }, // Receipts are only retrieved during fast sync
-		func() error { return d.processHeaders(localHeight+1, pivot, td) },
+		func() error { return d.fetchReceipts(localHeight + 1) },    // Receipts are only retrieved during fast sync
+		func() error { return d.processHeaders(localHeight+1, td) }, // #21529
 		d.processFullSyncContent, //This must be added to clear the buffer of downloaded content as it's being filled
 	}
 	return d.spawnSync(fetchers)

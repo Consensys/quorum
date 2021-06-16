@@ -38,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/sha3"
 )
 
 type testTransport struct {
@@ -471,7 +470,7 @@ func TestServerSetupConn_whenNotInRaftCluster(t *testing.T) {
 			PrivateKey:  srvkey,
 			NoDiscovery: true,
 		},
-		newTransport: func(fd net.Conn) transport { return newTestTransport(clientpub, fd) },
+		newTransport: func(fd net.Conn, key *ecdsa.PublicKey) transport { return newTestTransport(clientpub, fd, key) },
 		log:          log.New(),
 		checkPeerInRaft: func(node *enode.Node) bool {
 			return false
@@ -511,7 +510,7 @@ func TestServerSetupConn_whenNotPermissioned(t *testing.T) {
 			DataDir:              tmpDir,
 			EnableNodePermission: true,
 		},
-		newTransport: func(fd net.Conn) transport { return newTestTransport(clientpub, fd) },
+		newTransport: func(fd net.Conn, key *ecdsa.PublicKey) transport { return newTestTransport(clientpub, fd, key) },
 		log:          log.New(),
 	}
 	if err := srv.Start(); err != nil {
