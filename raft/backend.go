@@ -39,7 +39,7 @@ type RaftService struct {
 	pendingLogsFeed *event.Feed
 }
 
-func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
+func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, raftLogDir string, useDns bool) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:         stack.EventMux(),
 		chainDb:          e.ChainDb(),
@@ -56,7 +56,7 @@ func New(stack *node.Node, chainConfig *params.ChainConfig, raftId, raftPort uin
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader, useDns, stack.Server()); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, raftLogDir, service.minter, service.downloader, useDns, stack.Server()); err != nil {
 		return nil, err
 	}
 

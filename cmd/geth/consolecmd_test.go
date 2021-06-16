@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 shh:1.0 txpool:1.0 web3:1.0"
+	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
 	httpAPIs = "admin:1.0 eth:1.0 net:1.0 rpc:1.0 web3:1.0"
 	nodeKey  = "b68c0338aa4b266bf38ebe84c6199ae9fac8b29f32998b3ed2fbeafebe8d65c9"
 )
@@ -84,7 +84,7 @@ func TestConsoleWelcome(t *testing.T) {
 	// Start a geth console, make sure it's cleaned up and terminate the console
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh",
+		"--etherbase", coinbase,
 		"console")
 
 	// Gather all the infos the welcome message needs to contain
@@ -128,12 +128,9 @@ func TestIPCAttachWelcome(t *testing.T) {
 	} else {
 		ipc = filepath.Join(datadir, "geth.ipc")
 	}
-
-	// Note: we need --shh because testAttachWelcome checks for default
-	// list of ipc modules and shh is included there.
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh", "--ipcpath", ipc)
+		"--etherbase", coinbase, "--ipcpath", ipc)
 
 	defer func() {
 		geth.Interrupt()
