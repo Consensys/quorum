@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -133,7 +134,7 @@ be gzipped.`,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
-	The import-preimages command imports hash preimages from an RLP encoded stream.`,
+The import-preimages command imports hash preimages from an RLP encoded stream.`,
 	}
 	exportPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportPreimages),
@@ -221,6 +222,24 @@ Use "ethereum dump 0" to dump the genesis block.`,
 	}
 )
 
+// In the regular Genesis / ChainConfig struct, due to the way go deserializes
+// json, IsQuorum defaults to false (when not specified). Here we specify it as
+// a pointer so we can make the distinction and default unspecified to true.
+func getIsQuorum(file io.Reader) bool {
+	altGenesis := new(struct {
+		Config *struct {
+			IsQuorum *bool `json:"isQuorum"`
+		} `json:"config"`
+	})
+
+	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	// unspecified defaults to true
+	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
+}
+
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
@@ -239,6 +258,19 @@ func initGenesis(ctx *cli.Context) error {
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
 		utils.Fatalf("invalid genesis file: %v", err)
 	}
+
+	// Quorum
+	file.Seek(0, 0)
+	genesis.Config.IsQuorum = getIsQuorum(file)
+
+	// check the data given as a part of newMaxConfigData to ensure that
+	// its in expected order
+	err = genesis.Config.CheckMaxCodeConfigData()
+	if err != nil {
+		utils.Fatalf("maxCodeSize data invalid: %v", err)
+	}
+	// End Quorum
+
 	// Open and initialise both full and light databases
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
@@ -281,7 +313,7 @@ func importChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack, false)
+	chain, db := utils.MakeChain(ctx, stack, false, true)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles
@@ -376,7 +408,7 @@ func exportChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, _ := utils.MakeChain(ctx, stack, true)
+	chain, _ := utils.MakeChain(ctx, stack, true, true)
 	start := time.Now()
 
 	var err error
@@ -453,7 +485,7 @@ func copyDb(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, chainDb := utils.MakeChain(ctx, stack, false)
+	chain, chainDb := utils.MakeChain(ctx, stack, false, false)
 	syncMode := *utils.GlobalTextMarshaler(ctx, utils.SyncModeFlag.Name).(*downloader.SyncMode)
 
 	var syncBloom *trie.SyncBloom
@@ -561,7 +593,7 @@ func dump(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, chainDb := utils.MakeChain(ctx, stack, true)
+	chain, chainDb := utils.MakeChain(ctx, stack, true, false)
 	defer chainDb.Close()
 	for _, arg := range ctx.Args() {
 		var block *types.Block
@@ -600,7 +632,7 @@ func inspect(ctx *cli.Context) error {
 	node, _ := makeConfigNode(ctx)
 	defer node.Close()
 
-	_, chainDb := utils.MakeChain(ctx, node, true)
+	_, chainDb := utils.MakeChain(ctx, node, true, false)
 	defer chainDb.Close()
 
 	return rawdb.InspectDatabase(chainDb)

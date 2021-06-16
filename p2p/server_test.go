@@ -21,8 +21,11 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
+	"path"
 	"reflect"
 	"testing"
 	"time"
@@ -33,6 +36,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/sha3"
 )
 
 type testTransport struct {
@@ -451,6 +457,74 @@ func TestServerSetupConn(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServerSetupConn_whenNotInRaftCluster(t *testing.T) {
+	var (
+		clientkey, srvkey = newkey(), newkey()
+		clientpub         = &clientkey.PublicKey
+	)
+
+	clientNode := enode.NewV4(clientpub, nil, 0, 0)
+	srv := &Server{
+		Config: Config{
+			PrivateKey:  srvkey,
+			NoDiscovery: true,
+		},
+		newTransport: func(fd net.Conn) transport { return newTestTransport(clientpub, fd) },
+		log:          log.New(),
+		checkPeerInRaft: func(node *enode.Node) bool {
+			return false
+		},
+	}
+	if err := srv.Start(); err != nil {
+		t.Fatalf("couldn't start server: %v", err)
+	}
+	defer srv.Stop()
+	p1, _ := net.Pipe()
+	err := srv.SetupConn(p1, inboundConn, clientNode)
+
+	assert.IsType(t, &peerError{}, err)
+	perr := err.(*peerError)
+	t.Log(perr.Error())
+	assert.Equal(t, errNotInRaftCluster, perr.code)
+}
+
+func TestServerSetupConn_whenNotPermissioned(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+	if err := ioutil.WriteFile(path.Join(tmpDir, params.PERMISSIONED_CONFIG), []byte("[]"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var (
+		clientkey, srvkey = newkey(), newkey()
+		clientpub         = &clientkey.PublicKey
+	)
+	clientNode := enode.NewV4(clientpub, nil, 0, 0)
+	srv := &Server{
+		Config: Config{
+			PrivateKey:           srvkey,
+			NoDiscovery:          true,
+			DataDir:              tmpDir,
+			EnableNodePermission: true,
+		},
+		newTransport: func(fd net.Conn) transport { return newTestTransport(clientpub, fd) },
+		log:          log.New(),
+	}
+	if err := srv.Start(); err != nil {
+		t.Fatalf("couldn't start server: %v", err)
+	}
+	defer srv.Stop()
+	p1, _ := net.Pipe()
+	err = srv.SetupConn(p1, inboundConn, clientNode)
+
+	assert.IsType(t, &peerError{}, err)
+	perr := err.(*peerError)
+	t.Log(perr.Error())
+	assert.Equal(t, errPermissionDenied, perr.code)
 }
 
 type setupTransport struct {
