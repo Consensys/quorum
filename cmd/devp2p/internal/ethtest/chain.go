@@ -22,7 +22,6 @@ type Chain struct {
 	chainConfig *params.ChainConfig
 }
 
-/* unused & causing go vet warning
 func (c *Chain) WriteTo(writer io.Writer) error {
 	for _, block := range c.blocks {
 		if err := rlp.Encode(writer, block); err != nil {
@@ -32,7 +31,6 @@ func (c *Chain) WriteTo(writer io.Writer) error {
 
 	return nil
 }
-*/
 
 // Len returns the length of the chain.
 func (c *Chain) Len() int {
