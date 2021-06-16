@@ -3,12 +3,12 @@ package core
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	istanbul "github.com/ethereum/go-ethereum/consensus/qibft"
+	istanbul "github.com/ethereum/go-ethereum/consensus/qbft"
 )
 
 // Returns true if the `proposal` is justified by the set `roundChangeMessages` of ROUND-CHANGE messages

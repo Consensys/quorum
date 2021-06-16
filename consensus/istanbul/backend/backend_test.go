@@ -185,20 +185,20 @@ func TestGetProposer(t *testing.T) {
 	}
 }
 
-func TestIsQIBFTConsensus(t *testing.T) {
-	// Uses Istanbul DefaultConfig which has qibftBlock set to 0
+func TestIsQBFTConsensus(t *testing.T) {
+	// Uses Istanbul DefaultConfig which has qbftBlock set to 0
 	chain, engine := newLegacyBlockChain(1)
 
-	qibftConsensus := engine.IsQIBFTConsensus()
-	if qibftConsensus {
-		t.Errorf("IsQIBFTConsensus() should return false")
+	qbftConsensus := engine.IsQBFTConsensus()
+	if qbftConsensus {
+		t.Errorf("IsQBFTConsensus() should return false")
 	}
 
-	// Set the value of qibftBlock to 1
-	engine.config.QibftBlock = big.NewInt(1)
-	qibftConsensus = engine.IsQIBFTConsensus()
-	if qibftConsensus {
-		t.Errorf("IsQIBFTConsensus() should return false")
+	// Set the value of qbftBlock to 1
+	engine.config.QbftBlock = big.NewInt(1)
+	qbftConsensus = engine.IsQBFTConsensus()
+	if qbftConsensus {
+		t.Errorf("IsQBFTConsensus() should return false")
 	}
 
 	// Create an insert a new block into the chain.
@@ -208,9 +208,9 @@ func TestIsQIBFTConsensus(t *testing.T) {
 		t.Errorf("Error inserting block: %v", err)
 	}
 
-	qibftConsensus = engine.IsQIBFTConsensus()
-	if !qibftConsensus {
-		t.Errorf("IsQIBFTConsensus() should return true after block insertion")
+	qbftConsensus = engine.IsQBFTConsensus()
+	if !qbftConsensus {
+		t.Errorf("IsQBFTConsensus() should return true after block insertion")
 	}
 }
 

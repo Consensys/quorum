@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/qibft"
-	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 )
 
 type Engine interface {
@@ -78,14 +78,14 @@ func (s State) Cmp(y State) int {
 
 // Request is used to construct a Preprepare message
 type Request struct {
-	Proposal        qibft.Proposal
+	Proposal        qbft.Proposal
 	RCMessages      *qbftMsgSet
 	PrepareMessages []*message.SignedPreparePayload
 }
 
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
-	View   *qibft.View
+	View   *qbft.View
 	Digest common.Hash
 }
 

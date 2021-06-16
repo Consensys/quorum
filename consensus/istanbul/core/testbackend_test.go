@@ -168,11 +168,11 @@ func (sb *testSystemBackend) Close() error {
 	return nil
 }
 
-func (sb *testSystemBackend) IsQIBFTConsensus() bool {
+func (sb *testSystemBackend) IsQBFTConsensus() bool {
 	return true
 }
 
-func (sb *testSystemBackend) StartQIBFTConsensus() error {
+func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
 }
 

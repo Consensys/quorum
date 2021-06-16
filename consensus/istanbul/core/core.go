@@ -199,12 +199,12 @@ func (c *core) startNewRound(round *big.Int) {
 
 	logger.Trace("Start new ibft round")
 
-	// If new round is 0, then check if qibftConsensus needs to be enabled
-	if round.Uint64() == 0 && c.backend.IsQIBFTConsensus() {
-		logger.Trace("Starting qibft consensus as qibftBlock has passed")
-		if err := c.backend.StartQIBFTConsensus(); err != nil {
-			// If err is returned, then QIBFT consensus is started for the next block
-			logger.Error("Unable to start QIBFT Consensus, retrying for the next block", "error", err)
+	// If new round is 0, then check if qbftConsensus needs to be enabled
+	if round.Uint64() == 0 && c.backend.IsQBFTConsensus() {
+		logger.Trace("Starting qbft consensus as qbftBlock has passed")
+		if err := c.backend.StartQBFTConsensus(); err != nil {
+			// If err is returned, then QBFT consensus is started for the next block
+			logger.Error("Unable to start QBFT Consensus, retrying for the next block", "error", err)
 		}
 	}
 

@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 )
 
 // Data that is common to all QBFT messages. Used for composition.
@@ -28,8 +28,8 @@ func (m *CommonPayload) SetSource(address common.Address) {
 	m.source = address
 }
 
-func (m *CommonPayload) View() qibft.View {
-	return qibft.View{Sequence: m.Sequence, Round: m.Round}
+func (m *CommonPayload) View() qbft.View {
+	return qbft.View{Sequence: m.Sequence, Round: m.Round}
 }
 
 func (m *CommonPayload) Signature() []byte {

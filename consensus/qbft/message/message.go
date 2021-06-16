@@ -2,7 +2,7 @@ package message
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/qibft"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 )
 
 // QBFT message codes
@@ -26,7 +26,7 @@ func MessageCodes() map[uint64]struct{} {
 // Common interface for all QBFT messages
 type QBFTMessage interface {
 	Code() uint64
-	View() qibft.View
+	View() qbft.View
 	Source() common.Address
 	SetSource(address common.Address)
 	EncodePayloadForSigning() ([]byte, error)

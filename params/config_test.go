@@ -176,17 +176,17 @@ func TestCheckCompatible(t *testing.T) {
 			},
 		},
 		{
-			stored:  &ChainConfig{Istanbul: &IstanbulConfig{QibftBlock: big.NewInt(50)}},
-			new:     &ChainConfig{Istanbul: &IstanbulConfig{QibftBlock: big.NewInt(60)}},
+			stored:  &ChainConfig{Istanbul: &IstanbulConfig{QbftBlock: big.NewInt(50)}},
+			new:     &ChainConfig{Istanbul: &IstanbulConfig{QbftBlock: big.NewInt(60)}},
 			head:    40,
 			wantErr: nil,
 		},
 		{
-			stored: &ChainConfig{Istanbul: &IstanbulConfig{QibftBlock: big.NewInt(20)}},
-			new:    &ChainConfig{Istanbul: &IstanbulConfig{QibftBlock: big.NewInt(30)}},
+			stored: &ChainConfig{Istanbul: &IstanbulConfig{QbftBlock: big.NewInt(20)}},
+			new:    &ChainConfig{Istanbul: &IstanbulConfig{QbftBlock: big.NewInt(30)}},
 			head:   20,
 			wantErr: &ConfigCompatError{
-				What:         "Qibft fork block",
+				What:         "Qbft fork block",
 				StoredConfig: big.NewInt(20),
 				NewConfig:    big.NewInt(30),
 				RewindTo:     19,

@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
-	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qbft"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -158,7 +158,7 @@ func (c *core) startNewRound(round *big.Int) {
 	} else {
 		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence())
 	}
-	logger.Trace("Start new qibft round")
+	logger.Trace("Start new qbft round")
 
 	roundChange := false
 	// Try to get last proposal

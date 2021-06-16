@@ -36,7 +36,7 @@ The options are as follows:
             "epoch": 30000,
             "policy": 0,
             "ceil2Nby3Block": 0,
-            "qibftBlock": 0
+            "qbftBlock": 0
         },
         ...
     },
@@ -69,8 +69,8 @@ updated formula immediately.
 
 To update this value, the same process can be followed as other hard-forks.
 
-### qibftBlock
+### qbftBlock
 
-The `qibftBlock` sets the block number from which to use `qibft` consensus. This was introduced to enable existing ibft networks the ability to start using qibft consensus at a point in the future. For new networks, it is recommended to set this value to `0` to use the qbft consensus immediately.
+The `qbftBlock` sets the block number from which to use `qbft` consensus. This was introduced to enable existing ibft networks the ability to start using qbft consensus at a point in the future. For new networks, it is recommended to set this value to `0` to use the qbft consensus immediately.
 
 To update this value, the same process can be followed as other hard-forks.

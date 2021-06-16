@@ -27,8 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
-	qibftMessage "github.com/ethereum/go-ethereum/consensus/qibft/message"
+	qbftCore "github.com/ethereum/go-ethereum/consensus/qbft/core"
+	qbftMessage "github.com/ethereum/go-ethereum/consensus/qbft/message"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -102,7 +102,7 @@ type backend struct {
 	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
 
-	qibftConsensusEnabled bool // qibft consensus
+	qbftConsensusEnabled bool // qbft consensus
 }
 
 // zekun: HACK
@@ -163,10 +163,10 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			var outboundCode uint64 = istanbulMsg
-			if _, ok := qibftMessage.MessageCodes()[code]; ok {
+			if _, ok := qbftMessage.MessageCodes()[code]; ok {
 				outboundCode = code
 			}
-			if sb.IsQIBFTConsensus() {
+			if sb.IsQBFTConsensus() {
 				go p.SendQbftConsensus(outboundCode, payload)
 			} else {
 				go p.SendConsensus(outboundCode, payload)
@@ -188,7 +188,7 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	h := block.Header()
 
 	// Append Round Number and seals into extra-data of qbft consensus
-	if sb.IsQIBFTConsensus() {
+	if sb.IsQBFTConsensus() {
 		err := writeQBFTCommittedSeals(h, seals)
 		if err != nil {
 			return err
@@ -353,63 +353,63 @@ func (sb *backend) Close() error {
 	return nil
 }
 
-// IsQIBFTConsensus returns whether qbft consensus should be used
-func (sb *backend) IsQIBFTConsensus() bool {
-	// If qibftBlock is not defined in genesis, then use legacy ibft
-	if sb.qibftConsensusEnabled {
+// IsQBFTConsensus returns whether qbft consensus should be used
+func (sb *backend) IsQBFTConsensus() bool {
+	// If qbftBlock is not defined in genesis, then use legacy ibft
+	if sb.qbftConsensusEnabled {
 		return true
 	}
 	if sb.chain != nil {
-		return sb.IsQIBFTConsensusForHeader(sb.chain.CurrentHeader())
+		return sb.IsQBFTConsensusForHeader(sb.chain.CurrentHeader())
 	}
 	return false
 }
 
-// IsQIBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *backend) IsQIBFTConsensusForHeader(header *types.Header) bool {
-	// If qibftBlock is not defined in genesis, then use legacy ibft
-	if sb.config.QibftBlock == nil {
+// IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
+func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
+	// If qbftBlock is not defined in genesis, then use legacy ibft
+	if sb.config.QbftBlock == nil {
 		return false
 	}
-	if sb.config.QibftBlock.Uint64() == 0 {
+	if sb.config.QbftBlock.Uint64() == 0 {
 		return true
 	}
 
-	if sb.chain != nil && header.Number.Cmp(sb.config.QibftBlock) >= 0 {
+	if sb.chain != nil && header.Number.Cmp(sb.config.QbftBlock) >= 0 {
 		return true
 	}
 	return false
 }
 
-// qbftBlockNumber returns the qibftBlock fork block number
+// qbftBlockNumber returns the qbftBlock fork block number
 func (sb *backend) qbftBlockNumber() uint64 {
-	if sb.config.QibftBlock == nil {
+	if sb.config.QbftBlock == nil {
 		return 0
 	}
-	return sb.config.QibftBlock.Uint64()
+	return sb.config.QbftBlock.Uint64()
 }
 
-// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qibft consensus
-func (sb *backend) StartQIBFTConsensus() error {
-	sb.logger.Trace("Starting QIBFT Consensus")
+// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
+func (sb *backend) StartQBFTConsensus() error {
+	sb.logger.Trace("Starting QBFT Consensus")
 	if err := sb.Stop(); err != nil {
 		return err
 	}
 	sb.logger.Trace("Stopped legacy IBFT consensus")
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	// Set the core to qibft
-	sb.core = qibftCore.New(sb, sb.config)
+	// Set the core to qbft
+	sb.core = qbftCore.New(sb, sb.config)
 
-	sb.logger.Trace("Starting qibft")
+	sb.logger.Trace("Starting qbft")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
 	if err := sb.core.Start(); err != nil {
 		return err
 	}
 
-	sb.logger.Trace("Started qibft consensus")
+	sb.logger.Trace("Started qbft consensus")
 	sb.coreStarted = true
-	sb.qibftConsensusEnabled = true
+	sb.qbftConsensusEnabled = true
 
 	return nil
 }

@@ -18,7 +18,7 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 )
 
 type backlogEvent struct {

@@ -336,7 +336,7 @@ func TestVoting(t *testing.T) {
 		genesis.Commit(db)
 
 		config := istanbul.DefaultConfig
-		config.QibftBlock = big.NewInt(0)
+		config.QbftBlock = big.NewInt(0)
 		if tt.epoch != 0 {
 			config.Epoch = tt.epoch
 		}

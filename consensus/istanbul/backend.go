@@ -71,14 +71,14 @@ type Backend interface {
 	// ParentValidators returns the validator set of the given proposal's parent block
 	ParentValidators(proposal Proposal) ValidatorSet
 
-	// HasBadBlock returns whether the block with the hash is a bad block
+	// HasBadProposal returns whether the block with the hash is a bad block
 	HasBadProposal(hash common.Hash) bool
 
 	Close() error
 
-	// IsQIBFTConsensus checks qibftBlock fork block and returns if it should be enabled
-	IsQIBFTConsensus() bool
+	// IsQBFTConsensus checks qbftBlock fork block and returns if it should be enabled
+	IsQBFTConsensus() bool
 
-	// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qibft consensus
-	StartQIBFTConsensus() error
+	// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
+	StartQBFTConsensus() error
 }

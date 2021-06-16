@@ -46,8 +46,8 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	config := istanbul.DefaultConfig
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
-	// set the qibft consensus enabled to true
-	b.qibftConsensusEnabled = true
+	// set the qbft consensus enabled to true
+	b.qbftConsensusEnabled = true
 	genesis.MustCommit(memDB)
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
 	if err != nil {
@@ -85,7 +85,7 @@ func newLegacyBlockChain(n int) (*core.BlockChain, *backend) {
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 
-	config.QibftBlock = nil
+	config.QbftBlock = nil
 
 	genesis.MustCommit(memDB)
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
@@ -210,7 +210,7 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types
 
 func TestLegacyPrepare(t *testing.T) {
 	chain, engine := newBlockChain(1)
-	chain.Config().Istanbul.QibftBlock = nil
+	chain.Config().Istanbul.QbftBlock = nil
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
 	if err != nil {

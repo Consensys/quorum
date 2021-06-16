@@ -23,8 +23,8 @@ import (
 	"strings"
 	"sync"
 
-	istanbul2 "github.com/ethereum/go-ethereum/consensus/qibft"
-	"github.com/ethereum/go-ethereum/consensus/qibft/message"
+	istanbul2 "github.com/ethereum/go-ethereum/consensus/qbft"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
