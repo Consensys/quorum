@@ -814,16 +814,6 @@ func addPluginAPIs(pm *plugin.PluginManager, rpcAPI []rpc.API, ui core.UIClientA
 	return append(rpcAPI, approvalPluginAPIs...)
 }
 
-// splitAndTrim splits input separated by a comma
-// and trims excessive white space from the substrings.
-func splitAndTrim(input string) []string {
-	result := strings.Split(input, ",")
-	for i, r := range result {
-		result[i] = strings.TrimSpace(r)
-	}
-	return result
-}
-
 // DefaultConfigDir is the default config directory to use for the vaults and other
 // persistence requirements.
 func DefaultConfigDir() string {
