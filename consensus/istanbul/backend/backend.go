@@ -356,16 +356,11 @@ func (sb *backend) Close() error {
 // IsQIBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQIBFTConsensus() bool {
 	// If qibftBlock is not defined in genesis, then use legacy ibft
-	if sb.config.QibftBlock == nil {
-		return false
-	}
-
-	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0 {
+	if sb.qibftConsensusEnabled {
 		return true
 	}
-
-	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= 0 {
-		return true
+	if sb.chain != nil {
+		return sb.IsQIBFTConsensusForHeader(sb.chain.CurrentHeader())
 	}
 	return false
 }
