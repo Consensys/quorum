@@ -160,7 +160,7 @@ func (s *Snapshot) uncast(address common.Address, authorize bool) bool {
 
 // apply creates a new authorization snapshot by applying the given headers to
 // the original one.
-func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool, qbftBlockNumber uint64) (*Snapshot, error) {
+func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool, qbftBlockNumber int64) (*Snapshot, error) {
 	// Allow passing in no headers for cleaner code
 	if len(headers) == 0 {
 		return s, nil
@@ -178,7 +178,7 @@ func (s *Snapshot) apply(headers []*types.Header, isQBFTConsensus bool, qbftBloc
 	snap := s.copy()
 
 	for _, header := range headers {
-		if isQBFTConsensus && header.Number.Uint64() > qbftBlockNumber {
+		if isQBFTConsensus && header.Number.Int64() > qbftBlockNumber {
 			err := snap.qbftApply(header)
 			if err != nil {
 				return nil, err

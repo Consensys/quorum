@@ -186,7 +186,6 @@ func TestGetProposer(t *testing.T) {
 }
 
 func TestIsQBFTConsensus(t *testing.T) {
-	// Uses Istanbul DefaultConfig which has qbftBlock set to 0
 	chain, engine := newLegacyBlockChain(1)
 
 	qbftConsensus := engine.IsQBFTConsensus()
@@ -212,6 +211,8 @@ func TestIsQBFTConsensus(t *testing.T) {
 	if !qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return true after block insertion")
 	}
+	// Stop the backend engine
+	engine.Stop()
 }
 
 /**

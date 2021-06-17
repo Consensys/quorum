@@ -162,14 +162,14 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
 
-			var outboundCode uint64 = istanbulMsg
-			if _, ok := qbftMessage.MessageCodes()[code]; ok {
-				outboundCode = code
-			}
 			if sb.IsQBFTConsensus() {
+				var outboundCode uint64 = istanbulMsg
+				if _, ok := qbftMessage.MessageCodes()[code]; ok {
+					outboundCode = code
+				}
 				go p.SendQbftConsensus(outboundCode, payload)
 			} else {
-				go p.SendConsensus(outboundCode, payload)
+				go p.SendConsensus(istanbulMsg, payload)
 			}
 		}
 	}
@@ -355,7 +355,6 @@ func (sb *backend) Close() error {
 
 // IsQBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQBFTConsensus() bool {
-	// If qbftBlock is not defined in genesis, then use legacy ibft
 	if sb.qbftConsensusEnabled {
 		return true
 	}
@@ -367,7 +366,7 @@ func (sb *backend) IsQBFTConsensus() bool {
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
 func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
-	// If qbftBlock is not defined in genesis, then use legacy ibft
+	// If qbftBlock is not defined in genesis qbft consensus is not used
 	if sb.config.QbftBlock == nil {
 		return false
 	}
@@ -381,12 +380,12 @@ func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
 	return false
 }
 
-// qbftBlockNumber returns the qbftBlock fork block number
-func (sb *backend) qbftBlockNumber() uint64 {
+// qbftBlockNumber returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
+func (sb *backend) qbftBlockNumber() int64 {
 	if sb.config.QbftBlock == nil {
-		return 0
+		return -1
 	}
-	return sb.config.QbftBlock.Uint64()
+	return sb.config.QbftBlock.Int64()
 }
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus

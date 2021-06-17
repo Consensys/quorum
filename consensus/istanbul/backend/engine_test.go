@@ -81,7 +81,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 func newLegacyBlockChain(n int) (*core.BlockChain, *backend) {
 	genesis, nodeKeys := getGenesisAndKeys(n, false)
 	memDB := rawdb.NewMemoryDatabase()
-	config := istanbul.DefaultConfig
+	config := copyConfig(istanbul.DefaultConfig)
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 
@@ -112,6 +112,12 @@ func newLegacyBlockChain(n int) (*core.BlockChain, *backend) {
 	}
 
 	return blockchain, b
+}
+
+// copyConfig create a copy of istanbul.Config, so that changing it does not update the original
+func copyConfig(config *istanbul.Config) *istanbul.Config {
+	cpy := *config
+	return &cpy
 }
 
 func getGenesisAndKeys(n int, isQbft bool) (*core.Genesis, []*ecdsa.PrivateKey) {
