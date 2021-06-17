@@ -2680,6 +2680,6 @@ func (bc *BlockChain) SaveRevertReason(enabled bool) {
 }
 
 // Quorum
-func (bc *BlockChain) SaveRevertReasonEnabled() bool {
+func (bc *BlockChain) SaveRevertReason() bool {
 	return bc.saveRevertReason
 }
