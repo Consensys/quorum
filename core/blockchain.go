@@ -2675,7 +2675,7 @@ func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthentic
 }
 
 // Quorum
-func (bc *BlockChain) SaveRevertReason(enabled bool) {
+func (bc *BlockChain) SetSaveRevertReason(enabled bool) {
 	bc.saveRevertReason = enabled
 }
 
