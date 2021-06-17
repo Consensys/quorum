@@ -75,7 +75,6 @@ type Receipt struct {
 	// This nested structure would not have more than 2 levels.
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
 
-	// TODO ricardolyn: do not include this as part of the receipt hash in the tried saved in the block
 	// support saving the revert reason into the receipt itself for later consultation.
 	RevertReason string `json:"revertReason,omitempty"`
 	// End Quorum
