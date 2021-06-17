@@ -221,7 +221,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 
 	// Quorum
-	eth.blockchain.SaveRevertReason(config.SaveRevertReason)
+	eth.blockchain.SetSaveRevertReason(config.SaveRevertReason)
 
 	if err != nil {
 		return nil, err
