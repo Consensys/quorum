@@ -424,7 +424,6 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 // handleMsg is invoked whenever an inbound message is received from a remote
 // peer. The remote connection is torn down upon returning any error.
 func (pm *ProtocolManager) handleMsg(p *peer) error {
-	//log.Warn("QBFT: PM handleMsg")
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
