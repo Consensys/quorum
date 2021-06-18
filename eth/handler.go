@@ -348,14 +348,14 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, protoName); err != nil {
+	forkID := forkid.NewID(pm.blockchain.Config(), pm.blockchain.Genesis().Hash(), pm.blockchain.CurrentHeader().Number.Uint64())
+	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkID, pm.forkFilter, protoName); err != nil {
 		p.Log().Debug("Ethereum handshake failed", "protoName", protoName, "err", err)
 
 		// Quorum
 		// When the Handshake() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
 		p.EthPeerDisconnected <- struct{}{}
 		// End Quorum
-
 		return err
 	}
 
