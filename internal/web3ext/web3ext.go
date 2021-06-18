@@ -1203,6 +1203,11 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
+			name: 'addBalance',
+			call: 'les_addBalance',
+			params: 2
+		}),
+		new web3._extend.Method({
 			name: 'getExtensionStatus',
 			call: 'quorumExtension_getExtensionStatus',
 			params: 1,
