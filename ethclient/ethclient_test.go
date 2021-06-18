@@ -354,6 +354,22 @@ func TestChainID(t *testing.T) {
 	}
 }
 
+func TestBlockNumber(t *testing.T) {
+	backend, _ := newTestBackend(t)
+	client, _ := backend.Attach()
+	defer backend.Close()
+	defer client.Close()
+	ec := NewClient(client)
+
+	blockNumber, err := ec.BlockNumber(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if blockNumber != 1 {
+		t.Fatalf("BlockNumber returned wrong number: %d", blockNumber)
+	}
+}
+
 func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
 	testObject := NewClient(nil)
 
