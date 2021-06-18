@@ -18,11 +18,21 @@ package node
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/ethereum/go-ethereum/plugin"
+
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -159,4 +169,86 @@ func TestNodeKeyPersistency(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(".", "unit-test", datadirPrivateKey)); err == nil {
 		t.Fatalf("ephemeral node key persisted to disk")
 	}
+}
+
+func TestConfig_ResolvePluginBaseDir_whenPluginFeatureIsDisabled(t *testing.T) {
+	testObject := &Config{}
+
+	assert.NoError(t, testObject.ResolvePluginBaseDir())
+}
+
+func TestConfig_ResolvePluginBaseDir_whenBaseDirDoesNotExist(t *testing.T) {
+	arbitraryBaseDir := path.Join(os.TempDir(), fmt.Sprintf("foo-%d", time.Now().Unix()))
+	defer func() {
+		_ = os.RemoveAll(arbitraryBaseDir)
+	}()
+	testObject := &Config{
+		Plugins: &plugin.Settings{
+			BaseDir: plugin.EnvironmentAwaredValue(arbitraryBaseDir),
+		},
+	}
+
+	assert.NoError(t, testObject.ResolvePluginBaseDir())
+	assert.True(t, common.FileExist(arbitraryBaseDir))
+	assert.True(t, path.IsAbs(testObject.Plugins.BaseDir.String()))
+}
+
+func TestConfig_ResolvePluginBaseDir_whenBaseDirExists(t *testing.T) {
+	arbitraryBaseDir, err := ioutil.TempDir("", "q-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(arbitraryBaseDir)
+	}()
+	testObject := &Config{
+		Plugins: &plugin.Settings{
+			BaseDir: plugin.EnvironmentAwaredValue(arbitraryBaseDir),
+		},
+	}
+
+	assert.NoError(t, testObject.ResolvePluginBaseDir())
+	assert.True(t, path.IsAbs(testObject.Plugins.BaseDir.String()))
+}
+
+// Quorum
+//
+func TestConfig_IsPermissionEnabled_whenTypical(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "q-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tmpdir)
+	}()
+	if err := ioutil.WriteFile(path.Join(tmpdir, params.PERMISSION_MODEL_CONFIG), []byte("foo"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	testObject := &Config{
+		EnableNodePermission: true,
+		DataDir:              tmpdir,
+	}
+
+	assert.True(t, testObject.IsPermissionEnabled())
+}
+
+// Quorum
+//
+func TestConfig_IsPermissionEnabled_whenPermissionedFlagIsFalse(t *testing.T) {
+	testObject := &Config{
+		EnableNodePermission: false,
+	}
+
+	assert.False(t, testObject.IsPermissionEnabled())
+}
+
+// Quorum
+//
+func TestConfig_IsPermissionEnabled_whenPermissionConfigIsNotAvailable(t *testing.T) {
+	testObject := &Config{
+		EnableNodePermission: true,
+		DataDir:              os.TempDir(),
+	}
+
+	assert.False(t, testObject.IsPermissionEnabled())
 }
