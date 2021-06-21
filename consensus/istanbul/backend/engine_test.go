@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -30,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -47,7 +47,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 	genesis.MustCommit(memDB)
-	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil)
+	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -167,14 +167,12 @@ func TestSealStopChannel(t *testing.T) {
 	stop := make(chan struct{}, 1)
 	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
 	eventLoop := func() {
-		select {
-		case ev := <-eventSub.Chan():
-			_, ok := ev.Data.(istanbul.RequestEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			}
-			stop <- struct{}{}
+		ev := <-eventSub.Chan()
+		_, ok := ev.Data.(istanbul.RequestEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
+		stop <- struct{}{}
 		eventSub.Unsubscribe()
 	}
 	go eventLoop()
@@ -203,14 +201,12 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	stopChannel := make(chan struct{})
 
 	go func() {
-		select {
-		case ev := <-eventSub.Chan():
-			if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			}
-			if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
-				t.Error(err.Error())
-			}
+		ev := <-eventSub.Chan()
+		if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+		}
+		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
+			t.Error(err.Error())
 		}
 		eventSub.Unsubscribe()
 	}()
@@ -229,11 +225,9 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		close(stopChannel)
 	}
 
-	select {
-	case output := <-blockOutputChannel:
-		if output != nil {
-			t.Error("Block not nil!")
-		}
+	output := <-blockOutputChannel
+	if output != nil {
+		t.Error("Block not nil!")
 	}
 }
 
@@ -409,8 +403,8 @@ OUT1:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals {
-					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals", err)
+				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT1
 				}
 			}
@@ -422,27 +416,17 @@ OUT1:
 			break OUT1
 		}
 	}
-	// abort cases
-	abort, results := engine.VerifyHeaders(chain, headers, nil)
+	_, results = engine.VerifyHeaders(chain, headers, nil)
 	timeout = time.NewTimer(timeoutDura)
-	index = 0
 OUT2:
 	for {
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals {
-					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals", err)
+				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT2
 				}
-			}
-			index++
-			if index == 5 {
-				abort <- struct{}{}
-			}
-			if index >= size {
-				t.Errorf("verifyheaders should be aborted")
-				break OUT2
 			}
 		case <-timeout.C:
 			break OUT2
@@ -450,24 +434,24 @@ OUT2:
 	}
 	// error header cases
 	headers[2].Number = big.NewInt(100)
-	abort, results = engine.VerifyHeaders(chain, headers, nil)
+	_, results = engine.VerifyHeaders(chain, headers, nil)
 	timeout = time.NewTimer(timeoutDura)
 	index = 0
 	errors := 0
-	expectedErrors := 2
+	expectedErrors := 0
 OUT3:
 	for {
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals {
+				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					errors++
 				}
 			}
 			index++
 			if index == size {
 				if errors != expectedErrors {
-					t.Errorf("error mismatch: have %v, want %v", err, expectedErrors)
+					t.Errorf("error mismatch: have %v, want %v", errors, expectedErrors)
 				}
 				break OUT3
 			}
@@ -502,7 +486,7 @@ func TestPrepareExtra(t *testing.T) {
 	// append useless information to extra-data
 	h.Extra = append(vanity, make([]byte, 15)...)
 
-	payload, err = prepareExtra(h, validators)
+	payload, _ = prepareExtra(h, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
 		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}

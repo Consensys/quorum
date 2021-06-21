@@ -24,15 +24,25 @@ package graphql
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"html/template"
 	"net/http"
+
+	"github.com/ethereum/go-ethereum/plugin/security"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // GraphiQL is an in-browser IDE for exploring GraphiQL APIs.
 // This handler returns GraphiQL when requested.
 //
 // For more information, see https://github.com/graphql/graphiql.
-type GraphiQL struct{}
+// Quorum
+// 1. Introduce 2 fields to support rendering additional HTML snippets
+type GraphiQL struct {
+	authManagerFunc security.AuthenticationManagerDeferFunc
+	isMPS           bool
+}
 
 func respond(w http.ResponseWriter, body []byte, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -53,7 +63,43 @@ func (h GraphiQL) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Write(graphiql)
+	html, err := h.addQuorumHTML(graphiql)
+	if err != nil {
+		respond(w, errorJSON("unable to add Quorum-specific HTML"), http.StatusInternalServerError)
+		return
+	}
+	w.Write(html)
+}
+
+func (h GraphiQL) addQuorumHTML(g []byte) ([]byte, error) {
+	tmpl, err := template.New("Quorum").Parse(string(g))
+	if err != nil {
+		return nil, err
+	}
+	authManager, err := h.authManagerFunc()
+	if err != nil {
+		return nil, err
+	}
+	authManagerEnabled, err := authManager.IsEnabled(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	data := struct {
+		ShowPSI         bool
+		ShowAccessToken bool
+		AuthHeader      string
+		PSIHeader       string
+	}{
+		ShowPSI:         h.isMPS,
+		ShowAccessToken: authManagerEnabled,
+		AuthHeader:      rpc.HttpAuthorizationHeader,
+		PSIHeader:       rpc.HttpPrivateStateIdentifierHeader,
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 var graphiql = []byte(`
@@ -91,12 +137,68 @@ var graphiql = []byte(`
                 integrity="sha384-roSmzNmO4zJK9X4lwggDi4/oVy+9V4nlS1+MN8Taj7tftJy1GvMWyAhTNXdC/fFR"
                 crossorigin="anonymous"
         ></script>
+{{- if or .ShowAccessToken .ShowPSI }}
+		<style>
+			#quorum-addon {
+				padding: 10px;
+				border-bottom: 1px solid #d6d6d6;
+			}
+			#quorum-addon .field {
+				display: block;
+				margin-bottom: 2px;
+			}
+			#quorum-addon abbr {
+				text-decoration: unset;
+				border-radius: 50%;
+				border: 1px solid #9c9c9c;
+				color: #9c9c9c;
+			}
+			#quorum-addon table {
+				border: none;
+			}
+			#quorum-addon table td {
+				vertical-align: top;
+			}
+			#quorum-addon input[type="text"], textarea {
+				padding: 3px;
+				border: 1px solid #d6d6d6;
+				display: block;
+			}
+		</style>
+{{- end }}
 	</head>
 	<body style="width: 100%; height: 100%; margin: 0; overflow: hidden;">
+{{- if or .ShowAccessToken .ShowPSI }}
+		<div id="quorum-addon">
+			<table>
+				<tr>
+{{- if .ShowAccessToken }}
+					<td><span class="field">Access Token <abbr title="The value is obtained by authenticating against the authorization server.">&nbsp;?&nbsp;</abbr></span>
+					<textarea id="access-token" rows="3" cols="40"></textarea></td>
+{{- end }}
+{{- if .ShowPSI }}
+					<td><span class="field">Target PSI <abbr title="The value indicates which private state is going to be used. Only required if querying private payloads.">&nbsp;?&nbsp;</abbr></span>
+					<input id="psi" type="text"/></td>
+{{- end }}
+				</tr>
+			</table>
+		</div>
+{{- end }}
 		<div id="graphiql" style="height: 100vh;">Loading...</div>
+
 		<script>
 			function fetchGQL(params) {
 				return fetch("/graphql", {
+{{- if or .ShowAccessToken .ShowPSI }}
+					headers: {
+{{- if .ShowAccessToken }}
+						"{{ .AuthHeader }}" : "Bearer " +  document.getElementById("access-token").value,
+{{- end }}
+{{- if .ShowPSI }}
+						"{{ .PSIHeader }}" : document.getElementById("psi").value,
+{{- end }}
+					},
+{{- end }}
 					method: "post",
 					body: JSON.stringify(params),
 					credentials: "include",

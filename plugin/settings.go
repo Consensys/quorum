@@ -11,7 +11,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-plugin"
 	"github.com/naoina/toml"
@@ -19,6 +21,8 @@ import (
 
 const (
 	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
+	SecurityPluginInterfaceName   = PluginInterfaceName("security")
+	AccountPluginInterfaceName    = PluginInterfaceName("account")
 )
 
 var (
@@ -45,14 +49,43 @@ var (
 				helloworld.ConnectorName: &helloworld.PluginConnector{},
 			},
 		},
+		SecurityPluginInterfaceName: {
+			pluginSet: plugin.PluginSet{
+				security.TLSConfigurationConnectorName: &security.TLSConfigurationSourcePluginConnector{},
+				security.AuthenticationConnectorName:   &security.AuthenticationManagerPluginConnector{},
+			},
+		},
+		AccountPluginInterfaceName: {
+			apiProviderFunc: func(ns string, pm *PluginManager) ([]rpc.API, error) {
+				f := new(ReloadableAccountServiceFactory)
+				if err := pm.GetPluginTemplate(AccountPluginInterfaceName, f); err != nil {
+					return nil, err
+				}
+				service, err := f.Create()
+				if err != nil {
+					return nil, err
+				}
+				return []rpc.API{{
+					Namespace: ns,
+					Version:   "1.0.0",
+					Service:   account.NewCreator(service),
+					Public:    true,
+				}}, nil
+			},
+			pluginSet: plugin.PluginSet{
+				account.ConnectorName: &account.PluginConnector{},
+			},
+		},
 	}
 
 	// this is the place holder for future solution of the plugin central
 	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
-		CertFingerprint:       "",
-		BaseURL:               "https://dl.bintray.com/quorumengineering/quorum-plugins",
-		PublicKeyURI:          "/.pgp/" + DefaultPublicKeyFile,
-		InsecureSkipTLSVerify: false,
+		CertFingerprint:        "",
+		BaseURL:                "https://artifacts.consensys.net/public/quorum-go-plugins/",
+		PublicKeyURI:           DefaultPublicKeyFile,
+		InsecureSkipTLSVerify:  false,
+		PluginDistPathTemplate: "maven/bin/{{.Name}}/{{.Version}}/{{.Name}}-{{.Version}}-{{.OS}}-{{.Arch}}.zip",
+		PluginSigPathTemplate:  "maven/bin/{{.Name}}/{{.Version}}/{{.Name}}-{{.Version}}-{{.OS}}-{{.Arch}}-sha256.checksum.asc",
 	}
 )
 
@@ -79,15 +112,15 @@ type PluginDefinition struct {
 	Config interface{} `json:"config,omitempty" toml:",omitempty"`
 }
 
-func (m *PluginDefinition) ReadConfig() ([]byte, error) {
-	if m.Config == nil {
+func ReadMultiFormatConfig(config interface{}) ([]byte, error) {
+	if config == nil {
 		return []byte{}, nil
 	}
-	switch k := reflect.TypeOf(m.Config).Kind(); k {
+	switch k := reflect.TypeOf(config).Kind(); k {
 	case reflect.Map, reflect.Slice:
-		return json.Marshal(m.Config)
+		return json.Marshal(config)
 	case reflect.String:
-		configStr := m.Config.(string)
+		configStr := config.(string)
 		u, err := url.Parse(configStr)
 		if err != nil { // just return as is
 			return []byte(configStr), nil
@@ -100,7 +133,6 @@ func (m *PluginDefinition) ReadConfig() ([]byte, error) {
 			isFile := u.Query().Get("type") == "file"
 			if v, ok := os.LookupEnv(varName); ok {
 				if isFile {
-					m.Config = v
 					return ioutil.ReadFile(v)
 				} else {
 					return []byte(v), nil
@@ -116,24 +148,17 @@ func (m *PluginDefinition) ReadConfig() ([]byte, error) {
 	}
 }
 
-// return remote folder storing the plugin distribution file and signature file
-//
-// e.g.: my-plugin/v1.0.0/darwin-amd64
-func (m *PluginDefinition) RemotePath() string {
-	return fmt.Sprintf("%s/v%s/%s-%s", m.Name, m.Version, runtime.GOOS, runtime.GOARCH)
-}
-
-// return plugin name and version
+// return plugin distribution name. i.e.: <Name>-<Version>-<OS>-<Arch>
 func (m *PluginDefinition) FullName() string {
-	return fmt.Sprintf("%s-%s", m.Name, m.Version)
+	return fmt.Sprintf("%s-%s-%s-%s", m.Name, m.Version, runtime.GOOS, runtime.GOARCH)
 }
 
-// return plugin distribution file name
+// return plugin distribution file name stored locally
 func (m *PluginDefinition) DistFileName() string {
 	return fmt.Sprintf("%s.zip", m.FullName())
 }
 
-// return plugin distribution signature file name
+// return plugin distribution signature file name stored locally
 func (m *PluginDefinition) SignatureFileName() string {
 	return fmt.Sprintf("%s.sha256sum.asc", m.DistFileName())
 }
@@ -185,7 +210,32 @@ func (s *Settings) GetPluginDefinition(name PluginInterfaceName) (*PluginDefinit
 func (s *Settings) SetDefaults() {
 	if s.CentralConfig == nil {
 		s.CentralConfig = quorumPluginCentralConfiguration
+	} else {
+		s.CentralConfig.SetDefaults()
 	}
+}
+
+// CheckSettingsAreSupported validates Settings by ensuring that only supportedPlugins are defined.
+// It is not required for all supportedPlugins to be defined.
+// An error containing plugin details is returned if one or more unsupported plugins are defined.
+func (s *Settings) CheckSettingsAreSupported(supportedPlugins []PluginInterfaceName) error {
+	errList := []PluginInterfaceName{}
+	for name := range s.Providers {
+		isValid := false
+		for _, supportedPlugin := range supportedPlugins {
+			if supportedPlugin == name {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			errList = append(errList, name)
+		}
+	}
+	if len(errList) != 0 {
+		return fmt.Errorf("unsupported plugins configured: %v", errList)
+	}
+	return nil
 }
 
 type PluginCentralConfiguration struct {
@@ -195,6 +245,29 @@ type PluginCentralConfiguration struct {
 	BaseURL               string `json:"baseURL" toml:""`
 	PublicKeyURI          string `json:"publicKeyURI" toml:""`
 	InsecureSkipTLSVerify bool   `json:"insecureSkipTLSVerify" toml:""`
+
+	// URL path template to the plugin distribution file.
+	// It uses Golang text template.
+	PluginDistPathTemplate string `json:"pluginDistPathTemplate" toml:""`
+	// URL path template to the plugin sha256 checksum signature file.
+	// It uses Golang text template.
+	PluginSigPathTemplate string `json:"pluginSigPathTemplate" toml:""`
+}
+
+// populate default values from quorumPluginCentralConfiguration
+func (c *PluginCentralConfiguration) SetDefaults() {
+	if len(c.BaseURL) == 0 {
+		c.BaseURL = quorumPluginCentralConfiguration.BaseURL
+	}
+	if len(c.PublicKeyURI) == 0 {
+		c.PublicKeyURI = quorumPluginCentralConfiguration.PublicKeyURI
+	}
+	if len(c.PluginDistPathTemplate) == 0 {
+		c.PluginDistPathTemplate = quorumPluginCentralConfiguration.PluginDistPathTemplate
+	}
+	if len(c.PluginSigPathTemplate) == 0 {
+		c.PluginSigPathTemplate = quorumPluginCentralConfiguration.PluginSigPathTemplate
+	}
 }
 
 // support URI format with 'env' scheme during JSON/TOML/TEXT unmarshalling

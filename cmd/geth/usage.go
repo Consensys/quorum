@@ -21,48 +21,20 @@ package main
 import (
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
-// AppHelpTemplate is the test template for the default, global app help topic.
-var AppHelpTemplate = `NAME:
-   {{.App.Name}} - {{.App.Usage}}
+// Quorum
+var quorumAccountFlagGroup = "QUORUM ACCOUNT"
 
-   Copyright 2013-2019 The go-ethereum Authors
-
-USAGE:
-   {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
-   {{if .App.Version}}
-VERSION:
-   {{.App.Version}}
-   {{end}}{{if len .App.Authors}}
-AUTHOR(S):
-   {{range .App.Authors}}{{ . }}{{end}}
-   {{end}}{{if .App.Commands}}
-COMMANDS:
-   {{range .App.Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
-   {{end}}{{end}}{{if .FlagGroups}}
-{{range .FlagGroups}}{{.Name}} OPTIONS:
-  {{range .Flags}}{{.}}
-  {{end}}
-{{end}}{{end}}{{if .App.Copyright }}
-COPYRIGHT:
-   {{.App.Copyright}}
-   {{end}}
-`
-
-// flagGroup is a collection of flags belonging to a single topic.
-type flagGroup struct {
-	Name  string
-	Flags []cli.Flag
-}
+// End Quorum
 
 // AppHelpFlagGroups is the application flags, grouped by functionality.
-var AppHelpFlagGroups = []flagGroup{
+var AppHelpFlagGroups = []flags.FlagGroup{
 	{
 		Name: "ETHEREUM",
 		Flags: []cli.Flag{
@@ -73,12 +45,14 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NoUSBFlag,
 			utils.SmartCardDaemonPathFlag,
 			utils.NetworkIdFlag,
-			utils.TestnetFlag,
-			utils.RinkebyFlag,
 			utils.GoerliFlag,
+			utils.RinkebyFlag,
+			utils.YoloV1Flag,
+			utils.RopstenFlag,
 			utils.SyncModeFlag,
 			utils.ExitWhenSyncedFlag,
 			utils.GCModeFlag,
+			utils.TxLookupLimitFlag,
 			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
 			utils.LightKDFFlag,
@@ -95,6 +69,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.UltraLightServersFlag,
 			utils.UltraLightFractionFlag,
 			utils.UltraLightOnlyAnnounceFlag,
+			utils.LightNoPruneFlag,
 		},
 	},
 	{
@@ -110,21 +85,13 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.EthashCacheDirFlag,
 			utils.EthashCachesInMemoryFlag,
 			utils.EthashCachesOnDiskFlag,
+			utils.EthashCachesLockMmapFlag,
 			utils.EthashDatasetDirFlag,
 			utils.EthashDatasetsInMemoryFlag,
 			utils.EthashDatasetsOnDiskFlag,
+			utils.EthashDatasetsLockMmapFlag,
 		},
 	},
-	//{
-	//	Name: "DASHBOARD",
-	//	Flags: []cli.Flag{
-	//		utils.DashboardEnabledFlag,
-	//		utils.DashboardAddrFlag,
-	//		utils.DashboardPortFlag,
-	//		utils.DashboardRefreshFlag,
-	//		utils.DashboardAssetsFlag,
-	//	},
-	//},
 	{
 		Name: "TRANSACTION POOL",
 		Flags: []cli.Flag{
@@ -147,7 +114,10 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CacheFlag,
 			utils.CacheDatabaseFlag,
 			utils.CacheTrieFlag,
+			utils.CacheTrieJournalFlag,
+			utils.CacheTrieRejournalFlag,
 			utils.CacheGCFlag,
+			utils.CacheSnapshotFlag,
 			utils.CacheNoPrefetchFlag,
 		},
 	},
@@ -165,34 +135,39 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.IPCDisabledFlag,
 			utils.IPCPathFlag,
-			utils.RPCEnabledFlag,
-			utils.RPCListenAddrFlag,
-			utils.RPCPortFlag,
-			utils.RPCApiFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCCORSDomainFlag,
-			utils.RPCVirtualHostsFlag,
+			utils.HTTPEnabledFlag,
+			utils.HTTPListenAddrFlag,
+			utils.HTTPPortFlag,
+			utils.HTTPApiFlag,
+			utils.HTTPCORSDomainFlag,
+			utils.HTTPVirtualHostsFlag,
 			utils.WSEnabledFlag,
 			utils.WSListenAddrFlag,
 			utils.WSPortFlag,
 			utils.WSApiFlag,
 			utils.WSAllowedOriginsFlag,
 			utils.GraphQLEnabledFlag,
-			utils.GraphQLListenAddrFlag,
-			utils.GraphQLPortFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
+			utils.RPCGlobalGasCapFlag,
+			utils.RPCGlobalTxFeeCapFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			utils.RPCClientToken,
+			utils.RPCClientTLSInsecureSkipVerify,
+			utils.RPCClientTLSCert,
+			utils.RPCClientTLSCaCert,
+			utils.RPCClientTLSCipherSuites,
 		},
 	},
 	{
 		Name: "NETWORKING",
 		Flags: []cli.Flag{
 			utils.BootnodesFlag,
-			utils.BootnodesV4Flag,
-			utils.BootnodesV5Flag,
+			utils.LegacyBootnodesV4Flag,
+			utils.LegacyBootnodesV5Flag,
+			utils.DNSDiscoveryFlag,
 			utils.ListenPortFlag,
 			utils.MaxPeersFlag,
 			utils.MaxPendingPeersFlag,
@@ -224,6 +199,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.GpoBlocksFlag,
 			utils.GpoPercentileFlag,
+			utils.GpoMaxGasPriceFlag,
 		},
 	},
 	{
@@ -232,6 +208,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.VMEnableDebugFlag,
 			utils.EVMInterpreterFlag,
 			utils.EWASMInterpreterFlag,
+			// Quorum - timout for calls
+			utils.EVMCallTimeOutFlag,
 		},
 	},
 	{
@@ -246,20 +224,27 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: metricsFlags,
 	},
 	{
-		Name:  "WHISPER (EXPERIMENTAL)",
+		Name:  "WHISPER (deprecated)",
 		Flags: whisperFlags,
 	},
 	{
-		Name: "DEPRECATED",
-		Flags: []cli.Flag{
-			utils.LightLegacyServFlag,
-			utils.LightLegacyPeersFlag,
-			utils.MinerLegacyThreadsFlag,
-			utils.MinerLegacyGasTargetFlag,
-			utils.MinerLegacyGasPriceFlag,
-			utils.MinerLegacyEtherbaseFlag,
-			utils.MinerLegacyExtraDataFlag,
-		},
+		Name: "ALIASED (deprecated)",
+		Flags: append([]cli.Flag{
+			utils.LegacyRPCEnabledFlag,
+			utils.LegacyRPCListenAddrFlag,
+			utils.LegacyRPCPortFlag,
+			utils.LegacyRPCCORSDomainFlag,
+			utils.LegacyRPCVirtualHostsFlag,
+			utils.LegacyRPCApiFlag,
+			utils.LegacyWSListenAddrFlag,
+			utils.LegacyWSPortFlag,
+			utils.LegacyWSAllowedOriginsFlag,
+			utils.LegacyWSApiFlag,
+			utils.LegacyGpoBlocksFlag,
+			utils.LegacyGpoPercentileFlag,
+			utils.LegacyGraphQLListenAddrFlag,
+			utils.LegacyGraphQLPortFlag,
+		}, debug.DeprecatedFlags...),
 	},
 	// QUORUM
 	{
@@ -272,6 +257,30 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
+			utils.MultitenancyFlag,
+		},
+	},
+	{
+		Name: "QUORUM PRIVATE TRANSACTION MANAGER",
+		Flags: []cli.Flag{
+			utils.QuorumPTMUnixSocketFlag,
+			utils.QuorumPTMUrlFlag,
+			utils.QuorumPTMTimeoutFlag,
+			utils.QuorumPTMDialTimeoutFlag,
+			utils.QuorumPTMHttpIdleTimeoutFlag,
+			utils.QuorumPTMHttpWriteBufferSizeFlag,
+			utils.QuorumPTMHttpReadBufferSizeFlag,
+			utils.QuorumPTMTlsModeFlag,
+			utils.QuorumPTMTlsRootCaFlag,
+			utils.QuorumPTMTlsClientCertFlag,
+			utils.QuorumPTMTlsClientKeyFlag,
+			utils.QuorumPTMTlsInsecureSkipVerify,
+		},
+	},
+	{
+		Name: quorumAccountFlagGroup,
+		Flags: []cli.Flag{
+			utils.AccountPluginNewAccountConfigFlag,
 		},
 	},
 	{
@@ -294,56 +303,21 @@ var AppHelpFlagGroups = []flagGroup{
 	// END QUORUM
 	{
 		Name: "MISC",
+		Flags: []cli.Flag{
+			utils.SnapshotFlag,
+			cli.HelpFlag,
+		},
 	},
-}
-
-// byCategory sorts an array of flagGroup by Name in the order
-// defined in AppHelpFlagGroups.
-type byCategory []flagGroup
-
-func (a byCategory) Len() int      { return len(a) }
-func (a byCategory) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a byCategory) Less(i, j int) bool {
-	iCat, jCat := a[i].Name, a[j].Name
-	iIdx, jIdx := len(AppHelpFlagGroups), len(AppHelpFlagGroups) // ensure non categorized flags come last
-
-	for i, group := range AppHelpFlagGroups {
-		if iCat == group.Name {
-			iIdx = i
-		}
-		if jCat == group.Name {
-			jIdx = i
-		}
-	}
-
-	return iIdx < jIdx
-}
-
-func flagCategory(flag cli.Flag) string {
-	for _, category := range AppHelpFlagGroups {
-		for _, flg := range category.Flags {
-			if flg.GetName() == flag.GetName() {
-				return category.Name
-			}
-		}
-	}
-	return "MISC"
 }
 
 func init() {
 	// Override the default app help template
-	cli.AppHelpTemplate = AppHelpTemplate
-
-	// Define a one shot struct to pass to the usage template
-	type helpData struct {
-		App        interface{}
-		FlagGroups []flagGroup
-	}
+	cli.AppHelpTemplate = flags.AppHelpTemplate
 
 	// Override the default app help printer, but only for the global app help
 	originalHelpPrinter := cli.HelpPrinter
 	cli.HelpPrinter = func(w io.Writer, tmpl string, data interface{}) {
-		if tmpl == AppHelpTemplate {
+		if tmpl == flags.AppHelpTemplate {
 			// Iterate over all the flags and add any uncategorized ones
 			categorized := make(map[string]struct{})
 			for _, group := range AppHelpFlagGroups {
@@ -351,13 +325,17 @@ func init() {
 					categorized[flag.String()] = struct{}{}
 				}
 			}
+			deprecated := make(map[string]struct{})
+			for _, flag := range utils.DeprecatedFlags {
+				deprecated[flag.String()] = struct{}{}
+			}
+			// Only add uncategorized flags if they are not deprecated
 			var uncategorized []cli.Flag
 			for _, flag := range data.(*cli.App).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
-					if strings.HasPrefix(flag.GetName(), "dashboard") {
-						continue
+					if _, ok := deprecated[flag.String()]; !ok {
+						uncategorized = append(uncategorized, flag)
 					}
-					uncategorized = append(uncategorized, flag)
 				}
 			}
 			if len(uncategorized) > 0 {
@@ -370,23 +348,31 @@ func init() {
 					AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags = AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags[:miscs]
 				}()
 			}
+
+			// remove the Quorum account options from the main app usage as these should only be used by the geth account sub commands
+			for i, group := range AppHelpFlagGroups {
+				if group.Name == quorumAccountFlagGroup {
+					AppHelpFlagGroups = append(AppHelpFlagGroups[:i], AppHelpFlagGroups[i+1:]...)
+				}
+			}
+
 			// Render out custom usage screen
-			originalHelpPrinter(w, tmpl, helpData{data, AppHelpFlagGroups})
-		} else if tmpl == utils.CommandHelpTemplate {
+			originalHelpPrinter(w, tmpl, flags.HelpData{App: data, FlagGroups: AppHelpFlagGroups})
+		} else if tmpl == flags.CommandHelpTemplate {
 			// Iterate over all command specific flags and categorize them
 			categorized := make(map[string][]cli.Flag)
 			for _, flag := range data.(cli.Command).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
-					categorized[flagCategory(flag)] = append(categorized[flagCategory(flag)], flag)
+					categorized[flags.FlagCategory(flag, AppHelpFlagGroups)] = append(categorized[flags.FlagCategory(flag, AppHelpFlagGroups)], flag)
 				}
 			}
 
 			// sort to get a stable ordering
-			sorted := make([]flagGroup, 0, len(categorized))
+			sorted := make([]flags.FlagGroup, 0, len(categorized))
 			for cat, flgs := range categorized {
-				sorted = append(sorted, flagGroup{cat, flgs})
+				sorted = append(sorted, flags.FlagGroup{Name: cat, Flags: flgs})
 			}
-			sort.Sort(byCategory(sorted))
+			sort.Sort(flags.ByCategory(sorted))
 
 			// add sorted array to data and render with default printer
 			originalHelpPrinter(w, tmpl, map[string]interface{}{

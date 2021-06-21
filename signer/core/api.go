@@ -27,12 +27,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/signer/storage"
 )
@@ -41,9 +43,9 @@ const (
 	// numberOfAccountsToDerive For hardware wallets, the number of accounts to derive
 	numberOfAccountsToDerive = 10
 	// ExternalAPIVersion -- see extapi_changelog.md
-	ExternalAPIVersion = "6.0.0"
+	ExternalAPIVersion = "6.1.0"
 	// InternalAPIVersion -- see intapi_changelog.md
-	InternalAPIVersion = "7.0.0"
+	InternalAPIVersion = "7.0.1"
 )
 
 // ExternalAPI defines the external API through which signing requests are made.
@@ -62,6 +64,8 @@ type ExternalAPI interface {
 	EcRecover(ctx context.Context, data hexutil.Bytes, sig hexutil.Bytes) (common.Address, error)
 	// Version info about the APIs
 	Version(ctx context.Context) (string, error)
+	// SignGnosisSafeTransaction signs/confirms a gnosis-safe multisig transaction
+	SignGnosisSafeTx(ctx context.Context, signerAddress common.MixedcaseAddress, gnosisTx GnosisSafeTx, methodSelector *string) (*GnosisSafeTx, error)
 }
 
 // UIClientAPI specifies what method a UI needs to implement to be able to be used as a
@@ -125,7 +129,7 @@ type Metadata struct {
 	Origin    string `json:"Origin"`
 }
 
-func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, scpath string) *accounts.Manager {
+func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, plugins *plugin.Settings, scpath string) *accounts.Manager {
 	var (
 		backends []accounts.Backend
 		n, p     = keystore.StandardScryptN, keystore.StandardScryptP
@@ -160,6 +164,14 @@ func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, scpath str
 			log.Debug("Trezor support enabled via WebUSB")
 		}
 	}
+	// <Quorum>
+	if plugins != nil {
+		if _, ok := plugins.Providers[plugin.AccountPluginInterfaceName]; ok {
+			pluginBackend := pluggable.NewBackend()
+			backends = append(backends, pluginBackend)
+		}
+	}
+	// </Quorum>
 
 	// Start a smart card hub
 	if len(scpath) > 0 {
@@ -234,6 +246,7 @@ type (
 		Address     common.MixedcaseAddress `json:"address"`
 		Rawdata     []byte                  `json:"raw_data"`
 		Messages    []*NameValueType        `json:"messages"`
+		Callinfo    []ValidationInfo        `json:"call_info"`
 		Hash        hexutil.Bytes           `json:"hash"`
 		Meta        Metadata                `json:"meta"`
 	}
@@ -269,7 +282,7 @@ type (
 	}
 )
 
-var ErrRequestDenied = errors.New("Request denied")
+var ErrRequestDenied = errors.New("request denied")
 
 // NewSignerAPI creates a new API that can be used for Account management.
 // ksLocation specifies the directory where to store the password protected private
@@ -346,19 +359,28 @@ func (api *SignerAPI) startUSBListener() {
 			case accounts.WalletOpened:
 				status, _ := event.Wallet.Status()
 				log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+				var derive = func(numToDerive int, base accounts.DerivationPath) {
+					// Derive first N accounts, hardcoded for now
+					var nextPath = make(accounts.DerivationPath, len(base))
+					copy(nextPath[:], base[:])
 
-				// Derive first N accounts, hardcoded for now
-				var nextPath = make(accounts.DerivationPath, len(accounts.DefaultBaseDerivationPath))
-				copy(nextPath[:], accounts.DefaultBaseDerivationPath[:])
-
-				for i := 0; i < numberOfAccountsToDerive; i++ {
-					acc, err := event.Wallet.Derive(nextPath, true)
-					if err != nil {
-						log.Warn("account derivation failed", "error", err)
-					} else {
-						log.Info("derived account", "address", acc.Address)
+					for i := 0; i < numToDerive; i++ {
+						acc, err := event.Wallet.Derive(nextPath, true)
+						if err != nil {
+							log.Warn("Account derivation failed", "error", err)
+						} else {
+							log.Info("Derived account", "address", acc.Address, "path", nextPath)
+						}
+						nextPath[len(nextPath)-1]++
 					}
-					nextPath[len(nextPath)-1]++
+				}
+				if event.Wallet.URL().Scheme == "ledger" {
+					log.Info("Deriving ledger default paths")
+					derive(numberOfAccountsToDerive/2, accounts.DefaultBaseDerivationPath)
+					log.Info("Deriving ledger legacy paths")
+					derive(numberOfAccountsToDerive/2, accounts.LegacyLedgerBaseDerivationPath)
+				} else {
+					derive(numberOfAccountsToDerive, accounts.DefaultBaseDerivationPath)
 				}
 			case accounts.WalletDropped:
 				log.Info("Old wallet dropped", "url", event.Wallet.URL())
@@ -371,7 +393,9 @@ func (api *SignerAPI) startUSBListener() {
 // List returns the set of wallet this signer manages. Each wallet can contain
 // multiple accounts.
 func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
-	var accs []accounts.Account
+	var accs = make([]accounts.Account, 0)
+	// accs is initialized as empty list, not nil. We use 'nil' to signal
+	// rejection, as opposed to an empty list.
 	for _, wallet := range api.am.Wallets() {
 		accs = append(accs, wallet.Accounts()...)
 	}
@@ -381,13 +405,11 @@ func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
 	}
 	if result.Accounts == nil {
 		return nil, ErrRequestDenied
-
 	}
 	addresses := make([]common.Address, 0)
 	for _, acc := range result.Accounts {
 		addresses = append(addresses, acc.Address)
 	}
-
 	return addresses, nil
 }
 
@@ -395,8 +417,7 @@ func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
 // the given password. Users are responsible to backup the private key that is stored
 // in the keystore location thas was specified when this API was created.
 func (api *SignerAPI) New(ctx context.Context) (common.Address, error) {
-	be := api.am.Backends(keystore.KeyStoreType)
-	if len(be) == 0 {
+	if be := api.am.Backends(keystore.KeyStoreType); len(be) == 0 {
 		return common.Address{}, errors.New("password based accounts not supported")
 	}
 	if resp, err := api.UI.ApproveNewAccount(&NewAccountRequest{MetadataFromContext(ctx)}); err != nil {
@@ -404,7 +425,16 @@ func (api *SignerAPI) New(ctx context.Context) (common.Address, error) {
 	} else if !resp.Approved {
 		return common.Address{}, ErrRequestDenied
 	}
+	return api.newAccount()
+}
 
+// newAccount is the internal method to create a new account. It should be used
+// _after_ user-approval has been obtained
+func (api *SignerAPI) newAccount() (common.Address, error) {
+	be := api.am.Backends(keystore.KeyStoreType)
+	if len(be) == 0 {
+		return common.Address{}, errors.New("password based accounts not supported")
+	}
 	// Three retries to get a valid password
 	for i := 0; i < 3; i++ {
 		resp, err := api.UI.OnInputRequired(UserInputRequest{
@@ -558,6 +588,9 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	}
 
 	rlpdata, err := rlp.EncodeToBytes(signedTx)
+	if err != nil {
+		return nil, err
+	}
 	response := ethapi.SignTransactionResult{Raw: rlpdata, Tx: signedTx}
 
 	// Finally, send the signed tx to the UI
@@ -565,6 +598,33 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	// ...and to the external caller
 	return &response, nil
 
+}
+
+func (api *SignerAPI) SignGnosisSafeTx(ctx context.Context, signerAddress common.MixedcaseAddress, gnosisTx GnosisSafeTx, methodSelector *string) (*GnosisSafeTx, error) {
+	// Do the usual validations, but on the last-stage transaction
+	args := gnosisTx.ArgsForValidation()
+	msgs, err := api.validator.ValidateTransaction(methodSelector, args)
+	if err != nil {
+		return nil, err
+	}
+	// If we are in 'rejectMode', then reject rather than show the user warnings
+	if api.rejectMode {
+		if err := msgs.getWarnings(); err != nil {
+			return nil, err
+		}
+	}
+	typedData := gnosisTx.ToTypedData()
+	signature, preimage, err := api.signTypedData(ctx, signerAddress, typedData, msgs)
+	if err != nil {
+		return nil, err
+	}
+	checkSummedSender, _ := common.NewMixedcaseAddressFromString(signerAddress.Address().Hex())
+
+	gnosisTx.Signature = signature
+	gnosisTx.SafeTxHash = common.BytesToHash(preimage)
+	gnosisTx.Sender = *checkSummedSender // Must be checksumed to be accepted by relay
+
+	return &gnosisTx, nil
 }
 
 // Returns the external api version. This method does not require user acceptance. Available methods are

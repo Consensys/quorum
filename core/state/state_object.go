@@ -18,9 +18,11 @@ package state
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -79,6 +81,13 @@ type stateObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
+	// Quorum
+	// contains extra data that is linked to the account
+	accountExtraData *AccountExtraData
+	// as there are many fields in accountExtraData which might be concurrently changed
+	// this is to make sure we can keep track of changes individually.
+	accountExtraDataMutex sync.Mutex
+
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
 	dirtyStorage   Storage // Storage entries that have been modified in the current transaction execution
@@ -89,8 +98,10 @@ type stateObject struct {
 	// during the "update" phase of the state transition.
 	dirtyCode bool // true if the code was updated
 	suicided  bool
-	touched   bool
 	deleted   bool
+	// Quorum
+	// flag to track changes in AccountExtraData
+	dirtyAccountExtraData bool
 }
 
 // empty returns whether the account is considered empty.
@@ -154,7 +165,6 @@ func (s *stateObject) touch() {
 		// flattened journals.
 		s.db.journal.dirty(s.address)
 	}
-	s.touched = true
 }
 
 func (s *stateObject) getTrie(db Database) Trie {
@@ -201,15 +211,35 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 	if value, cached := s.originStorage[key]; cached {
 		return value
 	}
-	// Track the amount of time wasted on reading the storage trie
-	if metrics.EnabledExpensive {
-		defer func(start time.Time) { s.db.StorageReads += time.Since(start) }(time.Now())
+	// If no live objects are available, attempt to use snapshots
+	var (
+		enc []byte
+		err error
+	)
+	if s.db.snap != nil {
+		if metrics.EnabledExpensive {
+			defer func(start time.Time) { s.db.SnapshotStorageReads += time.Since(start) }(time.Now())
+		}
+		// If the object was destructed in *this* block (and potentially resurrected),
+		// the storage has been cleared out, and we should *not* consult the previous
+		// snapshot about any storage values. The only possible alternatives are:
+		//   1) resurrect happened, and new slot values were set -- those should
+		//      have been handles via pendingStorage above.
+		//   2) we don't have new values, and can deliver empty response back
+		if _, destructed := s.db.snapDestructs[s.addrHash]; destructed {
+			return common.Hash{}
+		}
+		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
 	}
-	// Otherwise load the value from the database
-	enc, err := s.getTrie(db).TryGet(key[:])
-	if err != nil {
-		s.setError(err)
-		return common.Hash{}
+	// If snapshot unavailable or reading from it failed, load from the database
+	if s.db.snap == nil || err != nil {
+		if metrics.EnabledExpensive {
+			defer func(start time.Time) { s.db.StorageReads += time.Since(start) }(time.Now())
+		}
+		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
+			s.setError(err)
+			return common.Hash{}
+		}
 	}
 	var value common.Hash
 	if len(enc) > 0 {
@@ -278,13 +308,26 @@ func (s *stateObject) finalise() {
 }
 
 // updateTrie writes cached storage modifications into the object's storage trie.
+// It will return nil if the trie has not been loaded and no changes have been made
 func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
 	s.finalise()
-
-	// Track the amount of time wasted on updating the storge trie
+	if len(s.pendingStorage) == 0 {
+		return s.trie
+	}
+	// Track the amount of time wasted on updating the storage trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageUpdates += time.Since(start) }(time.Now())
+	}
+	// Retrieve the snapshot storage map for the object
+	var storage map[common.Hash][]byte
+	if s.db.snap != nil {
+		// Retrieve the old storage map, if available, create a new one otherwise
+		storage = s.db.snapStorage[s.addrHash]
+		if storage == nil {
+			storage = make(map[common.Hash][]byte)
+			s.db.snapStorage[s.addrHash] = storage
+		}
 	}
 	// Insert all the pending updates into the trie
 	tr := s.getTrie(db)
@@ -295,13 +338,18 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		}
 		s.originStorage[key] = value
 
+		var v []byte
 		if (value == common.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
-			continue
+		} else {
+			// Encoding []byte cannot fail, ok to ignore the error.
+			v, _ = rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
+			s.setError(tr.TryUpdate(key[:], v))
 		}
-		// Encoding []byte cannot fail, ok to ignore the error.
-		v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
-		s.setError(tr.TryUpdate(key[:], v))
+		// If state snapshotting is active, cache the data til commit
+		if storage != nil {
+			storage[crypto.Keccak256Hash(key[:])] = v // v will be nil if value is 0x00
+		}
 	}
 	if len(s.pendingStorage) > 0 {
 		s.pendingStorage = make(Storage)
@@ -311,9 +359,11 @@ func (s *stateObject) updateTrie(db Database) Trie {
 
 // UpdateRoot sets the trie root to the current root hash of
 func (s *stateObject) updateRoot(db Database) {
-	s.updateTrie(db)
-
-	// Track the amount of time wasted on hashing the storge trie
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return
+	}
+	// Track the amount of time wasted on hashing the storage trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageHashes += time.Since(start) }(time.Now())
 	}
@@ -323,11 +373,14 @@ func (s *stateObject) updateRoot(db Database) {
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
 func (s *stateObject) CommitTrie(db Database) error {
-	s.updateTrie(db)
+	// If nothing changed, don't bother with hashing anything
+	if s.updateTrie(db) == nil {
+		return nil
+	}
 	if s.dbErr != nil {
 		return s.dbErr
 	}
-	// Track the amount of time wasted on committing the storge trie
+	// Track the amount of time wasted on committing the storage trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageCommits += time.Since(start) }(time.Now())
 	}
@@ -338,22 +391,21 @@ func (s *stateObject) CommitTrie(db Database) error {
 	return err
 }
 
-// AddBalance removes amount from c's balance.
+// AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
 func (s *stateObject) AddBalance(amount *big.Int) {
-	// EIP158: We must check emptiness for the objects such that the account
+	// EIP161: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
 		if s.empty() {
 			s.touch()
 		}
-
 		return
 	}
 	s.SetBalance(new(big.Int).Add(s.Balance(), amount))
 }
 
-// SubBalance removes amount from c's balance.
+// SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (s *stateObject) SubBalance(amount *big.Int) {
 	if amount.Sign() == 0 {
@@ -389,6 +441,10 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.suicided = s.suicided
 	stateObject.dirtyCode = s.dirtyCode
 	stateObject.deleted = s.deleted
+	// Quorum - copy AccountExtraData
+	stateObject.accountExtraData = s.accountExtraData
+	stateObject.dirtyAccountExtraData = s.dirtyAccountExtraData
+
 	return stateObject
 }
 
@@ -415,6 +471,23 @@ func (s *stateObject) Code(db Database) []byte {
 	}
 	s.code = code
 	return code
+}
+
+// CodeSize returns the size of the contract code associated with this object,
+// or zero if none. This method is an almost mirror of Code, but uses a cache
+// inside the database to avoid loading codes seen recently.
+func (s *stateObject) CodeSize(db Database) int {
+	if s.code != nil {
+		return len(s.code)
+	}
+	if bytes.Equal(s.CodeHash(), emptyCodeHash) {
+		return 0
+	}
+	size, err := db.ContractCodeSize(s.addrHash, common.BytesToHash(s.CodeHash()))
+	if err != nil {
+		s.setError(fmt.Errorf("can't load code size %x: %v", s.CodeHash(), err))
+	}
+	return size
 }
 
 func (s *stateObject) SetCode(codeHash common.Hash, code []byte) {
@@ -445,6 +518,60 @@ func (s *stateObject) setNonce(nonce uint64) {
 	s.data.Nonce = nonce
 }
 
+// Quorum
+// SetAccountExtraData modifies the AccountExtraData reference and journals it
+func (s *stateObject) SetAccountExtraData(extraData *AccountExtraData) {
+	current, _ := s.AccountExtraData()
+	s.db.journal.append(accountExtraDataChange{
+		account: &s.address,
+		prev:    current,
+	})
+	s.setAccountExtraData(extraData)
+}
+
+// A new AccountExtraData will be created if not exists.
+// This must be called after successfully acquiring accountExtraDataMutex lock
+func (s *stateObject) journalAccountExtraData() *AccountExtraData {
+	current, _ := s.AccountExtraData()
+	s.db.journal.append(accountExtraDataChange{
+		account: &s.address,
+		prev:    current.copy(),
+	})
+	if current == nil {
+		current = &AccountExtraData{}
+	}
+	return current
+}
+
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetStatePrivacyMetadata(pm *PrivacyMetadata) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.PrivacyMetadata = pm
+	s.setAccountExtraData(newExtraData)
+}
+
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetManagedParties(managedParties []string) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.ManagedParties = managedParties
+	s.setAccountExtraData(newExtraData)
+}
+
+// Quorum
+// setAccountExtraData modifies the AccountExtraData reference in this state object
+func (s *stateObject) setAccountExtraData(extraData *AccountExtraData) {
+	s.accountExtraData = extraData
+	s.dirtyAccountExtraData = true
+}
+
 func (s *stateObject) CodeHash() []byte {
 	return s.data.CodeHash
 }
@@ -455,6 +582,83 @@ func (s *stateObject) Balance() *big.Int {
 
 func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
+}
+
+// Quorum
+// AccountExtraData returns the extra data in this state object.
+// It will also update the reference by searching the accountExtraDataTrie.
+//
+// This method enforces on returning error and never returns (nil, nil).
+func (s *stateObject) AccountExtraData() (*AccountExtraData, error) {
+	if s.accountExtraData != nil {
+		return s.accountExtraData, nil
+	}
+	val, err := s.getCommittedAccountExtraData()
+	if err != nil {
+		return nil, err
+	}
+	s.accountExtraData = val
+	return val, nil
+}
+
+// Quorum
+// getCommittedAccountExtraData looks for an entry in accountExtraDataTrie.
+//
+// This method enforces on returning error and never returns (nil, nil).
+func (s *stateObject) getCommittedAccountExtraData() (*AccountExtraData, error) {
+	val, err := s.db.accountExtraDataTrie.TryGet(s.address.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve data from the accountExtraDataTrie. Cause: %v", err)
+	}
+	if len(val) == 0 {
+		return nil, fmt.Errorf("%s: %w", s.address.Hex(), common.ErrNoAccountExtraData)
+	}
+	var extraData AccountExtraData
+	if err := rlp.DecodeBytes(val, &extraData); err != nil {
+		return nil, fmt.Errorf("unable to decode to AccountExtraData. Cause: %v", err)
+	}
+	return &extraData, nil
+}
+
+// Quorum - Privacy Enhancements
+// PrivacyMetadata returns the reference to PrivacyMetadata.
+// It will returrn an error if no PrivacyMetadata is in the AccountExtraData.
+func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
+	extraData, err := s.AccountExtraData()
+	if err != nil {
+		return nil, err
+	}
+	// extraData can't be nil. Refer to s.AccountExtraData()
+	if extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("no privacy metadata data for contract %s", s.address.Hex())
+	}
+	return extraData.PrivacyMetadata, nil
+}
+
+func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
+	extraData, err := s.getCommittedAccountExtraData()
+	if err != nil {
+		return nil, err
+	}
+	if extraData == nil || extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
+	}
+	return extraData.PrivacyMetadata, nil
+}
+
+// End Quorum - Privacy Enhancements
+
+// ManagedParties will return empty if no account extra data found
+func (s *stateObject) ManagedParties() ([]string, error) {
+	extraData, err := s.AccountExtraData()
+	if errors.Is(err, common.ErrNoAccountExtraData) {
+		return []string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	// extraData can't be nil. Refer to s.AccountExtraData()
+	return extraData.ManagedParties, nil
 }
 
 // Never called, but must be present to allow stateObject to be used

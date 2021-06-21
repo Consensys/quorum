@@ -18,6 +18,8 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/tls"
+	"flag"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -28,11 +30,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/params"
+	testifyassert "github.com/stretchr/testify/assert"
+	"gopkg.in/urfave/cli.v1"
 )
 
 const (
-	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 shh:1.0 txpool:1.0 web3:1.0"
+	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
 	httpAPIs = "admin:1.0 eth:1.0 net:1.0 rpc:1.0 web3:1.0"
 	nodeKey  = "b68c0338aa4b266bf38ebe84c6199ae9fac8b29f32998b3ed2fbeafebe8d65c9"
 )
@@ -79,7 +84,7 @@ func TestConsoleWelcome(t *testing.T) {
 	// Start a geth console, make sure it's cleaned up and terminate the console
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh",
+		"--etherbase", coinbase,
 		"console")
 
 	// Gather all the infos the welcome message needs to contain
@@ -88,7 +93,9 @@ func TestConsoleWelcome(t *testing.T) {
 	geth.SetTemplateFunc("gover", runtime.Version)
 	geth.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	geth.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
-	geth.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
+	geth.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
 	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
@@ -109,7 +116,7 @@ at block: 0 ({{niltime}})
 // Tests that a console can be attached to a running node via various means.
 func TestIPCAttachWelcome(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
-	// Configure the instance for IPC attachement
+	// Configure the instance for IPC attachment
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 	var ipc string
 
@@ -121,18 +128,18 @@ func TestIPCAttachWelcome(t *testing.T) {
 	} else {
 		ipc = filepath.Join(datadir, "geth.ipc")
 	}
-
-	// Note: we need --shh because testAttachWelcome checks for default
-	// list of ipc modules and shh is included there.
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh", "--ipcpath", ipc)
+		"--etherbase", coinbase, "--ipcpath", ipc)
+
+	defer func() {
+		geth.Interrupt()
+		geth.ExpectExit()
+	}()
 
 	waitForEndpoint(t, ipc, 3*time.Second)
 	testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
 
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
@@ -145,14 +152,11 @@ func TestHTTPAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--rpc", "--rpcport", port, "--rpcapi", "admin,eth,net,web3")
+		"--etherbase", coinbase, "--http", "--http.port", port, "--rpcapi", "admin,eth,net,web3")
 
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func TestWSAttachWelcome(t *testing.T) {
@@ -165,14 +169,11 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--ws", "--wsport", port, "--wsapi", "admin,eth,net,web3")
+		"--etherbase", coinbase, "--ws", "--ws.port", port, "--wsapi", "admin,eth,net,web3")
 
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
@@ -188,7 +189,9 @@ func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
 	attach.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	attach.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
 	attach.SetTemplateFunc("etherbase", func() string { return geth.Etherbase })
-	attach.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
+	attach.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
 	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin") })
 	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
@@ -236,6 +239,52 @@ func setupIstanbul(t *testing.T) string {
 	runGeth(t, "--datadir", datadir, "init", json).WaitExit()
 
 	return datadir
+}
+
+func TestReadTLSClientConfig_whenCustomizeTLSCipherSuites(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	flagSet := new(flag.FlagSet)
+	flagSet.Bool(utils.RPCClientTLSInsecureSkipVerify.Name, true, "")
+	flagSet.String(utils.RPCClientTLSCipherSuites.Name, "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,  TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "")
+	ctx := cli.NewContext(nil, flagSet, nil)
+
+	tlsConf, ok, err := readTLSClientConfig("https://arbitraryendpoint", ctx)
+
+	assert.NoError(err)
+	assert.True(ok, "has custom TLS client configuration")
+	assert.True(tlsConf.InsecureSkipVerify)
+	assert.Len(tlsConf.CipherSuites, 2)
+	assert.Contains(tlsConf.CipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+	assert.Contains(tlsConf.CipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
+}
+
+func TestReadTLSClientConfig_whenTypicalTLS(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	flagSet := new(flag.FlagSet)
+	ctx := cli.NewContext(nil, flagSet, nil)
+
+	tlsConf, ok, err := readTLSClientConfig("https://arbitraryendpoint", ctx)
+
+	assert.NoError(err)
+	assert.False(ok, "no custom TLS client configuration")
+	assert.Nil(tlsConf, "no custom TLS config is set")
+}
+
+func TestReadTLSClientConfig_whenTLSInsecureFlagSet(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	flagSet := new(flag.FlagSet)
+	flagSet.Bool(utils.RPCClientTLSInsecureSkipVerify.Name, true, "")
+	ctx := cli.NewContext(nil, flagSet, nil)
+
+	tlsConf, ok, err := readTLSClientConfig("https://arbitraryendpoint", ctx)
+
+	assert.NoError(err)
+	assert.True(ok, "has custom TLS client configuration")
+	assert.True(tlsConf.InsecureSkipVerify)
+	assert.Len(tlsConf.CipherSuites, 0)
 }
 
 func SetResetPrivateConfig(value string) func() {

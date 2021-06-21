@@ -98,7 +98,6 @@ func TestCheckCompatible(t *testing.T) {
 	rec2 := MaxCodeConfigStruct{big.NewInt(10), 40}
 	rec3 := MaxCodeConfigStruct{big.NewInt(8), 40}
 
-
 	storedMaxCodeConfig0 = append(storedMaxCodeConfig0, defaultRec)
 
 	storedMaxCodeConfig1 = append(storedMaxCodeConfig1, defaultRec)
@@ -157,6 +156,23 @@ func TestCheckCompatible(t *testing.T) {
 				StoredConfig: big.NewInt(10),
 				NewConfig:    big.NewInt(20),
 				RewindTo:     9,
+			},
+		},
+		{
+			stored:  &ChainConfig{ConstantinopleBlock: big.NewInt(30)},
+			new:     &ChainConfig{ConstantinopleBlock: big.NewInt(30), PetersburgBlock: big.NewInt(30)},
+			head:    40,
+			wantErr: nil,
+		},
+		{
+			stored: &ChainConfig{ConstantinopleBlock: big.NewInt(30)},
+			new:    &ChainConfig{ConstantinopleBlock: big.NewInt(30), PetersburgBlock: big.NewInt(31)},
+			head:   40,
+			wantErr: &ConfigCompatError{
+				What:         "Petersburg fork block",
+				StoredConfig: nil,
+				NewConfig:    big.NewInt(31),
+				RewindTo:     30,
 			},
 		},
 		{
@@ -274,7 +290,7 @@ func TestCheckCompatible(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			stored:  &ChainConfig{MaxCodeSize: 32, MaxCodeSizeChangeBlock:big.NewInt(10)},
+			stored:  &ChainConfig{MaxCodeSize: 32, MaxCodeSizeChangeBlock: big.NewInt(10)},
 			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
 			head:    15,
 			wantErr: nil,

@@ -19,19 +19,140 @@ package graphql
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/multitenancy"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 )
 
 func TestBuildSchema(t *testing.T) {
+	stack, err := node.New(&node.DefaultConfig)
+	if err != nil {
+		t.Fatalf("could not create new node: %v", err)
+	}
 	// Make sure the schema can be parsed and matched up to the object model.
-	if _, err := newHandler(nil); err != nil {
+	if err := newHandler(stack, nil, []string{}, []string{}); err != nil {
 		t.Errorf("Could not construct GraphQL handler: %v", err)
 	}
+}
+
+// Tests that a graphQL request is successfully handled when graphql is enabled on the specified endpoint
+func TestGraphQLHTTPOnSamePort_GQLRequest_Successful(t *testing.T) {
+	stack := createNode(t, true)
+	defer stack.Close()
+	// start node
+	if err := stack.Start(); err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+	// create http request
+	body := strings.NewReader("{\"query\": \"{block{number}}\",\"variables\": null}")
+	gqlReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/graphql", "127.0.0.1:9393"), body)
+	if err != nil {
+		t.Error("could not issue new http request ", err)
+	}
+	gqlReq.Header.Set("Content-Type", "application/json")
+	// read from response
+	resp := doHTTPRequest(t, gqlReq)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("could not read from response body: %v", err)
+	}
+	expected := "{\"data\":{\"block\":{\"number\":\"0x0\"}}}"
+	assert.Equal(t, expected, string(bodyBytes))
+}
+
+// Tests that a graphQL request is not handled successfully when graphql is not enabled on the specified endpoint
+func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
+	stack := createNode(t, false)
+	defer stack.Close()
+	if err := stack.Start(); err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+
+	// create http request
+	body := strings.NewReader("{\"query\": \"{block{number}}\",\"variables\": null}")
+	gqlReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/graphql", "127.0.0.1:9393"), body)
+	if err != nil {
+		t.Error("could not issue new http request ", err)
+	}
+	gqlReq.Header.Set("Content-Type", "application/json")
+	// read from response
+	resp := doHTTPRequest(t, gqlReq)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("could not read from response body: %v", err)
+	}
+	// make sure the request is not handled successfully
+	assert.Equal(t, 404, resp.StatusCode)
+	assert.Equal(t, "404 page not found\n", string(bodyBytes))
+}
+
+func createNode(t *testing.T, gqlEnabled bool) *node.Node {
+	stack, err := node.New(&node.Config{
+		HTTPHost: "127.0.0.1",
+		HTTPPort: 9393,
+		WSHost:   "127.0.0.1",
+		WSPort:   9393,
+	})
+	if err != nil {
+		t.Fatalf("could not create node: %v", err)
+	}
+	if !gqlEnabled {
+		return stack
+	}
+
+	createGQLService(t, stack, "127.0.0.1:9393")
+
+	return stack
+}
+
+func createGQLService(t *testing.T, stack *node.Node, endpoint string) {
+	// create backend
+	ethBackend, err := eth.New(stack, &eth.DefaultConfig)
+	if err != nil {
+		t.Fatalf("could not create eth backend: %v", err)
+	}
+
+	// create gql service
+	err = New(stack, ethBackend.APIBackend, []string{}, []string{})
+	if err != nil {
+		t.Fatalf("could not create graphql service: %v", err)
+	}
+}
+
+func doHTTPRequest(t *testing.T, req *http.Request) *http.Response {
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal("could not issue a GET request to the given endpoint", err)
+
+	}
+	return resp
 }
 
 // Quorum
@@ -41,18 +162,19 @@ func TestQuorumSchema(t *testing.T) {
 	defer func() {
 		private.P = saved
 	}()
+	arbitraryPayloadHash := common.BytesToEncryptedPayloadHash([]byte("arbitrary key"))
 	private.P = &StubPrivateTransactionManager{
-		responses: map[string][]interface{}{
-			"key": {
+		responses: map[common.EncryptedPayloadHash][]interface{}{
+			arbitraryPayloadHash: {
 				[]byte("private payload"), // equals to 0x70726976617465207061796c6f6164 after converting to bytes
 				nil,
 			},
 		},
 	}
 	// Test private transaction
-	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("key"))
+	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), arbitraryPayloadHash.Bytes())
 	privateTx.SetPrivate()
-	privateTxQuery := &Transaction{tx: privateTx}
+	privateTxQuery := &Transaction{tx: privateTx, backend: &StubBackend{}}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -87,28 +209,234 @@ func TestQuorumSchema(t *testing.T) {
 }
 
 type StubPrivateTransactionManager struct {
-	responses map[string][]interface{}
+	notinuse.PrivateTransactionManager
+	responses map[common.EncryptedPayloadHash][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
+func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
 }
 
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
-	res := spm.responses[string(data)]
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
+	res := spm.responses[txHash]
 	if err, ok := res[1].(error); ok {
-		return nil, err
+		return "", nil, nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return ret, nil
+		return "", nil, ret, &engine.ExtraMetadata{
+			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
+		}, nil
 	}
-	return nil, nil
+	return "", nil, nil, nil, nil
+}
+
+func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
+	_, sender, data, metadata, err := spm.Receive(hash)
+	return data, sender[0], metadata, err
+}
+
+type StubBackend struct{}
+
+func (sb *StubBackend) CurrentHeader() *types.Header {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Engine() consensus.Engine {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticationToken, attributes ...*multitenancy.PrivateStateSecurityAttribute) (bool, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) CurrentBlock() *types.Block {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Downloader() *downloader.Downloader {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ProtocolVersion() int {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ChainDb() ethdb.Database {
+	panic("implement me")
+}
+
+func (sb *StubBackend) EventMux() *event.TypeMux {
+	panic("implement me")
+}
+
+func (sb *StubBackend) AccountManager() *accounts.Manager {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ExtRPCEnabled() bool {
+	panic("implement me")
+}
+
+func (sb *StubBackend) CallTimeOut() time.Duration {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCTxFeeCap() float64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() uint64 {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SetHead(number uint64) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolTransactions() (types.Transactions, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) Stats() (pending int, queued int) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BloomStatus() (uint64, uint64) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ChainConfig() *params.ChainConfig {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return &StubPSMR{}
+}
+
+type StubPSMR struct {
+}
+
+func (psmr *StubPSMR) ResolveForManagedParty(managedParty string) (*mps.PrivateStateMetadata, error) {
+	panic("implement me")
+}
+func (psmr *StubPSMR) ResolveForUserContext(ctx context.Context) (*mps.PrivateStateMetadata, error) {
+	return mps.DefaultPrivateStateMetadata, nil
+}
+func (psmr *StubPSMR) PSIs() []types.PrivateStateIdentifier {
+	panic("implement me")
+}
+func (psmr *StubPSMR) NotIncludeAny(psm *mps.PrivateStateMetadata, managedParties ...string) bool {
+	return false
 }

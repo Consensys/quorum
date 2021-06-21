@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -28,9 +27,11 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type testerVote struct {
@@ -58,7 +59,7 @@ func (ap *testerAccountPool) sign(header *types.Header, validator string) {
 		ap.accounts[validator], _ = crypto.GenerateKey()
 	}
 	// Sign the header and embed the signature in extra data
-	hashData := crypto.Keccak256([]byte(sigHash(header).Bytes()))
+	hashData := crypto.Keccak256(sigHash(header).Bytes())
 	sig, _ := crypto.Sign(hashData, ap.accounts[validator])
 
 	writeSeal(header, sig)
@@ -347,7 +348,8 @@ func TestVoting(t *testing.T) {
 			config.Epoch = tt.epoch
 		}
 		engine := New(config, accounts.accounts[tt.validators[0]], db).(*backend)
-		chain, err := core.NewBlockChain(db, nil, genesis.Config, engine, vm.Config{}, nil)
+		// TODO - rebase - chain, _ := core.NewBlockChain(db, nil, genesis.Config, engine, vm.Config{}, nil, nil)
+		chain, _ := core.NewBlockChain(db, nil, params.QuorumTestChainConfig, engine, vm.Config{}, nil, nil)
 
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))
@@ -417,7 +419,7 @@ func TestSaveAndLoad(t *testing.T) {
 			},
 		},
 		Tally: map[common.Address]Tally{
-			common.StringToAddress("1234567893"): Tally{
+			common.StringToAddress("1234567893"): {
 				Authorize: false,
 				Votes:     20,
 			},

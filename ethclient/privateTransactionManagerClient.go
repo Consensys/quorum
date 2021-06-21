@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type privateTransactionManagerClient interface {
-	storeRaw(data []byte, privateFrom string) ([]byte, error)
+	StoreRaw(data []byte, privateFrom string) (common.EncryptedPayloadHash, error)
 }
 
 type privateTransactionManagerDefaultClient struct {
@@ -39,33 +41,33 @@ type storeRawResp struct {
 	Key string `json:"key"`
 }
 
-func (pc *privateTransactionManagerDefaultClient) storeRaw(data []byte, privateFrom string) ([]byte, error) {
+func (pc *privateTransactionManagerDefaultClient) StoreRaw(data []byte, privateFrom string) (common.EncryptedPayloadHash, error) {
 	storeRawReq := &storeRawReq{
 		Payload: base64.StdEncoding.EncodeToString(data),
 		From:    privateFrom,
 	}
 	reqBodyBuf := new(bytes.Buffer)
 	if err := json.NewEncoder(reqBodyBuf).Encode(storeRawReq); err != nil {
-		return nil, err
+		return common.EncryptedPayloadHash{}, err
 	}
 	resp, err := pc.httpClient.Post(pc.rawurl+"/storeraw", "application/json", reqBodyBuf)
 	if err != nil {
-		return nil, fmt.Errorf("unable to invoke /storeraw due to %s", err)
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to invoke /storeraw due to %s", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returns %s", resp.Status)
+		return common.EncryptedPayloadHash{}, fmt.Errorf("server returns %s", resp.Status)
 	}
 	// parse response
 	var storeRawResp storeRawResp
 	if err := json.NewDecoder(resp.Body).Decode(&storeRawResp); err != nil {
-		return nil, err
+		return common.EncryptedPayloadHash{}, err
 	}
-	encryptedPayloadHash, err := base64.StdEncoding.DecodeString(storeRawResp.Key)
+	encryptedPayloadHash, err := common.Base64ToEncryptedPayloadHash(storeRawResp.Key)
 	if err != nil {
-		return nil, err
+		return common.EncryptedPayloadHash{}, err
 	}
 	return encryptedPayloadHash, nil
 }

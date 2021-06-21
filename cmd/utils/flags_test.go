@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of go-ethereum.
 //
 // go-ethereum is free software: you can redistribute it and/or modify
@@ -35,7 +35,7 @@ func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
 	arbitraryCLIContext := cli.NewContext(nil, &flag.FlagSet{}, nil)
 
-	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
+	assert.NoError(t, SetPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.Nil(t, arbitraryNodeConfig.Plugins)
 }
@@ -74,8 +74,17 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 	fs.Int(QuorumImmutabilityThreshold.Name, 0, "")
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumImmutabilityThreshold.Name, strconv.Itoa(100000)))
-	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name) == true, "immutability threshold flag not set")
-	assert.True(t, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name) == 100000, "immutability threshold value not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name), "immutability threshold flag not set")
+	assert.Equal(t, 100000, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name), "immutability threshold value not set")
+}
+
+func TestSetTimeOutForCall(t *testing.T) {
+	fs := &flag.FlagSet{}
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(10)))
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "timeoutforcall flag not set")
+	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(EVMCallTimeOutFlag.Name), "timeoutforcall value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {
@@ -96,13 +105,13 @@ func TestSetPlugins_whenTypical(t *testing.T) {
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "file://"+arbitraryJSONFile))
 
-	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
+	assert.NoError(t, SetPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.NotNil(t, arbitraryNodeConfig.Plugins)
 }
 
 func verifyErrorMessage(t *testing.T, ctx *cli.Context, cfg *node.Config, expectedMsg string) {
-	err := setPlugins(ctx, cfg)
+	err := SetPlugins(ctx, cfg)
 	assert.EqualError(t, err, expectedMsg)
 }
 

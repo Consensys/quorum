@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -75,7 +76,7 @@ type backend struct {
 	core             istanbulCore.Engine
 	logger           log.Logger
 	db               ethdb.Database
-	chain            consensus.ChainReader
+	chain            consensus.ChainHeaderReader
 	currentBlock     func() *types.Block
 	hasBadBlock      func(hash common.Hash) bool
 
@@ -101,7 +102,7 @@ type backend struct {
 }
 
 // zekun: HACK
-func (sb *backend) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
+func (sb *backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return new(big.Int)
 }
 
@@ -155,7 +156,7 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-			go p.Send(istanbulMsg, payload)
+			go p.SendConsensus(istanbulMsg, payload)
 		}
 	}
 	return nil
@@ -164,7 +165,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 // Commit implements istanbul.Backend.Commit
 func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
@@ -207,7 +207,6 @@ func (sb *backend) EventMux() *event.TypeMux {
 // Verify implements istanbul.Backend.Verify
 func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
-	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
@@ -220,7 +219,7 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	}
 
 	// check block body
-	txnHash := types.DeriveSha(block.Transactions())
+	txnHash := types.DeriveSha(block.Transactions(), new(trie.Trie))
 	uncleHash := types.CalcUncleHash(block.Uncles())
 	if txnHash != block.Header().TxHash {
 		return 0, errMismatchTxhashes
@@ -242,7 +241,7 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 
 // Sign implements istanbul.Backend.Sign
 func (sb *backend) Sign(data []byte) ([]byte, error) {
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	return crypto.Sign(hashData, sb.privateKey)
 }
 

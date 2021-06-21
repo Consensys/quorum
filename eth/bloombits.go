@@ -54,7 +54,7 @@ func (eth *Ethereum) startBloomHandlers(sectionSize uint64) {
 		go func() {
 			for {
 				select {
-				case <-eth.shutdownChan:
+				case <-eth.closeBloomHandler:
 					return
 
 				case request := <-eth.bloomRequests:
@@ -139,4 +139,9 @@ func (b *BloomIndexer) Commit() error {
 		rawdb.WriteBloomBits(batch, uint(i), b.section, b.head, bitutil.CompressBytes(bits))
 	}
 	return batch.Write()
+}
+
+// Prune returns an empty error since we don't support pruning here.
+func (b *BloomIndexer) Prune(threshold uint64) error {
+	return nil
 }

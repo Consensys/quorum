@@ -68,15 +68,12 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 		privateState = publicState
 	}
 	// TODO(joel): can we just pass nil instead of bc?
-	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
+	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
 	context := NewEVMContext(msg, &cg.header, bc, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	sender := vm.AccountRef(msg.From())
 	vmenv.Call(sender, to, msg.Data(), 100000000, new(big.Int))
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // MakeCallHelper returns a new callHelper
@@ -84,11 +81,11 @@ func MakeCallHelper() *callHelper {
 	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
-	publicState, err := state.New(common.Hash{}, db)
+	publicState, err := state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}
-	privateState, err := state.New(common.Hash{}, db)
+	privateState, err := state.New(common.Hash{}, db, nil)
 	if err != nil {
 		panic(err)
 	}

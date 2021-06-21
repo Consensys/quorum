@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -22,9 +23,8 @@ type PluginManager struct {
 	mux                sync.Mutex                            // control concurrent access to plugins cache
 	plugins            map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
 	initializedPlugins map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting/stopping/getting info
+	pluginsStarted     *int32
 }
-
-func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
 
 // this is called after PluginManager service has been successfully started
 // See node/node.go#Start()
@@ -39,9 +39,18 @@ func (s *PluginManager) APIs() []rpc.API {
 	}, s.delegateAPIs()...)
 }
 
-func (s *PluginManager) Start(_ *p2p.Server) (err error) {
-	log.Info("Starting all plugins", "count", len(s.initializedPlugins))
-	startedPlugins := make([]managedPlugin, 0, len(s.initializedPlugins))
+func (s *PluginManager) Start() (err error) {
+	initializedPluginsCount := len(s.initializedPlugins)
+	if initializedPluginsCount == 0 {
+		log.Info("No plugins to initialise")
+		return
+	}
+	if atomic.LoadInt32(s.pluginsStarted) != 0 {
+		log.Info("Plugins already started")
+		return
+	}
+	log.Info("Starting all plugins", "count", initializedPluginsCount)
+	startedPlugins := make([]managedPlugin, 0, initializedPluginsCount)
 	for _, p := range s.initializedPlugins {
 		if err = p.Start(); err != nil {
 			break
@@ -53,6 +62,8 @@ func (s *PluginManager) Start(_ *p2p.Server) (err error) {
 		for _, p := range startedPlugins {
 			_ = p.Stop()
 		}
+	} else {
+		atomic.StoreInt32(s.pluginsStarted, 1)
 	}
 	return
 }
@@ -105,7 +116,7 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 		// it indicates that the plugin template "extends" basePlugin
 		basePluginField := rv.Elem().FieldByName("basePlugin")
 		if !basePluginField.IsValid() || basePluginField.Type() != basePluginPointerType {
-			panic(fmt.Sprintf("plugin template must extend *basePlugin"))
+			panic("plugin template must extend *basePlugin")
 		}
 		// need to have write access to the unexported field in the target object
 		basePluginField = reflect.NewAt(basePluginField.Type(), unsafe.Pointer(basePluginField.UnsafeAddr())).Elem()
@@ -120,7 +131,8 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 }
 
 func (s *PluginManager) Stop() error {
-	log.Info("Stopping all plugins", "count", len(s.initializedPlugins))
+	initializedPluginsCount := len(s.initializedPlugins)
+	log.Info("Stopping all plugins", "count", initializedPluginsCount)
 	allErrors := make([]error, 0)
 	for _, p := range s.initializedPlugins {
 		if err := p.Stop(); err != nil {
@@ -128,6 +140,9 @@ func (s *PluginManager) Stop() error {
 		}
 	}
 	log.Info("All plugins stopped", "errors", allErrors)
+	if initializedPluginsCount > 0 {
+		atomic.StoreInt32(s.pluginsStarted, 0)
+	}
 	if len(allErrors) == 0 {
 		return nil
 	}
@@ -146,6 +161,34 @@ func (s *PluginManager) PluginsInfo() interface{} {
 		info[k] = v
 	}
 	return info
+}
+
+// AddAccountPluginToBackend adds the account plugin to the provided account backend
+func (s *PluginManager) AddAccountPluginToBackend(b *pluggable.Backend) error {
+	v := new(ReloadableAccountServiceFactory)
+	if err := s.GetPluginTemplate(AccountPluginInterfaceName, v); err != nil {
+		return err
+	}
+	service, err := v.Create()
+	if err != nil {
+		return err
+	}
+	if err := b.SetPluginService(service); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *PluginManager) Reload(name PluginInterfaceName) (bool, error) {
+	p, ok := s.getPlugin(name)
+	if !ok {
+		return false, fmt.Errorf("no such plugin provider: %s", name)
+	}
+	_ = p.Stop()
+	if err := p.Start(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // this is to configure delegate APIs call to the plugins
@@ -176,6 +219,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		plugins:            make(map[PluginInterfaceName]managedPlugin),
 		initializedPlugins: make(map[PluginInterfaceName]managedPlugin),
 		settings:           settings,
+		pluginsStarted:     new(int32),
 	}
 	pm.downloader = NewDownloader(pm)
 	if skipVerify {
@@ -199,6 +243,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		}
 		pm.initializedPlugins[pluginName] = base
 	}
+	log.Debug("Created plugin manager", "PluginsInfo()", pm.PluginsInfo())
 	return pm, nil
 }
 

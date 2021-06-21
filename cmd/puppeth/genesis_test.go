@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"reflect"
@@ -29,8 +30,8 @@ import (
 
 // Tests the go-ethereum to Aleth chainspec conversion for the Stureby testnet.
 func TestAlethSturebyConverter(t *testing.T) {
-	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
-	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum")
+	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overridden for quorum
+	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overridden for quorum")
 
 	// /Quorum
 	blob, err := ioutil.ReadFile("testdata/stureby_geth.json")
@@ -72,8 +73,8 @@ func TestAlethSturebyConverter(t *testing.T) {
 
 // Tests the go-ethereum to Parity chainspec conversion for the Stureby testnet.
 func TestParitySturebyConverter(t *testing.T) {
-	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
-	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum")
+	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overridden for quorum
+	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overridden for quorum")
 
 	// /Quorum
 	blob, err := ioutil.ReadFile("testdata/stureby_geth.json")
@@ -88,29 +89,15 @@ func TestParitySturebyConverter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed creating chainspec: %v", err)
 	}
-
+	enc, err := json.MarshalIndent(spec, "", "  ")
+	if err != nil {
+		t.Fatalf("failed encoding chainspec: %v", err)
+	}
 	expBlob, err := ioutil.ReadFile("testdata/stureby_parity.json")
 	if err != nil {
 		t.Fatalf("could not read file: %v", err)
 	}
-	expspec := &parityChainSpec{}
-	if err := json.Unmarshal(expBlob, expspec); err != nil {
-		t.Fatalf("failed parsing genesis: %v", err)
-	}
-	expspec.Nodes = []string{}
-
-	if !reflect.DeepEqual(expspec, spec) {
-		t.Errorf("chainspec mismatch")
-		c := spew.ConfigState{
-			DisablePointerAddresses: true,
-			SortKeys:                true,
-		}
-		exp := strings.Split(c.Sdump(expspec), "\n")
-		got := strings.Split(c.Sdump(spec), "\n")
-		for i := 0; i < len(exp) && i < len(got); i++ {
-			if exp[i] != got[i] {
-				t.Logf("got: %v\nexp: %v\n", exp[i], got[i])
-			}
-		}
+	if !bytes.Equal(expBlob, enc) {
+		t.Fatalf("chainspec mismatch")
 	}
 }

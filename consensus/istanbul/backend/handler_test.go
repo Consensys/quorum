@@ -22,13 +22,13 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hashicorp/golang-lru"
+	"github.com/ethereum/go-ethereum/trie"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
@@ -104,7 +104,7 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 		Root:      common.StringToHash("someroot"),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -127,7 +127,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 		Number:    big.NewInt(1),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -147,10 +147,8 @@ func postAndWait(backend *backend, block *types.Block, t *testing.T) {
 	defer eventSub.Unsubscribe()
 	stop := make(chan struct{}, 1)
 	eventLoop := func() {
-		select {
-		case <-eventSub.Chan():
-			stop <- struct{}{}
-		}
+		<-eventSub.Chan()
+		stop <- struct{}{}
 	}
 	go eventLoop()
 	if err := backend.EventMux().Post(istanbul.RequestEvent{
@@ -166,7 +164,7 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 		Number:    big.NewInt(1),
 		GasLimit:  0,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
 	if invalidMsg {
 		request = []interface{}{"invalid msg"}

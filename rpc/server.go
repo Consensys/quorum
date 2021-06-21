@@ -19,10 +19,12 @@ package rpc
 import (
 	"context"
 	"io"
+	"net/http"
 	"sync/atomic"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/plugin/security"
 )
 
 const MetadataApi = "rpc"
@@ -36,7 +38,7 @@ const (
 	// OptionMethodInvocation is an indication that the codec supports RPC method calls
 	OptionMethodInvocation CodecOption = 1 << iota
 
-	// OptionSubscriptions is an indication that the codec suports RPC notifications
+	// OptionSubscriptions is an indication that the codec supports RPC notifications
 	OptionSubscriptions = 1 << iota // support pub sub
 )
 
@@ -46,11 +48,30 @@ type Server struct {
 	idgen    func() ID
 	run      int32
 	codecs   mapset.Set
+
+	// Quorum
+	// The implementation would authenticate the token coming from a request
+	authenticationManager security.AuthenticationManager
+	isMultitenant         bool
+}
+
+// Quorum
+// Create a server which is protected by authManager and indicates if multitenancy is supported
+func NewProtectedServer(authManager security.AuthenticationManager, isMultitenant bool) *Server {
+	server := NewServer()
+	if authManager != nil {
+		server.authenticationManager = authManager
+	}
+	server.isMultitenant = isMultitenant
+	return server
 }
 
 // NewServer creates a new server instance with no registered handlers.
 func NewServer() *Server {
-	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
+	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1,
+		authenticationManager: security.NewDisabledAuthenticationManager(),
+		isMultitenant:         false,
+	}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server}
@@ -72,7 +93,7 @@ func (s *Server) RegisterName(name string, receiver interface{}) error {
 //
 // Note that codec options are no longer supported.
 func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
-	defer codec.Close()
+	defer codec.close()
 
 	// Don't serve if server is stopped.
 	if atomic.LoadInt32(&s.run) == 0 {
@@ -84,7 +105,7 @@ func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
 	defer s.codecs.Remove(codec)
 
 	c := initClient(codec, s.idgen, &s.services)
-	<-codec.Closed()
+	<-codec.closed()
 	c.Close()
 }
 
@@ -101,10 +122,10 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 	h.allowSubscribe = false
 	defer h.close(io.EOF, nil)
 
-	reqs, batch, err := codec.Read()
+	reqs, batch, err := codec.readBatch()
 	if err != nil {
 		if err != io.EOF {
-			codec.Write(ctx, errorMessage(&invalidMessageError{"parse error"}))
+			codec.writeJSON(ctx, errorMessage(&invalidMessageError{"parse error"}))
 		}
 		return
 	}
@@ -122,10 +143,23 @@ func (s *Server) Stop() {
 	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
 		log.Debug("RPC server shutting down")
 		s.codecs.Each(func(c interface{}) bool {
-			c.(ServerCodec).Close()
+			c.(ServerCodec).close()
 			return true
 		})
 	}
+}
+
+// Quorum
+// Perform authentication on the HTTP request. Populate security context with necessary information
+// for subsequent authorization-related activities
+func (s *Server) authenticateHttpRequest(r *http.Request, cfg securityContextConfigurer) {
+	securityContext := WithIsMultitenant(context.Background(), s.isMultitenant)
+	securityContext = AuthenticateHttpRequest(securityContext, r, s.authenticationManager)
+	cfg.Configure(securityContext)
+}
+
+func (s *Server) EnableMultitenancy(b bool) {
+	s.isMultitenant = b
 }
 
 // RPCService gives meta information about the server.

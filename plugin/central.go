@@ -10,7 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -44,7 +47,7 @@ func (cc *CentralClient) getNewSecureDialer() Dialer {
 		if cc.config.CertFingerprint != "" {
 			conState := c.ConnectionState()
 			for _, peercert := range conState.PeerCertificates {
-				if bytes.Compare(peercert.Signature[0:], []byte(cc.config.CertFingerprint)) == 0 {
+				if bytes.Equal(peercert.Signature[0:], []byte(cc.config.CertFingerprint)) {
 					return c, nil
 				}
 			}
@@ -54,37 +57,41 @@ func (cc *CentralClient) getNewSecureDialer() Dialer {
 	}
 }
 
-// Get the public key from central
+// Get the public key from central. PublicKeyURI can be relative to the base URL
+// so we need to parse and make sure finally URL is resolved.
 func (cc *CentralClient) PublicKey() ([]byte, error) {
-	target := fmt.Sprintf("%s/%s", cc.config.BaseURL, cc.config.PublicKeyURI)
-	log.Debug("downloading public key", "url", target)
-	readCloser, err := cc.get(target)
+	target, err := cc.toURL(cc.config.PublicKeyURI)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = readCloser.Close()
-	}()
-	return ioutil.ReadAll(readCloser)
+	log.Debug("downloading public key", "url", target)
+	buf := new(bytes.Buffer)
+	if err := cc.download(target, buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // retrieve plugin signature
 func (cc *CentralClient) PluginSignature(definition *PluginDefinition) ([]byte, error) {
-	target := fmt.Sprintf("%s/%s/%s", cc.config.BaseURL, definition.RemotePath(), definition.SignatureFileName())
-	log.Debug("downloading plugin signature file", "url", target)
-	readCloser, err := cc.get(target)
+	target, err := cc.toURLFromTemplate(cc.config.PluginSigPathTemplate, definition)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = readCloser.Close()
-	}()
-	return ioutil.ReadAll(readCloser)
+	log.Debug("downloading plugin signature file", "url", target)
+	buf := new(bytes.Buffer)
+	if err := cc.download(target, buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // retrieve plugin distribution file
 func (cc *CentralClient) PluginDistribution(definition *PluginDefinition, outFilePath string) error {
-	target := fmt.Sprintf("%s/%s/%s", cc.config.BaseURL, definition.RemotePath(), definition.DistFileName())
+	target, err := cc.toURLFromTemplate(cc.config.PluginDistPathTemplate, definition)
+	if err != nil {
+		return err
+	}
 	log.Debug("downloading plugin zip file", "url", target)
 	outFile, err := os.Create(outFilePath)
 	if err != nil {
@@ -93,17 +100,7 @@ func (cc *CentralClient) PluginDistribution(definition *PluginDefinition, outFil
 	defer func() {
 		_ = outFile.Close()
 	}()
-	readCloser, err := cc.get(target)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = readCloser.Close()
-	}()
-	if _, err := io.Copy(outFile, readCloser); err != nil {
-		return err
-	}
-	return nil
+	return cc.download(target, outFile)
 }
 
 // perform HTTP GET
@@ -125,6 +122,59 @@ func (cc *CentralClient) get(target string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("HTTP GET error: code=%d, status=%s, body=%s", res.StatusCode, res.Status, string(data))
 	}
 	return res.Body, nil
+}
+
+// return full URL using config.BaseURL
+func (cc *CentralClient) toURL(relativePath string) (string, error) {
+	base, err := url.Parse(cc.config.BaseURL)
+	if err != nil {
+		return "", err
+	}
+	u, err := base.Parse(relativePath)
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
+}
+
+// return full URL using config.BaseURL from given template
+func (cc *CentralClient) toURLFromTemplate(pathTemplate string, definition *PluginDefinition) (string, error) {
+	t, err := template.New("").Parse(pathTemplate)
+	if err != nil {
+		return "", err
+	}
+	path := new(bytes.Buffer)
+	if err := t.Execute(path, struct {
+		Name    string
+		Version string
+		OS      string
+		Arch    string
+	}{
+		Name:    definition.Name,
+		Version: string(definition.Version),
+		OS:      runtime.GOOS,
+		Arch:    runtime.GOARCH,
+	}); err != nil {
+		return "", err
+	}
+	return cc.toURL(path.String())
+}
+
+// peform http GET to the target URL and write output to out
+func (cc *CentralClient) download(target string, out io.Writer) (err error) {
+	defer func(start time.Time) {
+		log.Debug("download completed", "url", target, "err", err, "took", time.Since(start))
+	}(time.Now())
+	var readCloser io.ReadCloser
+	readCloser, err = cc.get(target)
+	if err != nil {
+		return
+	}
+	defer func() {
+		_ = readCloser.Close()
+	}()
+	_, err = io.Copy(out, readCloser)
+	return err
 }
 
 // An adapter function for tls.Dial with CA verification & SSL Pinning support.
