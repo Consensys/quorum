@@ -547,9 +547,9 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, ar
 		return err
 	}
 	if args.PrivateFor != nil {
-		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
 	} else {
-		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
+		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
 	}
 }
 

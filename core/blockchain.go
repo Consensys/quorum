@@ -2731,3 +2731,17 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	return nil, bc.isMultitenant
 }
+
+// Quorum
+
+// PopulateSetPrivateState function pointer for updating private state
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier)) {
+	bc.setPrivateState = ps
+}
+
+// CheckAndSetPrivateState function to update the private state as a part contract state extension
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
+	if bc.setPrivateState != nil {
+		bc.setPrivateState(txLogs, privateState, psi)
+	}
+}

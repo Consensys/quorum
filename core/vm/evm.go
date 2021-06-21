@@ -542,7 +542,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		creatorStateDb = evm.publicState
 	}
 
-	nonce := creatorStateDb.GetNonce(caller.Address())
+	nonce = creatorStateDb.GetNonce(caller.Address())
 	creatorStateDb.SetNonce(caller.Address(), nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
