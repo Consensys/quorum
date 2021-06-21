@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"hash"
 	"sync/atomic"
 
@@ -229,6 +230,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
 		} else if sLen > operation.maxStack {
 			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
+		}
+
+		if in.evm.quorumReadOnly && operation.writes {
+			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
 		}
 		// If the operation is valid, enforce and write restrictions
 		if in.readOnly && in.evm.chainRules.IsByzantium {

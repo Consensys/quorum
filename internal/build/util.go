@@ -179,3 +179,53 @@ func FindMainPackages(dir string) []string {
 	}
 	return commands
 }
+
+// ExpandPackagesNoVendor expands a cmd/go import path pattern, skipping
+// vendored packages.
+func ExpandPackagesNoVendor(patterns []string) []string {
+	expand := false
+	for _, pkg := range patterns {
+		if strings.Contains(pkg, "...") {
+			expand = true
+		}
+	}
+	if expand {
+		cmd := GoTool("list", patterns...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatalf("package listing failed: %v\n%s", err, string(out))
+		}
+		var packages []string
+		for _, line := range strings.Split(string(out), "\n") {
+			if !strings.Contains(line, "/vendor/") {
+				packages = append(packages, strings.TrimSpace(line))
+			}
+		}
+		return packages
+	}
+	return patterns
+}
+
+// Read QUORUM_IGNORE_TEST_PACKAGES env and remove from packages
+func IgnorePackages(packages []string) []string {
+	ignore := os.Getenv("QUORUM_IGNORE_TEST_PACKAGES")
+	if ignore == "" {
+		return packages
+	}
+	ret := make([]string, 0, len(packages))
+	ignorePackages := strings.Split(ignore, ",")
+
+	for _, p := range packages {
+		mustInclude := true
+		for _, ig := range ignorePackages {
+			if strings.Index(p, strings.TrimSpace(ig)) == 0 {
+				mustInclude = false
+				break
+			}
+		}
+		if mustInclude {
+			ret = append(ret, p)
+		}
+	}
+	return ret
+}

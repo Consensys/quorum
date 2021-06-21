@@ -18,10 +18,13 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/cmd/devp2p/internal/v5test"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/internal/utesting"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"gopkg.in/urfave/cli.v1"
 )

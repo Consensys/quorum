@@ -1,0 +1,187 @@
+# Project information
+site_name: Quorum
+site_url: https://docs.goquorum.com/
+site_description: A permissioned implementation of Ethereum supporting data privacy
+site_author: Quorum
+copyright: Quorum 2019
+
+# Repository
+repo_name: quorum
+repo_url: https://github.com/jpmorganchase/quorum
+
+nav:
+    - Home: index.md
+    - Getting Started:
+        - Quickstart: Getting Started/Getting Started Overview.md
+        - Installing: Getting Started/Installing.md
+        - Examples: Getting Started/Quorum-Examples.md
+        - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
+        - Running Quorum: Getting Started/running.md
+        - Quorum API: Getting Started/api.md
+        - Quorum GraphQL: Getting Started/graphql.md
+        - Migration: Getting Started/migration.md
+    - Quorum Features:
+        - Transaction/Contract Privacy:
+            - Overview: Privacy/Overview.md
+            - Privacy/Privacy-Manager.md
+            - Privacy/Lifecycle-of-a-private-transaction.md
+            - Tessera:
+                - What is Tessera: Privacy/Tessera/Tessera.md
+                - Configuration:
+                    - Overview: Privacy/Tessera/Configuration/Configuration Overview.md
+                    - Keys Config: Privacy/Tessera/Configuration/Keys.md
+                    - TLS Config: Privacy/Tessera/Configuration/TLS.md
+                    - Using CLI to override config: Privacy/Tessera/Configuration/Using CLI to override config.md
+                    - Sample Configuration: Privacy/Tessera/Configuration/Sample Configuration.md
+                - Tessera Services:
+                    - Transaction Manager: Privacy/Tessera/Tessera Services/Transaction Manager.md
+                    - Enclave: Privacy/Tessera/Tessera Services/Enclave.md
+                    - Keys:
+                        - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
+                        - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
+                        - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+                        - Setting up AWS Secrets Manager: Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
+                - Usage:
+                    - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
+                    - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
+                    - Monitoring: Privacy/Tessera/Usage/Monitoring.md
+                    - Logging: Privacy/Tessera/Usage/Logging.md
+                - Migration from Constellation: Privacy/Tessera/Migration from Constellation.md
+            - Constellation:
+                - What is Constellation: Privacy/Constellation/Constellation.md
+                - How it works: Privacy/Constellation/How constellation works.md
+                - Sample Configuration: Privacy/Constellation/Sample Configuration.md
+                - Running Constellation: Privacy/Constellation/Installation & Running.md
+            - Contract Extension:
+                - Overview: Privacy/Contract-Extension/Overview.md
+                - APIs: Privacy/Contract-Extension/ContractExtension apis.md
+        - Consensus:
+            - Consensus: Consensus/Consensus.md
+            - Raft BFT:
+                - Consensus/raft/raft.md
+                - Consensus/raft/raft-rpc-api.md
+            - Istanbul BFT:
+                - Overview: Consensus/ibft/ibft.md
+                - Consensus/ibft/istanbul-rpc-api.md
+                - Consensus/ibft/ibft-parameters.md
+        - Permissioning:
+            - Overview: Permissioning/Permissions Overview.md
+            - Basic: Permissioning/Basic NetworkPermissions.md
+            - Enhanced:
+              - Overview: Permissioning/Enhanced Permissions Model/Overview.md
+              - Design: Permissioning/Enhanced Permissions Model/Contract Design.md
+              - Setup: Permissioning/Enhanced Permissions Model/setup.md
+              - APIs: Permissioning/Enhanced Permissions Model/Permissioning apis.md
+              - Usage: Permissioning/Enhanced Permissions Model/Usage.md
+        - Account/Key Management:
+            - Overview: Account-Key-Management/Overview.md
+            - Quorum:
+                - Overview: Account-Key-Management/Quorum/Overview.md
+                - Keystore Files: Account-Key-Management/Quorum/Keystore-Files.md
+                - Clef: Account-Key-Management/Quorum/Clef.md
+                - account Plugins:
+                  - Overview: Account-Key-Management/Quorum/account-Plugins/Overview.md
+                  - Hashicorp Vault:
+                    - Overview: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview.md
+                    - Quickstart: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart.md
+            - Tessera: Account-Key-Management/Tessera/Overview.md
+            - Constellation: Account-Key-Management/Constellation/Overview.md
+        - Pluggable Architecture:
+            - Overview: PluggableArchitecture/Overview.md
+            - Settings: PluggableArchitecture/Settings.md
+            - Internals: PluggableArchitecture/Internals.md
+            - Plugins:
+                - helloworld:
+                    - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
+                    - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
+                - security:
+                    - For Users: PluggableArchitecture/Plugins/security/For-Users.md
+                    - For Developers: PluggableArchitecture/Plugins/security/For-Developers.md
+                    - API: PluggableArchitecture/Plugins/security/interface.md
+                - account:
+                    - For Users: PluggableArchitecture/Plugins/account/For-Users.md
+                    - For Developers: PluggableArchitecture/Plugins/account/For-Developers.md
+                    - API: PluggableArchitecture/Plugins/account/interface.md
+            - Plugin Development: PluggableArchitecture/PluginDevelopment.md
+        - DNS: Quorum Features/dns.md
+        - Securing JSON RPC: Quorum Features/rpc-security.md
+    - Quorum Projects:
+        - Quorum Wizard:
+            - Getting Started: Wizard/GettingStarted.md
+            - Interacting with the Network: Wizard/Interacting.md
+        - Cakeshop:
+            - Overview: Cakeshop/Overview.md
+            - Getting Started: Cakeshop/Getting started.md
+            - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+        - Quorum Profiling: 
+            - Overview: Quorum Profiling/Overview.md
+        - Remix Plugin:
+            - Overview: RemixPlugin/Overview.md
+            - Getting Started: RemixPlugin/GettingStarted.md
+        - quorum.js:
+            - Overview: quorum.js/Overview.md
+            - extend API: quorum.js/extend.md
+            - RawTransactionManager API: quorum.js/RawTransactionManager.md
+    - Security Framework:
+          - Overview: Security/Framework/Overview.md
+          - Quorum Network:
+            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
+            - Quorum Node: Security/Framework/Quorum Network Security/Node.md
+            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
+    - How-To Guides:
+        - Adding new nodes: How-To-Guides/adding_nodes.md
+        - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
+        - Backup & Restore: How-To-Guides/import-export.md
+        - Quorum/Tessera HA Setup: How-To-Guides/HA_Setup.md
+    - Product Roadmap: roadmap.md
+    - FAQ: FAQ.md
+
+theme:
+  name: 'material'
+  custom_dir: 'docs/theme'
+  font:
+      text: 'Roboto'
+      code: 'Roboto Mono'
+  language: 'en'
+  logo: 'images/logo.png'
+  favicon: 'images/logo-48x48.png'
+
+extra_css:
+    - 'theme/assets/stylesheets/extra.css'
+
+markdown_extensions:
+    - toc:
+        permalink: true
+        toc_depth: 3
+    - attr_list
+    - codehilite
+    - admonition
+    - footnotes
+    - def_list
+    - abbr
+    - pymdownx.arithmatex
+    - pymdownx.betterem:
+          smart_enable: all
+    - pymdownx.keys
+    - pymdownx.details
+    - pymdownx.emoji
+    - pymdownx.magiclink
+    - pymdownx.mark
+    - pymdownx.smartsymbols
+    - pymdownx.superfences
+    - pymdownx.tasklist:
+          custom_checkbox: true
+    - pymdownx.tilde
+    - markdown_include.include:
+        base_path: docs
+    - meta
+    - smarty
+    - plantuml_markdown:
+        server: http://www.plantuml.com/plantuml
+
+plugins:
+    - search

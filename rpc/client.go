@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -192,6 +193,8 @@ func ClientFromContext(ctx context.Context) (*Client, bool) {
 	return client, ok
 }
 
+// Quorum
+//   1. Enrich client with PSIProviderFunc if found in the init context
 func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) {
 	conn, err := connect(initctx)
 	if err != nil {
@@ -199,6 +202,9 @@ func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) 
 	}
 	c := initClient(conn, randomIDGenerator(), new(serviceRegistry))
 	c.reconnectFunc = connect
+	if providerFunc := PSIProviderFromContext(initctx); providerFunc != nil {
+		c = c.WithPSIProvider(providerFunc)
+	}
 	return c, nil
 }
 
@@ -235,7 +241,18 @@ func (c *Client) RegisterName(name string, receiver interface{}) error {
 
 func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
-	return strconv.AppendUint(nil, uint64(id), 10)
+	idBytes := strconv.AppendUint(nil, uint64(id), 10)
+	if conn, ok := c.writeConn.(securityContextSupport); ok {
+		if providerFunc := PSIProviderFromContext(conn.Resolve()); providerFunc != nil {
+			psi, err := providerFunc(context.Background())
+			if err != nil {
+				log.Warn("Generate regular ID without PSI", "err", err)
+				return idBytes
+			}
+			idBytes = encodePSI(idBytes, psi)
+		}
+	}
+	return idBytes
 }
 
 // SupportedModules calls the rpc_modules method, retrieving the list of
@@ -574,6 +591,7 @@ func (c *Client) dispatch(codec ServerCodec) {
 			conn.handler.log.Debug("RPC connection read error", "err", err)
 			conn.close(err, lastOp)
 			reading = false
+			c.writeConn = nil
 
 		// Reconnect:
 		case newcodec := <-c.reconnected:
@@ -641,4 +659,45 @@ func (c *Client) read(codec ServerCodec) {
 		}
 		c.readOp <- readOp{msgs, batch}
 	}
+}
+
+// Quorum
+//
+// Secure HTTP requests with authorization header
+// Do nothing if transport is not HTTP
+func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) *Client {
+	if !c.isHTTP {
+		return c
+	}
+	// usually c.isHTTP check is sufficient, the below enforces the defensive check
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.credentialsProvider = providerFunc
+	}
+	return c
+}
+
+// Quorum
+// WithPSIProvider enriches the writeConn with PSIProviderFunc in order to obtain
+// PSI value before making call
+func (c *Client) WithPSIProvider(providerFunc PSIProviderFunc) *Client {
+	// for HTTP transport
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.psiProvider = providerFunc
+	}
+	// for non-http transport, writeConn must be a codec
+	// which implements securityContextSupport
+	// This is a defensive check
+	if r, ok := c.writeConn.(securityContextSupport); ok {
+		r.Configure(WithPSIProvider(r.Resolve(), providerFunc))
+	}
+	return c
+}
+
+// Quorum
+// WithPSI enriches the writeConn with a given PSI value. For more dynamic way of
+// providing PSI, use WithPSIProvider instead
+func (c *Client) WithPSI(psi types.PrivateStateIdentifier) *Client {
+	return c.WithPSIProvider(func(_ context.Context) (types.PrivateStateIdentifier, error) {
+		return psi, nil
+	})
 }

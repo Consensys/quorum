@@ -95,8 +95,9 @@ var (
 
 func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
+		db      = getDualState(evm, contract.Address())
 		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), common.Hash(x.Bytes32()))
+		current = db.GetState(contract.Address(), common.Hash(x.Bytes32()))
 	)
 	// The legacy gas metering only takes into consideration the current state
 	// Legacy rules should be applied if we are in Petersburg (removal of EIP-1283)
@@ -332,10 +333,10 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		address        = common.Address(stack.Back(1).Bytes20())
 	)
 	if evm.chainRules.IsEIP158 {
-		if transfersValue && evm.StateDB.Empty(address) {
+		if transfersValue && getDualState(evm, address).Empty(address) {
 			gas += params.CallNewAccountGas
 		}
-	} else if !evm.StateDB.Exist(address) {
+	} else if !getDualState(evm, address).Exist(address) {
 		gas += params.CallNewAccountGas
 	}
 	if transfersValue {

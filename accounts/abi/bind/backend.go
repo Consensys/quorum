@@ -81,7 +81,9 @@ type ContractTransactor interface {
 	// for setting a reasonable default.
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
 	// SendTransaction injects the transaction into the pending pool for execution.
-	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	SendTransaction(ctx context.Context, tx *types.Transaction, args PrivateTxArgs) error
+	// PreparePrivateTransaction send the private transaction to Tessera/Constellation's /storeraw API using HTTP
+	PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error)
 }
 
 // ContractFilterer defines the methods needed to access log events using one-off
