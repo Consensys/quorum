@@ -645,21 +645,33 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 
+				// If this was a public privacy marker transaction then there will be an associated private receipt to handle,
+				// these are stored in the database not the block trie (as they only exist on participants).
+				// Note that the receipts are stored using with a key which is the hash of the privacy marker txn.
 				tx := block.Transaction(receipt.TxHash)
 				if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
-					if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash); markerReceipt != nil {
-						// add block location fields
-						markerReceipt.BlockHash = hash
-						markerReceipt.BlockNumber = block.Number()
-						markerReceipt.TransactionIndex = uint(i)
-						// Update the block hash in all logs since it is now available and not when the
-						// receipt/log of individual transactions were created.
-						for _, log := range markerReceipt.Logs {
-							log.BlockHash = hash
+					// TODO: instead of looking for a receipt for each psi, ideally would retrieve the marker receipts that exist for this pmt and iterate through them
+					for _, psi := range w.chain.PrivateStateManager().PSIs() {
+						if markerReceipt := rawdb.ReadPrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, psi); markerReceipt != nil {
+							// add block location fields
+							markerReceipt.BlockHash = hash
+							markerReceipt.BlockNumber = block.Number()
+							markerReceipt.TransactionIndex = uint(i)
+
+							// Update the block hash in all logs since it is now available and not when the
+							// receipt/log of individual transactions were created.
+							for _, log := range markerReceipt.Logs {
+								log.BlockHash = hash
+							}
+							logs = append(logs, markerReceipt.Logs...)
+							markerTxReceiptsAll = append(markerTxReceiptsAll, markerReceipt)
+
+							// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
+							// TODO: should really batch these up and write in one go
+							if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, markerReceipt, psi); err != nil {
+								log.Error("Failed to write private transaction receipt to database", "err", err)
+							}
 						}
-						logs = append(logs, markerReceipt.Logs...)
-						rawdb.WritePrivateTransactionReceipt(w.eth.ChainDb(), receipt.TxHash, markerReceipt)
-						markerTxReceiptsAll = append(markerTxReceiptsAll, markerReceipt)
 					}
 				}
 			}
@@ -825,7 +837,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS())
+	receipt, privateReceipt, markerReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo)
 	if err != nil {
 		publicStateDB.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
@@ -841,15 +853,43 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		logs = append(logs, privateReceipt.Logs...)
 		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
 		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+
 		// handling the auxiliary receipt from MPS execution
 		if mpsReceipt != nil {
 			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
 			logs = append(logs, mpsReceipt.Logs...)
 		}
 	} else {
-		if markerReceipt := rawdb.ReadPrivateTransactionReceipt(w.eth.ChainDb(), tx.Hash()); markerReceipt != nil {
+		// If this was a public privacy marker transaction then there will be an associated private receipt to handle,
+		// these are stored in the database not the block trie (as they only exist on participants).
+		if markerReceipt != nil {
 			logs = append(logs, markerReceipt.Logs...)
-			w.chain.CheckAndSetPrivateState(markerReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+
+			// If MPS is enabled, then we'll have one private receipt for each PSI
+			if privateStateRepo != nil && privateStateRepo.IsMPS() {
+				for _, psi := range w.chain.PrivateStateManager().PSIs() {
+					psiReceipt := markerReceipt.PSReceipts[psi]
+					if psiReceipt != nil {
+						w.chain.CheckAndSetPrivateState(psiReceipt.Logs, privateStateDB, psi)
+					}
+
+					// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
+					// TODO: should really batch these up and write in one go
+					if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, psiReceipt, psi); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				psi := privateStateRepo.DefaultStateMetadata().ID
+				w.chain.CheckAndSetPrivateState(markerReceipt.Logs, privateStateDB, psi)
+
+				// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
+				// TODO: should really batch these up and write in one go
+				if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, markerReceipt, psi); err != nil {
+					return nil, err
+				}
+			}
+
 		}
 	}
 	return logs, nil
@@ -1202,7 +1242,7 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsR
 			privateStateSnaphots[psi] = db.Snapshot()
 			return db, nil
 		}
-		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig())
+		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo)
 	}
 	return
 }

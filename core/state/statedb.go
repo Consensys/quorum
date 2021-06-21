@@ -115,6 +115,7 @@ type StateDB struct {
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
 
+	// Quorum: flat list of private receipts for privacy marker transactions
 	MarkerTransactionReceipts []*types.Receipt
 }
 

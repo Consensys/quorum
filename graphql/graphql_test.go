@@ -575,5 +575,5 @@ func (psmr *StubPSMR) NotIncludeAny(psm *mps.PrivateStateMetadata, managedPartie
 }
 
 func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
-	return false
+	panic("implement me")
 }

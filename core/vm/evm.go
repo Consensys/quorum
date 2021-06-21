@@ -188,11 +188,13 @@ type EVM struct {
 	quorumReadOnly bool
 	readOnlyDepth  uint
 
-	// these are for privacy enhancements and multitenancy
+	// Quorum: these are for privacy enhancements and multitenancy
 	affectedContracts map[common.Address]AffectedReason // affected contract account address -> type
 	currentTx         *types.Transaction                // transaction currently being applied on this EVM
 
-	InnerApply func(innerTx *types.Transaction) (*types.Receipt, error) //Quorum
+	// Quorum: these are for privacy marker transactions
+	InnerApply          func(innerTx *types.Transaction) (*types.Receipt, error) //Quorum
+	InnerPrivateReceipt *types.Receipt                                           //Quorum
 }
 
 // AffectedReason defines a type of operation that was applied to a contract.

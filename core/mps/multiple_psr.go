@@ -202,6 +202,13 @@ func (mpsr *MultiplePrivateStateRepository) Copy() PrivateStateRepository {
 	}
 }
 
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
+// Each entry for a private receipt will actually consist of a copy of a dummy receipt,
+// which holds the real private receipts for each PSI under PSReceipts[].
+// NOte that we also add a private receipt for the "empty" PSI.
 func (mpsr *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {

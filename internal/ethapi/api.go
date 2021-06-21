@@ -1697,7 +1697,11 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 	}
 
 	// also get receipt for the private transaction
-	receipt := rawdb.ReadPrivateTransactionReceipt(s.b.ChainDb(), pmt.Hash())
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := rawdb.ReadPrivateTransactionReceiptWithPSI(s.b.ChainDb(), pmt.Hash(), psm.ID)
 	if receipt == nil {
 		return nil, errors.New("could not find receipt for private transaction")
 	}
@@ -1930,21 +1934,21 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 			return common.Hash{}, err
 		}
 
-	    if tx.IsPrivate() {
-    		psm, err := b.PSMR().ResolveForUserContext(ctx)
-	    	if err != nil {
-		    	return common.Hash{}, err
-		    }
-		    eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
-		    psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
-		    if err != nil {
-    			return common.Hash{}, err
-    		}
-	    	privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
-		    if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
-			    return common.Hash{}, multitenancy.ErrNotAuthorized
-		    }
-	    }
+		if tx.IsPrivate() {
+			psm, err := b.PSMR().ResolveForUserContext(ctx)
+			if err != nil {
+				return common.Hash{}, err
+			}
+			eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+			psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
+			if err != nil {
+				return common.Hash{}, err
+			}
+			privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+			if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+				return common.Hash{}, multitenancy.ErrNotAuthorized
+			}
+		}
 	}
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err

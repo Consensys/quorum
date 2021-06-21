@@ -982,22 +982,32 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 }
 
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
-func (bc *BlockChain) GetPrivateReceiptsByHash(hash common.Hash) types.Receipts {
+func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.Hash) (types.Receipts, error) {
+	// get receipt for the internal private transaction
+	psm, err := bc.privateStateManager.ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	//if receipts, ok := bc.receiptsCache.Get(hash); ok {
 	//	return receipts.(types.Receipts)
 	//}
 	block := bc.GetBlockByHash(hash)
 	if block == nil {
-		return types.Receipts{}
+		return types.Receipts{}, nil
 	}
 	recs := make([]*types.Receipt, 0)
 	for _, tx := range block.Transactions() {
 		//if tx.IsPrivateMarker() { TODO(peter): use method to check if marker
 		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
-			recs = append(recs, rawdb.ReadPrivateTransactionReceipt(bc.db, tx.Hash()))
+			receipt := rawdb.ReadPrivateTransactionReceiptWithPSI(bc.db, tx.Hash(), psm.ID)
+			if receipt == nil {
+				return nil, errors.New("could not find receipt for private transaction")
+			}
+			recs = append(recs, receipt)
 		}
 	}
-	return recs
+	return recs, nil
 }
 
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
@@ -2052,7 +2062,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 
 		// Quorum
-		privateState, err := privateStateRepo.DefaultState() //TODO (Satpal): should this call `privateStateRepo.StatePSI(privateStateIdentifier)`?
+		// TODO (Satpal): should this code run using `privateStateRepo.StatePSI(privateStateIdentifier)` for each MPS?
+		privateState, err := privateStateRepo.DefaultState()
 		if err != nil {
 			return it.index, err
 		}

@@ -69,8 +69,11 @@ type Receipt struct {
 
 	// Quorum
 	//
-	// this is to support execution of a private transaction on multiple private states
-	// in which receipts are produced per PSI.
+	// This is to support execution of a private transaction on multiple private states,
+	// in which receipts are produced per PSI. It is also used by privacy marker transactions.
+	// PSReceipts will hold a receipt for each PSI that is managed by this node.
+	// If Privacy Marker Transactions are disabled then the parent structure is an empty receipt.
+	// If Privacy Marker Transactions are enabled then the parent structure is the receipt for the PMT.
 	//
 	// This nested structure would not have more than 2 levels.
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`

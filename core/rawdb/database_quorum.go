@@ -1,8 +1,5 @@
 /*
-
-
 // Copyright 2015 The go-ethereum Authors
-
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -141,24 +138,25 @@ func (pml *ethdbAccountExtraDataLinker) Link(stateRoot, extraDataRoot common.Has
 	return nil
 }
 
-func WritePrivateTransactionReceipt(db ethdb.Database, pmtHash common.Hash, privReceipt *types.Receipt) {
+// Private receipts for privacy marker transactions are stored with key:
+//	"privPrecompileReceipt" + PSI value
+func WritePrivateTransactionReceiptWithPSI(db ethdb.Database, pmtHash common.Hash, privReceipt *types.Receipt, psi types.PrivateStateIdentifier) error {
 	prefix := []byte("privPrecompileReceipt")
-	key := append(prefix, pmtHash.Bytes()...)
-	//value, _ := rlp.EncodeToBytes(privReceipt)
+	key := append(prefix, []byte(psi.String())...)
+	key = append(key, pmtHash.Bytes()...)
 	value, _ := json.Marshal(privReceipt)
 
-	db.Put(key, value)
+	return db.Put(key, value)
 }
 
-func ReadPrivateTransactionReceipt(db ethdb.Database, pmtHash common.Hash) *types.Receipt {
+func ReadPrivateTransactionReceiptWithPSI(db ethdb.Database, pmtHash common.Hash, psi types.PrivateStateIdentifier) *types.Receipt {
 	prefix := []byte("privPrecompileReceipt")
-	key := append(prefix, pmtHash.Bytes()...)
+	key := append(prefix, []byte(psi.String())...)
+	key = append(key, pmtHash.Bytes()...)
 
 	b, _ := db.Get(key)
 
 	rec := &types.Receipt{}
 	json.Unmarshal(b, rec)
-	//err := rlp.DecodeBytes(b, rec)
-	//fmt.Println(err)
 	return rec
 }
