@@ -857,6 +857,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			nilSlot++
 		}
 		errs[nilSlot] = err
+		nilSlot++
 	}
 	// Reorg the pool internals if needed and return
 	done := pool.requestPromoteExecutables(dirtyAddrs)

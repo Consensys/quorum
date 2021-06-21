@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindRoleManager(address common.Address, caller bind.ContractCaller, transac
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_RoleManager *RoleManagerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_RoleManager *RoleManagerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _RoleManager.Contract.RoleManagerCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_RoleManager *RoleManagerRaw) Transact(opts *bind.TransactOpts, method str
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_RoleManager *RoleManagerCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_RoleManager *RoleManagerCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _RoleManager.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,33 +192,38 @@ func (_RoleManager *RoleManagerTransactorRaw) Transact(opts *bind.TransactOpts, 
 
 // GetNumberOfRoles is a free data retrieval call binding the contract method 0x87f55d31.
 //
-// Solidity: function getNumberOfRoles() constant returns(uint256)
+// Solidity: function getNumberOfRoles() view returns(uint256)
 func (_RoleManager *RoleManagerCaller) GetNumberOfRoles(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "getNumberOfRoles")
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "getNumberOfRoles")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // GetNumberOfRoles is a free data retrieval call binding the contract method 0x87f55d31.
 //
-// Solidity: function getNumberOfRoles() constant returns(uint256)
+// Solidity: function getNumberOfRoles() view returns(uint256)
 func (_RoleManager *RoleManagerSession) GetNumberOfRoles() (*big.Int, error) {
 	return _RoleManager.Contract.GetNumberOfRoles(&_RoleManager.CallOpts)
 }
 
 // GetNumberOfRoles is a free data retrieval call binding the contract method 0x87f55d31.
 //
-// Solidity: function getNumberOfRoles() constant returns(uint256)
+// Solidity: function getNumberOfRoles() view returns(uint256)
 func (_RoleManager *RoleManagerCallerSession) GetNumberOfRoles() (*big.Int, error) {
 	return _RoleManager.Contract.GetNumberOfRoles(&_RoleManager.CallOpts)
 }
 
 // GetRoleDetails is a free data retrieval call binding the contract method 0x1870aba3.
 //
-// Solidity: function getRoleDetails(string _roleId, string _orgId) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetails(string _roleId, string _orgId) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerCaller) GetRoleDetails(opts *bind.CallOpts, _roleId string, _orgId string) (struct {
 	RoleId     string
 	OrgId      string
@@ -229,7 +232,10 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetails(opts *bind.CallOpts, _role
 	Admin      bool
 	Active     bool
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "getRoleDetails", _roleId, _orgId)
+
+	outstruct := new(struct {
 		RoleId     string
 		OrgId      string
 		AccessType *big.Int
@@ -237,14 +243,21 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetails(opts *bind.CallOpts, _role
 		Admin      bool
 		Active     bool
 	})
-	out := ret
-	err := _RoleManager.contract.Call(opts, out, "getRoleDetails", _roleId, _orgId)
-	return *ret, err
+
+	outstruct.RoleId = out[0].(string)
+	outstruct.OrgId = out[1].(string)
+	outstruct.AccessType = out[2].(*big.Int)
+	outstruct.Voter = out[3].(bool)
+	outstruct.Admin = out[4].(bool)
+	outstruct.Active = out[5].(bool)
+
+	return *outstruct, err
+
 }
 
 // GetRoleDetails is a free data retrieval call binding the contract method 0x1870aba3.
 //
-// Solidity: function getRoleDetails(string _roleId, string _orgId) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetails(string _roleId, string _orgId) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerSession) GetRoleDetails(_roleId string, _orgId string) (struct {
 	RoleId     string
 	OrgId      string
@@ -258,7 +271,7 @@ func (_RoleManager *RoleManagerSession) GetRoleDetails(_roleId string, _orgId st
 
 // GetRoleDetails is a free data retrieval call binding the contract method 0x1870aba3.
 //
-// Solidity: function getRoleDetails(string _roleId, string _orgId) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetails(string _roleId, string _orgId) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerCallerSession) GetRoleDetails(_roleId string, _orgId string) (struct {
 	RoleId     string
 	OrgId      string
@@ -272,7 +285,7 @@ func (_RoleManager *RoleManagerCallerSession) GetRoleDetails(_roleId string, _or
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOpts, _rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
@@ -281,7 +294,10 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOp
 	Admin      bool
 	Active     bool
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "getRoleDetailsFromIndex", _rIndex)
+
+	outstruct := new(struct {
 		RoleId     string
 		OrgId      string
 		AccessType *big.Int
@@ -289,14 +305,21 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOp
 		Admin      bool
 		Active     bool
 	})
-	out := ret
-	err := _RoleManager.contract.Call(opts, out, "getRoleDetailsFromIndex", _rIndex)
-	return *ret, err
+
+	outstruct.RoleId = out[0].(string)
+	outstruct.OrgId = out[1].(string)
+	outstruct.AccessType = out[2].(*big.Int)
+	outstruct.Voter = out[3].(bool)
+	outstruct.Admin = out[4].(bool)
+	outstruct.Active = out[5].(bool)
+
+	return *outstruct, err
+
 }
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerSession) GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
@@ -310,7 +333,7 @@ func (_RoleManager *RoleManagerSession) GetRoleDetailsFromIndex(_rIndex *big.Int
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) constant returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
+// Solidity: function getRoleDetailsFromIndex(uint256 _rIndex) view returns(string roleId, string orgId, uint256 accessType, bool voter, bool admin, bool active)
 func (_RoleManager *RoleManagerCallerSession) GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
@@ -324,130 +347,155 @@ func (_RoleManager *RoleManagerCallerSession) GetRoleDetailsFromIndex(_rIndex *b
 
 // IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
 //
-// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCaller) IsAdminRole(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "isAdminRole", _roleId, _orgId, _ultParent)
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "isAdminRole", _roleId, _orgId, _ultParent)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
 //
-// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerSession) IsAdminRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.IsAdminRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
 //
-// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isAdminRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCallerSession) IsAdminRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.IsAdminRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCaller) IsVoterRole(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "isVoterRole", _roleId, _orgId, _ultParent)
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "isVoterRole", _roleId, _orgId, _ultParent)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerSession) IsVoterRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function isVoterRole(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCallerSession) IsVoterRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // RoleAccess is a free data retrieval call binding the contract method 0xcfc83dfa.
 //
-// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) constant returns(uint256)
+// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) view returns(uint256)
 func (_RoleManager *RoleManagerCaller) RoleAccess(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "roleAccess", _roleId, _orgId, _ultParent)
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "roleAccess", _roleId, _orgId, _ultParent)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // RoleAccess is a free data retrieval call binding the contract method 0xcfc83dfa.
 //
-// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) constant returns(uint256)
+// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) view returns(uint256)
 func (_RoleManager *RoleManagerSession) RoleAccess(_roleId string, _orgId string, _ultParent string) (*big.Int, error) {
 	return _RoleManager.Contract.RoleAccess(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // RoleAccess is a free data retrieval call binding the contract method 0xcfc83dfa.
 //
-// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) constant returns(uint256)
+// Solidity: function roleAccess(string _roleId, string _orgId, string _ultParent) view returns(uint256)
 func (_RoleManager *RoleManagerCallerSession) RoleAccess(_roleId string, _orgId string, _ultParent string) (*big.Int, error) {
 	return _RoleManager.Contract.RoleAccess(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCaller) RoleExists(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "roleExists", _roleId, _orgId, _ultParent)
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "roleExists", _roleId, _orgId, _ultParent)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerSession) RoleExists(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function roleExists(string _roleId, string _orgId, string _ultParent) view returns(bool)
 func (_RoleManager *RoleManagerCallerSession) RoleExists(_roleId string, _orgId string, _ultParent string) (bool, error) {
 	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xd1f77866.
 //
-// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) constant returns(bool)
+// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) view returns(bool)
 func (_RoleManager *RoleManagerCaller) TransactionAllowed(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string, _typeOfTxn *big.Int) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "transactionAllowed", _roleId, _orgId, _ultParent, _typeOfTxn)
-	return *ret0, err
+	var out []interface{}
+	err := _RoleManager.contract.Call(opts, &out, "transactionAllowed", _roleId, _orgId, _ultParent, _typeOfTxn)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xd1f77866.
 //
-// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) constant returns(bool)
+// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) view returns(bool)
 func (_RoleManager *RoleManagerSession) TransactionAllowed(_roleId string, _orgId string, _ultParent string, _typeOfTxn *big.Int) (bool, error) {
 	return _RoleManager.Contract.TransactionAllowed(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent, _typeOfTxn)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xd1f77866.
 //
-// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) constant returns(bool)
+// Solidity: function transactionAllowed(string _roleId, string _orgId, string _ultParent, uint256 _typeOfTxn) view returns(bool)
 func (_RoleManager *RoleManagerCallerSession) TransactionAllowed(_roleId string, _orgId string, _ultParent string, _typeOfTxn *big.Int) (bool, error) {
 	return _RoleManager.Contract.TransactionAllowed(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent, _typeOfTxn)
 }

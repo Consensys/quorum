@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindNodeManager(address common.Address, caller bind.ContractCaller, transac
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_NodeManager *NodeManagerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_NodeManager *NodeManagerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _NodeManager.Contract.NodeManagerCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_NodeManager *NodeManagerRaw) Transact(opts *bind.TransactOpts, method str
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_NodeManager *NodeManagerCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_NodeManager *NodeManagerCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _NodeManager.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,25 +192,32 @@ func (_NodeManager *NodeManagerTransactorRaw) Transact(opts *bind.TransactOpts, 
 
 // GetNodeDetails is a free data retrieval call binding the contract method 0x3f0e0e47.
 //
-// Solidity: function getNodeDetails(string enodeId) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetails(string enodeId) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerCaller) GetNodeDetails(opts *bind.CallOpts, enodeId string) (struct {
 	OrgId      string
 	EnodeId    string
 	NodeStatus *big.Int
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _NodeManager.contract.Call(opts, &out, "getNodeDetails", enodeId)
+
+	outstruct := new(struct {
 		OrgId      string
 		EnodeId    string
 		NodeStatus *big.Int
 	})
-	out := ret
-	err := _NodeManager.contract.Call(opts, out, "getNodeDetails", enodeId)
-	return *ret, err
+
+	outstruct.OrgId = out[0].(string)
+	outstruct.EnodeId = out[1].(string)
+	outstruct.NodeStatus = out[2].(*big.Int)
+
+	return *outstruct, err
+
 }
 
 // GetNodeDetails is a free data retrieval call binding the contract method 0x3f0e0e47.
 //
-// Solidity: function getNodeDetails(string enodeId) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetails(string enodeId) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerSession) GetNodeDetails(enodeId string) (struct {
 	OrgId      string
 	EnodeId    string
@@ -223,7 +228,7 @@ func (_NodeManager *NodeManagerSession) GetNodeDetails(enodeId string) (struct {
 
 // GetNodeDetails is a free data retrieval call binding the contract method 0x3f0e0e47.
 //
-// Solidity: function getNodeDetails(string enodeId) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetails(string enodeId) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerCallerSession) GetNodeDetails(enodeId string) (struct {
 	OrgId      string
 	EnodeId    string
@@ -234,25 +239,32 @@ func (_NodeManager *NodeManagerCallerSession) GetNodeDetails(enodeId string) (st
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerCaller) GetNodeDetailsFromIndex(opts *bind.CallOpts, _nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
 	NodeStatus *big.Int
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _NodeManager.contract.Call(opts, &out, "getNodeDetailsFromIndex", _nodeIndex)
+
+	outstruct := new(struct {
 		OrgId      string
 		EnodeId    string
 		NodeStatus *big.Int
 	})
-	out := ret
-	err := _NodeManager.contract.Call(opts, out, "getNodeDetailsFromIndex", _nodeIndex)
-	return *ret, err
+
+	outstruct.OrgId = out[0].(string)
+	outstruct.EnodeId = out[1].(string)
+	outstruct.NodeStatus = out[2].(*big.Int)
+
+	return *outstruct, err
+
 }
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerSession) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
@@ -263,7 +275,7 @@ func (_NodeManager *NodeManagerSession) GetNodeDetailsFromIndex(_nodeIndex *big.
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) constant returns(string _orgId, string _enodeId, uint256 _nodeStatus)
+// Solidity: function getNodeDetailsFromIndex(uint256 _nodeIndex) view returns(string _orgId, string _enodeId, uint256 _nodeStatus)
 func (_NodeManager *NodeManagerCallerSession) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
@@ -274,26 +286,31 @@ func (_NodeManager *NodeManagerCallerSession) GetNodeDetailsFromIndex(_nodeIndex
 
 // GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
 //
-// Solidity: function getNumberOfNodes() constant returns(uint256)
+// Solidity: function getNumberOfNodes() view returns(uint256)
 func (_NodeManager *NodeManagerCaller) GetNumberOfNodes(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _NodeManager.contract.Call(opts, out, "getNumberOfNodes")
-	return *ret0, err
+	var out []interface{}
+	err := _NodeManager.contract.Call(opts, &out, "getNumberOfNodes")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
 //
-// Solidity: function getNumberOfNodes() constant returns(uint256)
+// Solidity: function getNumberOfNodes() view returns(uint256)
 func (_NodeManager *NodeManagerSession) GetNumberOfNodes() (*big.Int, error) {
 	return _NodeManager.Contract.GetNumberOfNodes(&_NodeManager.CallOpts)
 }
 
 // GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
 //
-// Solidity: function getNumberOfNodes() constant returns(uint256)
+// Solidity: function getNumberOfNodes() view returns(uint256)
 func (_NodeManager *NodeManagerCallerSession) GetNumberOfNodes() (*big.Int, error) {
 	return _NodeManager.Contract.GetNumberOfNodes(&_NodeManager.CallOpts)
 }
