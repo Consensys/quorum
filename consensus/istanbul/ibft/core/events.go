@@ -18,11 +18,12 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 type backlogEvent struct {
 	src istanbul.Validator
-	msg *message
+	msg *ibfttypes.Message
 }
 
 type timeoutEvent struct{}

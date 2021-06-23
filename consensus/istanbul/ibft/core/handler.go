@@ -19,6 +19,8 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 // Start implements core.Engine.Start
@@ -90,7 +92,7 @@ func (c *core) handleEvents() {
 					Proposal: ev.Proposal,
 				}
 				err := c.handleRequest(r)
-				if err == errFutureMessage {
+				if err == istanbulcommon.ErrFutureMessage {
 					c.storeRequestMsg(r)
 				}
 			case istanbul.MessageEvent:
@@ -134,7 +136,7 @@ func (c *core) handleMsg(payload []byte) error {
 	logger := c.logger.New()
 
 	// Decode message and check its signature
-	msg := new(message)
+	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
@@ -150,12 +152,12 @@ func (c *core) handleMsg(payload []byte) error {
 	return c.handleCheckedMsg(msg, src)
 }
 
-func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
+func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("address", c.address, "from", src)
 
 	// Store the message if it's a future message
 	testBacklog := func(err error) error {
-		if err == errFutureMessage {
+		if err == istanbulcommon.ErrFutureMessage {
 			c.storeBacklog(msg, src)
 		}
 
@@ -163,19 +165,19 @@ func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
 	}
 
 	switch msg.Code {
-	case msgPreprepare:
+	case ibfttypes.MsgPreprepare:
 		return testBacklog(c.handlePreprepare(msg, src))
-	case msgPrepare:
+	case ibfttypes.MsgPrepare:
 		return testBacklog(c.handlePrepare(msg, src))
-	case msgCommit:
+	case ibfttypes.MsgCommit:
 		return testBacklog(c.handleCommit(msg, src))
-	case msgRoundChange:
+	case ibfttypes.MsgRoundChange:
 		return testBacklog(c.handleRoundChange(msg, src))
 	default:
 		logger.Error("Invalid message", "msg", msg)
 	}
 
-	return errInvalidMessage
+	return istanbulcommon.ErrInvalidMessage
 }
 
 func (c *core) handleTimeoutMsg() {

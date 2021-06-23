@@ -17,18 +17,19 @@
 package core
 
 import (
-	"math"
+	"bytes"
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func TestHandlePrepare(t *testing.T) {
+func TestHandleCommit(t *testing.T) {
 	N := uint64(4)
 	F := uint64(1)
 
@@ -51,7 +52,7 @@ func TestHandlePrepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					c.current = newTestRoundState(
 						&istanbul.View{
@@ -63,7 +64,7 @@ func TestHandlePrepare(t *testing.T) {
 
 					if i == 0 {
 						// replica 0 is the proposer
-						c.state = StatePreprepared
+						c.state = ibfttypes.StatePrepared
 					}
 				}
 				return sys
@@ -76,7 +77,7 @@ func TestHandlePrepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i == 0 {
 						// replica 0 is the proposer
@@ -84,7 +85,7 @@ func TestHandlePrepare(t *testing.T) {
 							expectedSubject.View,
 							c.valSet,
 						)
-						c.state = StatePreprepared
+						c.state = ibfttypes.StatePreprepared
 					} else {
 						c.current = newTestRoundState(
 							&istanbul.View{
@@ -97,7 +98,7 @@ func TestHandlePrepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			errFutureMessage,
+			istanbulcommon.ErrFutureMessage,
 		},
 		{
 			// subject not match
@@ -105,7 +106,7 @@ func TestHandlePrepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i == 0 {
 						// replica 0 is the proposer
@@ -113,7 +114,7 @@ func TestHandlePrepare(t *testing.T) {
 							expectedSubject.View,
 							c.valSet,
 						)
-						c.state = StatePreprepared
+						c.state = ibfttypes.StatePreprepared
 					} else {
 						c.current = newTestRoundState(
 							&istanbul.View{
@@ -126,54 +127,30 @@ func TestHandlePrepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			errOldMessage,
+			istanbulcommon.ErrOldMessage,
 		},
 		{
-			// subject not match
+			// jump state
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
-					c.valSet = backend.peers
-					if i == 0 {
-						// replica 0 is the proposer
-						c.current = newTestRoundState(
-							expectedSubject.View,
-							c.valSet,
-						)
-						c.state = StatePreprepared
-					} else {
-						c.current = newTestRoundState(
-							&istanbul.View{
-								Round:    big.NewInt(0),
-								Sequence: big.NewInt(1)},
-							c.valSet,
-						)
-					}
-				}
-				return sys
-			}(),
-			errInconsistentSubject,
-		},
-		{
-			func() *testSystem {
-				sys := NewTestSystemWithBackend(N, F)
-
-				// save less than Ceil(2*N/3) replica
-				sys.backends = sys.backends[int(math.Ceil(float64(2*N)/3)):]
-
-				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					c.current = newTestRoundState(
-						expectedSubject.View,
+						&istanbul.View{
+							Round:    big.NewInt(0),
+							Sequence: proposal.Number(),
+						},
 						c.valSet,
 					)
 
-					if i == 0 {
-						// replica 0 is the proposer
-						c.state = StatePreprepared
+					// only replica0 stays at ibfttypes.StatePreprepared
+					// other replicas are at ibfttypes.StatePrepared
+					if i != 0 {
+						c.state = ibfttypes.StatePrepared
+					} else {
+						c.state = ibfttypes.StatePreprepared
 					}
 				}
 				return sys
@@ -188,15 +165,17 @@ OUTER:
 		test.system.Run(false)
 
 		v0 := test.system.backends[0]
-		r0 := v0.engine.(*core)
+		r0 := v0.engine
 
 		for i, v := range test.system.backends {
 			validator := r0.valSet.GetByIndex(uint64(i))
-			m, _ := Encode(v.engine.(*core).current.Subject())
-			if err := r0.handlePrepare(&message{
-				Code:    msgPrepare,
-				Msg:     m,
-				Address: validator.Address(),
+			m, _ := ibfttypes.Encode(v.engine.current.Subject())
+			if err := r0.handleCommit(&ibfttypes.Message{
+				Code:          ibfttypes.MsgCommit,
+				Msg:           m,
+				Address:       validator.Address(),
+				Signature:     []byte{},
+				CommittedSeal: validator.Address().Bytes(), // small hack
 			}, validator); err != nil {
 				if err != test.expectedErr {
 					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
@@ -209,48 +188,38 @@ OUTER:
 		}
 
 		// prepared is normal case
-		if r0.state != StatePrepared {
-			// There are not enough PREPARE messages in core
-			if r0.state != StatePreprepared {
-				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
+		if r0.state != ibfttypes.StateCommitted {
+			// There are not enough commit messages in core
+			if r0.state != ibfttypes.StatePrepared {
+				t.Errorf("state mismatch: have %v, want %v", r0.state, ibfttypes.StatePrepared)
 			}
-			if r0.current.Prepares.Size() >= r0.QuorumSize() {
-				t.Errorf("the size of PREPARE messages should be less than %v", r0.QuorumSize())
+			if r0.current.Commits.Size() >= r0.QuorumSize() {
+				t.Errorf("the size of commit messages should be less than %v", r0.QuorumSize())
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
 			}
-
 			continue
 		}
 
-		// core should have 2F+1 before Ceil2Nby3Block and Ceil(2N/3) after Ceil2Nby3Block PREPARE messages
-		if r0.current.Prepares.Size() < r0.QuorumSize() {
-			t.Errorf("the size of PREPARE messages should be larger than 2F+1 or ceil(2N/3): size %v", r0.current.Commits.Size())
+		// core should have 2F+1 before Ceil2Nby3Block or Ceil(2N/3) prepare messages
+		if r0.current.Commits.Size() < r0.QuorumSize() {
+			t.Errorf("the size of commit messages should be larger than 2F+1 or Ceil(2N/3): size %v", r0.QuorumSize())
 		}
 
-		// a message will be delivered to backend if ceil(2N/3)
-		if int64(len(v0.sentMsgs)) != 1 {
-			t.Errorf("the Send() should be called once: times %v", len(test.system.backends[0].sentMsgs))
+		// check signatures large than F
+		signedCount := 0
+		committedSeals := v0.committedMsgs[0].committedSeals
+		for _, validator := range r0.valSet.List() {
+			for _, seal := range committedSeals {
+				if bytes.Equal(validator.Address().Bytes(), seal[:common.AddressLength]) {
+					signedCount++
+					break
+				}
+			}
 		}
-
-		// verify COMMIT messages
-		decodedMsg := new(message)
-		err := decodedMsg.FromPayload(v0.sentMsgs[0], nil)
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
-		}
-
-		if decodedMsg.Code != msgCommit {
-			t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, msgCommit)
-		}
-		var m *istanbul.Subject
-		err = decodedMsg.Decode(&m)
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
-		}
-		if !reflect.DeepEqual(m, expectedSubject) {
-			t.Errorf("subject mismatch: have %v, want %v", m, expectedSubject)
+		if signedCount <= r0.valSet.F() {
+			t.Errorf("the expected signed count should be larger than %v, but got %v", r0.valSet.F(), signedCount)
 		}
 		if !r0.current.IsHashLocked() {
 			t.Errorf("block should be locked")
@@ -259,7 +228,7 @@ OUTER:
 }
 
 // round is not checked for now
-func TestVerifyPrepare(t *testing.T) {
+func TestVerifyCommit(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
 	peer := validator.New(getPublicKeyAddress(privateKey))
@@ -268,15 +237,14 @@ func TestVerifyPrepare(t *testing.T) {
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 
 	testCases := []struct {
-		expected error
-
-		prepare    *istanbul.Subject
+		expected   error
+		commit     *istanbul.Subject
 		roundState *roundState
 	}{
 		{
 			// normal case
 			expected: nil,
-			prepare: &istanbul.Subject{
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: newTestProposal().Hash(),
 			},
@@ -287,8 +255,8 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// old message
-			expected: errInconsistentSubject,
-			prepare: &istanbul.Subject{
+			expected: istanbulcommon.ErrInconsistentSubject,
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: newTestProposal().Hash(),
 			},
@@ -299,8 +267,8 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// different digest
-			expected: errInconsistentSubject,
-			prepare: &istanbul.Subject{
+			expected: istanbulcommon.ErrInconsistentSubject,
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: common.StringToHash("1234567890"),
 			},
@@ -311,8 +279,8 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// malicious package(lack of sequence)
-			expected: errInconsistentSubject,
-			prepare: &istanbul.Subject{
+			expected: istanbulcommon.ErrInconsistentSubject,
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: nil},
 				Digest: newTestProposal().Hash(),
 			},
@@ -322,9 +290,9 @@ func TestVerifyPrepare(t *testing.T) {
 			),
 		},
 		{
-			// wrong PREPARE message with same sequence but different round
-			expected: errInconsistentSubject,
-			prepare: &istanbul.Subject{
+			// wrong prepare message with same sequence but different round
+			expected: istanbulcommon.ErrInconsistentSubject,
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
 				Digest: newTestProposal().Hash(),
 			},
@@ -334,9 +302,9 @@ func TestVerifyPrepare(t *testing.T) {
 			),
 		},
 		{
-			// wrong PREPARE message with same round but different sequence
-			expected: errInconsistentSubject,
-			prepare: &istanbul.Subject{
+			// wrong prepare message with same round but different sequence
+			expected: istanbulcommon.ErrInconsistentSubject,
+			commit: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
 				Digest: newTestProposal().Hash(),
 			},
@@ -347,10 +315,10 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 	}
 	for i, test := range testCases {
-		c := sys.backends[0].engine.(*core)
+		c := sys.backends[0].engine
 		c.current = test.roundState
 
-		if err := c.verifyPrepare(test.prepare, peer); err != nil {
+		if err := c.verifyCommit(test.commit, peer); err != nil {
 			if err != test.expected {
 				t.Errorf("result %d: error mismatch: have %v, want %v", i, err, test.expected)
 			}

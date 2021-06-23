@@ -22,6 +22,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 // notice: the normal case have been tested in integration tests.
@@ -34,9 +36,9 @@ func TestHandleMsg(t *testing.T) {
 	defer closer()
 
 	v0 := sys.backends[0]
-	r0 := v0.engine.(*core)
+	r0 := v0.engine
 
-	m, _ := Encode(&istanbul.Subject{
+	m, _ := ibfttypes.Encode(&istanbul.Subject{
 		View: &istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
@@ -44,8 +46,8 @@ func TestHandleMsg(t *testing.T) {
 		Digest: common.StringToHash("1234567890"),
 	})
 	// with a matched payload. msgPreprepare should match with *istanbul.Preprepare in normal case.
-	msg := &message{
-		Code:          msgPreprepare,
+	msg := &ibfttypes.Message{
+		Code:          ibfttypes.MsgPreprepare,
 		Msg:           m,
 		Address:       v0.Address(),
 		Signature:     []byte{},
@@ -53,11 +55,11 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val := v0.Validators(nil).GetByAddress(v0.Address())
-	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePreprepare {
-		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodePreprepare)
+	if err := r0.handleCheckedMsg(msg, val); err != istanbulcommon.ErrFailedDecodePreprepare {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFailedDecodePreprepare)
 	}
 
-	m, _ = Encode(&istanbul.Preprepare{
+	m, _ = ibfttypes.Encode(&istanbul.Preprepare{
 		View: &istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
@@ -65,8 +67,8 @@ func TestHandleMsg(t *testing.T) {
 		Proposal: makeBlock(1),
 	})
 	// with a unmatched payload. msgPrepare should match with *istanbul.Subject in normal case.
-	msg = &message{
-		Code:          msgPrepare,
+	msg = &ibfttypes.Message{
+		Code:          ibfttypes.MsgPrepare,
 		Msg:           m,
 		Address:       v0.Address(),
 		Signature:     []byte{},
@@ -74,11 +76,11 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val = v0.Validators(nil).GetByAddress(v0.Address())
-	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePrepare {
-		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodePreprepare)
+	if err := r0.handleCheckedMsg(msg, val); err != istanbulcommon.ErrFailedDecodePrepare {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFailedDecodePreprepare)
 	}
 
-	m, _ = Encode(&istanbul.Preprepare{
+	m, _ = ibfttypes.Encode(&istanbul.Preprepare{
 		View: &istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
@@ -86,8 +88,8 @@ func TestHandleMsg(t *testing.T) {
 		Proposal: makeBlock(2),
 	})
 	// with a unmatched payload. istanbul.MsgCommit should match with *istanbul.Subject in normal case.
-	msg = &message{
-		Code:          msgCommit,
+	msg = &ibfttypes.Message{
+		Code:          ibfttypes.MsgCommit,
 		Msg:           m,
 		Address:       v0.Address(),
 		Signature:     []byte{},
@@ -95,11 +97,11 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val = v0.Validators(nil).GetByAddress(v0.Address())
-	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodeCommit {
-		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodeCommit)
+	if err := r0.handleCheckedMsg(msg, val); err != istanbulcommon.ErrFailedDecodeCommit {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFailedDecodeCommit)
 	}
 
-	m, _ = Encode(&istanbul.Preprepare{
+	m, _ = ibfttypes.Encode(&istanbul.Preprepare{
 		View: &istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
@@ -107,7 +109,7 @@ func TestHandleMsg(t *testing.T) {
 		Proposal: makeBlock(3),
 	})
 	// invalid message code. message code is not exists in list
-	msg = &message{
+	msg = &ibfttypes.Message{
 		Code:          uint64(99),
 		Msg:           m,
 		Address:       v0.Address(),

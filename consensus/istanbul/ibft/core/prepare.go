@@ -20,32 +20,34 @@ import (
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 func (c *core) sendPrepare() {
 	logger := c.logger.New("state", c.state)
 
 	sub := c.current.Subject()
-	encodedSubject, err := Encode(sub)
+	encodedSubject, err := ibfttypes.Encode(sub)
 	if err != nil {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
-	c.broadcast(&message{
-		Code: msgPrepare,
+	c.broadcast(&ibfttypes.Message{
+		Code: ibfttypes.MsgPrepare,
 		Msg:  encodedSubject,
 	})
 }
 
-func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
+func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
 	if err != nil {
-		return errFailedDecodePrepare
+		return istanbulcommon.ErrFailedDecodePrepare
 	}
 
-	if err := c.checkMessage(msgPrepare, prepare.View); err != nil {
+	if err := c.checkMessage(ibfttypes.MsgPrepare, prepare.View); err != nil {
 		return err
 	}
 
@@ -60,9 +62,9 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 	// Change to Prepared state if we've received enough PREPARE messages or it is locked
 	// and we are in earlier state before Prepared state.
 	if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) &&
-		c.state.Cmp(StatePrepared) < 0 {
+		c.state.Cmp(ibfttypes.StatePrepared) < 0 {
 		c.current.LockHash()
-		c.setState(StatePrepared)
+		c.setState(ibfttypes.StatePrepared)
 		c.sendCommit()
 	}
 
@@ -76,13 +78,13 @@ func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) 
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(prepare, sub) {
 		logger.Warn("Inconsistent subjects between PREPARE and proposal", "expected", sub, "got", prepare)
-		return errInconsistentSubject
+		return istanbulcommon.ErrInconsistentSubject
 	}
 
 	return nil
 }
 
-func (c *core) acceptPrepare(msg *message, src istanbul.Validator) error {
+func (c *core) acceptPrepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	// Add the PREPARE message to current round state

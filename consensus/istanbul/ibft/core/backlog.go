@@ -18,6 +18,8 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -25,9 +27,9 @@ var (
 	// msgPriority is defined for calculating processing priority to speedup consensus
 	// msgPreprepare > msgCommit > msgPrepare
 	msgPriority = map[uint64]int{
-		msgPreprepare: 1,
-		msgCommit:     2,
-		msgPrepare:    3,
+		ibfttypes.MsgPreprepare: 1,
+		ibfttypes.MsgCommit:     2,
+		ibfttypes.MsgPrepare:    3,
 	}
 )
 
@@ -37,35 +39,35 @@ var (
 // return errOldMessage if the message view is smaller than current view
 func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
-		return errInvalidMessage
+		return istanbulcommon.ErrInvalidMessage
 	}
 
-	if msgCode == msgRoundChange {
+	if msgCode == ibfttypes.MsgRoundChange {
 		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
-			return errFutureMessage
+			return istanbulcommon.ErrFutureMessage
 		} else if view.Cmp(c.currentView()) < 0 {
-			return errOldMessage
+			return istanbulcommon.ErrOldMessage
 		}
 		return nil
 	}
 
 	if view.Cmp(c.currentView()) > 0 {
-		return errFutureMessage
+		return istanbulcommon.ErrFutureMessage
 	}
 
 	if view.Cmp(c.currentView()) < 0 {
-		return errOldMessage
+		return istanbulcommon.ErrOldMessage
 	}
 
 	if c.waitingForRoundChange {
-		return errFutureMessage
+		return istanbulcommon.ErrFutureMessage
 	}
 
 	// StateAcceptRequest only accepts msgPreprepare
 	// other messages are future messages
-	if c.state == StateAcceptRequest {
-		if msgCode > msgPreprepare {
-			return errFutureMessage
+	if c.state == ibfttypes.StateAcceptRequest {
+		if msgCode > ibfttypes.MsgPreprepare {
+			return istanbulcommon.ErrFutureMessage
 		}
 		return nil
 	}
@@ -75,7 +77,7 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	return nil
 }
 
-func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
+func (c *core) storeBacklog(msg *ibfttypes.Message, src istanbul.Validator) {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	if src.Address() == c.Address() {
@@ -94,7 +96,7 @@ func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
 		backlog = prque.New()
 	}
 	switch msg.Code {
-	case msgPreprepare:
+	case ibfttypes.MsgPreprepare:
 		var p *istanbul.Preprepare
 		err := msg.Decode(&p)
 		if err == nil {
@@ -133,10 +135,10 @@ func (c *core) processBacklog() {
 		//   2. The first message in queue is a future message
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
-			msg := m.(*message)
+			msg := m.(*ibfttypes.Message)
 			var view *istanbul.View
 			switch msg.Code {
-			case msgPreprepare:
+			case ibfttypes.MsgPreprepare:
 				var m *istanbul.Preprepare
 				err := msg.Decode(&m)
 				if err == nil {
@@ -157,7 +159,7 @@ func (c *core) processBacklog() {
 			// Push back if it's a future message
 			err := c.checkMessage(msg.Code, view)
 			if err != nil {
-				if err == errFutureMessage {
+				if err == istanbulcommon.ErrFutureMessage {
 					logger.Trace("Stop processing backlog", "msg", msg)
 					backlog.Push(msg, prio)
 					isFuture = true
@@ -177,7 +179,7 @@ func (c *core) processBacklog() {
 }
 
 func toPriority(msgCode uint64, view *istanbul.View) float32 {
-	if msgCode == msgRoundChange {
+	if msgCode == ibfttypes.MsgRoundChange {
 		// For msgRoundChange, set the message priority based on its sequence
 		return -float32(view.Sequence.Uint64() * 1000)
 	}

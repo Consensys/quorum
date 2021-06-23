@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -33,12 +34,12 @@ import (
 )
 
 // New creates an Istanbul consensus core
-func New(backend istanbul.Backend, config *istanbul.Config) Engine {
+func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	r := metrics.NewRegistry()
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
-		state:              StateAcceptRequest,
+		state:              ibfttypes.StateAcceptRequest,
 		handlerWg:          new(sync.WaitGroup),
 		logger:             log.New("address", backend.Address()),
 		backend:            backend,
@@ -65,7 +66,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) Engine {
 type core struct {
 	config  *istanbul.Config
 	address common.Address
-	state   State
+	state   ibfttypes.State
 	logger  log.Logger
 
 	backend               istanbul.Backend
@@ -99,7 +100,7 @@ type core struct {
 	consensusTimer metrics.Timer
 }
 
-func (c *core) finalizeMessage(msg *message) ([]byte, error) {
+func (c *core) finalizeMessage(msg *ibfttypes.Message) ([]byte, error) {
 	var err error
 	// Add sender address
 	msg.Address = c.Address()
@@ -107,7 +108,7 @@ func (c *core) finalizeMessage(msg *message) ([]byte, error) {
 	// Add proof of consensus
 	msg.CommittedSeal = []byte{}
 	// Assign the CommittedSeal if it's a COMMIT message and proposal is not nil
-	if msg.Code == msgCommit && c.current.Proposal() != nil {
+	if msg.Code == ibfttypes.MsgCommit && c.current.Proposal() != nil {
 		seal := PrepareCommittedSeal(c.current.Proposal().Hash())
 		msg.CommittedSeal, err = c.backend.Sign(seal)
 		if err != nil {
@@ -134,7 +135,7 @@ func (c *core) finalizeMessage(msg *message) ([]byte, error) {
 	return payload, nil
 }
 
-func (c *core) broadcast(msg *message) {
+func (c *core) broadcast(msg *ibfttypes.Message) {
 	logger := c.logger.New("state", c.state)
 
 	payload, err := c.finalizeMessage(msg)
@@ -170,7 +171,7 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 }
 
 func (c *core) commit() {
-	c.setState(StateCommitted)
+	c.setState(ibfttypes.StateCommitted)
 
 	proposal := c.current.Proposal()
 	if proposal != nil {
@@ -259,7 +260,7 @@ func (c *core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
-	c.setState(StateAcceptRequest)
+	c.setState(ibfttypes.StateAcceptRequest)
 	if roundChange && c.IsProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
@@ -307,11 +308,11 @@ func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.Valid
 	}
 }
 
-func (c *core) setState(state State) {
+func (c *core) setState(state ibfttypes.State) {
 	if c.state != state {
 		c.state = state
 	}
-	if state == StateAcceptRequest {
+	if state == ibfttypes.StateAcceptRequest {
 		c.processPendingRequests()
 	}
 	c.processBacklog()
@@ -365,6 +366,6 @@ func (c *core) QuorumSize() int {
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
 	buf.Write(hash.Bytes())
-	buf.Write([]byte{byte(msgCommit)})
+	buf.Write([]byte{byte(ibfttypes.MsgCommit)})
 	return buf.Bytes()
 }

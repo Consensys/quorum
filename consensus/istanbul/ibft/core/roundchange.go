@@ -22,6 +22,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 // sendNextRoundChange sends the ROUND CHANGE message with current round + 1
@@ -53,29 +55,29 @@ func (c *core) sendRoundChange(round *big.Int) {
 		Digest: common.Hash{},
 	}
 
-	payload, err := Encode(rc)
+	payload, err := ibfttypes.Encode(rc)
 	if err != nil {
 		logger.Error("Failed to encode ROUND CHANGE", "rc", rc, "err", err)
 		return
 	}
 
-	c.broadcast(&message{
-		Code: msgRoundChange,
+	c.broadcast(&ibfttypes.Message{
+		Code: ibfttypes.MsgRoundChange,
 		Msg:  payload,
 	})
 }
 
-func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
+func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
 	// Decode ROUND CHANGE message
 	var rc *istanbul.Subject
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
-		return errInvalidMessage
+		return istanbulcommon.ErrInvalidMessage
 	}
 
-	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
+	if err := c.checkMessage(ibfttypes.MsgRoundChange, rc.View); err != nil {
 		return err
 	}
 
@@ -104,7 +106,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		return nil
 	} else if cv.Round.Cmp(roundView.Round) < 0 {
 		// Only gossip the message with current round to other validators.
-		return errIgnored
+		return istanbulcommon.ErrIgnored
 	}
 	return nil
 }
@@ -126,7 +128,7 @@ type roundChangeSet struct {
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg *message) (int, error) {
+func (rcs *roundChangeSet) Add(r *big.Int, msg *ibfttypes.Message) (int, error) {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 

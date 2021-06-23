@@ -25,6 +25,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
@@ -32,7 +34,7 @@ import (
 
 func TestCheckMessage(t *testing.T) {
 	c := &core{
-		state: StateAcceptRequest,
+		state: ibfttypes.StateAcceptRequest,
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
@@ -40,13 +42,13 @@ func TestCheckMessage(t *testing.T) {
 	}
 
 	// invalid view format
-	err := c.checkMessage(msgPreprepare, nil)
-	if err != errInvalidMessage {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+	err := c.checkMessage(ibfttypes.MsgPreprepare, nil)
+	if err != istanbulcommon.ErrInvalidMessage {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMessage)
 	}
 
-	testStates := []State{StateAcceptRequest, StatePreprepared, StatePrepared, StateCommitted}
-	testCode := []uint64{msgPreprepare, msgPrepare, msgCommit, msgRoundChange}
+	testStates := []ibfttypes.State{ibfttypes.StateAcceptRequest, ibfttypes.StatePreprepared, ibfttypes.StatePrepared, ibfttypes.StateCommitted}
+	testCode := []uint64{ibfttypes.MsgPreprepare, ibfttypes.MsgPrepare, ibfttypes.MsgCommit, ibfttypes.MsgRoundChange}
 
 	// future sequence
 	v := &istanbul.View{
@@ -57,8 +59,8 @@ func TestCheckMessage(t *testing.T) {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
-			if err != errFutureMessage {
-				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+			if err != istanbulcommon.ErrFutureMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFutureMessage)
 			}
 		}
 	}
@@ -72,12 +74,12 @@ func TestCheckMessage(t *testing.T) {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
-			if testCode[j] == msgRoundChange {
+			if testCode[j] == ibfttypes.MsgRoundChange {
 				if err != nil {
 					t.Errorf("error mismatch: have %v, want nil", err)
 				}
-			} else if err != errFutureMessage {
-				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+			} else if err != istanbulcommon.ErrFutureMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFutureMessage)
 			}
 		}
 	}
@@ -92,42 +94,42 @@ func TestCheckMessage(t *testing.T) {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
-			if testCode[j] == msgRoundChange {
+			if testCode[j] == ibfttypes.MsgRoundChange {
 				if err != nil {
 					t.Errorf("error mismatch: have %v, want nil", err)
 				}
-			} else if err != errFutureMessage {
-				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+			} else if err != istanbulcommon.ErrFutureMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFutureMessage)
 			}
 		}
 	}
 	c.waitingForRoundChange = false
 
 	v = c.currentView()
-	// current view, state = StateAcceptRequest
-	c.state = StateAcceptRequest
+	// current view, state = ibfttypes.StateAcceptRequest
+	c.state = ibfttypes.StateAcceptRequest
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if testCode[i] == msgRoundChange {
+		if testCode[i] == ibfttypes.MsgRoundChange {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
-		} else if testCode[i] == msgPreprepare {
+		} else if testCode[i] == ibfttypes.MsgPreprepare {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 		} else {
-			if err != errFutureMessage {
-				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+			if err != istanbulcommon.ErrFutureMessage {
+				t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFutureMessage)
 			}
 		}
 	}
 
 	// current view, state = StatePreprepared
-	c.state = StatePreprepared
+	c.state = ibfttypes.StatePreprepared
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if testCode[i] == msgRoundChange {
+		if testCode[i] == ibfttypes.MsgRoundChange {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
@@ -136,11 +138,11 @@ func TestCheckMessage(t *testing.T) {
 		}
 	}
 
-	// current view, state = StatePrepared
-	c.state = StatePrepared
+	// current view, state = ibfttypes.StatePrepared
+	c.state = ibfttypes.StatePrepared
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if testCode[i] == msgRoundChange {
+		if testCode[i] == ibfttypes.MsgRoundChange {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
@@ -149,11 +151,11 @@ func TestCheckMessage(t *testing.T) {
 		}
 	}
 
-	// current view, state = StateCommitted
-	c.state = StateCommitted
+	// current view, state = ibfttypes.StateCommitted
+	c.state = ibfttypes.StateCommitted
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if testCode[i] == msgRoundChange {
+		if testCode[i] == ibfttypes.MsgRoundChange {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
@@ -181,9 +183,9 @@ func TestStoreBacklog(t *testing.T) {
 		View:     v,
 		Proposal: makeBlock(1),
 	}
-	prepreparePayload, _ := Encode(preprepare)
-	m := &message{
-		Code: msgPreprepare,
+	prepreparePayload, _ := ibfttypes.Encode(preprepare)
+	m := &ibfttypes.Message{
+		Code: ibfttypes.MsgPreprepare,
 		Msg:  prepreparePayload,
 	}
 	c.storeBacklog(m, p)
@@ -197,10 +199,10 @@ func TestStoreBacklog(t *testing.T) {
 		View:   v,
 		Digest: common.StringToHash("1234567890"),
 	}
-	subjectPayload, _ := Encode(subject)
+	subjectPayload, _ := ibfttypes.Encode(subject)
 
-	m = &message{
-		Code: msgPrepare,
+	m = &ibfttypes.Message{
+		Code: ibfttypes.MsgPrepare,
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
@@ -210,8 +212,8 @@ func TestStoreBacklog(t *testing.T) {
 	}
 
 	// push commit msg
-	m = &message{
-		Code: msgCommit,
+	m = &ibfttypes.Message{
+		Code: ibfttypes.MsgCommit,
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
@@ -221,8 +223,8 @@ func TestStoreBacklog(t *testing.T) {
 	}
 
 	// push roundChange msg
-	m = &message{
-		Code: msgRoundChange,
+	m = &ibfttypes.Message{
+		Code: ibfttypes.MsgRoundChange,
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
@@ -246,7 +248,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
 		}, newTestValidatorSet(4), common.Hash{}, nil, nil, nil),
-		state: StateAcceptRequest,
+		state: ibfttypes.StateAcceptRequest,
 	}
 	c.subscribeEvents()
 	defer c.unsubscribeEvents()
@@ -261,9 +263,9 @@ func TestProcessFutureBacklog(t *testing.T) {
 		View:   v,
 		Digest: common.StringToHash("1234567890"),
 	}
-	subjectPayload, _ := Encode(subject)
-	m := &message{
-		Code: msgCommit,
+	subjectPayload, _ := ibfttypes.Encode(subject)
+	m := &ibfttypes.Message{
+		Code: ibfttypes.MsgCommit,
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
@@ -291,29 +293,29 @@ func TestProcessBacklog(t *testing.T) {
 		View:     v,
 		Proposal: makeBlock(1),
 	}
-	prepreparePayload, _ := Encode(preprepare)
+	prepreparePayload, _ := ibfttypes.Encode(preprepare)
 
 	subject := &istanbul.Subject{
 		View:   v,
 		Digest: common.StringToHash("1234567890"),
 	}
-	subjectPayload, _ := Encode(subject)
+	subjectPayload, _ := ibfttypes.Encode(subject)
 
-	msgs := []*message{
+	msgs := []*ibfttypes.Message{
 		{
-			Code: msgPreprepare,
+			Code: ibfttypes.MsgPreprepare,
 			Msg:  prepreparePayload,
 		},
 		{
-			Code: msgPrepare,
+			Code: ibfttypes.MsgPrepare,
 			Msg:  subjectPayload,
 		},
 		{
-			Code: msgCommit,
+			Code: ibfttypes.MsgCommit,
 			Msg:  subjectPayload,
 		},
 		{
-			Code: msgRoundChange,
+			Code: ibfttypes.MsgRoundChange,
 			Msg:  subjectPayload,
 		},
 	}
@@ -322,7 +324,7 @@ func TestProcessBacklog(t *testing.T) {
 	}
 }
 
-func testProcessBacklog(t *testing.T, msg *message) {
+func testProcessBacklog(t *testing.T, msg *ibfttypes.Message) {
 	vset := newTestValidatorSet(1)
 	backend := &testSystemBackend{
 		events: new(event.TypeMux),
@@ -334,7 +336,7 @@ func testProcessBacklog(t *testing.T, msg *message) {
 		backlogsMu: new(sync.Mutex),
 		valSet:     vset,
 		backend:    backend,
-		state:      State(msg.Code),
+		state:      ibfttypes.State(msg.Code),
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),

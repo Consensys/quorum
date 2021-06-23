@@ -21,6 +21,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 func (c *core) sendCommit() {
@@ -39,26 +41,26 @@ func (c *core) sendCommitForOldBlock(view *istanbul.View, digest common.Hash) {
 func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	logger := c.logger.New("state", c.state)
 
-	encodedSubject, err := Encode(sub)
+	encodedSubject, err := ibfttypes.Encode(sub)
 	if err != nil {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
-	c.broadcast(&message{
-		Code: msgCommit,
+	c.broadcast(&ibfttypes.Message{
+		Code: ibfttypes.MsgCommit,
 		Msg:  encodedSubject,
 	})
 }
 
-func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
+func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode COMMIT message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
 	if err != nil {
-		return errFailedDecodeCommit
+		return istanbulcommon.ErrFailedDecodeCommit
 	}
 
-	if err := c.checkMessage(msgCommit, commit.View); err != nil {
+	if err := c.checkMessage(ibfttypes.MsgCommit, commit.View); err != nil {
 		return err
 	}
 
@@ -72,7 +74,7 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
-	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(StateCommitted) < 0 {
+	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
 		c.current.LockHash()
 		c.commit()
@@ -88,13 +90,13 @@ func (c *core) verifyCommit(commit *istanbul.Subject, src istanbul.Validator) er
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(commit, sub) {
 		logger.Warn("Inconsistent subjects between commit and proposal", "expected", sub, "got", commit)
-		return errInconsistentSubject
+		return istanbulcommon.ErrInconsistentSubject
 	}
 
 	return nil
 }
 
-func (c *core) acceptCommit(msg *message, src istanbul.Validator) error {
+func (c *core) acceptCommit(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	// Add the COMMIT message to current round state

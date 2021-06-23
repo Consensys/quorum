@@ -85,7 +85,7 @@ func TestQuorumSize(t *testing.T) {
 
 	sys := NewTestSystemWithBackend(N, F)
 	backend := sys.backends[0]
-	c := backend.engine.(*core)
+	c := backend.engine
 
 	valSet := c.valSet
 	for i := 1; i <= 1000; i++ {

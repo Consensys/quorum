@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 func newTestPreprepare(v *istanbul.View) *istanbul.Preprepare {
@@ -47,10 +49,10 @@ func TestHandlePreprepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i != 0 {
-						c.state = StateAcceptRequest
+						c.state = ibfttypes.StateAcceptRequest
 					}
 				}
 				return sys
@@ -65,10 +67,10 @@ func TestHandlePreprepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i != 0 {
-						c.state = StateAcceptRequest
+						c.state = ibfttypes.StateAcceptRequest
 						// hack: force set subject that future message can be simulated
 						c.current = newTestRoundState(
 							&istanbul.View{
@@ -85,7 +87,7 @@ func TestHandlePreprepare(t *testing.T) {
 				return sys
 			}(),
 			makeBlock(1),
-			errFutureMessage,
+			istanbulcommon.ErrFutureMessage,
 			false,
 		},
 		{
@@ -97,17 +99,17 @@ func TestHandlePreprepare(t *testing.T) {
 				sys.backends = sys.backends[1:]
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i != 0 {
 						// replica 0 is the proposer
-						c.state = StatePreprepared
+						c.state = ibfttypes.StatePreprepared
 					}
 				}
 				return sys
 			}(),
 			makeBlock(1),
-			errNotFromProposer,
+			istanbulcommon.ErrNotFromProposer,
 			false,
 		},
 		{
@@ -116,10 +118,10 @@ func TestHandlePreprepare(t *testing.T) {
 				sys := NewTestSystemWithBackend(N, F)
 
 				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
+					c := backend.engine
 					c.valSet = backend.peers
 					if i != 0 {
-						c.state = StatePreprepared
+						c.state = ibfttypes.StatePreprepared
 						c.current.SetSequence(big.NewInt(10))
 						c.current.SetRound(big.NewInt(10))
 					}
@@ -127,7 +129,7 @@ func TestHandlePreprepare(t *testing.T) {
 				return sys
 			}(),
 			makeBlock(1),
-			errOldMessage,
+			istanbulcommon.ErrOldMessage,
 			false,
 		},
 	}
@@ -137,7 +139,7 @@ OUTER:
 		test.system.Run(false)
 
 		v0 := test.system.backends[0]
-		r0 := v0.engine.(*core)
+		r0 := v0.engine
 
 		curView := r0.currentView()
 
@@ -152,13 +154,13 @@ OUTER:
 				continue
 			}
 
-			c := v.engine.(*core)
+			c := v.engine
 
-			m, _ := Encode(preprepare)
+			m, _ := ibfttypes.Encode(preprepare)
 			_, val := r0.valSet.GetByAddress(v0.Address())
 			// run each backends and verify handlePreprepare function.
-			if err := c.handlePreprepare(&message{
-				Code:    msgPreprepare,
+			if err := c.handlePreprepare(&ibfttypes.Message{
+				Code:    ibfttypes.MsgPreprepare,
 				Msg:     m,
 				Address: v0.Address(),
 			}, val); err != nil {
@@ -168,8 +170,8 @@ OUTER:
 				continue OUTER
 			}
 
-			if c.state != StatePreprepared {
-				t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
+			if c.state != ibfttypes.StatePreprepared {
+				t.Errorf("state mismatch: have %v, want %v", c.state, ibfttypes.StatePreprepared)
 			}
 
 			if !test.existingBlock && !reflect.DeepEqual(c.current.Subject().View, curView) {
@@ -177,15 +179,15 @@ OUTER:
 			}
 
 			// verify prepare messages
-			decodedMsg := new(message)
+			decodedMsg := new(ibfttypes.Message)
 			err := decodedMsg.FromPayload(v.sentMsgs[0], nil)
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 
-			expectedCode := msgPrepare
+			expectedCode := ibfttypes.MsgPrepare
 			if test.existingBlock {
-				expectedCode = msgCommit
+				expectedCode = ibfttypes.MsgCommit
 			}
 			if decodedMsg.Code != expectedCode {
 				t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, expectedCode)
@@ -213,10 +215,10 @@ func TestHandlePreprepareWithLock(t *testing.T) {
 		sys := NewTestSystemWithBackend(N, F)
 
 		for i, backend := range sys.backends {
-			c := backend.engine.(*core)
+			c := backend.engine
 			c.valSet = backend.peers
 			if i != 0 {
-				c.state = StateAcceptRequest
+				c.state = ibfttypes.StateAcceptRequest
 			}
 			c.roundChangeSet = newRoundChangeSet(c.valSet)
 		}
@@ -243,7 +245,7 @@ func TestHandlePreprepareWithLock(t *testing.T) {
 	for _, test := range testCases {
 		test.system.Run(false)
 		v0 := test.system.backends[0]
-		r0 := v0.engine.(*core)
+		r0 := v0.engine
 		curView := r0.currentView()
 		preprepare := &istanbul.Preprepare{
 			View:     curView,
@@ -260,29 +262,29 @@ func TestHandlePreprepareWithLock(t *testing.T) {
 				continue
 			}
 
-			c := v.engine.(*core)
+			c := v.engine
 			c.current.SetPreprepare(lockPreprepare)
 			c.current.LockHash()
-			m, _ := Encode(preprepare)
+			m, _ := ibfttypes.Encode(preprepare)
 			_, val := r0.valSet.GetByAddress(v0.Address())
-			if err := c.handlePreprepare(&message{
-				Code:    msgPreprepare,
+			if err := c.handlePreprepare(&ibfttypes.Message{
+				Code:    ibfttypes.MsgPreprepare,
 				Msg:     m,
 				Address: v0.Address(),
 			}, val); err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 			if test.proposal == test.lockProposal {
-				if c.state != StatePrepared {
-					t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
+				if c.state != ibfttypes.StatePrepared {
+					t.Errorf("state mismatch: have %v, want %v", c.state, ibfttypes.StatePreprepared)
 				}
 				if !reflect.DeepEqual(curView, c.currentView()) {
 					t.Errorf("view mismatch: have %v, want %v", c.currentView(), curView)
 				}
 			} else {
-				// Should stay at StateAcceptRequest
-				if c.state != StateAcceptRequest {
-					t.Errorf("state mismatch: have %v, want %v", c.state, StateAcceptRequest)
+				// Should stay at ibfttypes.StateAcceptRequest
+				if c.state != ibfttypes.StateAcceptRequest {
+					t.Errorf("state mismatch: have %v, want %v", c.state, ibfttypes.StateAcceptRequest)
 				}
 				// Should have triggered a round change
 				expectedView := &istanbul.View{

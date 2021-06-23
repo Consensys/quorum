@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 )
 
@@ -37,13 +38,13 @@ func TestRoundChangeSet(t *testing.T) {
 		View:   view,
 		Digest: common.Hash{},
 	}
-	m, _ := Encode(r)
+	m, _ := ibfttypes.Encode(r)
 
 	// Test Add()
 	// Add message from all validators
 	for i, v := range vset.List() {
-		msg := &message{
-			Code:    msgRoundChange,
+		msg := &ibfttypes.Message{
+			Code:    ibfttypes.MsgRoundChange,
 			Msg:     m,
 			Address: v.Address(),
 		}
@@ -55,8 +56,8 @@ func TestRoundChangeSet(t *testing.T) {
 
 	// Add message again from all validators, but the size should be the same
 	for _, v := range vset.List() {
-		msg := &message{
-			Code:    msgRoundChange,
+		msg := &ibfttypes.Message{
+			Code:    ibfttypes.MsgRoundChange,
 			Msg:     m,
 			Address: v.Address(),
 		}

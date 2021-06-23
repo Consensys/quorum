@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -43,8 +44,8 @@ func TestMessageSetWithPreprepare(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-	msg := &message{
-		Code:    msgPreprepare,
+	msg := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
 		Msg:     rawPP,
 		Address: valSet.GetProposer().Address(),
 	}
@@ -84,8 +85,8 @@ func TestMessageSetWithSubject(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
-	msg := &message{
-		Code:    msgPrepare,
+	msg := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPrepare,
 		Msg:     rawSub,
 		Address: valSet.GetProposer().Address(),
 	}

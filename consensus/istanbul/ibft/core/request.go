@@ -18,12 +18,14 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 func (c *core) handleRequest(request *istanbul.Request) error {
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
 	if err := c.checkRequestMsg(request); err != nil {
-		if err == errInvalidMessage {
+		if err == istanbulcommon.ErrInvalidMessage {
 			logger.Warn("invalid request")
 			return err
 		}
@@ -33,7 +35,7 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.current.pendingRequest = request
-	if c.state == StateAcceptRequest {
+	if c.state == ibfttypes.StateAcceptRequest {
 		c.sendPreprepare(request)
 	}
 	return nil
@@ -45,13 +47,13 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 // return errOldMessage if the sequence of proposal is smaller than current sequence
 func (c *core) checkRequestMsg(request *istanbul.Request) error {
 	if request == nil || request.Proposal == nil {
-		return errInvalidMessage
+		return istanbulcommon.ErrInvalidMessage
 	}
 
 	if c := c.current.sequence.Cmp(request.Proposal.Number()); c > 0 {
-		return errOldMessage
+		return istanbulcommon.ErrOldMessage
 	} else if c < 0 {
-		return errFutureMessage
+		return istanbulcommon.ErrFutureMessage
 	} else {
 		return nil
 	}
@@ -82,7 +84,7 @@ func (c *core) processPendingRequests() {
 		// Push back if it's a future message
 		err := c.checkRequestMsg(r)
 		if err != nil {
-			if err == errFutureMessage {
+			if err == istanbulcommon.ErrFutureMessage {
 				c.logger.Trace("Stop processing request", "number", r.Proposal.Number(), "hash", r.Proposal.Hash())
 				c.pendingRequests.Push(m, prio)
 				break

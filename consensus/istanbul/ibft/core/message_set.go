@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 // Construct a new message set to accumulate messages for given sequence/view number.
@@ -34,7 +35,7 @@ func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
 			Sequence: new(big.Int),
 		},
 		messagesMu: new(sync.Mutex),
-		messages:   make(map[common.Address]*message),
+		messages:   make(map[common.Address]*ibfttypes.Message),
 		valSet:     valSet,
 	}
 }
@@ -45,14 +46,14 @@ type messageSet struct {
 	view       *istanbul.View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
-	messages   map[common.Address]*message
+	messages   map[common.Address]*ibfttypes.Message
 }
 
 func (ms *messageSet) View() *istanbul.View {
 	return ms.view
 }
 
-func (ms *messageSet) Add(msg *message) error {
+func (ms *messageSet) Add(msg *ibfttypes.Message) error {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -63,7 +64,7 @@ func (ms *messageSet) Add(msg *message) error {
 	return ms.addVerifiedMessage(msg)
 }
 
-func (ms *messageSet) Values() (result []*message) {
+func (ms *messageSet) Values() (result []*ibfttypes.Message) {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 
@@ -80,7 +81,7 @@ func (ms *messageSet) Size() int {
 	return len(ms.messages)
 }
 
-func (ms *messageSet) Get(addr common.Address) *message {
+func (ms *messageSet) Get(addr common.Address) *ibfttypes.Message {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
 	return ms.messages[addr]
@@ -88,7 +89,7 @@ func (ms *messageSet) Get(addr common.Address) *message {
 
 // ----------------------------------------------------------------------------
 
-func (ms *messageSet) verify(msg *message) error {
+func (ms *messageSet) verify(msg *ibfttypes.Message) error {
 	// verify if the message comes from one of the validators
 	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
 		return istanbul.ErrUnauthorizedAddress
@@ -99,7 +100,7 @@ func (ms *messageSet) verify(msg *message) error {
 	return nil
 }
 
-func (ms *messageSet) addVerifiedMessage(msg *message) error {
+func (ms *messageSet) addVerifiedMessage(msg *ibfttypes.Message) error {
 	ms.messages[msg.Address] = msg
 	return nil
 }

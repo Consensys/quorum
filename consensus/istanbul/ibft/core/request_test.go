@@ -25,6 +25,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
@@ -32,7 +34,7 @@ import (
 
 func TestCheckRequestMsg(t *testing.T) {
 	c := &core{
-		state: StateAcceptRequest,
+		state: ibfttypes.StateAcceptRequest,
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
@@ -41,15 +43,15 @@ func TestCheckRequestMsg(t *testing.T) {
 
 	// invalid request
 	err := c.checkRequestMsg(nil)
-	if err != errInvalidMessage {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+	if err != istanbulcommon.ErrInvalidMessage {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMessage)
 	}
 	r := &istanbul.Request{
 		Proposal: nil,
 	}
 	err = c.checkRequestMsg(r)
-	if err != errInvalidMessage {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
+	if err != istanbulcommon.ErrInvalidMessage {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMessage)
 	}
 
 	// old request
@@ -57,8 +59,8 @@ func TestCheckRequestMsg(t *testing.T) {
 		Proposal: makeBlock(0),
 	}
 	err = c.checkRequestMsg(r)
-	if err != errOldMessage {
-		t.Errorf("error mismatch: have %v, want %v", err, errOldMessage)
+	if err != istanbulcommon.ErrOldMessage {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrOldMessage)
 	}
 
 	// future request
@@ -66,8 +68,8 @@ func TestCheckRequestMsg(t *testing.T) {
 		Proposal: makeBlock(2),
 	}
 	err = c.checkRequestMsg(r)
-	if err != errFutureMessage {
-		t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
+	if err != istanbulcommon.ErrFutureMessage {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrFutureMessage)
 	}
 
 	// current request
@@ -87,7 +89,7 @@ func TestStoreRequestMsg(t *testing.T) {
 	c := &core{
 		logger:  log.New("backend", "test", "id", 0),
 		backend: backend,
-		state:   StateAcceptRequest,
+		state:   ibfttypes.StateAcceptRequest,
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),

@@ -21,6 +21,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
 func (c *core) sendPreprepare(request *istanbul.Request) {
@@ -28,7 +30,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
-		preprepare, err := Encode(&istanbul.Preprepare{
+		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
 			View:     curView,
 			Proposal: request.Proposal,
 		})
@@ -36,27 +38,27 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			logger.Error("Failed to encode", "view", curView)
 			return
 		}
-		c.broadcast(&message{
-			Code: msgPreprepare,
+		c.broadcast(&ibfttypes.Message{
+			Code: ibfttypes.MsgPreprepare,
 			Msg:  preprepare,
 		})
 	}
 }
 
-func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
+func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
 	if err != nil {
-		return errFailedDecodePreprepare
+		return istanbulcommon.ErrFailedDecodePreprepare
 	}
 
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
-	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
-		if err == errOldMessage {
+	if err := c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
+		if err == istanbulcommon.ErrOldMessage {
 			// Get validator set for the given proposal
 			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
 			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
@@ -75,7 +77,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	// Check if the message comes from current proposer
 	if !c.valSet.IsProposer(src.Address()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
-		return errNotFromProposer
+		return istanbulcommon.ErrNotFromProposer
 	}
 
 	// Verify the proposal we received
@@ -98,13 +100,13 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	}
 
 	// Here is about to accept the PRE-PREPARE
-	if c.state == StateAcceptRequest {
+	if c.state == ibfttypes.StateAcceptRequest {
 		// Send ROUND CHANGE if the locked proposal and the received proposal are different
 		if c.current.IsHashLocked() {
 			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
 				// Broadcast COMMIT and enters Prepared state directly
 				c.acceptPreprepare(preprepare)
-				c.setState(StatePrepared)
+				c.setState(ibfttypes.StatePrepared)
 				c.sendCommit()
 			} else {
 				// Send round change
@@ -115,7 +117,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 			//   1. the locked proposal and the received proposal match
 			//   2. we have no locked proposal
 			c.acceptPreprepare(preprepare)
-			c.setState(StatePreprepared)
+			c.setState(ibfttypes.StatePreprepared)
 			c.sendPrepare()
 		}
 	}

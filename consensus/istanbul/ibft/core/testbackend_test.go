@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -37,7 +38,7 @@ type testSystemBackend struct {
 	id  uint64
 	sys *testSystem
 
-	engine Engine
+	engine *core
 	peers  istanbul.ValidatorSet
 	events *event.TypeMux
 
@@ -224,8 +225,8 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 		backend.peers = vset
 		backend.address = vset.GetByIndex(i).Address()
 
-		core := New(backend, config).(*core)
-		core.state = StateAcceptRequest
+		core := New(backend, config)
+		core.state = ibfttypes.StateAcceptRequest
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
