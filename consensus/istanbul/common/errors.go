@@ -77,13 +77,16 @@ var (
 	ErrInvalidMessage = errors.New("invalid message")
 
 	// ErrFailedDecodePreprepare is returned when the PRE-PREPARE message is malformed.
-	ErrFailedDecodePreprepare = errors.New("failed to decode PRE-PREPARE")
+	ErrFailedDecodePreprepare = errors.New("failed to decode PRE-PREPARE message")
 
 	// ErrFailedDecodePrepare is returned when the PREPARE message is malformed.
-	ErrFailedDecodePrepare = errors.New("failed to decode PREPARE")
+	ErrFailedDecodePrepare = errors.New("failed to decode PREPARE message")
 
 	// ErrFailedDecodeCommit is returned when the COMMIT message is malformed.
-	ErrFailedDecodeCommit = errors.New("failed to decode COMMIT")
+	ErrFailedDecodeCommit = errors.New("failed to decode COMMIT message")
+
+	// ErrFailedDecodeRoundChange is returned when the COMMIT message is malformed.
+	ErrFailedDecodeRoundChange = errors.New("failed to decode ROUND-CHANGE message")
 
 	// ErrFailedDecodeMessageSet is returned when the message set is malformed.
 	// ErrFailedDecodeMessageSet = errors.New("failed to decode message set")

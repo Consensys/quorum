@@ -28,7 +28,7 @@ import (
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	qbftCore "github.com/ethereum/go-ethereum/consensus/qbft/core"
-	qbftMessage "github.com/ethereum/go-ethereum/consensus/qbft/message"
+	qbftMessage qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
