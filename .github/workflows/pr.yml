@@ -50,9 +50,6 @@ jobs:
           sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - name: 'Modules install'
-        run: |
-          go mod download
       - name: 'Run unit tests'
         run: |
           make test
