@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-18.04", "ubuntu-20.04"]
+        os: ["ubuntu-18.04"]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -50,6 +50,9 @@ jobs:
           sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: 'Modules install'
+        run: |
+          go mod download
       - name: 'Run unit tests'
         run: |
           make test
