@@ -685,6 +685,9 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 	if err := msg.Decode(&status); err != nil {
 		return errResp(ErrDecode, "msg %v: %v", msg, err)
 	}
+	if status.TD == nil {
+		return errResp(ErrNilStatusTD, "status td is nil")
+	}
 	if status.NetworkID != network {
 		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", status.NetworkID, network)
 	}
@@ -730,6 +733,9 @@ func newPeerSet() *peerSet {
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
 func (ps *peerSet) Register(p *peer, removePeer func(string), protoName string) error {
+	if p == nil {
+		return fmt.Errorf("peer shall not be nil")
+	}
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -833,13 +839,10 @@ func (ps *peerSet) BestPeer() *peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
-	var (
-		bestPeer *peer
-		bestTd   *big.Int
-	)
+	var bestPeer *peer
 	for _, p := range ps.peers {
-		if _, td := p.Head(); bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+		if bestPeer == nil || bestPeer.td == nil && p != nil || p.td != nil && bestPeer.td != nil && p.td.Cmp(bestPeer.td) > 0 {
+			bestPeer = p
 		}
 	}
 	return bestPeer

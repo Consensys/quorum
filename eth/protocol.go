@@ -83,6 +83,7 @@ const (
 	ErrForkIDRejected
 	ErrNoStatusMsg
 	ErrExtraStatusMsg
+	ErrNilStatusTD
 )
 
 func (e errCode) String() string {
