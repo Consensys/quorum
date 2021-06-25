@@ -38,6 +38,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine/mpsdbupgrade"
 	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -103,6 +105,20 @@ with several RLP-encoded blocks, or several files can be used.
 
 If only one file is used, import error will result in failure. If several files are used,
 processing will proceed even if an individual RLP-file import failure occurs.`,
+	}
+	mpsdbUpgradeCommand = cli.Command{
+		Action:    utils.MigrateFlags(mpsdbUpgrade),
+		Name:      "mpsdbupgrade",
+		Usage:     "Upgrade a standalone DB to an MPS DB",
+		ArgsUsage: "",
+		Flags: []cli.Flag{
+			utils.DataDirFlag,
+		},
+		Description: `
+Checks if the chain config isMPS parameter value. 
+If false, it upgrades the DB to be MPS enabled (builds the trie of private states) and if successful sets isMPS to true.
+If true, exits displaying an error message that the DB is already MPS.`,
+		Category: "BLOCKCHAIN COMMANDS",
 	}
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
@@ -398,6 +414,25 @@ func importChain(ctx *cli.Context) error {
 	}
 	fmt.Println(ioStats)
 	return importErr
+}
+
+func mpsdbUpgrade(ctx *cli.Context) error {
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	// initialise the tx manager with the dummy tx mgr
+	private.P = &mpsdbupgrade.DBUpgradePrivateTransactionManager{}
+
+	chain, db := utils.MakeChain(ctx, stack, false, true)
+
+	if chain.Config().IsMPS {
+		utils.Fatalf("The database is already upgraded to support multiple private states.")
+	}
+
+	currentBlockNumber := chain.CurrentBlock().Number().Int64()
+	fmt.Printf("Current block number %v\n", currentBlockNumber)
+
+	return core.UpgradeDB(db, chain)
 }
 
 func exportChain(ctx *cli.Context) error {

@@ -46,12 +46,14 @@ func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, 
 type managedState struct {
 	stateDb    *state.StateDB
 	stateCache state.Database
+	stateRoot  common.Hash
 }
 
 func (ms *managedState) Copy() *managedState {
 	return &managedState{
 		stateDb:    ms.stateDb.Copy(),
 		stateCache: ms.stateCache,
+		stateRoot:  ms.stateRoot,
 	}
 }
 
@@ -104,8 +106,18 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 	mpsr.managedStates[psi] = &managedState{
 		stateCache: stateCache,
 		stateDb:    stateDB,
+		stateRoot:  common.Hash{},
 	}
 	return stateDB, nil
+}
+
+func (mpsr *MultiplePrivateStateRepository) SetPSRoot(psi types.PrivateStateIdentifier, hash common.Hash) error {
+	mpsr.mux.Lock()
+	defer mpsr.mux.Unlock()
+	mpsr.managedStates[psi] = &managedState{
+		stateRoot: hash,
+	}
+	return nil
 }
 
 func (mpsr *MultiplePrivateStateRepository) Reset() error {
@@ -134,17 +146,21 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
 	for psi, managedState := range mpsr.managedStates {
-		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(isEIP158)
-		if err != nil {
-			return err
+		privateRoot := managedState.stateRoot
+		if common.EmptyHash(privateRoot) {
+			// commit each managed state
+			var err error
+			privateRoot, err = managedState.stateDb.Commit(isEIP158)
+			if err != nil {
+				return err
+			}
+			err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
+			if err != nil {
+				return err
+			}
 		}
 		// update the managed state root in the trie of states
-		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
-		if err != nil {
-			return err
-		}
-		err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
+		err := mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
 			return err
 		}
