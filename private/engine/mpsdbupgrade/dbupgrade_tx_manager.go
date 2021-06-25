@@ -68,8 +68,5 @@ func (ptm *DBUpgradePrivateTransactionManager) Name() string {
 }
 
 func (ptm *DBUpgradePrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
-	if f == engine.MultiplePrivateStates {
-		return true
-	}
-	return false
+	return f == engine.MultiplePrivateStates
 }
