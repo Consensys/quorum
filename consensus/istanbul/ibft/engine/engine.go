@@ -12,7 +12,6 @@ import (
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -21,11 +20,9 @@ import (
 )
 
 var (
-	defaultDifficulty = big.NewInt(1)
-	nilUncleHash      = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
-	emptyNonce        = types.BlockNonce{}
-	nonceAuthVote     = hexutil.MustDecode("0xffffffffffffffff") // Magic nonce number to vote on adding a new validator
-	nonceDropVote     = hexutil.MustDecode("0x0000000000000000") // Magic nonce number to vote on removing a validator.
+	nilUncleHash  = types.CalcUncleHash(nil)                 // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
+	nonceAuthVote = hexutil.MustDecode("0xffffffffffffffff") // Magic nonce number to vote on adding a new validator
+	nonceDropVote = hexutil.MustDecode("0x0000000000000000") // Magic nonce number to vote on removing a validator.
 )
 
 type SignerFn func(data []byte) ([]byte, error)
@@ -60,18 +57,12 @@ func (e *Engine) Author(header *types.Header) (common.Address, error) {
 	return addr, nil
 }
 
-func (e *Engine) VerifyProposal(chain consensus.ChainHeaderReader, proposal istanbul.Proposal, validators istanbul.ValidatorSet, hasBadBlock func(hash common.Hash) bool) (time.Duration, error) {
-	// Check if the proposal is a valid block
-	block, ok := proposal.(*types.Block)
-	if !ok {
-		return 0, istanbulcommon.ErrInvalidProposal
-	}
+func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
+	// Append seals into extra-data
+	return writeCommittedSeals(header, seals)
+}
 
-	// check bad block
-	if hasBadBlock != nil && hasBadBlock(block.Hash()) {
-		return 0, core.ErrBlacklistedHash
-	}
-
+func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (time.Duration, error) {
 	// check block body
 	txnHash := types.DeriveSha(block.Transactions(), new(trie.Trie))
 	if txnHash != block.Header().TxHash {
@@ -84,7 +75,7 @@ func (e *Engine) VerifyProposal(chain consensus.ChainHeaderReader, proposal ista
 	}
 
 	// verify the header of proposed block
-	err := e.VerifyHeader(chain, block.Header(), validators)
+	err := e.VerifyHeader(chain, block.Header(), nil, validators)
 	if err == nil || err == istanbulcommon.ErrEmptyCommittedSeals {
 		// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
 		return 0, nil
@@ -95,15 +86,15 @@ func (e *Engine) VerifyProposal(chain consensus.ChainHeaderReader, proposal ista
 	return 0, err
 }
 
-func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
-	return e.verifyHeader(chain, header, validators, nil)
+func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
+	return e.verifyHeader(chain, header, parents, validators)
 }
 
 // verifyHeader checks whether a header conforms to the consensus rules.The
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, parents []*types.Header) error {
+func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	if header.Number == nil {
 		return istanbulcommon.ErrUnknownBlock
 	}
@@ -118,7 +109,7 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return istanbulcommon.ErrInvalidExtraDataFormat
 	}
 
-	if header.Nonce != (emptyNonce) && !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
+	if header.Nonce != (istanbulcommon.EmptyBlockNonce) && !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return istanbulcommon.ErrInvalidNonce
 	}
 
@@ -133,7 +124,7 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-	if header.Difficulty == nil || header.Difficulty.Cmp(defaultDifficulty) != 0 {
+	if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
 		return istanbulcommon.ErrInvalidDifficulty
 	}
 
@@ -261,8 +252,8 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 		return istanbulcommon.ErrUnknownBlock
 	}
 
-	// ensure that the difficulty equals to defaultDifficulty
-	if header.Difficulty.Cmp(defaultDifficulty) != 0 {
+	// ensure that the difficulty equals to istanbulcommon.DefaultDifficulty
+	if header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
 		return istanbulcommon.ErrInvalidDifficulty
 	}
 
@@ -270,6 +261,8 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	header.Coinbase = common.Address{}
+	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
 
 	// copy the parent extra data as the header extra data
@@ -280,7 +273,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	// use the same difficulty for all blocks
-	header.Difficulty = defaultDifficulty
+	header.Difficulty = istanbulcommon.DefaultDifficulty
 
 	// add validators in snapshot to extraData's validators section
 	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()))
@@ -386,18 +379,22 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return new(big.Int)
 }
 
-func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
-	var (
-		committedSeal [][]byte
-		proposalSeal  []byte
-	)
+func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
 
+	return extra.Validators, nil
+}
+
+func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
 		return []common.Address{}, err
 	}
-	committedSeal = extra.CommittedSeal
-	proposalSeal = PrepareCommittedSeal(header.Hash())
+	committedSeal := extra.CommittedSeal
+	proposalSeal := PrepareCommittedSeal(header.Hash())
 
 	var addrs []common.Address
 	// 1. Get committed seals from current header
@@ -415,6 +412,30 @@ func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
 
 func (e *Engine) Address() common.Address {
 	return e.signer
+}
+
+func (e *Engine) WriteVote(header *types.Header, candidate common.Address, authorize bool) error {
+	header.Coinbase = candidate
+	if authorize {
+		copy(header.Nonce[:], nonceAuthVote)
+	} else {
+		copy(header.Nonce[:], nonceDropVote)
+	}
+
+	return nil
+}
+
+func (e *Engine) ReadVote(header *types.Header) (candidate common.Address, authorize bool, err error) {
+	switch {
+	case bytes.Equal(header.Nonce[:], nonceAuthVote):
+		authorize = true
+	case bytes.Equal(header.Nonce[:], nonceDropVote):
+		authorize = false
+	default:
+		return common.Address{}, false, istanbulcommon.ErrInvalidVote
+	}
+
+	return header.Coinbase, authorize, nil
 }
 
 // FIXME: Need to update this for Istanbul
@@ -454,6 +475,34 @@ func prepareExtra(header *types.Header, vals []common.Address) ([]byte, error) {
 	}
 
 	return append(buf.Bytes(), payload...), nil
+}
+
+func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
+	if len(committedSeals) == 0 {
+		return istanbulcommon.ErrInvalidCommittedSeals
+	}
+
+	for _, seal := range committedSeals {
+		if len(seal) != types.IstanbulExtraSeal {
+			return istanbulcommon.ErrInvalidCommittedSeals
+		}
+	}
+
+	istanbulExtra, err := types.ExtractIstanbulExtra(h)
+	if err != nil {
+		return err
+	}
+
+	istanbulExtra.CommittedSeal = make([][]byte, len(committedSeals))
+	copy(istanbulExtra.CommittedSeal, committedSeals)
+
+	payload, err := rlp.EncodeToBytes(&istanbulExtra)
+	if err != nil {
+		return err
+	}
+
+	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
+	return nil
 }
 
 // PrepareCommittedSeal returns a committed seal for the given hash
