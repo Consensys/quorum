@@ -27,6 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -62,8 +63,8 @@ func TestCheckSignature(t *testing.T) {
 	}
 	a = getInvalidAddress()
 	err = b.CheckSignature(data, a, sig)
-	if err != errInvalidSignature {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidSignature)
+	if err != istanbulcommon.ErrInvalidSignature {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidSignature)
 	}
 }
 
@@ -127,21 +128,19 @@ func TestCommit(t *testing.T) {
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1)
+				chain, engine := newBlockChain(1, true)
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-				expectedBlock, _ := engine.updateBlock(engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1), block)
-				return expectedBlock
+				return updateQBFTBlock(block, engine.Address())
 			},
 		},
 		{
 			// invalid signature
-			errInvalidCommittedSeals,
+			istanbulcommon.ErrInvalidCommittedSeals,
 			nil,
 			func() *types.Block {
-				chain, engine := newBlockChain(1)
+				chain, engine := newBlockChain(1, true)
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-				expectedBlock, _ := engine.updateBlock(engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1), block)
-				return expectedBlock
+				return updateQBFTBlock(block, engine.Address())
 			},
 		},
 	}
@@ -175,7 +174,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestGetProposer(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(1, true)
 	block := makeBlock(chain, engine, chain.Genesis())
 	chain.InsertChain(types.Blocks{block})
 	expected := engine.GetProposer(1)
@@ -186,7 +185,7 @@ func TestGetProposer(t *testing.T) {
 }
 
 func TestIsQBFTConsensus(t *testing.T) {
-	chain, engine := newLegacyBlockChain(1)
+	chain, engine := newBlockChain(1, false)
 
 	qbftConsensus := engine.IsQBFTConsensus()
 	if qbftConsensus {
@@ -262,8 +261,8 @@ func (slice Keys) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func newBackend() (b *backend) {
-	_, b = newBlockChain(4)
+func newBackend() (b *Backend) {
+	_, b = newBlockChain(4, true)
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return

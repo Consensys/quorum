@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -25,17 +26,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
+	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
+	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	qbftCore "github.com/ethereum/go-ethereum/consensus/qbft/core"
-	qbftMessage qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -45,12 +46,12 @@ const (
 )
 
 // New creates an Ethereum backend for Istanbul core engine.
-func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
+func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *Backend {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
 	knownMessages, _ := lru.NewARC(inmemoryMessages)
-	backend := &backend{
+	return &Backend{
 		config:           config,
 		istanbulEventMux: new(event.TypeMux),
 		privateKey:       privateKey,
@@ -64,23 +65,28 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
 	}
-
-	return backend
 }
 
 // ----------------------------------------------------------------------------
 
-type backend struct {
-	config           *istanbul.Config
+type Backend struct {
+	config *istanbul.Config
+
+	privateKey *ecdsa.PrivateKey
+	address    common.Address
+
+	core   istanbul.Core
+	engine istanbul.Engine
+
 	istanbulEventMux *event.TypeMux
-	privateKey       *ecdsa.PrivateKey
-	address          common.Address
-	core             istanbulCore.Engine
-	logger           log.Logger
-	db               ethdb.Database
-	chain            consensus.ChainHeaderReader
-	currentBlock     func() *types.Block
-	hasBadBlock      func(hash common.Hash) bool
+
+	logger log.Logger
+
+	db ethdb.Database
+
+	chain        consensus.ChainHeaderReader
+	currentBlock func() *types.Block
+	hasBadBlock  func(hash common.Hash) bool
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -106,22 +112,22 @@ type backend struct {
 }
 
 // zekun: HACK
-func (sb *backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	return new(big.Int)
+func (sb *Backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+	return sb.engine.CalcDifficulty(chain, time, parent)
 }
 
 // Address implements istanbul.Backend.Address
-func (sb *backend) Address() common.Address {
-	return sb.address
+func (sb *Backend) Address() common.Address {
+	return sb.engine.Address()
 }
 
 // Validators implements istanbul.Backend.Validators
-func (sb *backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+func (sb *Backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet {
 	return sb.getValidators(proposal.Number().Uint64(), proposal.Hash())
 }
 
 // Broadcast implements istanbul.Backend.Broadcast
-func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
+func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	// send to others
 	sb.Gossip(valSet, code, payload)
 	// send to self
@@ -134,7 +140,7 @@ func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 }
 
 // Gossip implements istanbul.Backend.Gossip
-func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
+func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
@@ -164,7 +170,7 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 
 			if sb.IsQBFTConsensus() {
 				var outboundCode uint64 = istanbulMsg
-				if _, ok := qbftMessage.MessageCodes()[code]; ok {
+				if _, ok := qbfttypes.MessageCodes()[code]; ok {
 					outboundCode = code
 				}
 				go p.SendQbftConsensus(outboundCode, payload)
@@ -177,41 +183,27 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 }
 
 // Commit implements istanbul.Backend.Commit
-func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) error {
+func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) (err error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
-		return errInvalidProposal
+		return istanbulcommon.ErrInvalidProposal
 	}
 
 	h := block.Header()
-
-	// Append Round Number and seals into extra-data of qbft consensus
-	if sb.IsQBFTConsensus() {
-		err := writeQBFTCommittedSeals(h, seals)
-		if err != nil {
-			return err
-		}
-		err = writeRoundNumber(h, round)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Append seals into extra-data
-		err := writeCommittedSeals(h, seals)
-		if err != nil {
-			return err
-		}
+	err = sb.engine.CommitHeader(h, seals, round)
+	if err != nil {
+		return
 	}
 
 	// Remove ValidatorSet added to ProposerPolicy registry, if not done, the registry keeps increasing size with each block height
 	sb.config.ProposerPolicy.ClearRegistry()
-
 	// update block's header
 	block = block.WithSeal(h)
 
 	sb.logger.Info("Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
+
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
 	// - otherwise, we try to insert the block.
@@ -227,21 +219,22 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	if sb.broadcaster != nil {
 		sb.broadcaster.Enqueue(fetcherID, block)
 	}
+
 	return nil
 }
 
 // EventMux implements istanbul.Backend.EventMux
-func (sb *backend) EventMux() *event.TypeMux {
+func (sb *Backend) EventMux() *event.TypeMux {
 	return sb.istanbulEventMux
 }
 
 // Verify implements istanbul.Backend.Verify
-func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
+func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
-		return 0, errInvalidProposal
+		return 0, istanbulcommon.ErrInvalidProposal
 	}
 
 	// check bad block
@@ -249,40 +242,28 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return 0, core.ErrBlacklistedHash
 	}
 
-	// check block body
-	txnHash := types.DeriveSha(block.Transactions(), new(trie.Trie))
-	uncleHash := types.CalcUncleHash(block.Uncles())
-	if txnHash != block.Header().TxHash {
-		return 0, errMismatchTxhashes
-	}
-	if uncleHash != nilUncleHash {
-		return 0, errInvalidUncleHash
+	header := block.Header()
+	snap, err := sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil)
+	if err != nil {
+		return 0, err
 	}
 
-	// verify the header of proposed block
-	err := sb.VerifyHeader(sb.chain, block.Header(), false)
-	// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
-	if err == nil || err == errEmptyCommittedSeals {
-		return 0, nil
-	} else if err == consensus.ErrFutureBlock {
-		return time.Unix(int64(block.Header().Time), 0).Sub(now()), consensus.ErrFutureBlock
-	}
-	return 0, err
+	return sb.engine.VerifyBlockProposal(sb.chain, block, snap.ValSet)
 }
 
 // Sign implements istanbul.Backend.Sign
-func (sb *backend) Sign(data []byte) ([]byte, error) {
+func (sb *Backend) Sign(data []byte) ([]byte, error) {
 	hashData := crypto.Keccak256(data)
 	return crypto.Sign(hashData, sb.privateKey)
 }
 
 // SignWithoutHashing implements istanbul.Backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
-func (sb *backend) SignWithoutHashing(data []byte) ([]byte, error) {
+func (sb *Backend) SignWithoutHashing(data []byte) ([]byte, error) {
 	return crypto.Sign(data, sb.privateKey)
 }
 
 // CheckSignature implements istanbul.Backend.CheckSignature
-func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byte) error {
+func (sb *Backend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := istanbul.GetSignatureAddress(data, sig)
 	if err != nil {
 		log.Error("Failed to get signer address", "err", err)
@@ -290,18 +271,19 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	}
 	// Compare derived addresses
 	if signer != address {
-		return errInvalidSignature
+		return istanbulcommon.ErrInvalidSignature
 	}
+
 	return nil
 }
 
 // HasPropsal implements istanbul.Backend.HashBlock
-func (sb *backend) HasPropsal(hash common.Hash, number *big.Int) bool {
+func (sb *Backend) HasPropsal(hash common.Hash, number *big.Int) bool {
 	return sb.chain.GetHeader(hash, number.Uint64()) != nil
 }
 
 // GetProposer implements istanbul.Backend.GetProposer
-func (sb *backend) GetProposer(number uint64) common.Address {
+func (sb *Backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
 		a, _ := sb.Author(h)
 		return a
@@ -310,14 +292,14 @@ func (sb *backend) GetProposer(number uint64) common.Address {
 }
 
 // ParentValidators implements istanbul.Backend.GetParentValidators
-func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+func (sb *Backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
 	if block, ok := proposal.(*types.Block); ok {
 		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
 	}
 	return validator.NewSet(nil, sb.config.ProposerPolicy)
 }
 
-func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
+func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
 	snap, err := sb.snapshot(sb.chain, number, hash, nil)
 	if err != nil {
 		return validator.NewSet(nil, sb.config.ProposerPolicy)
@@ -325,7 +307,7 @@ func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	return snap.ValSet
 }
 
-func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
+func (sb *Backend) LastProposal() (istanbul.Proposal, common.Address) {
 	block := sb.currentBlock()
 
 	var proposer common.Address
@@ -342,19 +324,19 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 	return block, proposer
 }
 
-func (sb *backend) HasBadProposal(hash common.Hash) bool {
+func (sb *Backend) HasBadProposal(hash common.Hash) bool {
 	if sb.hasBadBlock == nil {
 		return false
 	}
 	return sb.hasBadBlock(hash)
 }
 
-func (sb *backend) Close() error {
+func (sb *Backend) Close() error {
 	return nil
 }
 
 // IsQBFTConsensus returns whether qbft consensus should be used
-func (sb *backend) IsQBFTConsensus() bool {
+func (sb *Backend) IsQBFTConsensus() bool {
 	if sb.qbftConsensusEnabled {
 		return true
 	}
@@ -365,7 +347,7 @@ func (sb *backend) IsQBFTConsensus() bool {
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
+func (sb *Backend) IsQBFTConsensusForHeader(header *types.Header) bool {
 	// If qbftBlock is not defined in genesis qbft consensus is not used
 	if sb.config.QbftBlock == nil {
 		return false
@@ -381,7 +363,7 @@ func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
 }
 
 // qbftBlockNumber returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
-func (sb *backend) qbftBlockNumber() int64 {
+func (sb *Backend) qbftBlockNumber() int64 {
 	if sb.config.QbftBlock == nil {
 		return -1
 	}
@@ -389,7 +371,7 @@ func (sb *backend) qbftBlockNumber() int64 {
 }
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
-func (sb *backend) StartQBFTConsensus() error {
+func (sb *Backend) StartQBFTConsensus() error {
 	sb.logger.Trace("Starting QBFT Consensus")
 	if err := sb.Stop(); err != nil {
 		return err
@@ -397,8 +379,10 @@ func (sb *backend) StartQBFTConsensus() error {
 	sb.logger.Trace("Stopped legacy IBFT consensus")
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
+
 	// Set the core to qbft
-	sb.core = qbftCore.New(sb, sb.config)
+	sb.engine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
+	sb.core = qbftcore.New(sb, sb.config)
 
 	sb.logger.Trace("Starting qbft")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)

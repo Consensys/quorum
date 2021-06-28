@@ -19,19 +19,20 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/testutils"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 type testerVote struct {
@@ -53,8 +54,11 @@ func newTesterAccountPool() *testerAccountPool {
 	}
 }
 
-func (ap *testerAccountPool) writeValidatorVote(header *types.Header, validator string, recipientAddress string, voteType byte) error {
-	return writeValidatorVote(header, ap.address(recipientAddress), voteType)
+func (ap *testerAccountPool) writeValidatorVote(header *types.Header, validator string, recipientAddress string, authorize bool) error {
+	return qbftengine.ApplyHeaderQBFTExtra(
+		header,
+		qbftengine.WriteVote(ap.address(recipientAddress), authorize),
+	)
 }
 
 func (ap *testerAccountPool) address(account string) common.Address {
@@ -323,28 +327,19 @@ func TestVoting(t *testing.T) {
 				}
 			}
 		}
-		// Create the genesis block with the initial set of validators
-		genesis := &core.Genesis{
-			Difficulty: defaultDifficulty,
-			Mixhash:    types.IstanbulDigest,
-		}
-		b := genesis.ToBlock(nil)
-		extra, _ := qbftPrepareExtra(b.Header(), validators)
-		genesis.ExtraData = extra
-		// Create a pristine blockchain with the genesis injected
-		db := rawdb.NewMemoryDatabase()
-		genesis.Commit(db)
 
+		genesis := testutils.Genesis(validators, true)
 		config := istanbul.DefaultConfig
 		config.QbftBlock = big.NewInt(0)
 		if tt.epoch != 0 {
 			config.Epoch = tt.epoch
 		}
-		engine := New(config, accounts.accounts[tt.validators[0]], db).(*backend)
-		// TODO - rebase - chain, _ := core.NewBlockChain(db, nil, genesis.Config, engine, vm.Config{}, nil, nil)
-		chain, _ := core.NewBlockChain(db, nil, params.QuorumTestChainConfig, engine, vm.Config{}, nil, nil)
-		// set the chain in the backend
-		engine.chain = chain
+
+		chain, backend := newBlockchainFromConfig(
+			genesis,
+			[]*ecdsa.PrivateKey{accounts.accounts[tt.validators[0]]},
+			config,
+		)
 
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))
@@ -353,30 +348,31 @@ func TestVoting(t *testing.T) {
 				Number:     big.NewInt(int64(j) + 1),
 				Time:       uint64(int64(j) * int64(config.BlockPeriod)),
 				Coinbase:   accounts.address(vote.validator),
-				Difficulty: defaultDifficulty,
+				Difficulty: istanbulcommon.DefaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
 			}
-			extra, _ := qbftPrepareExtra(headers[j], validators)
-			headers[j].Extra = extra
+			_ = qbftengine.ApplyHeaderQBFTExtra(
+				headers[j],
+				qbftengine.WriteValidators(validators),
+			)
+
 			if j > 0 {
 				headers[j].ParentHash = headers[j-1].Hash()
 			}
-			voteType := types.QbftDropVote
-			if vote.auth {
-				voteType = types.QbftAuthVote
-			}
+
 			copy(headers[j].Extra, genesis.ExtraData)
+
 			if len(vote.voted) > 0 {
-				if err := accounts.writeValidatorVote(headers[j], vote.validator, vote.voted, voteType); err != nil {
-					t.Errorf("Error writeValidatorVote test: %d, validator: %s, voteType: %v", j, vote.voted, voteType)
+				if err := accounts.writeValidatorVote(headers[j], vote.validator, vote.voted, vote.auth); err != nil {
+					t.Errorf("Error writeValidatorVote test: %d, validator: %s, voteType: %v (err=%v)", j, vote.voted, vote.auth, err)
 				}
 			}
-
 		}
+
 		// Pass all the headers through clique and ensure tallying succeeds
 		head := headers[len(headers)-1]
 
-		snap, err := engine.snapshot(chain, head.Number.Uint64(), head.Hash(), headers)
+		snap, err := backend.snapshot(chain, head.Number.Uint64(), head.Hash(), headers)
 		if err != nil {
 			t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
 			continue
