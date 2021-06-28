@@ -193,8 +193,8 @@ type EVM struct {
 	currentTx         *types.Transaction                // transaction currently being applied on this EVM
 
 	// Quorum: these are for privacy marker transactions
-	InnerApply          func(innerTx *types.Transaction) (*types.Receipt, error) //Quorum
-	InnerPrivateReceipt *types.Receipt                                           //Quorum
+	InnerApply          func(innerTx *types.Transaction) error //Quorum
+	InnerPrivateReceipt *types.Receipt                         //Quorum
 }
 
 // AffectedReason defines a type of operation that was applied to a contract.

@@ -21,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/mps"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -100,69 +99,70 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		privateStateDB.Prepare(tx.Hash(), block.Hash(), i)
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 
-		receipt, privateReceipt, markerReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, cfg, privateStateRepo.IsMPS(), privateStateRepo)
+		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, cfg, privateStateRepo.IsMPS(), privateStateRepo)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 
-		receipts = append(receipts, receipt)
-		allLogs = append(allLogs, receipt.Logs...)
-
 		// Quorum
 		// if we have a private receipt then need to update the private state and the logs.
 		if privateReceipt != nil {
-			privateReceipts = append(privateReceipts, privateReceipt)
-			allLogs = append(allLogs, privateReceipt.Logs...)
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
-
-			// handling the auxiliary receipt from MPS execution
-			if mpsReceipt != nil {
-				privateReceipt.PSReceipts = mpsReceipt.PSReceipts
-				allLogs = append(allLogs, mpsReceipt.Logs...)
+			newPrivateReceipt, privateLogs := HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, p.bc)
+			if newPrivateReceipt != nil {
+				privateReceipts = append(privateReceipts, privateReceipt)
 			}
-		} else {
-			// If this was a public privacy marker transaction then there will be an associated private receipt to handle,
-			// these must be stored in the database not the block trie (as they only exist on participants).
-			if markerReceipt != nil {
-				allLogs = append(allLogs, markerReceipt.Logs...)
-
-				// If MPS is enabled, then we'll have one private receipt for each PSI
-				if privateStateRepo != nil && privateStateRepo.IsMPS() {
-					for _, psi := range p.bc.PrivateStateManager().PSIs() {
-						psiReceipt := markerReceipt.PSReceipts[psi]
-						if psiReceipt != nil {
-							p.bc.CheckAndSetPrivateState(psiReceipt.Logs, privateStateDB, psi)
-						}
-
-						// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
-						// TODO: should really batch these up and write in one go, during commit stage
-						if err := rawdb.WritePrivateTransactionReceiptWithPSI(p.bc.db, receipt.TxHash, psiReceipt, psi); err != nil {
-							return nil, nil, nil, 0, err
-						}
-					}
-				} else {
-					psi := privateStateRepo.DefaultStateMetadata().ID
-					p.bc.CheckAndSetPrivateState(markerReceipt.Logs, privateStateDB, psi)
-
-					// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
-					// TODO: should really batch these up and write in one go, during commit stage
-					if err := rawdb.WritePrivateTransactionReceiptWithPSI(p.bc.db, receipt.TxHash, markerReceipt, psi); err != nil {
-						return nil, nil, nil, 0, err
-					}
-				}
-			}
-
-			// There should be no auxiliary receipt from MPS execution, just logging in case this ever occurs
-			if mpsReceipt != nil {
-				log.Error("Unexpected MPS private receipt, when processing a public transaction")
-			}
+			allLogs = append(allLogs, privateLogs...)
 		}
 		// End Quorum
+
+		receipts = append(receipts, receipt)
+		allLogs = append(allLogs, receipt.Logs...)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
 
 	return receipts, privateReceipts, allLogs, *usedGas, nil
+}
+
+// Quorum
+func HandlePrivateReceipt(receipt *types.Receipt, privateReceipt *types.Receipt, mpsReceipt *types.Receipt, tx *types.Transaction, privateStateDB *state.StateDB, privateStateRepo mps.PrivateStateRepository, bc *BlockChain) (*types.Receipt, []*types.Log) {
+	var (
+		privateLogs []*types.Log
+	)
+
+	if tx.To() != nil && *tx.To() == vm.PrivacyMarkerAddress() {
+		// This was a public privacy marker transaction, so we need to handle two scenarios:
+		//	1) MPS: privateReceipt is an auxiliary MPS receipt which contains actual private receipts in PSReceipts[]
+		//	2) non-MPS: privateReceipt is the actual receipt for the inner private transaction
+		// In both cases we return a receipt for the public PMT, which holds the private receipt(s) in PSReceipts[],
+		// and we then discard the privateReceipt.
+		if privateStateRepo != nil && privateStateRepo.IsMPS() {
+			receipt.PSReceipts = privateReceipt.PSReceipts
+			privateLogs = append(privateLogs, privateReceipt.Logs...)
+		} else {
+			receipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			receipt.PSReceipts[privateStateRepo.DefaultStateMetadata().ID] = privateReceipt
+			privateLogs = append(privateLogs, privateReceipt.Logs...)
+			bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+		}
+
+		// There should be no auxiliary receipt from MPS execution, just logging in case this ever occurs
+		if mpsReceipt != nil {
+			log.Error("Unexpected MPS auxiliary receipt, when processing a privacy marker transaction")
+		}
+		return nil, privateLogs
+	} else {
+		// This was a regular private transaction.
+		privateLogs = append(privateLogs, privateReceipt.Logs...)
+		bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+
+		// handling the auxiliary receipt from MPS execution
+		if mpsReceipt != nil {
+			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
+			privateLogs = append(privateLogs, mpsReceipt.Logs...)
+		}
+		return privateReceipt, privateLogs
+	}
 }
 
 // Quorum
@@ -238,7 +238,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			return nil, err
 		}
 		publicStateDB := publicStateDBFactory()
-		_, privateReceipt, _, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo)
+		_, privateReceipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo)
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +270,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, *types.Receipt, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
 	// Quorum - decide the privateStateDB to use
 	privateStateDBToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
 	// /Quorum
@@ -278,17 +278,17 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Quorum - check for account permissions to execute the transaction
 	if core.IsV2Permission() {
 		if err := core.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
 
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-		return nil, nil, nil, ErrInvalidGasPrice
+		return nil, nil, ErrInvalidGasPrice
 	}
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// Quorum: this tx needs to be applied as if we were not a party
@@ -305,16 +305,16 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// Quorum
 	txIndex := statedb.TxIndex()
-	vmenv.InnerApply = func(innerTx *types.Transaction) (*types.Receipt, error) {
+	vmenv.InnerApply = func(innerTx *types.Transaction) error {
 		if innerTx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
 			mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, cfg, statedb, privateStateRepo, config, bc, header)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			mpsReceipt.TxHash = innerTx.Hash()
+			// Store the auxiliary MPS receipt for the inner private transaction (this contains private receipts in PSReceipts).
 			vmenv.InnerPrivateReceipt = mpsReceipt
-			return mpsReceipt, nil
+			return nil
 		}
 
 		defer func() {
@@ -326,28 +326,30 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 		singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 		used := uint64(0)
-		_, innerPrivateReceipt, _, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateStateDB, header, innerTx, &used, cfg, forceNonParty, privateStateRepo)
+		_, innerPrivateReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateStateDB, header, innerTx, &used, cfg, forceNonParty, privateStateRepo)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if innerPrivateReceipt != nil {
 			if innerPrivateReceipt.Logs == nil {
 				innerPrivateReceipt.Logs = make([]*types.Log, 0)
 			}
+
+			// Store the receipt for the inner private transaction.
 			innerPrivateReceipt.TxHash = innerTx.Hash()
 			vmenv.InnerPrivateReceipt = innerPrivateReceipt
 			privateStateDB.MarkerTransactionReceipts = append(privateStateDB.MarkerTransactionReceipts, innerPrivateReceipt)
 		}
 
-		return innerPrivateReceipt, nil
+		return nil
 	}
 	// End Quorum
 
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	// Update the state with pending changes
 	var root []byte
@@ -379,7 +381,6 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
 	var privateReceipt *types.Receipt
-	var markerReceipt *types.Receipt
 	if config.IsQuorum {
 		if tx.IsPrivate() {
 			var privateRoot []byte
@@ -398,12 +399,13 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 			privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
 			privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 		} else {
-			// This may have been a privacy marker transaction, in which case need to retrieve the receipt for the inner private transaction
+			// This may have been a privacy marker transaction, in which case need to retrieve the receipt for the
+			// inner private transaction (note that this can be an mpsReceipt, containing private receipts in PSReceipts).
 			if vmenv.InnerPrivateReceipt != nil {
-				markerReceipt = vmenv.InnerPrivateReceipt
+				privateReceipt = vmenv.InnerPrivateReceipt
 			}
 		}
 	}
 
-	return receipt, privateReceipt, markerReceipt, err
+	return receipt, privateReceipt, err
 }

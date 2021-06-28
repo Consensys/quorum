@@ -981,33 +981,34 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
-// GetReceiptsByHash retrieves the receipts for all transactions in a given block.
+// TODO (satpal): #### this needs to be tested ####
+// Retrieve the receipts for all private transactions in a given block.
 func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.Hash) (types.Receipts, error) {
-	// get receipt for the internal private transaction
 	psm, err := bc.privateStateManager.ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	//if receipts, ok := bc.receiptsCache.Get(hash); ok {
-	//	return receipts.(types.Receipts)
-	//}
+	allReceipts := bc.GetReceiptsByHash(hash)
+
 	block := bc.GetBlockByHash(hash)
 	if block == nil {
 		return types.Receipts{}, nil
 	}
-	recs := make([]*types.Receipt, 0)
-	for _, tx := range block.Transactions() {
-		//if tx.IsPrivateMarker() { TODO(peter): use method to check if marker
+
+	privateReceipts := make([]*types.Receipt, 0)
+	for i, tx := range block.Transactions() {
+		//if tx.IsPrivateMarker() { TODO (satpal): #### use method to check if marker ####ß
 		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
-			receipt := rawdb.ReadPrivateTransactionReceiptWithPSI(bc.db, tx.Hash(), psm.ID)
-			if receipt == nil {
+			receipt := allReceipts[i]
+			if receipt.PSReceipts != nil && receipt.PSReceipts[psm.ID] != nil {
+				privateReceipts = append(privateReceipts, receipt.PSReceipts[psm.ID])
+			} else {
 				return nil, errors.New("could not find receipt for private transaction")
 			}
-			recs = append(recs, receipt)
 		}
 	}
-	return recs, nil
+	return privateReceipts, nil
 }
 
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.

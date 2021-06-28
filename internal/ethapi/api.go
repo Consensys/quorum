@@ -42,7 +42,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/mps"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -1682,7 +1681,7 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 	}
 	if pmt == nil {
 		// Transaction unknown, return as such
-		return nil, nil
+		return nil, errors.New("privacy marker transaction not found")
 	}
 
 	// now retrieve the private transaction
@@ -1690,18 +1689,27 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	// Not a participant in the private transaction, return as such
+	// Transaction not found, or not a participant in the private transaction, return as such
 	if tx == nil {
-		// Transaction unknown
-		return nil, nil
+		return nil, errors.New("private transaction not found for this participant")
 	}
 
-	// also get receipt for the private transaction
+	// get receipt for the privacy marker transaction
+	receipts, err := s.b.GetReceipts(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+	if len(receipts) <= int(index) {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+	pmtReceipt := receipts[index]
+
+	// now extract the receipt for the private transaction
 	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	receipt := rawdb.ReadPrivateTransactionReceiptWithPSI(s.b.ChainDb(), pmt.Hash(), psm.ID)
+	receipt := pmtReceipt.PSReceipts[psm.ID]
 	if receipt == nil {
 		return nil, errors.New("could not find receipt for private transaction")
 	}

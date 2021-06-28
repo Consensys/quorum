@@ -645,15 +645,11 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 
-				// If this was a public privacy marker transaction then there will be an associated private receipt to handle,
-				// these are stored in the database not the block trie (as they only exist on participants).
-				// Note that the receipts are stored using with a key which is the hash of the privacy marker txn.
-				tx := block.Transaction(receipt.TxHash)
-				if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
-					// TODO: instead of looking for a receipt for each psi, ideally would retrieve the marker receipts that exist for this pmt and iterate through them
-					for _, psi := range w.chain.PrivateStateManager().PSIs() {
-						if markerReceipt := rawdb.ReadPrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, psi); markerReceipt != nil {
-							// add block location fields
+				// If this was a public privacy marker transaction then there will be an associated private receipt to handle.
+				if receipt.PSReceipts != nil {
+					tx := block.Transaction(receipt.TxHash)
+					if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+						for _, markerReceipt := range receipt.PSReceipts {
 							markerReceipt.BlockHash = hash
 							markerReceipt.BlockNumber = block.Number()
 							markerReceipt.TransactionIndex = uint(i)
@@ -665,12 +661,6 @@ func (w *worker) resultLoop() {
 							}
 							logs = append(logs, markerReceipt.Logs...)
 							markerTxReceiptsAll = append(markerTxReceiptsAll, markerReceipt)
-
-							// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
-							// TODO: should really batch these up and write in one go
-							if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, markerReceipt, psi); err != nil {
-								log.Error("Failed to write private transaction receipt to database", "err", err)
-							}
 						}
 					}
 				}
@@ -837,7 +827,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
-	receipt, privateReceipt, markerReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo)
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo)
 	if err != nil {
 		publicStateDB.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
@@ -849,49 +839,13 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 	logs := receipt.Logs
 
+	// Quorum
 	if privateReceipt != nil {
-		logs = append(logs, privateReceipt.Logs...)
-		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
-
-		// handling the auxiliary receipt from MPS execution
-		if mpsReceipt != nil {
-			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
-			logs = append(logs, mpsReceipt.Logs...)
-		}
-	} else {
-		// If this was a public privacy marker transaction then there will be an associated private receipt to handle,
-		// these are stored in the database not the block trie (as they only exist on participants).
-		if markerReceipt != nil {
-			logs = append(logs, markerReceipt.Logs...)
-
-			// If MPS is enabled, then we'll have one private receipt for each PSI
-			if privateStateRepo != nil && privateStateRepo.IsMPS() {
-				for _, psi := range w.chain.PrivateStateManager().PSIs() {
-					psiReceipt := markerReceipt.PSReceipts[psi]
-					if psiReceipt != nil {
-						w.chain.CheckAndSetPrivateState(psiReceipt.Logs, privateStateDB, psi)
-					}
-
-					// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
-					// TODO: should really batch these up and write in one go
-					if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, psiReceipt, psi); err != nil {
-						return nil, err
-					}
-				}
-			} else {
-				psi := privateStateRepo.DefaultStateMetadata().ID
-				w.chain.CheckAndSetPrivateState(markerReceipt.Logs, privateStateDB, psi)
-
-				// Note that the receipt is stored against hash of the privacy marker txn (not the private txn).
-				// TODO: should really batch these up and write in one go
-				if err := rawdb.WritePrivateTransactionReceiptWithPSI(w.eth.ChainDb(), receipt.TxHash, markerReceipt, psi); err != nil {
-					return nil, err
-				}
-			}
-
-		}
+		_, privateLogs := core.HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, w.chain)
+		logs = append(logs, privateLogs...)
 	}
+	// End Quorum
+
 	return logs, nil
 }
 

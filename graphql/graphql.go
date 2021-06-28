@@ -277,18 +277,29 @@ type privateTransactionReceiptGetter struct {
 }
 
 func (g *privateTransactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
-	// get receipt for the internal private transaction
+	if _, err := g.pmt.resolve(ctx); err != nil {
+		return nil, err
+	}
+	if g.pmt.block == nil {
+		return nil, nil
+	}
+	receipts, err := g.pmt.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := receipts[g.pmt.index]
+
 	psm, err := g.pmt.backend.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	receipt := rawdb.ReadPrivateTransactionReceiptWithPSI(g.pmt.backend.ChainDb(), g.pmt.Hash(ctx), psm.ID)
-	if receipt == nil {
+	privateReceipt := receipt.PSReceipts[psm.ID]
+	if privateReceipt == nil {
 		return nil, errors.New("could not find receipt for private transaction")
 	}
 
-	return receipt, nil
+	return privateReceipt, nil
 }
 
 // getReceipt returns the receipt associated with this transaction, if any.

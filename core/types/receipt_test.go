@@ -214,6 +214,8 @@ func encodeAsStoredMPSReceiptRLP(want *Receipt) ([]byte, error) {
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
 			Logs:              make([]*LogForStorage, len(val.Logs)),
+			TxHash:            val.TxHash,
+			ContractAddress:   val.ContractAddress,
 		}
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)

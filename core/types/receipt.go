@@ -72,8 +72,8 @@ type Receipt struct {
 	// This is to support execution of a private transaction on multiple private states,
 	// in which receipts are produced per PSI. It is also used by privacy marker transactions.
 	// PSReceipts will hold a receipt for each PSI that is managed by this node.
-	// If Privacy Marker Transactions are disabled then the parent structure is an empty receipt.
-	// If Privacy Marker Transactions are enabled then the parent structure is the receipt for the PMT.
+	// Note that for MPS, the parent receipt will be an auxiliary receipt, whereas for PMT the parent
+	// will be the privacy marker transaction receipt.
 	//
 	// This nested structure would not have more than 2 levels.
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
@@ -115,6 +115,8 @@ type storedReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
+	TxHash            common.Hash    // only encoded for MPS/PMT PSReceipts entry
+	ContractAddress   common.Address // only encoded for MPS/PMT PSReceipts entry
 }
 
 // v4StoredReceiptRLP is the storage encoding of a receipt used in database version 4.
@@ -214,6 +216,7 @@ type ReceiptForStorage Receipt
 // Quorum:
 // - added logic to support multiple private state
 // - original EncodeRLP is now encodeRLPOrig
+// Note that PMTReceipts entries TxHash & ContractAddress are also encoded, as needed for privacy marker transactions
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	if r.PSReceipts == nil {
 		return r.encodeRLPOrig(w)
@@ -233,6 +236,8 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
 			Logs:              make([]*LogForStorage, len(val.Logs)),
+			TxHash:            val.TxHash,
+			ContractAddress:   val.ContractAddress,
 		}
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)
@@ -279,6 +284,9 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	return decodeV4StoredReceiptRLP(r, blob)
 }
 
+// Quorum
+// Includes logic to support multiple private state.
+// Note that PMTReceipts entries TxHash & ContractAddress are also decoded, as needed for privacy marker transactions
 func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	var stored storedMPSReceiptRLP
 	if err := rlp.DecodeBytes(blob, &stored); err != nil {
@@ -308,6 +316,8 @@ func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 				rec.Logs[i].PSI = entry.Key
 			}
 			rec.Bloom = CreateBloom(Receipts{rec})
+			rec.TxHash = entry.Value.TxHash                   // PSReceipts.TxHash is needed for PMT
+			rec.ContractAddress = entry.Value.ContractAddress // PSReceipts.ContractAddress is needed for PMT
 			r.PSReceipts[entry.Key] = rec
 		}
 	}
@@ -389,19 +399,40 @@ func (r Receipts) GetRlp(i int) []byte {
 	return bytes
 }
 
+// CopyReceipts makes a deep copy of the given receipts.
+func CopyReceipts(receipts []*Receipt) []*Receipt {
+	result := make([]*Receipt, len(receipts))
+	for i, receiptOrig := range receipts {
+		receiptCopy := *receiptOrig
+		result[i] = &receiptCopy
+
+		if receiptOrig.PSReceipts != nil {
+			receiptCopy.PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
+			for psi, psReceiptOrig := range receiptOrig.PSReceipts {
+				psReceiptCpy := *psReceiptOrig
+				result[i].PSReceipts[psi] = &psReceiptCpy
+			}
+		}
+	}
+
+	return result
+}
+
 // DeriveFields fills the receipts with their computed fields based on consensus
 // data and contextual infos like containing block and transactions.
 // Quorum:
-// - Provide additional support for Multiple Private State
+// - Provide additional support for Multiple Private State and Privacy Marker Transactions,
+//   where the private receipts are held under the relevant receipt.PSReceipts
 // - Original DeriveFields func is now deriveFieldsOrig
 func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
-	//flatten all the receipts
+	// Will work on a copy of Receipts so we don't modify the original receipts until the end
+	receiptsCopy := CopyReceipts(r)
 
-	allReceipts := make(map[PrivateStateIdentifier][]*Receipt)
-	allPublic := make([]*Receipt, 0)
-
-	for i := 0; i < len(r); i++ {
-		receipt := r[i]
+	// flatten all the MPS receipts, so that we have a flat array for deriveFieldsOrig()
+	allReceipts := make(map[PrivateStateIdentifier][]*Receipt) // Holds all public and private receipts, for each PSI
+	allPublic := make([]*Receipt, 0)                           // All public receipts, & private receipts if MPS disabled
+	for i := 0; i < len(receiptsCopy); i++ {
+		receipt := receiptsCopy[i]
 		tx := txs[i]
 
 		// if receipt is public, append to all known PSIs
@@ -413,20 +444,18 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 			for psi := range allReceipts {
 				allReceipts[psi] = append(allReceipts[psi], receipt)
 			}
-			allPublic = append(allPublic, receipt)
-			continue
 		}
 
-		// this is a private tx
+		// if this is a private tx or a privacy marker tx then receipt.PSReceipts must be processed to
 		// add the PSI version of the receipt to all the relevant PSI arrays
 		for psi, privateReceipt := range receipt.PSReceipts {
-			//does it exist
+			// if this PSI doesn't yet exist in allReceipts then add it
 			if _, ok := allReceipts[psi]; !ok {
 				allReceipts[psi] = append(make([]*Receipt, 0), allPublic...)
 			}
 			allReceipts[psi] = append(allReceipts[psi], privateReceipt)
 		}
-		// add the empty receipt to all the currently tracked PSIs
+		// add the empty PSI receipt to all the currently tracked PSIs
 		emptyReceipt := receipt.PSReceipts[EmptyPrivateStateIdentifier]
 		for psi := range allReceipts {
 			if len(allReceipts[psi]) < i+1 {
@@ -449,16 +478,23 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	}
 
 	// fields now derived, put back into correct order
-	tmp := make([]*Receipt, len(r))
-	for i := 0; i < len(r); i++ {
+	tmp := make([]*Receipt, len(receiptsCopy))
+	for i := 0; i < len(receiptsCopy); i++ {
 		tmp[i] = allPublic[i]
 		oldPsis := tmp[i].PSReceipts
 		tmp[i].PSReceipts = nil
-		if txs[i].IsPrivate() {
+		if oldPsis != nil {
 			tmp[i].PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
 		}
 		for psi := range oldPsis {
-			tmp[i].PSReceipts[psi] = allReceipts[psi][i]
+			psiReceipt := allReceipts[psi][i]
+			// check original receipt, so see if TxnHash was populated, if so then it was a PMT receipt
+			if r[i].PSReceipts != nil && r[i].PSReceipts[psi] != nil && r[i].PSReceipts[psi].TxHash != (common.Hash{}) {
+				// PMT private receipts - TxnHash & ContractAddress were decoded from store, so preserve those
+				psiReceipt.TxHash = r[i].PSReceipts[psi].TxHash
+				psiReceipt.ContractAddress = r[i].PSReceipts[psi].ContractAddress
+			}
+			tmp[i].PSReceipts[psi] = psiReceipt
 		}
 	}
 
