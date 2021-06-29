@@ -201,4 +201,7 @@ type Config struct {
 
 	// Quorum
 	EnableMultitenancy bool `toml:"-"`
+
+	// Quorum
+	SaveRevertReason bool `toml:"-"`
 }
