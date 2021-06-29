@@ -2250,7 +2250,7 @@ func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Cont
 		return "", err
 	}
 	log.Debug("private transaction sent to PTM", "generated ptm-hash", txnHash)
-	return txnHash.String(), nil
+	return txnHash.Hex(), nil
 }
 
 // /Quorum
