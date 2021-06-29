@@ -307,42 +307,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Quorum
 	txIndex := statedb.TxIndex()
 	vmenv.InnerApply = func(innerTx *types.Transaction) error {
-		if innerTx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
-			mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, cfg, statedb, privateStateRepo, config, bc, header)
-			if err != nil {
-				return err
-			}
-
-			// Store the auxiliary MPS receipt for the inner private transaction (this contains private receipts in PSReceipts).
-			vmenv.InnerPrivateReceipt = mpsReceipt
-			return nil
-		}
-
-		defer func() {
-			statedb.Prepare(tx.Hash(), statedb.BlockHash(), txIndex)
-			privateStateDB.Prepare(tx.Hash(), privateStateDB.BlockHash(), txIndex)
-		}()
-		statedb.Prepare(innerTx.Hash(), statedb.BlockHash(), txIndex)
-		privateStateDB.Prepare(innerTx.Hash(), privateStateDB.BlockHash(), txIndex)
-
-		singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
-		used := uint64(0)
-		_, innerPrivateReceipt, err := ApplyTransaction(config, bc, author, singleUseGasPool, statedb, privateStateDB, header, innerTx, &used, cfg, forceNonParty, privateStateRepo)
-		if err != nil {
-			return err
-		}
-
-		if innerPrivateReceipt != nil {
-			if innerPrivateReceipt.Logs == nil {
-				innerPrivateReceipt.Logs = make([]*types.Log, 0)
-			}
-
-			// Store the receipt for the inner private transaction.
-			innerPrivateReceipt.TxHash = innerTx.Hash()
-			vmenv.InnerPrivateReceipt = innerPrivateReceipt
-		}
-
-		return nil
+		return ApplyInnerTransaction(bc, author, gp, statedb, privateStateDB, header, tx, usedGas, cfg, forceNonParty, privateStateRepo, vmenv, innerTx, txIndex)
 	}
 	// End Quorum
 
@@ -422,4 +387,45 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// End Quorum
 
 	return receipt, privateReceipt, err
+}
+
+func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, usedGas *uint64, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
+	if innerTx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
+		// TODO(cjh) does using gp and usedGas here mean that gas gets used twice (i.e. by both the inner and outer applies)? or does the fact that handleMPS itself results in ApplyTransaction and ApplyInnerTransaction being called prevent this?
+		mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header)
+		if err != nil {
+			return err
+		}
+
+		// Store the auxiliary MPS receipt for the inner private transaction (this contains private receipts in PSReceipts).
+		vmenv.InnerPrivateReceipt = mpsReceipt
+		return nil
+	}
+
+	defer func() {
+		stateDB.Prepare(outerTx.Hash(), stateDB.BlockHash(), txIndex)
+		privateStateDB.Prepare(outerTx.Hash(), privateStateDB.BlockHash(), txIndex)
+	}()
+	stateDB.Prepare(innerTx.Hash(), stateDB.BlockHash(), txIndex)
+	privateStateDB.Prepare(innerTx.Hash(), privateStateDB.BlockHash(), txIndex)
+
+	singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
+	used := uint64(0)
+
+	_, innerPrivateReceipt, err := ApplyTransaction(bc.Config(), bc, author, singleUseGasPool, stateDB, privateStateDB, header, innerTx, &used, evmConf, forceNonParty, privateStateRepo)
+	if err != nil {
+		return err
+	}
+
+	if innerPrivateReceipt != nil {
+		if innerPrivateReceipt.Logs == nil {
+			innerPrivateReceipt.Logs = make([]*types.Log, 0)
+		}
+
+		// Store the receipt for the inner private transaction.
+		innerPrivateReceipt.TxHash = innerTx.Hash()
+		vmenv.InnerPrivateReceipt = innerPrivateReceipt
+	}
+
+	return nil
 }
