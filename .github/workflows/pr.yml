@@ -5,6 +5,9 @@ on:
       - 'docs/**'
       - '**.md'
       - .gitignore
+  push:
+    branches:
+      - 'consensysengineering-privacy-support-using-precompile-v2-merge-temp'
 env:
   GO_VERSION: 1.15.5
 jobs:
@@ -74,7 +77,7 @@ jobs:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
   acceptance-tests:
-    name: Acceptance tests (${{ matrix.tag }})
+    name: Test (${{ matrix.tag }}) (privacy-enhancements=${{matrix.privacy-enhancements}}, quorum-precompiles-v1=${{matrix.quorum-precompiles-v1}}, privacy-marker-transactions=${{matrix.privacy-marker-transactions}})
     needs:
       - docker-build
     if: success()
@@ -86,7 +89,78 @@ jobs:
         # More comprehensive suites are scheduled to run in master
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
-          - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+          - 'gcmode && block-sync && networks/template::raft-3plus1'
+          - 'gcmode && block-sync && networks/template::istanbul-3plus1'
+          - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
+          - 'validator-management && networks/template::istanbul-3plus1'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+          - 'basic-rpc-security || networks/plugins::raft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
+          - 'migration && networks/template::raft-4nodes'
+          - 'migration && networks/template::istanbul-4nodes'
+          - 'permissions-v1 && networks/template::raft-3plus1'
+          - 'permissions-v2 && networks/template::raft-3plus1'
+          - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          - 'multitenancy && networks/plugins::raft-multitenancy'
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+          - 'basic || networks/typical::raftmps'
+          - 'basic || networks/typical::istanbulmps'
+          - 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
+          - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
+        privacy-enhancements: [ false ]
+        quorum-precompiles-v1: [ false, true ]
+        privacy-marker-transactions: [ false ]
+        include:
+          -   tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: true
+              quorum-precompiles-v1: false
+              privacy-marker-transactions: false
+          -   tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: true
+              quorum-precompiles-v1: false
+              privacy-marker-transactions: false
+          -   tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: true
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: true
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/typical::raft'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/plugins::raft'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(basic && !privacy-precompile-disabled) || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
+          -   tag: '(multitenancy || privacy-precompile-enabled) && networks/plugins::raft-multitenancy'
+              privacy-enhancements: false
+              quorum-precompiles-v1: true
+              privacy-marker-transactions: true
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
@@ -102,6 +176,26 @@ jobs:
           echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
           echo "::set-output name=outputDir::${{ runner.temp }}"
           echo "::set-output name=dockerEnvFile::$docker_env_file"
+      # START: remove the below once PR is ready
+      - name: Login to GitHub Packages Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: quorumbot
+          password: ${{ secrets.QUORUMBOT_PAT }}
+      - name: 'Load AccTests and Tessera Docker Images'
+        run: |
+          tessera_docker_image="quorumengineering/tessera:develop"
+          acctests_docker_image="docker.pkg.github.com/consensysquorum/quorum-acceptance-tests/acctests:dev-privacy-precompile-rebased-master"
+          docker pull $tessera_docker_image
+          echo "TF_VAR_tessera_docker_image={ name = \"$tessera_docker_image\", local = true }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_enhancements={ block = 0, enabled = ${{ matrix.privacy-enhancements}} }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_quorum_precompiles_v1={ block = 0, enabled = ${{ matrix.quorum-precompiles-v1}} }" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "TF_VAR_privacy_marker_transactions=${{ matrix.privacy-marker-transactions}}" >> ${{ steps.setup.outputs.dockerEnvFile }}
+          docker pull $acctests_docker_image
+          # replacing the acctests image to run
+          docker tag $acctests_docker_image quorumengineering/acctests:latest
+      # END
       - name: 'Run acceptance tests'
         run: |
           cat ${{ steps.setup.outputs.dockerEnvFile }}
