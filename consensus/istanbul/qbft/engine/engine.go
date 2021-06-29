@@ -2,7 +2,6 @@ package qbftengine
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"time"
 
