@@ -285,7 +285,7 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 			t.Fatalf("%s Receipt log number mismatch, want %v, have %v", psi.String(), len(wantedPsiReceipt.Logs), len(decPsiReceipt.Logs))
 		}
 
-		if bytes.Compare(decPsiReceipt.RevertReason, wantedPsiReceipt.RevertReason) != 0 {
+		if !bytes.Equal(decPsiReceipt.RevertReason, wantedPsiReceipt.RevertReason) {
 			t.Fatalf("%s Receipt RevertReason data mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.RevertReason, decPsiReceipt.RevertReason)
 		}
 	}
@@ -316,7 +316,7 @@ func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt) 
 		}
 	}
 
-	if bytes.Compare(dec.RevertReason, receipt.RevertReason) != 0 {
+	if !bytes.Equal(dec.RevertReason, receipt.RevertReason) {
 		t.Fatalf("RevertReason data mismatch, want %v, have %v", receipt.RevertReason, dec.RevertReason)
 	}
 }
