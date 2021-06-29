@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindVoterManager(address common.Address, caller bind.ContractCaller, transa
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_VoterManager *VoterManagerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_VoterManager *VoterManagerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _VoterManager.Contract.VoterManagerCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_VoterManager *VoterManagerRaw) Transact(opts *bind.TransactOpts, method s
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_VoterManager *VoterManagerCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_VoterManager *VoterManagerCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _VoterManager.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,34 +192,34 @@ func (_VoterManager *VoterManagerTransactorRaw) Transact(opts *bind.TransactOpts
 
 // GetPendingOpDetails is a free data retrieval call binding the contract method 0x014e6acc.
 //
-// Solidity: function getPendingOpDetails(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOpDetails(string _orgId) view returns(string, string, address, uint256)
 func (_VoterManager *VoterManagerCaller) GetPendingOpDetails(opts *bind.CallOpts, _orgId string) (string, string, common.Address, *big.Int, error) {
-	var (
-		ret0 = new(string)
-		ret1 = new(string)
-		ret2 = new(common.Address)
-		ret3 = new(*big.Int)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
+	var out []interface{}
+	err := _VoterManager.contract.Call(opts, &out, "getPendingOpDetails", _orgId)
+
+	if err != nil {
+		return *new(string), *new(string), *new(common.Address), *new(*big.Int), err
 	}
-	err := _VoterManager.contract.Call(opts, out, "getPendingOpDetails", _orgId)
-	return *ret0, *ret1, *ret2, *ret3, err
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(common.Address)).(*common.Address)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+
+	return out0, out1, out2, out3, err
+
 }
 
 // GetPendingOpDetails is a free data retrieval call binding the contract method 0x014e6acc.
 //
-// Solidity: function getPendingOpDetails(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOpDetails(string _orgId) view returns(string, string, address, uint256)
 func (_VoterManager *VoterManagerSession) GetPendingOpDetails(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return _VoterManager.Contract.GetPendingOpDetails(&_VoterManager.CallOpts, _orgId)
 }
 
 // GetPendingOpDetails is a free data retrieval call binding the contract method 0x014e6acc.
 //
-// Solidity: function getPendingOpDetails(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOpDetails(string _orgId) view returns(string, string, address, uint256)
 func (_VoterManager *VoterManagerCallerSession) GetPendingOpDetails(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return _VoterManager.Contract.GetPendingOpDetails(&_VoterManager.CallOpts, _orgId)
 }

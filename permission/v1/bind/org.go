@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindOrgManager(address common.Address, caller bind.ContractCaller, transact
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_OrgManager *OrgManagerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_OrgManager *OrgManagerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _OrgManager.Contract.OrgManagerCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_OrgManager *OrgManagerRaw) Transact(opts *bind.TransactOpts, method strin
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_OrgManager *OrgManagerCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_OrgManager *OrgManagerCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _OrgManager.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,202 +192,225 @@ func (_OrgManager *OrgManagerTransactorRaw) Transact(opts *bind.TransactOpts, me
 
 // CheckOrgExists is a free data retrieval call binding the contract method 0xffe40d1d.
 //
-// Solidity: function checkOrgExists(string _orgId) constant returns(bool)
+// Solidity: function checkOrgExists(string _orgId) view returns(bool)
 func (_OrgManager *OrgManagerCaller) CheckOrgExists(opts *bind.CallOpts, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _OrgManager.contract.Call(opts, out, "checkOrgExists", _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "checkOrgExists", _orgId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // CheckOrgExists is a free data retrieval call binding the contract method 0xffe40d1d.
 //
-// Solidity: function checkOrgExists(string _orgId) constant returns(bool)
+// Solidity: function checkOrgExists(string _orgId) view returns(bool)
 func (_OrgManager *OrgManagerSession) CheckOrgExists(_orgId string) (bool, error) {
 	return _OrgManager.Contract.CheckOrgExists(&_OrgManager.CallOpts, _orgId)
 }
 
 // CheckOrgExists is a free data retrieval call binding the contract method 0xffe40d1d.
 //
-// Solidity: function checkOrgExists(string _orgId) constant returns(bool)
+// Solidity: function checkOrgExists(string _orgId) view returns(bool)
 func (_OrgManager *OrgManagerCallerSession) CheckOrgExists(_orgId string) (bool, error) {
 	return _OrgManager.Contract.CheckOrgExists(&_OrgManager.CallOpts, _orgId)
 }
 
 // CheckOrgStatus is a free data retrieval call binding the contract method 0x8c8642df.
 //
-// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) constant returns(bool)
+// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) view returns(bool)
 func (_OrgManager *OrgManagerCaller) CheckOrgStatus(opts *bind.CallOpts, _orgId string, _orgStatus *big.Int) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _OrgManager.contract.Call(opts, out, "checkOrgStatus", _orgId, _orgStatus)
-	return *ret0, err
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "checkOrgStatus", _orgId, _orgStatus)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // CheckOrgStatus is a free data retrieval call binding the contract method 0x8c8642df.
 //
-// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) constant returns(bool)
+// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) view returns(bool)
 func (_OrgManager *OrgManagerSession) CheckOrgStatus(_orgId string, _orgStatus *big.Int) (bool, error) {
 	return _OrgManager.Contract.CheckOrgStatus(&_OrgManager.CallOpts, _orgId, _orgStatus)
 }
 
 // CheckOrgStatus is a free data retrieval call binding the contract method 0x8c8642df.
 //
-// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) constant returns(bool)
+// Solidity: function checkOrgStatus(string _orgId, uint256 _orgStatus) view returns(bool)
 func (_OrgManager *OrgManagerCallerSession) CheckOrgStatus(_orgId string, _orgStatus *big.Int) (bool, error) {
 	return _OrgManager.Contract.CheckOrgStatus(&_OrgManager.CallOpts, _orgId, _orgStatus)
 }
 
 // GetNumberOfOrgs is a free data retrieval call binding the contract method 0x7755ebdd.
 //
-// Solidity: function getNumberOfOrgs() constant returns(uint256)
+// Solidity: function getNumberOfOrgs() view returns(uint256)
 func (_OrgManager *OrgManagerCaller) GetNumberOfOrgs(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _OrgManager.contract.Call(opts, out, "getNumberOfOrgs")
-	return *ret0, err
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "getNumberOfOrgs")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // GetNumberOfOrgs is a free data retrieval call binding the contract method 0x7755ebdd.
 //
-// Solidity: function getNumberOfOrgs() constant returns(uint256)
+// Solidity: function getNumberOfOrgs() view returns(uint256)
 func (_OrgManager *OrgManagerSession) GetNumberOfOrgs() (*big.Int, error) {
 	return _OrgManager.Contract.GetNumberOfOrgs(&_OrgManager.CallOpts)
 }
 
 // GetNumberOfOrgs is a free data retrieval call binding the contract method 0x7755ebdd.
 //
-// Solidity: function getNumberOfOrgs() constant returns(uint256)
+// Solidity: function getNumberOfOrgs() view returns(uint256)
 func (_OrgManager *OrgManagerCallerSession) GetNumberOfOrgs() (*big.Int, error) {
 	return _OrgManager.Contract.GetNumberOfOrgs(&_OrgManager.CallOpts)
 }
 
 // GetOrgDetails is a free data retrieval call binding the contract method 0xf4d6d9f5.
 //
-// Solidity: function getOrgDetails(string _orgId) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgDetails(string _orgId) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerCaller) GetOrgDetails(opts *bind.CallOpts, _orgId string) (string, string, string, *big.Int, *big.Int, error) {
-	var (
-		ret0 = new(string)
-		ret1 = new(string)
-		ret2 = new(string)
-		ret3 = new(*big.Int)
-		ret4 = new(*big.Int)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
-		ret4,
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "getOrgDetails", _orgId)
+
+	if err != nil {
+		return *new(string), *new(string), *new(string), *new(*big.Int), *new(*big.Int), err
 	}
-	err := _OrgManager.contract.Call(opts, out, "getOrgDetails", _orgId)
-	return *ret0, *ret1, *ret2, *ret3, *ret4, err
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(string)).(*string)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	out4 := *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
+
+	return out0, out1, out2, out3, out4, err
+
 }
 
 // GetOrgDetails is a free data retrieval call binding the contract method 0xf4d6d9f5.
 //
-// Solidity: function getOrgDetails(string _orgId) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgDetails(string _orgId) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerSession) GetOrgDetails(_orgId string) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgDetails(&_OrgManager.CallOpts, _orgId)
 }
 
 // GetOrgDetails is a free data retrieval call binding the contract method 0xf4d6d9f5.
 //
-// Solidity: function getOrgDetails(string _orgId) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgDetails(string _orgId) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerCallerSession) GetOrgDetails(_orgId string) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgDetails(&_OrgManager.CallOpts, _orgId)
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(uint256 _orgIndex) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgInfo(uint256 _orgIndex) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
-	var (
-		ret0 = new(string)
-		ret1 = new(string)
-		ret2 = new(string)
-		ret3 = new(*big.Int)
-		ret4 = new(*big.Int)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
-		ret4,
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "getOrgInfo", _orgIndex)
+
+	if err != nil {
+		return *new(string), *new(string), *new(string), *new(*big.Int), *new(*big.Int), err
 	}
-	err := _OrgManager.contract.Call(opts, out, "getOrgInfo", _orgIndex)
-	return *ret0, *ret1, *ret2, *ret3, *ret4, err
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(string)).(*string)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	out4 := *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
+
+	return out0, out1, out2, out3, out4, err
+
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(uint256 _orgIndex) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgInfo(uint256 _orgIndex) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(uint256 _orgIndex) constant returns(string, string, string, uint256, uint256)
+// Solidity: function getOrgInfo(uint256 _orgIndex) view returns(string, string, string, uint256, uint256)
 func (_OrgManager *OrgManagerCallerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
 // GetSubOrgIndexes is a free data retrieval call binding the contract method 0x5e99f6e5.
 //
-// Solidity: function getSubOrgIndexes(string _orgId) constant returns(uint256[])
+// Solidity: function getSubOrgIndexes(string _orgId) view returns(uint256[])
 func (_OrgManager *OrgManagerCaller) GetSubOrgIndexes(opts *bind.CallOpts, _orgId string) ([]*big.Int, error) {
-	var (
-		ret0 = new([]*big.Int)
-	)
-	out := ret0
-	err := _OrgManager.contract.Call(opts, out, "getSubOrgIndexes", _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "getSubOrgIndexes", _orgId)
+
+	if err != nil {
+		return *new([]*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]*big.Int)).(*[]*big.Int)
+
+	return out0, err
+
 }
 
 // GetSubOrgIndexes is a free data retrieval call binding the contract method 0x5e99f6e5.
 //
-// Solidity: function getSubOrgIndexes(string _orgId) constant returns(uint256[])
+// Solidity: function getSubOrgIndexes(string _orgId) view returns(uint256[])
 func (_OrgManager *OrgManagerSession) GetSubOrgIndexes(_orgId string) ([]*big.Int, error) {
 	return _OrgManager.Contract.GetSubOrgIndexes(&_OrgManager.CallOpts, _orgId)
 }
 
 // GetSubOrgIndexes is a free data retrieval call binding the contract method 0x5e99f6e5.
 //
-// Solidity: function getSubOrgIndexes(string _orgId) constant returns(uint256[])
+// Solidity: function getSubOrgIndexes(string _orgId) view returns(uint256[])
 func (_OrgManager *OrgManagerCallerSession) GetSubOrgIndexes(_orgId string) ([]*big.Int, error) {
 	return _OrgManager.Contract.GetSubOrgIndexes(&_OrgManager.CallOpts, _orgId)
 }
 
 // GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
 //
-// Solidity: function getUltimateParent(string _orgId) constant returns(string)
+// Solidity: function getUltimateParent(string _orgId) view returns(string)
 func (_OrgManager *OrgManagerCaller) GetUltimateParent(opts *bind.CallOpts, _orgId string) (string, error) {
-	var (
-		ret0 = new(string)
-	)
-	out := ret0
-	err := _OrgManager.contract.Call(opts, out, "getUltimateParent", _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _OrgManager.contract.Call(opts, &out, "getUltimateParent", _orgId)
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
 }
 
 // GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
 //
-// Solidity: function getUltimateParent(string _orgId) constant returns(string)
+// Solidity: function getUltimateParent(string _orgId) view returns(string)
 func (_OrgManager *OrgManagerSession) GetUltimateParent(_orgId string) (string, error) {
 	return _OrgManager.Contract.GetUltimateParent(&_OrgManager.CallOpts, _orgId)
 }
 
 // GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
 //
-// Solidity: function getUltimateParent(string _orgId) constant returns(string)
+// Solidity: function getUltimateParent(string _orgId) view returns(string)
 func (_OrgManager *OrgManagerCallerSession) GetUltimateParent(_orgId string) (string, error) {
 	return _OrgManager.Contract.GetUltimateParent(&_OrgManager.CallOpts, _orgId)
 }
