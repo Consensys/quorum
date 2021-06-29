@@ -32,9 +32,14 @@ import (
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
+var (
+	roundMeter     = metrics.NewRegisteredMeter("consensus/istanbul/qbft/core/round", nil)
+	sequenceMeter  = metrics.NewRegisteredMeter("consensus/istanbul/qbft/core/sequence", nil)
+	consensusTimer = metrics.NewRegisteredTimer("consensus/istanbul/qbft/core/consensus", nil)
+)
+
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) Engine {
-	r := metrics.NewRegistry()
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
@@ -47,22 +52,6 @@ func New(backend istanbul.Backend, config *istanbul.Config) Engine {
 		pendingRequests:    prque.New(),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		roundMeter:         metrics.NewMeter(),
-		sequenceMeter:      metrics.NewMeter(),
-		consensusTimer:     metrics.NewTimer(),
-	}
-
-	// During upgrades we do not want to re-register round, sequence and consensus metrics
-	// Do not have to register them, if they are already registered
-	if roundMeter := r.Get("consensus/istanbul/core/round"); roundMeter == nil {
-		r.Register("consensus/istanbul/core/round", c.roundMeter)
-	}
-	if sequenceMeter := r.Get("consensus/istanbul/core/sequence"); sequenceMeter == nil {
-		r.Register("consensus/istanbul/core/sequence", c.sequenceMeter)
-	}
-
-	if consensusTimer := r.Get("consensus/istanbul/core/consensus"); consensusTimer == nil {
-		r.Register("consensus/istanbul/core/consensus", c.consensusTimer)
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -101,12 +90,6 @@ type core struct {
 	pendingRequestsMu *sync.Mutex
 
 	consensusTimestamp time.Time
-	// the meter to record the round change rate
-	roundMeter metrics.Meter
-	// the meter to record the sequence update rate
-	sequenceMeter metrics.Meter
-	// the timer to record consensus duration (from accepting a preprepare to final committed stage)
-	consensusTimer metrics.Timer
 }
 
 func (c *core) currentView() *qbfttypes.View {
@@ -165,10 +148,10 @@ func (c *core) startNewRound(round *big.Int) {
 		logger.Trace("Start to the initial round")
 	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		diff := new(big.Int).Sub(lastProposal.Number(), c.current.Sequence())
-		c.sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
+		sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
 
 		if !c.consensusTimestamp.IsZero() {
-			c.consensusTimer.UpdateSince(c.consensusTimestamp)
+			consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
 		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
@@ -210,7 +193,7 @@ func (c *core) startNewRound(round *big.Int) {
 	c.setState(StateAcceptRequest)
 
 	if round.Cmp(c.current.Round()) > 0 {
-		c.roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
+		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
 	}
 
 	// Update RoundChangeSet by deleting older round messages
