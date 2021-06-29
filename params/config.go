@@ -348,7 +348,7 @@ type ChainConfig struct {
 	QIP714Block            *big.Int `json:"qip714Block,omitempty"`
 	MaxCodeSizeChangeBlock *big.Int `json:"maxCodeSizeChangeBlock,omitempty"`
 	// to track multiple changes to maxCodeSize
-	MaxCodeSizeConfig      []MaxCodeConfigStruct   `json:"maxCodeSizeConfig,omitempty"`
+	MaxCodeSizeConfig        []MaxCodeConfigStruct `json:"maxCodeSizeConfig,omitempty"`
 	PrivacyEnhancementsBlock *big.Int              `json:"privacyEnhancementsBlock,omitempty"`
 	IsMPS                    bool                  `json:"isMPS"` // multiple private states flag
 	QuorumPrecompilesV1Block *big.Int              `json:"quorumPrecompilesV1Block,omitempty"`

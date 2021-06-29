@@ -615,8 +615,8 @@ type StubBackend struct {
 	ks                                     *keystore.KeyStore
 	poolNonce                              uint64
 
-	IstanbulBlock                          *big.Int
-	CurrentHeadNumber                      *big.Int
+	IstanbulBlock     *big.Int
+	CurrentHeadNumber *big.Int
 }
 
 func (sb *StubBackend) CurrentHeader() *types.Header {
