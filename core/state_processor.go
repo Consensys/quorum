@@ -18,7 +18,6 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/mps"
@@ -309,9 +308,8 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// Save revert reason if feature enabled
 	if bc != nil && bc.saveRevertReason {
-		revertReasonBytes := result.Revert()
-		if revertReasonBytes != nil {
-			revertReason := hexutil.Encode(revertReasonBytes)
+		revertReason := result.Revert()
+		if revertReason != nil {
 			if config.IsQuorum && tx.IsPrivate() {
 				privateReceipt.RevertReason = revertReason
 			} else {

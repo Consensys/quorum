@@ -119,7 +119,7 @@ func TestLegacyReceiptDecodingWithRevertReason(t *testing.T) {
 		TxHash:          tx.Hash(),
 		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
 		GasUsed:         111111,
-		RevertReason:    "Reverted Reason", // Quorum
+		RevertReason:    []byte{0x01, 0x00, 0xff}, // Quorum
 	}
 	receipt.Bloom = CreateBloom(Receipts{receipt})
 
@@ -224,7 +224,7 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 		TxHash:          tx.Hash(),
 		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
 		GasUsed:         2,
-		RevertReason:    "Reverted Reason 2",
+		RevertReason:    []byte{0x01, 0x00, 0xff, 0x02},
 	}
 	psiReceipt.Bloom = CreateBloom(Receipts{psiReceipt})
 	receipt := &Receipt{
@@ -245,7 +245,7 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 		TxHash:          tx.Hash(),
 		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
 		GasUsed:         111111,
-		RevertReason:    "Reverted Reason 1",
+		RevertReason:    []byte{0x01, 0x00, 0xff, 0x01},
 	}
 	receipt.Bloom = CreateBloom(Receipts{receipt})
 	receipt.PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
@@ -284,7 +284,8 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 		if len(decPsiReceipt.Logs) != len(wantedPsiReceipt.Logs) {
 			t.Fatalf("%s Receipt log number mismatch, want %v, have %v", psi.String(), len(wantedPsiReceipt.Logs), len(decPsiReceipt.Logs))
 		}
-		if decPsiReceipt.RevertReason != wantedPsiReceipt.RevertReason {
+
+		if bytes.Compare(decPsiReceipt.RevertReason, wantedPsiReceipt.RevertReason) != 0 {
 			t.Fatalf("%s Receipt RevertReason data mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.RevertReason, decPsiReceipt.RevertReason)
 		}
 	}
@@ -314,7 +315,8 @@ func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt) 
 			t.Fatalf("Receipt log %d data mismatch, want %v, have %v", i, receipt.Logs[i].Data, dec.Logs[i].Data)
 		}
 	}
-	if dec.RevertReason != receipt.RevertReason {
+
+	if bytes.Compare(dec.RevertReason, receipt.RevertReason) != 0 {
 		t.Fatalf("RevertReason data mismatch, want %v, have %v", receipt.RevertReason, dec.RevertReason)
 	}
 }

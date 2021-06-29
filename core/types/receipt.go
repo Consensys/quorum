@@ -75,7 +75,7 @@ type Receipt struct {
 	// This nested structure would not have more than 2 levels.
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
 	// support saving the revert reason into the receipt itself for later consultation.
-	RevertReason string `json:"revertReason,omitempty"`
+	RevertReason []byte `json:"revertReason,omitempty"`
 	// End Quorum
 }
 
@@ -201,14 +201,15 @@ type ReceiptForStorage Receipt
 // - added logic to support multiple private state
 // - original EncodeRLP is now encodeRLPOriginal
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
+	hasRevertReason := r.RevertReason != nil && len(r.RevertReason) > 0
 	if r.PSReceipts == nil {
-		if r.RevertReason != "" {
+		if hasRevertReason {
 			return r.encodeRLPOriginalWithRevertReason(w)
 		} else {
 			return r.encodeRLPOriginal(w)
 		}
 	}
-	if r.RevertReason != "" {
+	if hasRevertReason {
 		return r.encodeRLPForMPSWithRevertReason(w)
 	} else {
 		return r.encodeRLPForMPS(w)
@@ -514,7 +515,7 @@ type storedMPSReceiptRLPWithRevertReason struct {
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
 	PSReceipts        []storedPSIToReceiptMapEntryWithRevertReason
-	RevertReason      string
+	RevertReason      []byte
 }
 
 type storedPSIToReceiptMapEntryWithRevertReason struct {
@@ -541,7 +542,7 @@ type storedReceiptRLPWithRevertReason struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
-	RevertReason      string
+	RevertReason      []byte
 }
 
 // Flatten takes a list of private receipts, which will be the "private" PSI receipt,

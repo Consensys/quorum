@@ -1585,8 +1585,8 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 
 	// Quorum
-	if receipt.RevertReason != "" {
-		fields["revertReason"] = receipt.RevertReason
+	if len(receipt.RevertReason) > 0 {
+		fields["revertReason"] = hexutil.Encode(receipt.RevertReason)
 	}
 	// End Quorum
 
