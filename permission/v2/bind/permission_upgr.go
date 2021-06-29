@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindPermUpgr(address common.Address, caller bind.ContractCaller, transactor
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_PermUpgr *PermUpgrRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_PermUpgr *PermUpgrRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _PermUpgr.Contract.PermUpgrCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_PermUpgr *PermUpgrRaw) Transact(opts *bind.TransactOpts, method string, p
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_PermUpgr *PermUpgrCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_PermUpgr *PermUpgrCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _PermUpgr.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,78 +192,93 @@ func (_PermUpgr *PermUpgrTransactorRaw) Transact(opts *bind.TransactOpts, method
 
 // GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getGuardian() constant returns(address)
+// Solidity: function getGuardian() view returns(address)
 func (_PermUpgr *PermUpgrCaller) GetGuardian(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _PermUpgr.contract.Call(opts, out, "getGuardian")
-	return *ret0, err
+	var out []interface{}
+	err := _PermUpgr.contract.Call(opts, &out, "getGuardian")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
 // GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getGuardian() constant returns(address)
+// Solidity: function getGuardian() view returns(address)
 func (_PermUpgr *PermUpgrSession) GetGuardian() (common.Address, error) {
 	return _PermUpgr.Contract.GetGuardian(&_PermUpgr.CallOpts)
 }
 
 // GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getGuardian() constant returns(address)
+// Solidity: function getGuardian() view returns(address)
 func (_PermUpgr *PermUpgrCallerSession) GetGuardian() (common.Address, error) {
 	return _PermUpgr.Contract.GetGuardian(&_PermUpgr.CallOpts)
 }
 
 // GetPermImpl is a free data retrieval call binding the contract method 0x0e32cf90.
 //
-// Solidity: function getPermImpl() constant returns(address)
+// Solidity: function getPermImpl() view returns(address)
 func (_PermUpgr *PermUpgrCaller) GetPermImpl(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _PermUpgr.contract.Call(opts, out, "getPermImpl")
-	return *ret0, err
+	var out []interface{}
+	err := _PermUpgr.contract.Call(opts, &out, "getPermImpl")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
 // GetPermImpl is a free data retrieval call binding the contract method 0x0e32cf90.
 //
-// Solidity: function getPermImpl() constant returns(address)
+// Solidity: function getPermImpl() view returns(address)
 func (_PermUpgr *PermUpgrSession) GetPermImpl() (common.Address, error) {
 	return _PermUpgr.Contract.GetPermImpl(&_PermUpgr.CallOpts)
 }
 
 // GetPermImpl is a free data retrieval call binding the contract method 0x0e32cf90.
 //
-// Solidity: function getPermImpl() constant returns(address)
+// Solidity: function getPermImpl() view returns(address)
 func (_PermUpgr *PermUpgrCallerSession) GetPermImpl() (common.Address, error) {
 	return _PermUpgr.Contract.GetPermImpl(&_PermUpgr.CallOpts)
 }
 
 // GetPermInterface is a free data retrieval call binding the contract method 0xe572515c.
 //
-// Solidity: function getPermInterface() constant returns(address)
+// Solidity: function getPermInterface() view returns(address)
 func (_PermUpgr *PermUpgrCaller) GetPermInterface(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _PermUpgr.contract.Call(opts, out, "getPermInterface")
-	return *ret0, err
+	var out []interface{}
+	err := _PermUpgr.contract.Call(opts, &out, "getPermInterface")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
 // GetPermInterface is a free data retrieval call binding the contract method 0xe572515c.
 //
-// Solidity: function getPermInterface() constant returns(address)
+// Solidity: function getPermInterface() view returns(address)
 func (_PermUpgr *PermUpgrSession) GetPermInterface() (common.Address, error) {
 	return _PermUpgr.Contract.GetPermInterface(&_PermUpgr.CallOpts)
 }
 
 // GetPermInterface is a free data retrieval call binding the contract method 0xe572515c.
 //
-// Solidity: function getPermInterface() constant returns(address)
+// Solidity: function getPermInterface() view returns(address)
 func (_PermUpgr *PermUpgrCallerSession) GetPermInterface() (common.Address, error) {
 	return _PermUpgr.Contract.GetPermInterface(&_PermUpgr.CallOpts)
 }

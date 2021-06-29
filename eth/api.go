@@ -430,7 +430,7 @@ func (api *PrivateDebugAPI) GetBadBlocks(ctx context.Context) ([]*BadBlockArgs, 
 // AccountRangeMaxResults is the maximum number of results to be returned per call
 const AccountRangeMaxResults = 256
 
-// AccountRangeAt enumerates all accounts in the given block and start point in paging request
+// AccountRange enumerates all accounts in the given block and start point in paging request
 func (api *PublicDebugAPI) AccountRange(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, start []byte, maxResults int, nocode, nostorage, incompletes bool) (state.IteratorDump, error) {
 	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
@@ -491,7 +491,12 @@ type storageEntry struct {
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
 func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	_, _, statedb, _, err := api.computeTxEnv(ctx, blockHash, txIndex, 0)
+	// Retrieve the block
+	block := api.eth.blockchain.GetBlockByHash(blockHash)
+	if block == nil {
+		return StorageRangeResult{}, fmt.Errorf("block %#x not found", blockHash)
+	}
+	_, _, statedb, _, err := api.computeTxEnv(ctx, block, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}

@@ -67,6 +67,7 @@ var (
 		utils.LegacyBootnodesV4Flag,
 		utils.LegacyBootnodesV5Flag,
 		utils.DataDirFlag,
+		utils.RaftLogDirFlag,
 		utils.AncientFlag,
 		utils.KeyStoreDirFlag,
 		utils.ExternalSignerFlag,
@@ -157,6 +158,7 @@ var (
 		utils.LegacyGpoBlocksFlag,
 		utils.GpoPercentileFlag,
 		utils.LegacyGpoPercentileFlag,
+		utils.GpoMaxGasPriceFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
@@ -222,8 +224,8 @@ var (
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 		utils.InsecureUnlockAllowedFlag,
-		utils.RPCGlobalGasCap,
-		utils.RPCGlobalTxFeeCap,
+		utils.RPCGlobalGasCapFlag,
+		utils.RPCGlobalTxFeeCapFlag,
 	}
 
 	whisperFlags = []cli.Flag{

@@ -79,7 +79,6 @@ var (
 		executablePath("geth"),
 		executablePath("puppeth"),
 		executablePath("rlpdump"),
-		executablePath("wnode"),
 		executablePath("clef"),
 	}
 
@@ -108,10 +107,6 @@ var (
 		{
 			BinaryName:  "rlpdump",
 			Description: "Developer utility tool that prints RLP structures.",
-		},
-		{
-			BinaryName:  "wnode",
-			Description: "Ethereum Whisper diagnostic tool",
 		},
 		{
 			BinaryName:  "clef",
@@ -845,6 +840,7 @@ func doAndroidArchive(cmdline []string) {
 	if *local {
 		// If we're building locally, copy bundle to build dir and skip Maven
 		os.Rename("geth.aar", filepath.Join(GOBIN, "geth.aar"))
+		os.Rename("geth-sources.jar", filepath.Join(GOBIN, "geth-sources.jar"))
 		return
 	}
 	meta := newMavenMetadata(env)

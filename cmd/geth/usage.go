@@ -149,8 +149,8 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.GraphQLEnabledFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCGlobalTxFeeCap,
+			utils.RPCGlobalGasCapFlag,
+			utils.RPCGlobalTxFeeCapFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
@@ -199,6 +199,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 		Flags: []cli.Flag{
 			utils.GpoBlocksFlag,
 			utils.GpoPercentileFlag,
+			utils.GpoMaxGasPriceFlag,
 		},
 	},
 	{
@@ -223,7 +224,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 		Flags: metricsFlags,
 	},
 	{
-		Name:  "WHISPER (EXPERIMENTAL)",
+		Name:  "WHISPER (deprecated)",
 		Flags: whisperFlags,
 	},
 	{

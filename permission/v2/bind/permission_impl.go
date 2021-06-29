@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindPermImpl(address common.Address, caller bind.ContractCaller, transactor
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_PermImpl *PermImplRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_PermImpl *PermImplRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _PermImpl.Contract.PermImplCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_PermImpl *PermImplRaw) Transact(opts *bind.TransactOpts, method string, p
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_PermImpl *PermImplCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_PermImpl *PermImplCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _PermImpl.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,224 +192,254 @@ func (_PermImpl *PermImplTransactorRaw) Transact(opts *bind.TransactOpts, method
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
-// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
+// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) view returns(bool)
 func (_PermImpl *PermImplCaller) ConnectionAllowed(opts *bind.CallOpts, _enodeId string, _ip string, _port uint16) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "connectionAllowed", _enodeId, _ip, _port)
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "connectionAllowed", _enodeId, _ip, _port)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
-// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
+// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) view returns(bool)
 func (_PermImpl *PermImplSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
 	return _PermImpl.Contract.ConnectionAllowed(&_PermImpl.CallOpts, _enodeId, _ip, _port)
 }
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
-// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
+// Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) view returns(bool)
 func (_PermImpl *PermImplCallerSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
 	return _PermImpl.Contract.ConnectionAllowed(&_PermImpl.CallOpts, _enodeId, _ip, _port)
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
-// Solidity: function getNetworkBootStatus() constant returns(bool)
+// Solidity: function getNetworkBootStatus() view returns(bool)
 func (_PermImpl *PermImplCaller) GetNetworkBootStatus(opts *bind.CallOpts) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "getNetworkBootStatus")
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "getNetworkBootStatus")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
-// Solidity: function getNetworkBootStatus() constant returns(bool)
+// Solidity: function getNetworkBootStatus() view returns(bool)
 func (_PermImpl *PermImplSession) GetNetworkBootStatus() (bool, error) {
 	return _PermImpl.Contract.GetNetworkBootStatus(&_PermImpl.CallOpts)
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
-// Solidity: function getNetworkBootStatus() constant returns(bool)
+// Solidity: function getNetworkBootStatus() view returns(bool)
 func (_PermImpl *PermImplCallerSession) GetNetworkBootStatus() (bool, error) {
 	return _PermImpl.Contract.GetNetworkBootStatus(&_PermImpl.CallOpts)
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
-// Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOp(string _orgId) view returns(string, string, address, uint256)
 func (_PermImpl *PermImplCaller) GetPendingOp(opts *bind.CallOpts, _orgId string) (string, string, common.Address, *big.Int, error) {
-	var (
-		ret0 = new(string)
-		ret1 = new(string)
-		ret2 = new(common.Address)
-		ret3 = new(*big.Int)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "getPendingOp", _orgId)
+
+	if err != nil {
+		return *new(string), *new(string), *new(common.Address), *new(*big.Int), err
 	}
-	err := _PermImpl.contract.Call(opts, out, "getPendingOp", _orgId)
-	return *ret0, *ret1, *ret2, *ret3, err
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(common.Address)).(*common.Address)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+
+	return out0, out1, out2, out3, err
+
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
-// Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOp(string _orgId) view returns(string, string, address, uint256)
 func (_PermImpl *PermImplSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return _PermImpl.Contract.GetPendingOp(&_PermImpl.CallOpts, _orgId)
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
-// Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
+// Solidity: function getPendingOp(string _orgId) view returns(string, string, address, uint256)
 func (_PermImpl *PermImplCallerSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return _PermImpl.Contract.GetPendingOp(&_PermImpl.CallOpts, _orgId)
 }
 
 // GetPolicyDetails is a free data retrieval call binding the contract method 0xcc9ba6fa.
 //
-// Solidity: function getPolicyDetails() constant returns(string, string, string, bool)
+// Solidity: function getPolicyDetails() view returns(string, string, string, bool)
 func (_PermImpl *PermImplCaller) GetPolicyDetails(opts *bind.CallOpts) (string, string, string, bool, error) {
-	var (
-		ret0 = new(string)
-		ret1 = new(string)
-		ret2 = new(string)
-		ret3 = new(bool)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "getPolicyDetails")
+
+	if err != nil {
+		return *new(string), *new(string), *new(string), *new(bool), err
 	}
-	err := _PermImpl.contract.Call(opts, out, "getPolicyDetails")
-	return *ret0, *ret1, *ret2, *ret3, err
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(string)).(*string)
+	out3 := *abi.ConvertType(out[3], new(bool)).(*bool)
+
+	return out0, out1, out2, out3, err
+
 }
 
 // GetPolicyDetails is a free data retrieval call binding the contract method 0xcc9ba6fa.
 //
-// Solidity: function getPolicyDetails() constant returns(string, string, string, bool)
+// Solidity: function getPolicyDetails() view returns(string, string, string, bool)
 func (_PermImpl *PermImplSession) GetPolicyDetails() (string, string, string, bool, error) {
 	return _PermImpl.Contract.GetPolicyDetails(&_PermImpl.CallOpts)
 }
 
 // GetPolicyDetails is a free data retrieval call binding the contract method 0xcc9ba6fa.
 //
-// Solidity: function getPolicyDetails() constant returns(string, string, string, bool)
+// Solidity: function getPolicyDetails() view returns(string, string, string, bool)
 func (_PermImpl *PermImplCallerSession) GetPolicyDetails() (string, string, string, bool, error) {
 	return _PermImpl.Contract.GetPolicyDetails(&_PermImpl.CallOpts)
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
-// Solidity: function isNetworkAdmin(address _account) constant returns(bool)
+// Solidity: function isNetworkAdmin(address _account) view returns(bool)
 func (_PermImpl *PermImplCaller) IsNetworkAdmin(opts *bind.CallOpts, _account common.Address) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "isNetworkAdmin", _account)
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "isNetworkAdmin", _account)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
-// Solidity: function isNetworkAdmin(address _account) constant returns(bool)
+// Solidity: function isNetworkAdmin(address _account) view returns(bool)
 func (_PermImpl *PermImplSession) IsNetworkAdmin(_account common.Address) (bool, error) {
 	return _PermImpl.Contract.IsNetworkAdmin(&_PermImpl.CallOpts, _account)
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
-// Solidity: function isNetworkAdmin(address _account) constant returns(bool)
+// Solidity: function isNetworkAdmin(address _account) view returns(bool)
 func (_PermImpl *PermImplCallerSession) IsNetworkAdmin(_account common.Address) (bool, error) {
 	return _PermImpl.Contract.IsNetworkAdmin(&_PermImpl.CallOpts, _account)
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
-// Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
+// Solidity: function isOrgAdmin(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplCaller) IsOrgAdmin(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "isOrgAdmin", _account, _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "isOrgAdmin", _account, _orgId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
-// Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
+// Solidity: function isOrgAdmin(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
 	return _PermImpl.Contract.IsOrgAdmin(&_PermImpl.CallOpts, _account, _orgId)
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
-// Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
+// Solidity: function isOrgAdmin(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplCallerSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
 	return _PermImpl.Contract.IsOrgAdmin(&_PermImpl.CallOpts, _account, _orgId)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0x936421d5.
 //
-// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) constant returns(bool)
+// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) view returns(bool)
 func (_PermImpl *PermImplCaller) TransactionAllowed(opts *bind.CallOpts, _sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "transactionAllowed", _sender, _target, _value, _gasPrice, _gasLimit, _payload)
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "transactionAllowed", _sender, _target, _value, _gasPrice, _gasLimit, _payload)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0x936421d5.
 //
-// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) constant returns(bool)
+// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) view returns(bool)
 func (_PermImpl *PermImplSession) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
 	return _PermImpl.Contract.TransactionAllowed(&_PermImpl.CallOpts, _sender, _target, _value, _gasPrice, _gasLimit, _payload)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0x936421d5.
 //
-// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) constant returns(bool)
+// Solidity: function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes _payload) view returns(bool)
 func (_PermImpl *PermImplCallerSession) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
 	return _PermImpl.Contract.TransactionAllowed(&_PermImpl.CallOpts, _sender, _target, _value, _gasPrice, _gasLimit, _payload)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplCaller) ValidateAccount(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _PermImpl.contract.Call(opts, out, "validateAccount", _account, _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _PermImpl.contract.Call(opts, &out, "validateAccount", _account, _orgId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
 	return _PermImpl.Contract.ValidateAccount(&_PermImpl.CallOpts, _account, _orgId)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_PermImpl *PermImplCallerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
 	return _PermImpl.Contract.ValidateAccount(&_PermImpl.CallOpts, _account, _orgId)
 }

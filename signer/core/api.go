@@ -44,7 +44,7 @@ const (
 	// numberOfAccountsToDerive For hardware wallets, the number of accounts to derive
 	numberOfAccountsToDerive = 10
 	// ExternalAPIVersion -- see extapi_changelog.md
-	ExternalAPIVersion = "6.0.0"
+	ExternalAPIVersion = "6.1.0"
 	// InternalAPIVersion -- see intapi_changelog.md
 	InternalAPIVersion = "7.0.1"
 )
@@ -65,6 +65,8 @@ type ExternalAPI interface {
 	EcRecover(ctx context.Context, data hexutil.Bytes, sig hexutil.Bytes) (common.Address, error)
 	// Version info about the APIs
 	Version(ctx context.Context) (string, error)
+	// SignGnosisSafeTransaction signs/confirms a gnosis-safe multisig transaction
+	SignGnosisSafeTx(ctx context.Context, signerAddress common.MixedcaseAddress, gnosisTx GnosisSafeTx, methodSelector *string) (*GnosisSafeTx, error)
 }
 
 // UIClientAPI specifies what method a UI needs to implement to be able to be used as a
@@ -245,6 +247,7 @@ type (
 		Address     common.MixedcaseAddress `json:"address"`
 		Rawdata     []byte                  `json:"raw_data"`
 		Messages    []*NameValueType        `json:"messages"`
+		Callinfo    []ValidationInfo        `json:"call_info"`
 		Hash        hexutil.Bytes           `json:"hash"`
 		Meta        Metadata                `json:"meta"`
 	}
@@ -357,19 +360,28 @@ func (api *SignerAPI) startUSBListener() {
 			case accounts.WalletOpened:
 				status, _ := event.Wallet.Status()
 				log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+				var derive = func(numToDerive int, base accounts.DerivationPath) {
+					// Derive first N accounts, hardcoded for now
+					var nextPath = make(accounts.DerivationPath, len(base))
+					copy(nextPath[:], base[:])
 
-				// Derive first N accounts, hardcoded for now
-				var nextPath = make(accounts.DerivationPath, len(accounts.DefaultBaseDerivationPath))
-				copy(nextPath[:], accounts.DefaultBaseDerivationPath[:])
-
-				for i := 0; i < numberOfAccountsToDerive; i++ {
-					acc, err := event.Wallet.Derive(nextPath, true)
-					if err != nil {
-						log.Warn("account derivation failed", "error", err)
-					} else {
-						log.Info("derived account", "address", acc.Address)
+					for i := 0; i < numToDerive; i++ {
+						acc, err := event.Wallet.Derive(nextPath, true)
+						if err != nil {
+							log.Warn("Account derivation failed", "error", err)
+						} else {
+							log.Info("Derived account", "address", acc.Address, "path", nextPath)
+						}
+						nextPath[len(nextPath)-1]++
 					}
-					nextPath[len(nextPath)-1]++
+				}
+				if event.Wallet.URL().Scheme == "ledger" {
+					log.Info("Deriving ledger default paths")
+					derive(numberOfAccountsToDerive/2, accounts.DefaultBaseDerivationPath)
+					log.Info("Deriving ledger legacy paths")
+					derive(numberOfAccountsToDerive/2, accounts.LegacyLedgerBaseDerivationPath)
+				} else {
+					derive(numberOfAccountsToDerive, accounts.DefaultBaseDerivationPath)
 				}
 			case accounts.WalletDropped:
 				log.Info("Old wallet dropped", "url", event.Wallet.URL())
@@ -382,7 +394,9 @@ func (api *SignerAPI) startUSBListener() {
 // List returns the set of wallet this signer manages. Each wallet can contain
 // multiple accounts.
 func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
-	var accs []accounts.Account
+	var accs = make([]accounts.Account, 0)
+	// accs is initialized as empty list, not nil. We use 'nil' to signal
+	// rejection, as opposed to an empty list.
 	for _, wallet := range api.am.Wallets() {
 		accs = append(accs, wallet.Accounts()...)
 	}
@@ -392,13 +406,11 @@ func (api *SignerAPI) List(ctx context.Context) ([]common.Address, error) {
 	}
 	if result.Accounts == nil {
 		return nil, ErrRequestDenied
-
 	}
 	addresses := make([]common.Address, 0)
 	for _, acc := range result.Accounts {
 		addresses = append(addresses, acc.Address)
 	}
-
 	return addresses, nil
 }
 
@@ -587,6 +599,33 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	// ...and to the external caller
 	return &response, nil
 
+}
+
+func (api *SignerAPI) SignGnosisSafeTx(ctx context.Context, signerAddress common.MixedcaseAddress, gnosisTx GnosisSafeTx, methodSelector *string) (*GnosisSafeTx, error) {
+	// Do the usual validations, but on the last-stage transaction
+	args := gnosisTx.ArgsForValidation()
+	msgs, err := api.validator.ValidateTransaction(methodSelector, args)
+	if err != nil {
+		return nil, err
+	}
+	// If we are in 'rejectMode', then reject rather than show the user warnings
+	if api.rejectMode {
+		if err := msgs.getWarnings(); err != nil {
+			return nil, err
+		}
+	}
+	typedData := gnosisTx.ToTypedData()
+	signature, preimage, err := api.signTypedData(ctx, signerAddress, typedData, msgs)
+	if err != nil {
+		return nil, err
+	}
+	checkSummedSender, _ := common.NewMixedcaseAddressFromString(signerAddress.Address().Hex())
+
+	gnosisTx.Signature = signature
+	gnosisTx.SafeTxHash = common.BytesToHash(preimage)
+	gnosisTx.Sender = *checkSummedSender // Must be checksumed to be accepted by relay
+
+	return &gnosisTx, nil
 }
 
 // Returns the external api version. This method does not require user acceptance. Available methods are

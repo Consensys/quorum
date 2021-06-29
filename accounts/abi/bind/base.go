@@ -130,10 +130,13 @@ func DeployContract(opts *TransactOpts, abi abi.ABI, bytecode []byte, backend Co
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (c *BoundContract) Call(opts *CallOpts, result interface{}, method string, params ...interface{}) error {
+func (c *BoundContract) Call(opts *CallOpts, results *[]interface{}, method string, params ...interface{}) error {
 	// Don't crash on a lazy user
 	if opts == nil {
 		opts = new(CallOpts)
+	}
+	if results == nil {
+		results = new([]interface{})
 	}
 	// Pack the input, call and unpack the results
 	input, err := c.abi.Pack(method, params...)
@@ -171,10 +174,14 @@ func (c *BoundContract) Call(opts *CallOpts, result interface{}, method string, 
 			}
 		}
 	}
-	if err != nil {
+
+	if len(*results) == 0 {
+		res, err := c.abi.Unpack(method, output)
+		*results = res
 		return err
 	}
-	return c.abi.Unpack(result, method, output)
+	res := *results
+	return c.abi.UnpackIntoInterface(res[0], method, output)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
@@ -190,7 +197,7 @@ func (c *BoundContract) Transact(opts *TransactOpts, method string, params ...in
 }
 
 // RawTransact initiates a transaction with the given raw calldata as the input.
-// It's usually used to initiates transaction for invoking **Fallback** function.
+// It's usually used to initiate transactions for invoking **Fallback** function.
 func (c *BoundContract) RawTransact(opts *TransactOpts, calldata []byte) (*types.Transaction, error) {
 	// todo(rjl493456442) check the method is payable or not,
 	// reject invalid transaction at the first place
@@ -401,7 +408,7 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]inter
 // UnpackLog unpacks a retrieved log into the provided output structure.
 func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) error {
 	if len(log.Data) > 0 {
-		if err := c.abi.Unpack(out, event, log.Data); err != nil {
+		if err := c.abi.UnpackIntoInterface(out, event, log.Data); err != nil {
 			return err
 		}
 	}

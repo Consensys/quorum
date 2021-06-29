@@ -961,7 +961,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		start = time.Now()
 	}
 	var account Account
-	root, err := s.trie.Commit(func(leaf []byte, parent common.Hash) error {
+	root, err := s.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}

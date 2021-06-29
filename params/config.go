@@ -74,10 +74,10 @@ var (
 
 	// MainnetTrustedCheckpoint contains the light client trusted checkpoint for the main network.
 	MainnetTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 326,
-		SectionHead:  common.HexToHash("0xbdec9f7056159360d64d6488ee11a0db574a67757cddd6fffd6719121d5733a5"),
-		CHTRoot:      common.HexToHash("0xf9d2617f8e038b824a256025f01af3b3da681987df29dbfe718ad4c6c8a0875d"),
-		BloomRoot:    common.HexToHash("0x712016984cfb66c165fdaf05c6a4aa89f08e4bb66fa77b199f2878fff4232d78"),
+		SectionIndex: 336,
+		SectionHead:  common.HexToHash("0xd42b78902b6527a80337bf1bc372a3ccc3db97e9cc7cf421ca047ae9076c716b"),
+		CHTRoot:      common.HexToHash("0xd97f3b30f7e0cb958e4c67c53ec27745e5a165e33e56821b86523dfee62b783a"),
+		BloomRoot:    common.HexToHash("0xf3cbfd070fababfe2adc9b23fc02c731f6ca2cce6646b3ede4ef2db06092ccce"),
 	}
 
 	// MainnetCheckpointOracle contains a set of configs for the main network oracle.
@@ -113,10 +113,10 @@ var (
 
 	// RopstenTrustedCheckpoint contains the light client trusted checkpoint for the Ropsten test network.
 	RopstenTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 260,
-		SectionHead:  common.HexToHash("0xdcf714d033b8be3f0786515649d76e526157f811e5ae89c59dbfd53029d0d165"),
-		CHTRoot:      common.HexToHash("0x987759454d404cd393a6a7743da64610076f167e989ec2cf9e0c0be6578d1304"),
-		BloomRoot:    common.HexToHash("0xb8ee6d34cc30d61410717e2dc1af3294bc056f4b32a5eed5f6f386a8c1daa2b1"),
+		SectionIndex: 269,
+		SectionHead:  common.HexToHash("0x290a9eb65e65c64601d1b05522533ed502098a246736b348502a170818a33d64"),
+		CHTRoot:      common.HexToHash("0x530ebac02264227277d0a16b0819ef96a2011a6e1e66523ebff8040f4a3437ca"),
+		BloomRoot:    common.HexToHash("0x480cd5b3198a0767022902130546854a2e8867cce573c1cf0ce54e67a7bf5efb"),
 	}
 
 	// RopstenCheckpointOracle contains a set of configs for the Ropsten test network oracle.
@@ -155,10 +155,10 @@ var (
 
 	// RinkebyTrustedCheckpoint contains the light client trusted checkpoint for the Rinkeby test network.
 	RinkebyTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 214,
-		SectionHead:  common.HexToHash("0x297b4daf21db636e76555c9d3e302d79a8efe3a3434143b9bcf61187ce8abcb1"),
-		CHTRoot:      common.HexToHash("0x602044234a4ba8534286240200cde6e5797ae40151cbdd2dbf8eb8c0486a2c63"),
-		BloomRoot:    common.HexToHash("0x9ccf6840ecc541b290c7b9f19edcba3e5f39206b05cd4ae5a7754040783d47d9"),
+		SectionIndex: 223,
+		SectionHead:  common.HexToHash("0x03ca0d5e3a931c77cd7a97bbaa2d9e4edc4549c621dc1d223a29f10c86a4a16a"),
+		CHTRoot:      common.HexToHash("0x6573dbdd91b2958b446bd04d67c23e5f14b2510ac96e8df1b6a894dc49e37c6c"),
+		BloomRoot:    common.HexToHash("0x28a35042a4e88efbac55fe566faf7fce000dc436f17fd4cb4b081c9cd793e1a7"),
 	}
 
 	// RinkebyCheckpointOracle contains a set of configs for the Rinkeby test network oracle.
@@ -195,10 +195,10 @@ var (
 
 	// GoerliTrustedCheckpoint contains the light client trusted checkpoint for the Görli test network.
 	GoerliTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 99,
-		SectionHead:  common.HexToHash("0xc9f09369acd657d5f77e6a389a68f673bf909ad98c269800c08229d75c1a90e3"),
-		CHTRoot:      common.HexToHash("0x523218630348e98fa9f4e7fc3054aff717982d79c700cbecf5730c1479f21c6e"),
-		BloomRoot:    common.HexToHash("0x75219ad4a3ec4682b89dd248ee56b52ef26fe577a426f4813297550deb5c4cb2"),
+		SectionIndex: 107,
+		SectionHead:  common.HexToHash("0xff3ae39199fa191894de419e7f673c8627aa8cc7af924b90f36635b6add375f2"),
+		CHTRoot:      common.HexToHash("0x27d59d60c652425b6b593a882f55a4ff57f24e470a810a6e3c8ba71833a20220"),
+		BloomRoot:    common.HexToHash("0x3c14066d8bb3733780c06b8165768dbb9dd23b75f56012fe5f2fb3c2fb70cadb"),
 	}
 
 	// GoerliCheckpointOracle contains a set of configs for the Goerli test network oracle.
@@ -737,7 +737,11 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 		return newCompatError("Constantinople fork block", c.ConstantinopleBlock, newcfg.ConstantinopleBlock)
 	}
 	if isForkIncompatible(c.PetersburgBlock, newcfg.PetersburgBlock, head) {
-		return newCompatError("Petersburg fork block", c.PetersburgBlock, newcfg.PetersburgBlock)
+		// the only case where we allow Petersburg to be set in the past is if it is equal to Constantinople
+		// mainly to satisfy fork ordering requirements which state that Petersburg fork be set if Constantinople fork is set
+		if isForkIncompatible(c.ConstantinopleBlock, newcfg.PetersburgBlock, head) {
+			return newCompatError("Petersburg fork block", c.PetersburgBlock, newcfg.PetersburgBlock)
+		}
 	}
 	if isForkIncompatible(c.IstanbulBlock, newcfg.IstanbulBlock, head) {
 		return newCompatError("Istanbul fork block", c.IstanbulBlock, newcfg.IstanbulBlock)

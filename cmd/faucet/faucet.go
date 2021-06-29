@@ -45,6 +45,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -243,6 +244,7 @@ func newFaucet(genesis *core.Genesis, port int, enodes []*discv5.Node, network u
 	cfg.SyncMode = downloader.LightSync
 	cfg.NetworkId = network
 	cfg.Genesis = genesis
+	utils.SetDNSDiscoveryDefaults(&cfg, genesis.ToBlock(nil).Hash())
 	lesBackend, err := les.New(stack, &cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to register the Ethereum service: %w", err)
