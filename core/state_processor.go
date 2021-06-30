@@ -17,6 +17,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -108,7 +110,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, privateStateDBToUse, p.config, cfg)
 		receipt, privateReceipt, err := applyTransaction(msg, p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, vmenv, privateStateRepo.IsMPS())
 		if err != nil {
-			return nil, nil, nil, 0, err
+			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 
 		receipts = append(receipts, receipt)
