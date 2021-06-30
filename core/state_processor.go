@@ -109,7 +109,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		if privateReceipt != nil {
 			newPrivateReceipt, privateLogs := HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, p.bc)
 			if newPrivateReceipt != nil {
-				privateReceipts = append(privateReceipts, privateReceipt)
+				privateReceipts = append(privateReceipts, newPrivateReceipt)
 			}
 			allLogs = append(allLogs, privateLogs...)
 		}

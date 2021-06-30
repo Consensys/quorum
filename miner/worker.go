@@ -844,6 +844,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if privateReceipt != nil {
 		_, privateLogs := core.HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, w.chain)
 		logs = append(logs, privateLogs...)
+		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
 	}
 	// End Quorum
 
