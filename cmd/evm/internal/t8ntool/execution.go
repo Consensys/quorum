@@ -99,15 +99,16 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		return h
 	}
 	var (
-		statedb     = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
-		signer      = types.MakeSigner(chainConfig, new(big.Int).SetUint64(pre.Env.Number))
-		gaspool     = new(core.GasPool)
-		blockHash   = common.Hash{0x13, 0x37}
-		rejectedTxs []int
-		includedTxs types.Transactions
-		gasUsed     = uint64(0)
-		receipts    = make(types.Receipts, 0)
-		txIndex     = 0
+		statedb        = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
+		privateStatedb = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre) // Quorum private state db
+		signer         = types.MakeSigner(chainConfig, new(big.Int).SetUint64(pre.Env.Number))
+		gaspool        = new(core.GasPool)
+		blockHash      = common.Hash{0x13, 0x37}
+		rejectedTxs    []int
+		includedTxs    types.Transactions
+		gasUsed        = uint64(0)
+		receipts       = make(types.Receipts, 0)
+		txIndex        = 0
 	)
 	gaspool.AddGas(pre.Env.GasLimit)
 	vmContext := vm.BlockContext{
@@ -144,7 +145,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		statedb.Prepare(tx.Hash(), blockHash, txIndex)
 		txContext := core.NewEVMTxContext(msg)
 
-		evm := vm.NewEVM(vmContext, txContext, statedb, chainConfig, vmConfig)
+		evm := vm.NewEVM(vmContext, txContext, statedb, privateStatedb, chainConfig, vmConfig)
 		if chainConfig.IsYoloV2(vmContext.BlockNumber) {
 			statedb.AddAddressToAccessList(msg.From())
 			if dst := msg.To(); dst != nil {

@@ -27,12 +27,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/signer/storage"
 )
@@ -127,7 +129,7 @@ type Metadata struct {
 	Origin    string `json:"Origin"`
 }
 
-func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, scpath string) *accounts.Manager {
+func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, plugins *plugin.Settings, scpath string) *accounts.Manager {
 	var (
 		backends []accounts.Backend
 		n, p     = keystore.StandardScryptN, keystore.StandardScryptP
@@ -162,6 +164,14 @@ func StartClefAccountManager(ksLocation string, nousb, lightKDF bool, scpath str
 			log.Debug("Trezor support enabled via WebUSB")
 		}
 	}
+	// <Quorum>
+	if plugins != nil {
+		if _, ok := plugins.Providers[plugin.AccountPluginInterfaceName]; ok {
+			pluginBackend := pluggable.NewBackend()
+			backends = append(backends, pluginBackend)
+		}
+	}
+	// </Quorum>
 
 	// Start a smart card hub
 	if len(scpath) > 0 {
@@ -524,11 +534,17 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	var (
 		err    error
 		result SignTxResponse
+		msgs   *ValidationMessages
 	)
-	msgs, err := api.validator.ValidateTransaction(methodSelector, &args)
-	if err != nil {
-		return nil, err
+	if args.IsPrivate {
+		msgs = new(ValidationMessages)
+	} else {
+		msgs, err = api.validator.ValidateTransaction(methodSelector, &args)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	// If we are in 'rejectMode', then reject rather than show the user warnings
 	if api.rejectMode {
 		if err := msgs.getWarnings(); err != nil {

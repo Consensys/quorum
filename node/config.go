@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -69,6 +72,10 @@ type Config struct {
 	// databases or flat files. This enables ephemeral nodes which can fully reside
 	// in memory.
 	DataDir string
+
+	// RaftLogDir is the file system folder the node use for raft-state, raft-snap and
+	// raft-wal folders.
+	RaftLogDir string
 
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
@@ -182,6 +189,10 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
+	Plugins                *plugin.Settings `toml:",omitempty"`
+	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
+	EnableNodePermission bool `toml:",omitempty"`
+	EnableMultitenancy   bool `toml:",omitempty"` // comes from MultitenancyFlag flag
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -445,6 +456,40 @@ func (c *Config) AccountConfig() (int, int, string, error) {
 	return scryptN, scryptP, keydir, err
 }
 
+// Quorum
+//
+// Make sure plugin base dir exists
+func (c *Config) ResolvePluginBaseDir() error {
+	if c.Plugins == nil {
+		return nil
+	}
+	baseDir := c.Plugins.BaseDir.String()
+	if baseDir == "" {
+		baseDir = filepath.Join(c.DataDir, "plugins")
+	}
+	if !common.FileExist(baseDir) {
+		if err := os.MkdirAll(baseDir, 0755); err != nil {
+			return err
+		}
+	}
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return err
+	}
+	c.Plugins.BaseDir = plugin.EnvironmentAwaredValue(absBaseDir)
+	return nil
+}
+
+// check if smart-contract-based permissioning is enabled by reading `--permissioned` flag and checking permission config file
+func (c *Config) IsPermissionEnabled() bool {
+	fullPath := filepath.Join(c.DataDir, params.PERMISSION_MODEL_CONFIG)
+	if _, err := os.Stat(fullPath); err != nil {
+		log.Warn(fmt.Sprintf("%s file is missing. Smart-contract-based permission service will be disabled", params.PERMISSION_MODEL_CONFIG), "error", err)
+		return false
+	}
+	return true
+}
+
 func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 	scryptN, scryptP, keydir, err := conf.AccountConfig()
 	var ephemeral string
@@ -502,6 +547,12 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 				log.Warn(fmt.Sprintf("Failed to start smart card hub, disabling: %v", err))
 			} else {
 				backends = append(backends, schub)
+			}
+		}
+		if conf.Plugins != nil {
+			if _, ok := conf.Plugins.Providers[plugin.AccountPluginInterfaceName]; ok {
+				pluginBackend := pluggable.NewBackend()
+				backends = append(backends, pluginBackend)
 			}
 		}
 	}

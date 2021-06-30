@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -79,10 +81,11 @@ type txTraceResult struct {
 // blockTraceTask represents a single block trace task when an entire chain is
 // being traced.
 type blockTraceTask struct {
-	statedb *state.StateDB   // Intermediate state prepped for tracing
-	block   *types.Block     // Block to trace the transactions from
-	rootref common.Hash      // Trie root reference held for this task
-	results []*txTraceResult // Trace results procudes by the task
+	statedb        *state.StateDB   // Intermediate state prepped for tracing
+	privateStateDb *state.StateDB   // Quorum
+	block          *types.Block     // Block to trace the transactions from
+	rootref        common.Hash      // Trie root reference held for this task
+	results        []*txTraceResult // Trace results procudes by the task
 }
 
 // blockTraceResult represets the results of tracing a single block when an entire
@@ -96,8 +99,9 @@ type blockTraceResult struct {
 // txTraceTask represents a single transaction trace task when an entire block
 // is being traced.
 type txTraceTask struct {
-	statedb *state.StateDB // Intermediate state prepped for tracing
-	index   int            // Transaction offset in the block
+	statedb        *state.StateDB // Intermediate state prepped for tracing
+	privateStateDb *state.StateDB
+	index          int // Transaction offset in the block
 }
 
 // TraceChain returns the structured logs created during the execution of EVM
@@ -156,7 +160,11 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	statedb, err := state.New(start.Root(), database, nil)
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	statedb, privateStateRepo, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -169,7 +177,8 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-			if statedb, err = state.New(start.Root(), database, nil); err == nil {
+			statedb, privateStateRepo, err = api.eth.blockchain.StateAt(start.Root())
+			if err == nil {
 				break
 			}
 		}
@@ -207,7 +216,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer)
-					res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, config)
+					res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, task.privateStateDb, config)
 					if err != nil {
 						task.results[i] = &txTraceResult{Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -215,6 +224,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 					}
 					// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 					task.statedb.Finalise(api.eth.blockchain.Config().IsEIP158(task.block.Number()))
+					task.privateStateDb.Finalise(api.eth.blockchain.Config().IsEIP158(task.block.Number()))
 					task.results[i] = &txTraceResult{Result: res}
 				}
 				// Stream the result back to the user or abort on teardown
@@ -279,16 +289,20 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-
+				privateState, err := privateStateRepo.StatePSI(psm.ID)
+				if err != nil {
+					failed = err
+					break
+				}
 				select {
-				case tasks <- &blockTraceTask{statedb: statedb.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
+				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
 					return
 				}
 				traced += uint64(len(txs))
 			}
 			// Generate the next state snapshot fast without tracing
-			_, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, vm.Config{})
+			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 			if err != nil {
 				failed = err
 				break
@@ -303,6 +317,17 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				failed = err
 				break
 			}
+
+			err = privateStateRepo.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()), block)
+			if err != nil {
+				failed = err
+				break
+			}
+			if err := privateStateRepo.Reset(); err != nil {
+				failed = err
+				break
+			}
+
 			// Reference the trie twice, once for us, once for the tracer
 			database.TrieDB().Reference(root, common.Hash{})
 			if number >= origin {
@@ -453,7 +478,15 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +512,8 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
 				msg, _ := txs[task.index].AsMessage(signer)
-				res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, config)
+				msg = api.clearMessageDataIfNonParty(msg, psm)
+				res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, task.privateStateDb, config)
 				if err != nil {
 					results[task.index] = &txTraceResult{Error: err.Error()}
 					continue
@@ -492,13 +526,23 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	var failed error
 	for i, tx := range txs {
 		// Send the trace task over for execution
-		jobs <- &txTraceTask{statedb: statedb.Copy(), index: i}
+		jobs <- &txTraceTask{
+			statedb:        statedb.Copy(),
+			privateStateDb: privateStateDb.Copy(),
+			index:          i,
+		}
 
 		// Generate the next state snapshot fast without tracing
 		msg, _ := tx.AsMessage(signer)
 		txContext := core.NewEVMTxContext(msg)
 
-		vmenv := vm.NewEVM(blockCtx, txContext, statedb, api.eth.blockchain.Config(), vm.Config{})
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
+		// /Quorum
+
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
 			failed = err
 			break
@@ -506,6 +550,8 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		// Finalize the state so any modifications are written to the trie
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
+		privateStateDb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
+
 	}
 	close(jobs)
 	pend.Wait()
@@ -539,7 +585,15 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -611,7 +665,13 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 			}
 		}
 		// Execute the transaction and flush any traces to disk
-		vmenv := vm.NewEVM(vmctx, txContext, statedb, chainConfig, vmConf)
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(chainConfig.IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, chainConfig, vmConf)
+		vmenv.SetCurrentTX(tx)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
+		// /Quorum
+
 		_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 		if writer != nil {
 			writer.Flush()
@@ -649,11 +709,11 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // computeStateDB retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, error) {
+func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, error) {
 	// If we have the state fully available, use that
-	statedb, err := api.eth.blockchain.StateAt(block.Root())
+	statedb, privateStateRepo, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
-		return statedb, nil
+		return statedb, privateStateRepo, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
@@ -664,16 +724,17 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block == nil {
 			break
 		}
-		if statedb, err = state.New(block.Root(), database, nil); err == nil {
+		statedb, privateStateRepo, err = api.eth.blockchain.StateAt(block.Root())
+		if err == nil {
 			break
 		}
 	}
 	if err != nil {
 		switch err.(type) {
 		case *trie.MissingNodeError:
-			return nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
+			return nil, nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	// State was available at historical point, regenerate
@@ -690,19 +751,26 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		}
 		// Retrieve the next block to regenerate and process it
 		if block = api.eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
-			return nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
+			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, vm.Config{})
+		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
-			return nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
 		// Finalize the state so any modifications are written to the trie
 		root, err := statedb.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := statedb.Reset(root); err != nil {
-			return nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
+		}
+		err = privateStateRepo.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()), block)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := privateStateRepo.Reset(); err != nil {
+			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		database.TrieDB().Reference(root, common.Hash{})
 		if proot != (common.Hash{}) {
@@ -712,7 +780,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	}
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
-	return statedb, nil
+	return statedb, privateStateRepo, nil
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM
@@ -732,12 +800,12 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 	if block == nil {
 		return nil, fmt.Errorf("block %#x not found", blockHash)
 	}
-	msg, vmctx, statedb, err := api.computeTxEnv(block, int(index), reexec)
+	msg, vmctx, statedb, privateState, err := api.computeTxEnv(ctx, block, int(index), reexec)
 	if err != nil {
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, vmctx, statedb, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateState, config)
 }
 
 // TraceCall lets you trace a given eth_call. It collects the structured logs created during the execution of EVM
@@ -762,22 +830,47 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, args ethapi.CallArgs,
 		if config != nil && config.Reexec != nil {
 			reexec = *config.Reexec
 		}
-		_, _, statedb, err = api.computeTxEnv(block, 0, reexec)
+		_, _, stateDB, privateState, err := api.computeTxEnv(ctx, block, 0, reexec)
 		if err != nil {
 			return nil, err
+		}
+		statedb = EthAPIState{
+			state:        stateDB,
+			privateState: privateState,
 		}
 	}
 
 	// Execute the trace
 	msg := args.ToMessage(api.eth.APIBackend.RPCGasCap())
 	vmctx := core.NewEVMBlockContext(header, api.eth.blockchain, nil)
-	return api.traceTx(ctx, msg, vmctx, statedb, config)
+
+	// Quorum: we run the call with privateState as publicState to check if we have a result, if it is not empty, then it is a private call
+	var noTracerConfig *TraceConfig
+	if config != nil {
+		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
+		noTracerConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
+			Reexec:    config.Reexec,
+			Timeout:   config.Timeout,
+		}
+	}
+	res, err := api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
+	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                      // check there is a result
+		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
+			return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
+		}
+		return res, err // return private result with no tracer
+	} else if err == nil && !ok {
+		return nil, fmt.Errorf("can not cast traceTx result to *ethapi.ExecutionResult: %#v, %#v", res, err) // better error formatting than "method handler failed"
+	}
+	// / Quorum
+	return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.BlockContext, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer    vm.Tracer
@@ -811,8 +904,19 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 	default:
 		tracer = vm.NewStructLogger(config.LogConfig)
 	}
+
+	// Quorum
+	// Set the private state to public state if it is not a private message
+	isPrivate := false
+	if msg, ok := message.(core.PrivateMessage); ok && msg.IsPrivate() {
+		isPrivate = true
+	}
+	privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, isPrivate, statedb, privateStateDb)
+
 	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
+	vmenv.SetCurrentTX(tx)
+	// /Quorum
 
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
@@ -841,41 +945,68 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 	}
 }
 
+// clearMessageDataIfNonParty sets the message data to empty hash in case the private state is not party to the
+// transaction. The effect is that when the private tx payload is resolved using the privacy manager the private part of
+// the transaction is not retrieved and the transaction is being executed as if the node/private state is not party to
+// the transaction.
+func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateStateMetadata) types.Message {
+	if msg.IsPrivate() {
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
+		if api.eth.blockchain.PrivateStateManager().NotIncludeAny(psm, managedParties...) {
+			return msg.WithEmptyPrivateData(true)
+		}
+	}
+	return msg
+}
+
 // computeTxEnv returns the execution environment of a certain transaction.
-func (api *PrivateDebugAPI) computeTxEnv(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
+func (api *PrivateDebugAPI) computeTxEnv(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, error) {
 	// Create the parent state database
 	parent := api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
-		return nil, vm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
+		return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
-	statedb, err := api.computeStateDB(parent, reexec)
+	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
 	if err != nil {
-		return nil, vm.BlockContext{}, nil, err
+		return nil, vm.Context{}, nil, nil, err
+	}
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, err
 	}
 
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, nil
+		return nil, vm.BlockContext{}, statedb, privateStateDb, nil
 	}
 
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
 
 	for idx, tx := range block.Transactions() {
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		// /Quorum
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
+		msg = api.clearMessageDataIfNonParty(msg, psm)
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), api.eth.blockchain, nil)
 		if idx == txIndex {
-			return msg, context, statedb, nil
+			return msg, context, statedb, privateStateDb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, api.eth.blockchain.Config(), vm.Config{})
+		vmenv := vm.NewEVM(context, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
-	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }

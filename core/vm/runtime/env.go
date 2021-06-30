@@ -37,5 +37,5 @@ func NewEnv(cfg *Config) *vm.EVM {
 		GasLimit:    cfg.GasLimit,
 	}
 
-	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)
+	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.State, cfg.ChainConfig, cfg.EVMConfig)
 }

@@ -28,6 +28,11 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+// Quorum
+var quorumAccountFlagGroup = "QUORUM ACCOUNT"
+
+// End Quorum
+
 // AppHelpFlagGroups is the application flags, grouped by functionality.
 var AppHelpFlagGroups = []flags.FlagGroup{
 	{
@@ -150,6 +155,11 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			utils.RPCClientToken,
+			utils.RPCClientTLSInsecureSkipVerify,
+			utils.RPCClientTLSCert,
+			utils.RPCClientTLSCaCert,
+			utils.RPCClientTLSCipherSuites,
 		},
 	},
 	{
@@ -199,6 +209,8 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.VMEnableDebugFlag,
 			utils.EVMInterpreterFlag,
 			utils.EWASMInterpreterFlag,
+			// Quorum - timout for calls
+			utils.EVMCallTimeOutFlag,
 		},
 	},
 	{
@@ -235,6 +247,61 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.LegacyGraphQLPortFlag,
 		}, debug.DeprecatedFlags...),
 	},
+	// QUORUM
+	{
+		Name: "QUORUM",
+		Flags: []cli.Flag{
+			utils.QuorumImmutabilityThreshold,
+			utils.EnableNodePermissionFlag,
+			utils.PluginSettingsFlag,
+			utils.PluginSkipVerifyFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
+			utils.AllowedFutureBlockTimeFlag,
+			utils.MultitenancyFlag,
+		},
+	},
+	{
+		Name: "QUORUM PRIVATE TRANSACTION MANAGER",
+		Flags: []cli.Flag{
+			utils.QuorumPTMUnixSocketFlag,
+			utils.QuorumPTMUrlFlag,
+			utils.QuorumPTMTimeoutFlag,
+			utils.QuorumPTMDialTimeoutFlag,
+			utils.QuorumPTMHttpIdleTimeoutFlag,
+			utils.QuorumPTMHttpWriteBufferSizeFlag,
+			utils.QuorumPTMHttpReadBufferSizeFlag,
+			utils.QuorumPTMTlsModeFlag,
+			utils.QuorumPTMTlsRootCaFlag,
+			utils.QuorumPTMTlsClientCertFlag,
+			utils.QuorumPTMTlsClientKeyFlag,
+			utils.QuorumPTMTlsInsecureSkipVerify,
+		},
+	},
+	{
+		Name: quorumAccountFlagGroup,
+		Flags: []cli.Flag{
+			utils.AccountPluginNewAccountConfigFlag,
+		},
+	},
+	{
+		Name: "RAFT",
+		Flags: []cli.Flag{
+			utils.RaftModeFlag,
+			utils.RaftBlockTimeFlag,
+			utils.RaftJoinExistingFlag,
+			utils.RaftPortFlag,
+			utils.RaftDNSEnabledFlag,
+		},
+	},
+	{
+		Name: "ISTANBUL",
+		Flags: []cli.Flag{
+			utils.IstanbulRequestTimeoutFlag,
+			utils.IstanbulBlockPeriodFlag,
+		},
+	},
+	// END QUORUM
 	{
 		Name: "MISC",
 		Flags: []cli.Flag{
@@ -282,6 +349,14 @@ func init() {
 					AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags = AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags[:miscs]
 				}()
 			}
+
+			// remove the Quorum account options from the main app usage as these should only be used by the geth account sub commands
+			for i, group := range AppHelpFlagGroups {
+				if group.Name == quorumAccountFlagGroup {
+					AppHelpFlagGroups = append(AppHelpFlagGroups[:i], AppHelpFlagGroups[i+1:]...)
+				}
+			}
+
 			// Render out custom usage screen
 			originalHelpPrinter(w, tmpl, flags.HelpData{App: data, FlagGroups: AppHelpFlagGroups})
 		} else if tmpl == flags.CommandHelpTemplate {

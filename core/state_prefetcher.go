@@ -86,9 +86,13 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 		return err
 	}
 	// Create the EVM and execute the transaction
-	context := NewEVMBlockContext(header, bc, author)
+	context := NewEVMContext(header, bc, author)
 	txContext := NewEVMTxContext(msg)
-	vm := vm.NewEVM(context, txContext, statedb, config, cfg)
+
+	//only precaching public txs
+	vm := vm.NewEVM(context, txContext, statedb, statedb, config, cfg)
+	vm.SetCurrentTX(tx)
+	// /Quorum
 
 	_, err = ApplyMessage(vm, msg, gaspool)
 	return err

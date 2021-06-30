@@ -39,7 +39,7 @@ func TestWebsocketClientHeaders(t *testing.T) {
 	if endpoint != "wss://example.com:1234" {
 		t.Fatal("User should have been stripped from the URL")
 	}
-	if header.Get("authorization") != "Basic dGVzdHVzZXI6dGVzdC1QQVNTXzAx" {
+	if header.Get(HttpAuthorizationHeader) != "Basic dGVzdHVzZXI6dGVzdC1QQVNTXzAx" {
 		t.Fatal("Basic auth header is incorrect")
 	}
 	if header.Get("origin") != "https://example.com" {

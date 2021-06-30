@@ -69,12 +69,16 @@ func newDataSource(input []byte) *dataSource {
 		input, bytes.NewReader(input),
 	}
 }
-func (ds *dataSource) ReadByte() byte {
+func (ds *dataSource) ReadByte() (byte, error) {
 	if b, err := ds.reader.ReadByte(); err != nil {
-		return 0
+		return 0, err
 	} else {
-		return b
+		return b, nil
 	}
+}
+func (ds *dataSource) adaptReadByte() byte {
+	b, _ := ds.ReadByte()
+	return b
 }
 func (ds *dataSource) Read(buf []byte) (int, error) {
 	return ds.reader.Read(buf)
@@ -89,22 +93,22 @@ func Generate(input []byte) randTest {
 	r := newDataSource(input)
 	genKey := func() []byte {
 
-		if len(allKeys) < 2 || r.ReadByte() < 0x0f {
+		if len(allKeys) < 2 || r.adaptReadByte() < 0x0f {
 			// new key
-			key := make([]byte, r.ReadByte()%50)
+			key := make([]byte, r.adaptReadByte()%50)
 			r.Read(key)
 			allKeys = append(allKeys, key)
 			return key
 		}
 		// use existing key
-		return allKeys[int(r.ReadByte())%len(allKeys)]
+		return allKeys[int(r.adaptReadByte())%len(allKeys)]
 	}
 
 	var steps randTest
 
 	for i := 0; !r.Ended(); i++ {
 
-		step := randTestStep{op: int(r.ReadByte()) % opMax}
+		step := randTestStep{op: int(r.adaptReadByte()) % opMax}
 		switch step.op {
 		case opUpdate:
 			step.key = genKey()
