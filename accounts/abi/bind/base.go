@@ -283,13 +283,6 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
 	signedTx, err := opts.Signer(opts.From, rawTx)
-	/* GoQuorum version
-	var signedTx *types.Transaction
-	if rawTx.IsPrivate() {
-		signedTx, err = opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, rawTx)
-	} else {
-		signedTx, err = opts.Signer(types.HomesteadSigner{}, opts.From, rawTx)
-	}*/
 	if err != nil {
 		return nil, err
 	}
