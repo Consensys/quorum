@@ -216,7 +216,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer)
-					res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, task.privateStateDb, config)
+					res, err := api.traceTx(ctx, msg, tx, blockCtx, task.statedb, task.privateStateDb, config)
 					if err != nil {
 						task.results[i] = &txTraceResult{Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -511,9 +511,10 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 			defer pend.Done()
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
-				msg, _ := txs[task.index].AsMessage(signer)
+				tx := txs[task.index]
+				msg, _ := tx.AsMessage(signer)
 				msg = api.clearMessageDataIfNonParty(msg, psm)
-				res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, task.privateStateDb, config)
+				res, err := api.traceTx(ctx, msg, tx, blockCtx, task.statedb, task.privateStateDb, config)
 				if err != nil {
 					results[task.index] = &txTraceResult{Error: err.Error()}
 					continue
@@ -805,7 +806,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, vmctx, statedb, privateState, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateState, config)
 }
 
 // TraceCall lets you trace a given eth_call. It collects the structured logs created during the execution of EVM
@@ -854,23 +855,23 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, args ethapi.CallArgs,
 			Timeout:   config.Timeout,
 		}
 	}
-	res, err := api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
-	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                 // check there is a result
+	res, err := api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
+	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                      // check there is a result
 		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
-			return api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
+			return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
 		}
 		return res, err // return private result with no tracer
 	} else if err == nil && !ok {
 		return nil, fmt.Errorf("can not cast traceTx result to *ethapi.ExecutionResult: %#v, %#v", res, err) // better error formatting than "method handler failed"
 	}
 	// / Quorum
-	return api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
+	return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.BlockContext, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, tx *types.Transaction, vmctx vm.BlockContext, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer    vm.Tracer
@@ -915,7 +916,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
-	// TODO: vmenv.SetCurrentTX(tx)
+	vmenv.SetCurrentTX(tx)
 	// /Quorum
 
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
