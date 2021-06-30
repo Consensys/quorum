@@ -78,9 +78,13 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		misc.ApplyDAOHardFork(statedb)
 	}
 	blockContext := NewEVMBlockContext(header, p.bc, nil)
-	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
+		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number))
+		if err != nil {
+			return nil, nil, nil, 0, err
+		}
+
 		mpsReceipt, err := p.handleMPS(i, tx, block, gp, usedGas, cfg, statedb, privateStateRepo)
 		if err != nil {
 			return nil, nil, nil, 0, err
@@ -99,22 +103,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		privateStateDB.Prepare(tx.Hash(), block.Hash(), i)
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 
-		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, cfg, privateStateRepo.IsMPS())
+		privateStateDBToUse := PrivateStateDBForTxn(p.config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
+
+		vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, privateStateDBToUse, p.config, cfg)
+		receipt, privateReceipt, err := applyTransaction(msg, p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, vmenv, privateStateRepo.IsMPS())
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 
-		/* std eth
-		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number))
-		if err != nil {
-			return nil, nil, nil, 0, err
-		}
-		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, err := applyTransaction(msg, p.config, p.bc, nil, gp, statedb, header, tx, usedGas, vmenv)
-		if err != nil {
-			return nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
-		}
-		*/
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 
@@ -229,12 +225,11 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 
 // /Quorum
 
-func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
+func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, evm *vm.EVM, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
 	// Create a new context to be used in the EVM environment
 	txContext := NewEVMTxContext(msg)
 
 	// Quorum - decide the privateStateDB to use
-	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
 	// /Quorum
 
 	// Quorum - check for account permissions to execute the transaction
@@ -254,15 +249,6 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockCh
 	}
 	// Quorum: this tx needs to be applied as if we were not a party
 	msg = msg.WithEmptyPrivateData(forceNonParty && tx.IsPrivate())
-	// Create a new context to be used in the EVM environment
-	context := NewEVMContext(msg, header, bc, author)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
-	// the same transaction object is used for multiple executions (clear the privacy metadata - it should be updated after privacyManager.receive)
-	// when running in parallel for multiple private states is implemented - a copy of the tx may be used
-	tx.SetTxPrivacyMetadata(nil)
-	vmenv.SetCurrentTX(tx)
 
 	if config.IsYoloV2(header.Number) {
 		statedb.AddAddressToAccessList(msg.From())
@@ -323,7 +309,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockCh
 		privateReceipt.TxHash = tx.Hash()
 		privateReceipt.GasUsed = result.UsedGas
 		if msg.To() == nil {
-			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+			privateReceipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 		}
 
 		privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
@@ -337,13 +323,21 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockCh
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
-	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, privateStateDB, config, cfg)
-	return applyTransaction(msg, config, bc, author, gp, statedb, privateStateDB, header, tx, usedGas, vmenv)
+
+	privateStateDBToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, privateStateDBToUse, config, cfg)
+
+	// the same transaction object is used for multiple executions (clear the privacy metadata - it should be updated after privacyManager.receive)
+	// when running in parallel for multiple private states is implemented - a copy of the tx may be used
+	tx.SetTxPrivacyMetadata(nil)
+	vmenv.SetCurrentTX(tx)
+
+	return applyTransaction(msg, config, bc, author, gp, statedb, privateStateDB, header, tx, usedGas, vmenv, forceNonParty)
 }

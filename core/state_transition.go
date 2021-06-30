@@ -343,7 +343,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		//if input is empty for the smart contract call, return
 		if len(data) == 0 && isPrivate {
 			st.refundGas()
-			st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 			return &ExecutionResult{
 				UsedGas:    0,
 				Err:        nil,
@@ -436,7 +436,7 @@ func (st *StateTransition) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
 	st.evm.SetTxPrivacyMetadata(pm)
 }
 func (st *StateTransition) IsPrivacyEnhancementsEnabled() bool {
-	return st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.BlockNumber)
+	return st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.Context.BlockNumber)
 }
 func (st *StateTransition) RevertToSnapshot(snapshot int) {
 	st.evm.StateDB.RevertToSnapshot(snapshot)

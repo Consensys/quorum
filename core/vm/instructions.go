@@ -343,8 +343,9 @@ func opReturnDataCopy(pc *uint64, interpreter *EVMInterpreter, callContext *call
 
 func opExtCodeSize(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	slot := callContext.stack.peek()
+	addr := slot.Bytes20()
 	// Quorum: get public/private state db based on addr
-	slot.SetUint64(uint64(getDualState(interpreter.evm, addr).GetCodeSize(slot.Bytes20())))
+	slot.SetUint64(uint64(getDualState(interpreter.evm, addr).GetCodeSize(addr)))
 	return nil, nil
 }
 

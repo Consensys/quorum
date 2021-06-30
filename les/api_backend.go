@@ -179,8 +179,8 @@ func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 
 func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	statedb := apiState.(*state.StateDB)
+	context := core.NewEVMBlockContext(header, b.eth.blockchain, nil)
 	txContext := core.NewEVMTxContext(msg)
-	context := core.NewEVMContext(msgheader, b.eth.blockchain, nil)
 	return vm.NewEVM(context, txContext, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
 }
 

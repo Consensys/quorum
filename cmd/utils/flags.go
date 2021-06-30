@@ -1974,7 +1974,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) (ethapi.Backend, *eth
 		if err != nil {
 			Fatalf("Failed to register the Ethereum service: %v", err)
 		}
-		return backend.ApiBackend, backend
+		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
 	if err != nil {

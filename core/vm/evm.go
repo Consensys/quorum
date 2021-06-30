@@ -606,7 +606,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	ret, err := run(evm, contract, nil, false)
 
-	maxCodeSize := evm.ChainConfig().GetMaxCodeSize(evm.BlockNumber)
+	maxCodeSize := evm.ChainConfig().GetMaxCodeSize(evm.Context.BlockNumber)
 	// check whether the max code size has been exceeded, check maxcode size from chain config
 	maxCodeSizeExceeded := evm.chainRules.IsEIP158 && len(ret) > maxCodeSize
 	// if the contract creation ran successfully and no errors were returned

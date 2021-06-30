@@ -538,7 +538,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 
 		// Quorum
 		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
-		vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
+		vmenv := vm.NewEVM(blockCtx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
 		vmenv.SetCurrentTX(tx)
 		msg = api.clearMessageDataIfNonParty(msg, psm)
 		// /Quorum
@@ -805,7 +805,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateState, config)
+	return api.traceTx(ctx, msg, vmctx, statedb, privateState, config)
 }
 
 // TraceCall lets you trace a given eth_call. It collects the structured logs created during the execution of EVM
@@ -854,17 +854,17 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, args ethapi.CallArgs,
 			Timeout:   config.Timeout,
 		}
 	}
-	res, err := api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
-	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                      // check there is a result
+	res, err := api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, noTracerConfig) // test private with no config
+	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                                 // check there is a result
 		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
-			return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
+			return api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).privateState, statedb.(EthAPIState).privateState, config) // re-run with trace
 		}
 		return res, err // return private result with no tracer
 	} else if err == nil && !ok {
 		return nil, fmt.Errorf("can not cast traceTx result to *ethapi.ExecutionResult: %#v, %#v", res, err) // better error formatting than "method handler failed"
 	}
 	// / Quorum
-	return api.traceTx(ctx, msg, nil, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
+	return api.traceTx(ctx, msg, vmctx, statedb.(EthAPIState).state, statedb.(EthAPIState).privateState, config) // public / standard run
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
@@ -915,7 +915,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
-	vmenv.SetCurrentTX(tx)
+	// TODO: vmenv.SetCurrentTX(tx)
 	// /Quorum
 
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
@@ -960,7 +960,7 @@ func (api *PrivateDebugAPI) clearMessageDataIfNonParty(msg types.Message, psm *m
 }
 
 // computeTxEnv returns the execution environment of a certain transaction.
-func (api *PrivateDebugAPI) computeTxEnv(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, error) {
+func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, error) {
 	// Create the parent state database
 	parent := api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
@@ -968,7 +968,7 @@ func (api *PrivateDebugAPI) computeTxEnv(block *types.Block, txIndex int, reexec
 	}
 	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
 	if err != nil {
-		return nil, vm.Context{}, nil, nil, err
+		return nil, vm.BlockContext{}, nil, nil, err
 	}
 	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
