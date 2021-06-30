@@ -117,6 +117,19 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
+
+		// if the private receipt is nil this means the tx was public
+		// and we do not need to apply the additional logic.
+		if privateReceipt != nil {
+			privateReceipts = append(privateReceipts, privateReceipt)
+			allLogs = append(allLogs, privateReceipt.Logs...)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
+			// handling the auxiliary receipt from MPS execution
+			if mpsReceipt != nil {
+				privateReceipt.PSReceipts = mpsReceipt.PSReceipts
+				allLogs = append(allLogs, mpsReceipt.Logs...)
+			}
+		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
@@ -303,6 +316,17 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	tx.SetTxPrivacyMetadata(nil)
 	vmenv.SetCurrentTX(tx)
 
+	if config.IsYoloV2(header.Number) {
+		statedb.AddAddressToAccessList(msg.From())
+		if dst := msg.To(); dst != nil {
+			statedb.AddAddressToAccessList(*dst)
+			// If it's a create-tx, the destination will be added inside evm.create
+		}
+		for _, addr := range vmenv.ActivePrecompiles() {
+			statedb.AddAddressToAccessList(addr)
+		}
+	}
+
 	// Quorum
 	txIndex := statedb.TxIndex()
 	vmenv.InnerApply = func(innerTx *types.Transaction) error {
@@ -380,6 +404,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
+	// Quorum
 	var privateReceipt *types.Receipt
 	if config.IsQuorum {
 		if tx.IsPrivate() {
@@ -406,6 +431,19 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 			}
 		}
 	}
+
+	// Save revert reason if feature enabled
+	if bc != nil && bc.saveRevertReason {
+		revertReason := result.Revert()
+		if revertReason != nil {
+			if config.IsQuorum && tx.IsPrivate() {
+				privateReceipt.RevertReason = revertReason
+			} else {
+				receipt.RevertReason = revertReason
+			}
+		}
+	}
+	// End Quorum
 
 	return receipt, privateReceipt, err
 }
