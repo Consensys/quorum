@@ -198,12 +198,6 @@ func TestUnlockFlag(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "js", "testdata/empty.js")
-	/* GoQuorum version
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGethWithRaftConsensus(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
-		"js", "testdata/empty.js") */
 	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -249,11 +243,6 @@ func TestUnlockFlagWrongPassword(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "js", "testdata/empty.js")
-	/* GoQuorum version
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGeth(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a") */
 	defer geth.ExpectExit()
 	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
@@ -272,12 +261,6 @@ func TestUnlockFlagMultiIndex(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--unlock", "0,2", "js", "testdata/empty.js")
-	/* GoQuorum version
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGethWithRaftConsensus(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--unlock", "0,2",
-		"js", "testdata/empty.js") */
 	geth.Expect(`
 Unlocking account 0 | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -303,12 +286,6 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "testdata/passwords.txt", "--unlock", "0,2", "js", "testdata/empty.js")
-	/* GoQuorum version
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGethWithRaftConsensus(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--password", "testdata/passwords.txt", "--unlock", "0,2",
-		"js", "testdata/empty.js") */
 	geth.ExpectExit()
 
 	wantMessages := []string{
@@ -328,11 +305,6 @@ func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password",
 		"testdata/wrong-passwords.txt", "--unlock", "0,2")
-	/* GoQuorum version
-	datadir := tmpDatadirWithKeystore(t)
-	geth := runGeth(t,
-		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-		"--password", "testdata/wrong-passwords.txt", "--unlock", "0,2") */
 	defer geth.ExpectExit()
 	geth.Expect(`
 Fatal: Failed to unlock account 0 (could not decrypt key with given password)
@@ -345,11 +317,6 @@ func TestUnlockFlagAmbiguous(t *testing.T) {
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
-		/* GoQuorum version
-		datadir := tmpDatadirWithKeystore(t)
-		geth := runGethWithRaftConsensus(t,
-			"--datadir", datadir, "--keystore", store, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
-			"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", */
 		"js", "testdata/empty.js")
 	defer geth.ExpectExit()
 
