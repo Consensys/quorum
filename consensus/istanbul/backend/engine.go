@@ -25,9 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibftcore "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/core"
-	ibftengine "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/engine"
 	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
-	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -46,14 +44,14 @@ const (
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
 func (sb *Backend) Author(header *types.Header) (common.Address, error) {
-	return sb.engine.Author(header)
+	return sb.Engine().Author(header)
 }
 
 // Signers extracts all the addresses who have signed the given header
 // It will extract for each seal who signed it, regardless of if the seal is
 // repeated
 func (sb *Backend) Signers(header *types.Header) ([]common.Address, error) {
-	return sb.engine.Signers(header)
+	return sb.Engine().Signers(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
@@ -70,7 +68,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		return err
 	}
 
-	return sb.engine.VerifyHeader(chain, header, parents, snap.ValSet)
+	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -107,7 +105,7 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
 func (sb *Backend) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	return sb.engine.VerifyUncles(chain, block)
+	return sb.Engine().VerifyUncles(chain, block)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -125,7 +123,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 		return err
 	}
 
-	return sb.engine.VerifySeal(chain, header, snap.ValSet)
+	return sb.Engine().VerifySeal(chain, header, snap.ValSet)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -137,7 +135,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		return err
 	}
 
-	err = sb.engine.Prepare(chain, header, snap.ValSet)
+	err = sb.Engine().Prepare(chain, header, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -157,7 +155,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if len(addresses) > 0 {
 		index := rand.Intn(len(addresses))
 
-		err = sb.engine.WriteVote(header, addresses[index], authorizes[index])
+		err = sb.Engine().WriteVote(header, addresses[index], authorizes[index])
 		if err != nil {
 			log.Error("Error writing validator vote", "err", err)
 			return err
@@ -173,13 +171,13 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	sb.engine.Finalize(chain, header, state, txs, uncles)
+	sb.Engine().Finalize(chain, header, state, txs, uncles)
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return sb.engine.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+	return sb.Engine().FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
 
 // Seal generates a new block for the given input block with the local miner's
@@ -194,7 +192,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return err
 	}
 
-	block, err = sb.engine.Seal(chain, block, snap.ValSet)
+	block, err = sb.Engine().Seal(chain, block, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -271,13 +269,11 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 
 	// Check if qbft Consensus needs to be used after chain is set
 	if sb.IsQBFTConsensus() {
-		sb.engine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
 		sb.core = qbftcore.New(sb, sb.config)
 
 		sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
 		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
 	} else {
-		sb.engine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign)
 		sb.core = ibftcore.New(sb, sb.config)
 	}
 
@@ -338,12 +334,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If we're at block zero, make a snapshot
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
-			if err := sb.engine.VerifyHeader(chain, genesis, nil, nil); err != nil {
+			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil); err != nil {
 				return nil, err
 			}
 
 			// Get the validators from genesis to create a snapshot
-			validators, err := sb.engine.Validators(genesis)
+			validators, err := sb.Engine().Validators(genesis)
 			if err != nil {
 				return nil, err
 			}
@@ -398,7 +394,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *Backend) SealHash(header *types.Header) common.Hash {
-	return sb.engine.SealHash(header)
+	return sb.Engine().SealHash(header)
 }
 
 func (sb *Backend) snapApply(snap *Snapshot, headers []*types.Header) (*Snapshot, error) {
@@ -439,7 +435,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Resolve the authorization key and check against validators
-	validator, err := sb.engine.Author(header)
+	validator, err := sb.Engine().Author(header)
 	if err != nil {
 		return err
 	}
@@ -449,7 +445,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Read vote from header
-	candidate, authorize, err := sb.engine.ReadVote(header)
+	candidate, authorize, err := sb.Engine().ReadVote(header)
 	if err != nil {
 		return err
 	}

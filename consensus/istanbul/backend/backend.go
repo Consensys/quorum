@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibftengine "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/engine"
 	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
 	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
@@ -50,7 +51,8 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
 	knownMessages, _ := lru.NewARC(inmemoryMessages)
-	return &Backend{
+
+	sb := &Backend{
 		config:           config,
 		istanbulEventMux: new(event.TypeMux),
 		privateKey:       privateKey,
@@ -64,6 +66,11 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
 	}
+
+	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
+	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign)
+
+	return sb
 }
 
 // ----------------------------------------------------------------------------
@@ -74,8 +81,10 @@ type Backend struct {
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
 
-	core   istanbul.Core
-	engine istanbul.Engine
+	core istanbul.Core
+
+	ibftEngine *ibftengine.Engine
+	qbftEngine *qbftengine.Engine
 
 	istanbulEventMux *event.TypeMux
 
@@ -110,14 +119,21 @@ type Backend struct {
 	qbftConsensusEnabled bool // qbft consensus
 }
 
+func (sb *Backend) Engine() istanbul.Engine {
+	if sb.IsQBFTConsensus() {
+		return sb.qbftEngine
+	}
+	return sb.ibftEngine
+}
+
 // zekun: HACK
 func (sb *Backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	return sb.engine.CalcDifficulty(chain, time, parent)
+	return sb.Engine().CalcDifficulty(chain, time, parent)
 }
 
 // Address implements istanbul.Backend.Address
 func (sb *Backend) Address() common.Address {
-	return sb.engine.Address()
+	return sb.Engine().Address()
 }
 
 // Validators implements istanbul.Backend.Validators
@@ -191,7 +207,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	}
 
 	h := block.Header()
-	err = sb.engine.CommitHeader(h, seals, round)
+	err = sb.Engine().CommitHeader(h, seals, round)
 	if err != nil {
 		return
 	}
@@ -247,7 +263,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return 0, err
 	}
 
-	return sb.engine.VerifyBlockProposal(sb.chain, block, snap.ValSet)
+	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet)
 }
 
 // Sign implements istanbul.Backend.Sign
@@ -380,7 +396,7 @@ func (sb *Backend) StartQBFTConsensus() error {
 	defer sb.coreMu.Unlock()
 
 	// Set the core to qbft
-	sb.engine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
+	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
 	sb.core = qbftcore.New(sb, sb.config)
 
 	sb.logger.Trace("Starting qbft")

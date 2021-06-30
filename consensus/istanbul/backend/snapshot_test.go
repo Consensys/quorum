@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
