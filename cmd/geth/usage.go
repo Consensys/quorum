@@ -259,6 +259,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
 			utils.MultitenancyFlag,
+			utils.RevertReasonFlag,
 		},
 	},
 	{

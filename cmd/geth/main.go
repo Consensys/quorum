@@ -181,6 +181,7 @@ var (
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
+		utils.RevertReasonFlag,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,
 		utils.QuorumPTMTimeoutFlag,

@@ -857,6 +857,12 @@ var (
 		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
 	}
 
+	// Revert Reason
+	RevertReasonFlag = cli.BoolFlag{
+		Name:  "revertreason",
+		Usage: "Enable saving revert reason in the transaction receipts for this node.",
+	}
+
 	// Quorum Private Transaction Manager connection options
 	QuorumPTMUnixSocketFlag = DirectoryFlag{
 		Name:  "ptm.socket",
@@ -1700,6 +1706,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
+	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 }
