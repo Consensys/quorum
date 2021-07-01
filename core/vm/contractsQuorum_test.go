@@ -397,7 +397,7 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_IncrementsSend
 }
 
 type innerApplier interface {
-	InnerApply(innerTx *types.Transaction) (*types.Receipt, error)
+	InnerApply(innerTx *types.Transaction) error
 	wasCalled() bool
 	innerTx() *types.Transaction
 }
@@ -407,10 +407,10 @@ type stubInnerApplier struct {
 	tx     *types.Transaction
 }
 
-func (m *stubInnerApplier) InnerApply(innerTx *types.Transaction) (*types.Receipt, error) {
+func (m *stubInnerApplier) InnerApply(innerTx *types.Transaction) error {
 	m.called = true
 	m.tx = innerTx
-	return nil, nil
+	return nil
 }
 
 func (m *stubInnerApplier) wasCalled() bool {
@@ -426,10 +426,10 @@ type failingInnerApplier struct {
 	tx     *types.Transaction
 }
 
-func (m *failingInnerApplier) InnerApply(innerTx *types.Transaction) (*types.Receipt, error) {
+func (m *failingInnerApplier) InnerApply(innerTx *types.Transaction) error {
 	m.called = true
 	m.tx = innerTx
-	return nil, errors.New("some error")
+	return errors.New("some error")
 }
 
 func (m *failingInnerApplier) wasCalled() bool {
@@ -446,13 +446,13 @@ type nonceIncrementingInnerApplier struct {
 	incrementNonceFunc func()
 }
 
-func (m *nonceIncrementingInnerApplier) InnerApply(innerTx *types.Transaction) (*types.Receipt, error) {
+func (m *nonceIncrementingInnerApplier) InnerApply(innerTx *types.Transaction) error {
 	m.called = true
 	m.tx = innerTx
 
 	m.incrementNonceFunc()
 
-	return nil, nil
+	return nil
 }
 
 func (m *nonceIncrementingInnerApplier) wasCalled() bool {
