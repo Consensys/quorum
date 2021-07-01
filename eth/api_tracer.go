@@ -543,7 +543,7 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 		vmctx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 
 		// Quorum
-		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
 		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
 		vmenv.SetCurrentTX(tx)
 		vmenv.InnerApply = func(innerTx *types.Transaction) error {
@@ -677,7 +677,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		}
 		// Execute the transaction and flush any traces to disk
 		// Quorum
-		privateStateDbToUse := core.PrivateStateDBForTxn(chainConfig.IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		privateStateDbToUse := core.PrivateStateDBForTxn(chainConfig.IsQuorum, tx, statedb, privateStateDb)
 		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, chainConfig, vmConf)
 		vmenv.SetCurrentTX(tx)
 		vmenv.InnerApply = func(innerTx *types.Transaction) error {
@@ -924,12 +924,8 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	}
 
 	// Quorum
-	// Set the private state to public state if it is not a private message
-	isPrivate := false
-	if msg, ok := message.(core.PrivateMessage); ok && msg.IsPrivate() {
-		isPrivate = true
-	}
-	privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, isPrivate, statedb, privateStateDb)
+	// Set the private state to public state if it is not a private tx
+	privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
 
 	// Run the transaction with tracing enabled.
 	vmconf := &vm.Config{Debug: true, Tracer: tracer}
@@ -1010,7 +1006,7 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, block *types.Block
 
 	for idx, tx := range block.Transactions() {
 		// Quorum
-		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx.IsPrivate(), statedb, privateStateDb)
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
 		// /Quorum
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)

@@ -164,11 +164,11 @@ func HandlePrivateReceipt(receipt *types.Receipt, privateReceipt *types.Receipt,
 
 // Quorum
 // returns the privateStateDB to be used for a transaction
-func PrivateStateDBForTxn(isQuorum, isPrivate bool, stateDb, privateStateDB *state.StateDB) *state.StateDB {
-	if !isQuorum || !isPrivate {
-		return stateDb
+func PrivateStateDBForTxn(isQuorum bool, tx *types.Transaction, stateDb, privateStateDB *state.StateDB) *state.StateDB {
+	if isQuorum && (tx.IsPrivate() || tx.IsPrivacyMarker()) {
+		return privateStateDB
 	}
-	return privateStateDB
+	return stateDb
 }
 
 // Quorum
@@ -262,7 +262,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
 	// Quorum - decide the privateStateDB to use
-	privateStateDBToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateStateDB)
+	privateStateDBToUse := PrivateStateDBForTxn(config.IsQuorum, tx, statedb, privateStateDB)
 	// /Quorum
 
 	// Quorum - check for account permissions to execute the transaction
