@@ -5,18 +5,19 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type Preprepare struct {
 	CommonPayload
-	Proposal                  Proposal
+	Proposal                  istanbul.Proposal
 	JustificationRoundChanges []*SignedRoundChangePayload
 	JustificationPrepares     []*SignedPreparePayload
 }
 
-func NewPreprepare(sequence *big.Int, round *big.Int, proposal Proposal) *Preprepare {
+func NewPreprepare(sequence *big.Int, round *big.Int, proposal istanbul.Proposal) *Preprepare {
 	return &Preprepare{
 		CommonPayload: CommonPayload{
 			code:     PreprepareCode,

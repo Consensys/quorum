@@ -39,7 +39,7 @@ var (
 )
 
 // New creates an Istanbul consensus core
-func New(backend istanbul.Backend, config *istanbul.Config) Engine {
+func New(backend istanbul.Backend, config *istanbul.Config) istanbul.Core {
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
@@ -92,8 +92,8 @@ type core struct {
 	consensusTimestamp time.Time
 }
 
-func (c *core) currentView() *qbfttypes.View {
-	return &qbfttypes.View{
+func (c *core) currentView() *istanbul.View {
+	return &istanbul.View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
@@ -169,14 +169,14 @@ func (c *core) startNewRound(round *big.Int) {
 		return
 	}
 
-	var newView *qbfttypes.View
+	var newView *istanbul.View
 	if roundChange {
-		newView = &qbfttypes.View{
+		newView = &istanbul.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		newView = &qbfttypes.View{
+		newView = &istanbul.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
@@ -215,7 +215,7 @@ func (c *core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *qbfttypes.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
+func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {

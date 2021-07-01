@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -16,7 +17,7 @@ import (
 //           preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
 //           preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
 func justify(
-	proposal qbfttypes.Proposal,
+	proposal istanbul.Proposal,
 	roundChangeMessages []*qbfttypes.SignedRoundChangePayload,
 	prepareMessages []*qbfttypes.SignedPreparePayload,
 	quorumSize int) bool {
@@ -69,7 +70,7 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*qbfttypes.Signe
 
 // Checks whether a set of ROUND-CHANGE messages has some message with `preparedRound` and `preparedBlockDigest`,
 // and has `quorumSize` messages with prepared round equal to nil or equal or lower than `preparedRound`.
-func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock qbfttypes.Proposal, quorumSize int) bool {
+func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock istanbul.Proposal, quorumSize int) bool {
 	lowerOrEqualRoundCount := 0
 	hasMatchingMessage := false
 	for _, m := range roundChangeMessages {

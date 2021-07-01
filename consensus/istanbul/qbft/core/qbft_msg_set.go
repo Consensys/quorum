@@ -32,7 +32,7 @@ import (
 // Construct a new message set to accumulate messages for given sequence/view number.
 func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 	return &qbftMsgSet{
-		view: &qbfttypes.View{
+		view: &istanbul.View{
 			Round:    new(big.Int),
 			Sequence: new(big.Int),
 		},
@@ -45,7 +45,7 @@ func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 // ----------------------------------------------------------------------------
 
 type qbftMsgSet struct {
-	view       *qbfttypes.View
+	view       *istanbul.View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
 	messages   map[common.Address]qbfttypes.QBFTMessage
@@ -57,7 +57,7 @@ type qbftMsgMapAsStruct struct {
 	Msg     qbfttypes.QBFTMessage
 }
 
-func (ms *qbftMsgSet) View() *qbfttypes.View {
+func (ms *qbftMsgSet) View() *istanbul.View {
 	return ms.view
 }
 
@@ -137,7 +137,7 @@ func (ms *qbftMsgSet) DecodeRLP(stream *rlp.Stream) error {
 		return nil
 	}
 	var msgSet struct {
-		MsgView *qbfttypes.View
+		MsgView *istanbul.View
 		//		valSet        istanbul.ValidatorSet
 		MessagesSlice []qbftMsgMapAsStruct
 	}

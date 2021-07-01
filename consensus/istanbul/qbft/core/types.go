@@ -20,23 +20,9 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 )
-
-type Engine interface {
-	Start() error
-	Stop() error
-
-	IsProposer() bool
-
-	// verify if a hash is the same as the proposed block in the current pending request
-	//
-	// this is useful when the engine is currently the proposer
-	//
-	// pending request is populated right at the preprepare stage so this would give us the earliest verification
-	// to avoid any race condition of coming propagated blocks
-	IsCurrentProposal(blockHash common.Hash) bool
-}
 
 type State uint64
 
@@ -77,14 +63,14 @@ func (s State) Cmp(y State) int {
 
 // Request is used to construct a Preprepare message
 type Request struct {
-	Proposal        qbfttypes.Proposal
+	Proposal        istanbul.Proposal
 	RCMessages      *qbftMsgSet
 	PrepareMessages []*qbfttypes.SignedPreparePayload
 }
 
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
-	View   *qbfttypes.View
+	View   *istanbul.View
 	Digest common.Hash
 }
 

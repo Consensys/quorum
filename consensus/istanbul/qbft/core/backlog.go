@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
@@ -35,7 +36,7 @@ var (
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
-func (c *core) checkMessage(msgCode uint64, view *qbfttypes.View) error {
+func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
@@ -136,7 +137,7 @@ func (c *core) processBacklog() {
 			m, prio := backlog.Pop()
 
 			var code uint64
-			var view qbfttypes.View
+			var view istanbul.View
 			var event backlogEvent
 
 			msg := m.(qbfttypes.QBFTMessage)
@@ -164,7 +165,7 @@ func (c *core) processBacklog() {
 	}
 }
 
-func toPriority(msgCode uint64, view *qbfttypes.View) float32 {
+func toPriority(msgCode uint64, view *istanbul.View) float32 {
 	if msgCode == qbfttypes.RoundChangeCode {
 		// For msgRoundChange, set the message priority based on its sequence
 		return -float32(view.Sequence.Uint64() * 1000)
