@@ -53,12 +53,6 @@ func runMinimalGethWithRaftConsensus(t *testing.T, args ...string) *testgeth {
 	return runMinimalGeth(t, argsWithRaft...)
 }
 
-/* unused anymore
-func runGethWithRaftConsensus(t *testing.T, args ...string) *testgeth {
-	argsWithRaft := append([]string{"--raft"}, args...)
-	return runGeth(t, argsWithRaft...)
-} */
-
 func TestAccountListEmpty(t *testing.T) {
 	geth := runGeth(t, "--nousb", "account", "list")
 	geth.ExpectExit()
@@ -313,8 +307,9 @@ Fatal: Failed to unlock account 0 (could not decrypt key with given password)
 
 func TestUnlockFlagAmbiguous(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
+	datadir := tmpDatadirWithKeystore(t)
 	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
-	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	geth := runMinimalGethWithRaftConsensus(t, "--datadir", datadir, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"js", "testdata/empty.js")

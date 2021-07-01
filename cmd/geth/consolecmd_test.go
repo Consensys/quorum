@@ -79,7 +79,7 @@ func runMinimalGeth(t *testing.T, args ...string) *testgeth {
 	// --ropsten to make the 'writing genesis to disk' faster (no accounts)
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
-	allArgs := []string{"--ropsten", "--nousb", "--networkid", "1337", "--syncmode=full", "--port", "0",
+	allArgs := []string{ /*"--ropsten",*/ "--nousb", "--networkid", "1337", "--syncmode=full", "--port", "0",
 		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64"}
 	return runGeth(t, append(allArgs, args...)...)
 }
@@ -132,7 +132,7 @@ func TestAttachWelcome(t *testing.T) {
 	)
 	defer SetResetPrivateConfig("ignore")()
 	// Configure the instance for IPC attachment
-	// TODO coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
+	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 
 	datadir := setupIstanbul(t)
 	defer os.RemoveAll(datadir)
@@ -145,10 +145,15 @@ func TestAttachWelcome(t *testing.T) {
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
-	geth := runMinimalGeth(t, "--datadir", datadir, "--etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
+	/*geth := runGeth(t,
+	"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+	"--etherbase", coinbase,
+	"--http", "--http.port", httpPort, "--rpcapi", "admin,eth,net,web3",
+	"--ws", "--ws.port", wsPort, "--wsapi", "admin,eth,net,web3")*/
+	geth := runMinimalGeth(t, "--datadir", datadir, "--etherbase", coinbase,
 		"--ipcpath", ipc,
-		"--http", "--http.port", httpPort,
-		"--ws", "--ws.port", wsPort)
+		"--http", "--http.port", httpPort, "--rpcapi", "admin,eth,net,web3",
+		"--ws", "--ws.port", wsPort, "--wsapi", "admin,eth,net,web3")
 	t.Run("ipc", func(t *testing.T) {
 		waitForEndpoint(t, ipc, 3*time.Second)
 		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
@@ -163,15 +168,6 @@ func TestAttachWelcome(t *testing.T) {
 		waitForEndpoint(t, endpoint, 3*time.Second)
 		testAttachWelcome(t, geth, endpoint, httpAPIs)
 	})
-
-	defer func() {
-		geth.Interrupt()
-		geth.ExpectExit()
-	}()
-
-	waitForEndpoint(t, ipc, 3*time.Second)
-	testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
-
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
@@ -224,7 +220,9 @@ func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
 	attach.SetTemplateFunc("niltime", func() string {
 		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
-	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin") })
+	attach.SetTemplateFunc("ipc", func() bool {
+		return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin")
+	})
 	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
 
