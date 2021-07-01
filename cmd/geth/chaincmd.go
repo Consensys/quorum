@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,7 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/engine/mpsdbupgrade"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -421,7 +422,7 @@ func mpsdbUpgrade(ctx *cli.Context) error {
 	defer stack.Close()
 
 	// initialise the tx manager with the dummy tx mgr
-	private.P = &mpsdbupgrade.DBUpgradePrivateTransactionManager{}
+	private.P = &notinuse.DBUpgradePrivateTransactionManager{}
 
 	chain, db := utils.MakeChain(ctx, stack, false, true)
 
@@ -432,7 +433,7 @@ func mpsdbUpgrade(ctx *cli.Context) error {
 	currentBlockNumber := chain.CurrentBlock().Number().Int64()
 	fmt.Printf("Current block number %v\n", currentBlockNumber)
 
-	return core.UpgradeDB(db, chain)
+	return mps.UpgradeDB(db, chain)
 }
 
 func exportChain(ctx *cli.Context) error {
