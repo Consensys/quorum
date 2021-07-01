@@ -1,5 +1,8 @@
 /*
+
+
 // Copyright 2015 The go-ethereum Authors
+
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -18,8 +21,6 @@
 package rawdb
 
 import (
-	"encoding/json"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -79,16 +80,10 @@ func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot comm
 	return db.Put(append(stateRootToExtraDataRootPrefix, stateRoot[:]...), extraDataRoot[:])
 }
 
-// WritePrivateBlockBloom creates a bloom filter for the given private receipts and saves it to the database
+// WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
 // with the number given as identifier (i.e. block number).
-func WritePrivateBlockBloom(db ethdb.Database, number uint64, privateReceipts types.Receipts, markerPrivateReceipts types.Receipts) error {
-	flattenedPrivateTxns := privateReceipts.Flatten()
-	flattenedMarkerTxns := markerPrivateReceipts.Flatten()
-	allReceiptsCount := len(flattenedPrivateTxns) + len(flattenedMarkerTxns)
-	allReceipts := make([]*types.Receipt, 0, allReceiptsCount)
-	allReceipts = append(allReceipts, flattenedPrivateTxns...)
-	allReceipts = append(allReceipts, flattenedMarkerTxns...)
-	rbloom := types.CreateBloom(allReceipts)
+func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts) error {
+	rbloom := types.CreateBloom(receipts.Flatten())
 	return db.Put(append(privateBloomPrefix, encodeBlockNumber(number)...), rbloom[:])
 }
 
@@ -136,27 +131,4 @@ func (pml *ethdbAccountExtraDataLinker) Link(stateRoot, extraDataRoot common.Has
 		return WriteRootHashMapping(pml.db, stateRoot, extraDataRoot)
 	}
 	return nil
-}
-
-// Private receipts for privacy marker transactions are stored with key:
-//	"privPrecompileReceipt" + PSI value
-func WritePrivateTransactionReceiptWithPSI(db ethdb.Database, pmtHash common.Hash, privReceipt *types.Receipt, psi types.PrivateStateIdentifier) error {
-	prefix := []byte("privPrecompileReceipt")
-	key := append(prefix, []byte(psi.String())...)
-	key = append(key, pmtHash.Bytes()...)
-	value, _ := json.Marshal(privReceipt)
-
-	return db.Put(key, value)
-}
-
-func ReadPrivateTransactionReceiptWithPSI(db ethdb.Database, pmtHash common.Hash, psi types.PrivateStateIdentifier) *types.Receipt {
-	prefix := []byte("privPrecompileReceipt")
-	key := append(prefix, []byte(psi.String())...)
-	key = append(key, pmtHash.Bytes()...)
-
-	b, _ := db.Get(key)
-
-	rec := &types.Receipt{}
-	json.Unmarshal(b, rec)
-	return rec
 }

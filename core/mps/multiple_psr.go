@@ -215,7 +215,11 @@ func (mpsr *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receip
 		m[receipt.TxHash] = receipt
 	}
 	for _, receipt := range priv {
-		publicReceipt := m[receipt.TxHash]
+		publicReceipt, found := m[receipt.TxHash]
+		if !found {
+			// this is a PMT receipt - no merging required as it already has the relevant PSReceipts set
+			continue
+		}
 		publicReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
 		publicReceipt.PSReceipts[EmptyPrivateStateMetadata.ID] = receipt
 		for psi, psReceipt := range receipt.PSReceipts {
