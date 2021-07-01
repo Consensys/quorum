@@ -10,13 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEngine(t *testing.T) {
-	var engine istanbul.Engine
-	engine = NewEngine(nil, common.Address{}, nil)
+	engine := NewEngine(nil, common.Address{}, nil)
 	require.NotNil(t, engine, "Constructor")
+	assert.Implements(t, new(istanbul.Engine), engine)
 }
 
 func TestPrepareExtra(t *testing.T) {
@@ -135,4 +136,3 @@ func TestWriteCommittedSeals(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidCommittedSeals)
 	}
 }
-

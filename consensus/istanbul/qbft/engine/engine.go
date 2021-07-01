@@ -96,7 +96,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
 		return 0, nil
 	} else if err == consensus.ErrFutureBlock {
-		return time.Unix(int64(block.Header().Time), 0).Sub(time.Now()), consensus.ErrFutureBlock
+		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
 	}
 
 	return 0, err
