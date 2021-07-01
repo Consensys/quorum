@@ -2125,11 +2125,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Quorum
 		// TODO (Satpal): should this code run using `privateStateRepo.StatePSI(privateStateIdentifier)` for each MPS?
-		privateState, err := privateStateRepo.DefaultState()
-		if err != nil {
-			return it.index, err
-		}
-		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts, privateState.MarkerTransactionReceipts); err != nil {
+		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
 			return it.index, err
 		}
 		// End Quorum

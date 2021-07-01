@@ -117,9 +117,6 @@ type StateDB struct {
 	SnapshotAccountReads time.Duration
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
-
-	// Quorum: flat list of private receipts for privacy marker transactions
-	MarkerTransactionReceipts []*types.Receipt
 }
 
 // New creates a new state from a given trie.
@@ -151,7 +148,6 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		accessList:          newAccessList(),
 		// Quorum - Privacy Enhancements
 		accountExtraDataTrie: accountExtraDataTrie,
-		MarkerTransactionReceipts: make([]*types.Receipt, 0),
 	}
 
 	if sdb.snaps != nil {

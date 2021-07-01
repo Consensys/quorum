@@ -108,9 +108,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		// if we have a private receipt then need to update the private state and the logs.
 		if privateReceipt != nil {
 			newPrivateReceipt, privateLogs := HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, p.bc)
-			if newPrivateReceipt != nil {
-				privateReceipts = append(privateReceipts, newPrivateReceipt)
-			}
+			privateReceipts = append(privateReceipts, newPrivateReceipt)
 			allLogs = append(allLogs, privateLogs...)
 		}
 		// End Quorum
@@ -163,7 +161,7 @@ func HandlePrivateReceipt(receipt *types.Receipt, privateReceipt *types.Receipt,
 		if mpsReceipt != nil {
 			log.Error("Unexpected MPS auxiliary receipt, when processing a privacy marker transaction")
 		}
-		return nil, privateLogs
+		return privateReceipt, privateLogs
 	} else {
 		// This was a regular private transaction.
 		privateLogs = append(privateLogs, privateReceipt.Logs...)
@@ -254,13 +252,6 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 		_, privateReceipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo)
 		if err != nil {
 			return nil, err
-		}
-
-		if privateReceipt != nil {
-			if privateReceipt.Logs == nil {
-				privateReceipt.Logs = make([]*types.Log, 0)
-			}
-			privateStateDB.MarkerTransactionReceipts = append(privateStateDB.MarkerTransactionReceipts, privateReceipt)
 		}
 
 		// set the PSI for each log (so that the filter system knows for what private state they are)
@@ -363,7 +354,6 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 			// Store the receipt for the inner private transaction.
 			innerPrivateReceipt.TxHash = innerTx.Hash()
 			vmenv.InnerPrivateReceipt = innerPrivateReceipt
-			privateStateDB.MarkerTransactionReceipts = append(privateStateDB.MarkerTransactionReceipts, innerPrivateReceipt)
 		}
 
 		return nil

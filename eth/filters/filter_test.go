@@ -159,7 +159,7 @@ func TestFilters(t *testing.T) {
 					Topics:  []common.Hash{hash5},
 				},
 			}
-			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)
@@ -313,7 +313,7 @@ func TestMPSFilters(t *testing.T) {
 			psiReceipt := types.NewReceipt(nil, false, 0)
 			psiReceipt.Logs = psi2PSILog
 			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
-			if err := rawdb.WritePrivateBlockBloom(db, 2, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 2, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)
@@ -328,7 +328,7 @@ func TestMPSFilters(t *testing.T) {
 			psiReceipt := types.NewReceipt(nil, false, 0)
 			psiReceipt.Logs = psi1PSILog
 			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi1")] = psiReceipt
-			if err := rawdb.WritePrivateBlockBloom(db, 3, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 3, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)
@@ -343,7 +343,7 @@ func TestMPSFilters(t *testing.T) {
 			psiReceipt := types.NewReceipt(nil, false, 0)
 			psiReceipt.Logs = psi2PSILog
 			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
-			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)
@@ -355,7 +355,7 @@ func TestMPSFilters(t *testing.T) {
 			tx.SetPrivate()
 			privateReceipt := types.NewReceipt(nil, false, 0)
 			privateReceipt.Logs = noPSILog
-			if err := rawdb.WritePrivateBlockBloom(db, 1000, []*types.Receipt{privateReceipt}, types.Receipts{}); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(db, 1000, []*types.Receipt{privateReceipt}); err != nil {
 				t.Fatal(err)
 			}
 			gen.AddUncheckedReceipt(privateReceipt)
