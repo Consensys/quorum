@@ -649,7 +649,7 @@ func (w *worker) resultLoop() {
 				// If this was a public privacy marker transaction then there will be an associated private receipt to handle.
 				if receipt.PSReceipts != nil {
 					tx := block.Transaction(receipt.TxHash)
-					if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+					if vm.IsPrivacyMarkerTransaction(tx) {
 						for _, markerReceipt := range receipt.PSReceipts {
 							markerReceipt.BlockHash = hash
 							markerReceipt.BlockNumber = block.Number()

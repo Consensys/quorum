@@ -20,6 +20,7 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -62,6 +63,10 @@ func PrivacyMarkerAddress() common.Address {
 	return common.BytesToAddress([]byte{byte(address)})
 }
 
+func IsPrivacyMarkerTransaction(tx *types.Transaction) bool {
+	return tx.To() != nil && *tx.To() == PrivacyMarkerAddress()
+}
+
 func (c *privacyMarker) RequiredGas(_ []byte) uint64 {
 	return uint64(0)
 }
@@ -78,7 +83,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	if evm.currentTx.To() == nil || evm.currentTx.To().String() != PrivacyMarkerAddress().String() || evm.depth != 0 {
+	if evm.depth != 0 || !IsPrivacyMarkerTransaction(evm.currentTx) {
 		// only supporting direct precompile calls so far
 		return nil, nil
 	}

@@ -141,7 +141,7 @@ func HandlePrivateReceipt(receipt *types.Receipt, privateReceipt *types.Receipt,
 		privateLogs []*types.Log
 	)
 
-	if tx.To() != nil && *tx.To() == vm.PrivacyMarkerAddress() {
+	if vm.IsPrivacyMarkerTransaction(tx) {
 		// This was a public privacy marker transaction, so we need to handle two scenarios:
 		//	1) MPS: privateReceipt is an auxiliary MPS receipt which contains actual private receipts in PSReceipts[]
 		//	2) non-MPS: privateReceipt is the actual receipt for the inner private transaction

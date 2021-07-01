@@ -1943,7 +1943,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if token, ok := b.SupportsMultitenancy(ctx); ok {
 		tx := tx
 		// If we are sending a Privacy Marker Transaction, then get the private txn details
-		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+		if vm.IsPrivacyMarkerTransaction(tx) {
 			tx, _, err = private.FetchPrivateTransaction(tx.Data())
 			if err != nil {
 				return common.Hash{}, err

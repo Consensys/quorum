@@ -1036,7 +1036,6 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
-// TODO (satpal): #### this needs to be tested ####
 // Retrieve the receipts for all private transactions in a given block.
 func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	psm, err := bc.privateStateManager.ResolveForUserContext(ctx)
@@ -1053,8 +1052,7 @@ func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.
 
 	privateReceipts := make([]*types.Receipt, 0)
 	for i, tx := range block.Transactions() {
-		//if tx.IsPrivateMarker() { TODO (satpal): #### use method to check if marker ####ß
-		if tx.To() != nil && tx.To().String() == vm.PrivacyMarkerAddress().String() {
+		if vm.IsPrivacyMarkerTransaction(tx) {
 			receipt := allReceipts[i]
 			if receipt.PSReceipts != nil && receipt.PSReceipts[psm.ID] != nil {
 				privateReceipts = append(privateReceipts, receipt.PSReceipts[psm.ID])
@@ -2124,7 +2122,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 
 		// Quorum
-		// TODO (Satpal): should this code run using `privateStateRepo.StatePSI(privateStateIdentifier)` for each MPS?
 		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
 			return it.index, err
 		}
