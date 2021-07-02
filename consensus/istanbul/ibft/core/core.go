@@ -34,9 +34,9 @@ import (
 )
 
 var (
-	roundMeter     = metrics.NewRegisteredMeter("consensus/istanbul/ibft/core/round", nil)
-	sequenceMeter  = metrics.NewRegisteredMeter("consensus/istanbul/ibft/core/sequence", nil)
-	consensusTimer = metrics.NewRegisteredTimer("consensus/istanbul/ibft/core/consensus", nil)
+	roundMeter     = metrics.NewRegisteredMeter("consensus/istanbul/core/round", nil)
+	sequenceMeter  = metrics.NewRegisteredMeter("consensus/istanbul/core/sequence", nil)
+	consensusTimer = metrics.NewRegisteredTimer("consensus/istanbul/core/consensus", nil)
 )
 
 // New creates an Istanbul consensus core
