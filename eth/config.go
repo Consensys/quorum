@@ -206,5 +206,5 @@ type Config struct {
 	SaveRevertReason bool `toml:"-"`
 
 	// Quorum
-	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
+	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
 }

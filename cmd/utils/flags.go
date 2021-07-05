@@ -399,41 +399,6 @@ var (
 		Name:  "cache.noprefetch",
 		Usage: "Disable heuristic state prefetch during block import (less CPU and disk IO, more time waiting for data)",
 	}
-	// Private Performance tuning settings
-	PrivateCacheFlag = cli.IntFlag{
-		Name:  "private.cache",
-		Usage: "Megabytes of memory allocated to internal caching (default = 4096 mainnet full node, 128 light mode)",
-		Value: 1024,
-	}
-	PrivateCacheDatabaseFlag = cli.IntFlag{
-		Name:  "private.cache.database",
-		Usage: "Percentage of cache memory allowance to use for database io",
-		Value: 50,
-	}
-	PrivateCacheTrieFlag = cli.IntFlag{
-		Name:  "private.cache.trie",
-		Usage: "Percentage of cache memory allowance to use for trie caching (default = 15% full mode, 30% archive mode)",
-		Value: 15,
-	}
-	PrivateCacheTrieRejournalFlag = cli.DurationFlag{
-		Name:  "private.cache.trie.rejournal",
-		Usage: "Time interval to regenerate the trie cache journal",
-		Value: eth.DefaultConfig.TrieCleanCacheRejournal,
-	}
-	PrivateCacheGCFlag = cli.IntFlag{
-		Name:  "private.cache.gc",
-		Usage: "Percentage of cache memory allowance to use for trie pruning (default = 25% full mode, 0% archive mode)",
-		Value: 25,
-	}
-	PrivateCacheSnapshotFlag = cli.IntFlag{
-		Name:  "private.cache.snapshot",
-		Usage: "Percentage of cache memory allowance to use for snapshot caching (default = 10% full mode, 20% archive mode)",
-		Value: 10,
-	}
-	PrivateCacheNoPrefetchFlag = cli.BoolFlag{
-		Name:  "private.cache.noprefetch",
-		Usage: "Disable heuristic state prefetch during block import (less CPU and disk IO, more time waiting for data)",
-	}
 	// Miner settings
 	MiningEnabledFlag = cli.BoolFlag{
 		Name:  "mine",

@@ -204,14 +204,15 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			EVMInterpreter:          config.EVMInterpreter,
 		}
 		cacheConfig = &core.CacheConfig{
-			TrieCleanLimit:          config.TrieCleanCache,
-			TrieCleanJournal:        stack.ResolvePath(config.TrieCleanCacheJournal),
-			TrieCleanRejournal:      config.TrieCleanCacheRejournal,
-			TrieCleanNoPrefetch:     config.NoPrefetch,
-			TrieDirtyLimit:          config.TrieDirtyCache,
-			TrieDirtyDisabled:       config.NoPruning,
-			TrieTimeLimit:           config.TrieTimeout,
-			SnapshotLimit:           config.SnapshotCache,
+			TrieCleanLimit:      config.TrieCleanCache,
+			TrieCleanJournal:    stack.ResolvePath(config.TrieCleanCacheJournal),
+			TrieCleanRejournal:  config.TrieCleanCacheRejournal,
+			TrieCleanNoPrefetch: config.NoPrefetch,
+			TrieDirtyLimit:      config.TrieDirtyCache,
+			TrieDirtyDisabled:   config.NoPruning,
+			TrieTimeLimit:       config.TrieTimeout,
+			SnapshotLimit:       config.SnapshotCache,
+			// Quorum
 			PrivateTrieCleanJournal: stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
 		}
 	)
