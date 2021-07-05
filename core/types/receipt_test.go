@@ -33,20 +33,24 @@ import (
 
 func TestLegacyReceiptDecoding(t *testing.T) {
 	tests := []struct {
-		name   string
-		encode func(*Receipt) ([]byte, error)
+		name                         string
+		encode                       func(*Receipt) ([]byte, error)
+		encodeHashAndContractAddress bool
 	}{
 		{
 			"StoredReceiptRLP",
 			encodeAsStoredReceiptRLP,
+			false,
 		},
 		{
 			"V4StoredReceiptRLP",
 			encodeAsV4StoredReceiptRLP,
+			true,
 		},
 		{
 			"V3StoredReceiptRLP",
 			encodeAsV3StoredReceiptRLP,
+			true,
 		},
 	}
 
@@ -83,7 +87,11 @@ func TestLegacyReceiptDecoding(t *testing.T) {
 				t.Fatalf("Error decoding RLP receipt: %v", err)
 			}
 			// Check whether all consensus fields are correct.
-			testConsensusFields(t, dec, receipt)
+			if tc.encodeHashAndContractAddress {
+				testConsensusFields(t, dec, receipt, receipt.TxHash, receipt.ContractAddress)
+			} else {
+				testConsensusFields(t, dec, receipt, common.Hash{}, common.Address{})
+			}
 		})
 	}
 }
@@ -134,7 +142,7 @@ func TestLegacyReceiptDecodingWithRevertReason(t *testing.T) {
 				t.Fatalf("Error decoding RLP receipt: %v", err)
 			}
 			// Check whether all consensus fields are correct.
-			testConsensusFields(t, dec, receipt)
+			testConsensusFields(t, dec, receipt, common.Hash{}, common.Address{})
 		})
 	}
 }
@@ -148,8 +156,8 @@ func TestMPSReceiptDecoding(t *testing.T) {
 			{Address: common.BytesToAddress([]byte{0x22})},
 			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 		},
-		TxHash:          tx.Hash(),
-		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		TxHash:          common.Hash{0x01, 0x02, 0x03, 0x04, 0x05},       // private txn hash for PMT
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x02, 0x03}), // private txn contract address for PMT
 		GasUsed:         2,
 	}
 	psiReceipt.Bloom = CreateBloom(Receipts{psiReceipt})
@@ -186,7 +194,7 @@ func TestMPSReceiptDecoding(t *testing.T) {
 	}
 
 	// Check whether all consensus fields are correct for top level receipt
-	testConsensusFields(t, dec, receipt)
+	testConsensusFields(t, dec, receipt, common.Hash{}, common.Address{})
 
 	//check number of psi receipts is correct
 	if len(dec.PSReceipts) != len(receipt.PSReceipts) {
@@ -209,6 +217,14 @@ func TestMPSReceiptDecoding(t *testing.T) {
 		if len(decPsiReceipt.Logs) != len(wantedPsiReceipt.Logs) {
 			t.Fatalf("%s Receipt log number mismatch, want %v, have %v", psi.String(), len(wantedPsiReceipt.Logs), len(decPsiReceipt.Logs))
 		}
+		// psiReceipt TxHash should have been encoded/decoded (required for privacy marker txns)
+		if decPsiReceipt.TxHash != wantedPsiReceipt.TxHash {
+			t.Fatalf("%s Receipt TxHash mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.TxHash, decPsiReceipt.TxHash)
+		}
+		// psiReceipt ContractAddress should have been encoded/decoded (required for privacy marker txns)
+		if decPsiReceipt.ContractAddress != wantedPsiReceipt.ContractAddress {
+			t.Fatalf("%s Receipt ContractAddress mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.ContractAddress, decPsiReceipt.ContractAddress)
+		}
 	}
 }
 
@@ -221,8 +237,8 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 			{Address: common.BytesToAddress([]byte{0x22})},
 			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
 		},
-		TxHash:          tx.Hash(),
-		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		TxHash:          common.Hash{0x01, 0x02, 0x03, 0x04, 0x05},       // private txn hash for PMT
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x02, 0x03}), // private txn contract address for PMT
 		GasUsed:         2,
 		RevertReason:    []byte{0x01, 0x00, 0xff, 0x02},
 	}
@@ -261,7 +277,7 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 	}
 
 	// Check whether all consensus fields are correct for top level receipt
-	testConsensusFields(t, dec, receipt)
+	testConsensusFields(t, dec, receipt, common.Hash{}, common.Address{})
 
 	//check number of psi receipts is correct
 	if len(dec.PSReceipts) != len(receipt.PSReceipts) {
@@ -288,10 +304,18 @@ func TestMPSReceiptDecodingWithRevertReason(t *testing.T) {
 		if !bytes.Equal(decPsiReceipt.RevertReason, wantedPsiReceipt.RevertReason) {
 			t.Fatalf("%s Receipt RevertReason data mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.RevertReason, decPsiReceipt.RevertReason)
 		}
+		// psiReceipt TxHash should have been encoded/decoded (required for privacy marker txns)
+		if decPsiReceipt.TxHash != wantedPsiReceipt.TxHash {
+			t.Fatalf("%s Receipt TxHash mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.TxHash, decPsiReceipt.TxHash)
+		}
+		// psiReceipt ContractAddress should have been encoded/decoded (required for privacy marker txns)
+		if decPsiReceipt.ContractAddress != wantedPsiReceipt.ContractAddress {
+			t.Fatalf("%s Receipt ContractAddress mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.ContractAddress, decPsiReceipt.ContractAddress)
+		}
 	}
 }
 
-func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt) {
+func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt, expectedTxHash common.Hash, expectedContractAddress common.Address) {
 	if dec.Status != receipt.Status {
 		t.Fatalf("Receipt status mismatch, want %v, have %v", receipt.Status, dec.Status)
 	}
@@ -318,6 +342,12 @@ func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt) 
 
 	if !bytes.Equal(dec.RevertReason, receipt.RevertReason) {
 		t.Fatalf("RevertReason data mismatch, want %v, have %v", receipt.RevertReason, dec.RevertReason)
+	}
+	if dec.TxHash != expectedTxHash {
+		t.Fatalf("TxHash mismatch, want %v, have %v", expectedTxHash, dec.TxHash)
+	}
+	if dec.ContractAddress != expectedContractAddress {
+		t.Fatalf("ContractAddress mismatch, want %v, have %v", expectedContractAddress, dec.ContractAddress)
 	}
 }
 
@@ -358,7 +388,7 @@ func encodeAsStoredMPSReceiptRLP(want *Receipt) ([]byte, error) {
 	}
 	idx := 0
 	for key, val := range want.PSReceipts {
-		rec := storedReceiptRLP{
+		rec := storedMPSReceiptRLP{
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
 			Logs:              make([]*LogForStorage, len(val.Logs)),
@@ -387,11 +417,13 @@ func encodeAsStoredMPSReceiptRLPWithRevertReason(want *Receipt) ([]byte, error) 
 	}
 	idx := 0
 	for key, val := range want.PSReceipts {
-		rec := storedReceiptRLPWithRevertReason{
+		rec := storedMPSReceiptRLPWithRevertReason{
 			PostStateOrStatus: val.statusEncoding(),
 			CumulativeGasUsed: val.CumulativeGasUsed,
 			Logs:              make([]*LogForStorage, len(val.Logs)),
 			RevertReason:      val.RevertReason,
+			TxHash:            val.TxHash,
+			ContractAddress:   val.ContractAddress,
 		}
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)
