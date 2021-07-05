@@ -179,7 +179,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 	if tx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
 		publicStateDBFactory := func() *state.StateDB {
 			db := statedb.Copy()
-			db.Prepare(tx.Hash(), statedb.BlockHash(), ti)
+			db.Prepare(tx.Hash(), header.Hash(), ti)
 			return db
 		}
 		privateStateDBFactory := func(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
@@ -187,7 +187,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 			if err != nil {
 				return nil, err
 			}
-			db.Prepare(tx.Hash(), statedb.BlockHash(), ti)
+			db.Prepare(tx.Hash(), header.Hash(), ti)
 			return db, nil
 		}
 		mpsReceipt, err = ApplyTransactionOnMPS(config, bc, nil, gp, publicStateDBFactory, privateStateDBFactory, header, tx, usedGas, cfg, privateStateRepo)
