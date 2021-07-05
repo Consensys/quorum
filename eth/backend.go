@@ -228,7 +228,11 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	if config.EnableMultitenancy {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
-	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, privateCacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+
+	// Quorum
+	eth.blockchain.SetSaveRevertReason(config.SaveRevertReason)
+
 	if err != nil {
 		return nil, err
 	}
