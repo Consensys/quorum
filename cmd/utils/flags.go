@@ -2295,25 +2295,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
 		cache.TrieDirtyLimit = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
 	}
-	// GoQuorum
-	privateCache := &core.CacheConfig{
-		TrieCleanLimit:      eth.DefaultConfig.PrivateTrieCleanCache,
-		TrieCleanNoPrefetch: ctx.GlobalBool(PrivateCacheNoPrefetchFlag.Name),
-		TrieDirtyLimit:      eth.DefaultConfig.PrivateTrieDirtyCache,
-		TrieDirtyDisabled:   ctx.GlobalString(PrivateGCModeFlag.Name) == "archive",
-		TrieTimeLimit:       eth.DefaultConfig.PrivateTrieTimeout,
-		SnapshotLimit:       eth.DefaultConfig.PrivateSnapshotCache,
-	}
-	if !ctx.GlobalIsSet(PrivateSnapshotFlag.Name) {
-		privateCache.SnapshotLimit = 0 // Disabled
-	}
-	if ctx.GlobalIsSet(PrivateCacheFlag.Name) || ctx.GlobalIsSet(PrivateCacheTrieFlag.Name) {
-		privateCache.TrieCleanLimit = ctx.GlobalInt(PrivateCacheFlag.Name) * ctx.GlobalInt(PrivateCacheTrieFlag.Name) / 100
-	}
-	if ctx.GlobalIsSet(PrivateCacheFlag.Name) || ctx.GlobalIsSet(PrivateCacheGCFlag.Name) {
-		privateCache.TrieDirtyLimit = ctx.GlobalInt(PrivateCacheFlag.Name) * ctx.GlobalInt(PrivateCacheGCFlag.Name) / 100
-	}
-	// / GoQuorum
 	vmcfg := vm.Config{EnablePreimageRecording: ctx.GlobalBool(VMEnableDebugFlag.Name)}
 	var limit *uint64
 	if ctx.GlobalIsSet(TxLookupLimitFlag.Name) && !readOnly {
@@ -2321,7 +2302,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		limit = &l
 	}
 	// TODO should multiple private states work with import/export/inspect commands
-	chain, err = core.NewBlockChain(chainDb, cache, privateCache, config, engine, vmcfg, nil, limit)
+	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)
 	}

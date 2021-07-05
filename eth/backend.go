@@ -204,24 +204,15 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			EVMInterpreter:          config.EVMInterpreter,
 		}
 		cacheConfig = &core.CacheConfig{
-			TrieCleanLimit:      config.TrieCleanCache,
-			TrieCleanJournal:    stack.ResolvePath(config.TrieCleanCacheJournal),
-			TrieCleanRejournal:  config.TrieCleanCacheRejournal,
-			TrieCleanNoPrefetch: config.NoPrefetch,
-			TrieDirtyLimit:      config.TrieDirtyCache,
-			TrieDirtyDisabled:   config.NoPruning,
-			TrieTimeLimit:       config.TrieTimeout,
-			SnapshotLimit:       config.SnapshotCache,
-		}
-		privateCacheConfig = &core.CacheConfig{
-			TrieCleanLimit:      config.PrivateTrieCleanCache,
-			TrieCleanJournal:    stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
-			TrieCleanRejournal:  config.PrivateTrieCleanCacheRejournal,
-			TrieCleanNoPrefetch: config.PrivateNoPrefetch,
-			TrieDirtyLimit:      config.PrivateTrieDirtyCache,
-			TrieDirtyDisabled:   config.PrivateNoPruning,
-			TrieTimeLimit:       config.PrivateTrieTimeout,
-			SnapshotLimit:       config.PrivateSnapshotCache,
+			TrieCleanLimit:          config.TrieCleanCache,
+			TrieCleanJournal:        stack.ResolvePath(config.TrieCleanCacheJournal),
+			TrieCleanRejournal:      config.TrieCleanCacheRejournal,
+			TrieCleanNoPrefetch:     config.NoPrefetch,
+			TrieDirtyLimit:          config.TrieDirtyCache,
+			TrieDirtyDisabled:       config.NoPruning,
+			TrieTimeLimit:           config.TrieTimeout,
+			SnapshotLimit:           config.SnapshotCache,
+			PrivateTrieCleanJournal: stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
 		}
 	)
 	newBlockChainFunc := core.NewBlockChain
