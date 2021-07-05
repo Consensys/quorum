@@ -625,10 +625,9 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				pubReceipts         = make([]*types.Receipt, len(task.receipts))
-				prvReceipts         = make([]*types.Receipt, len(task.privateReceipts))
-				logs                []*types.Log
-				markerTxReceiptsAll = make([]*types.Receipt, 0)
+				pubReceipts = make([]*types.Receipt, len(task.receipts))
+				prvReceipts = make([]*types.Receipt, len(task.privateReceipts))
+				logs        []*types.Log
 			)
 			offset := len(task.receipts)
 			for i, receipt := range task.receipts {
@@ -661,7 +660,6 @@ func (w *worker) resultLoop() {
 								log.BlockHash = hash
 							}
 							logs = append(logs, markerReceipt.Logs...)
-							markerTxReceiptsAll = append(markerTxReceiptsAll, markerReceipt)
 						}
 					}
 				}
@@ -683,6 +681,11 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 
 				for _, psReceipt := range receipt.PSReceipts {
+					// if block location fields are already populated then this is a privacy marker receipt and it is
+					// already handled - skip processing it again
+					if psReceipt.BlockNumber != nil {
+						continue
+					}
 					// add block location fields
 					psReceipt.BlockHash = hash
 					psReceipt.BlockNumber = block.Number()
@@ -705,7 +708,6 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-			prvReceipts = append(prvReceipts, markerTxReceiptsAll...)
 			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), prvReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
@@ -846,7 +848,6 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 		newPrivateReceipt, privateLogs := core.HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, w.chain)
 		workerEnv.privateReceipts = append(workerEnv.privateReceipts, newPrivateReceipt)
 		logs = append(logs, privateLogs...)
-		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
 	}
 	// End Quorum
 

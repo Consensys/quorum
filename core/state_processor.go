@@ -104,29 +104,15 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			return nil, nil, nil, 0, err
 		}
 
-		// Quorum
-		// if we have a private receipt then need to update the private state and the logs.
-		if privateReceipt != nil {
-			newPrivateReceipt, privateLogs := HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, p.bc)
-			privateReceipts = append(privateReceipts, newPrivateReceipt)
-			allLogs = append(allLogs, privateLogs...)
-		}
-		// End Quorum
-
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
-			privateReceipts = append(privateReceipts, privateReceipt)
-			allLogs = append(allLogs, privateReceipt.Logs...)
-			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
-			// handling the auxiliary receipt from MPS execution
-			if mpsReceipt != nil {
-				privateReceipt.PSReceipts = mpsReceipt.PSReceipts
-				allLogs = append(allLogs, mpsReceipt.Logs...)
-			}
+			newPrivateReceipt, privateLogs := HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, p.bc)
+			privateReceipts = append(privateReceipts, newPrivateReceipt)
+			allLogs = append(allLogs, privateLogs...)
 		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
