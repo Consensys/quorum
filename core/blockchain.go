@@ -236,8 +236,11 @@ func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator and
 // Processor.
-func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
+func NewBlockChain(db ethdb.Database, cacheConfig, privateCacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
 	if cacheConfig == nil {
+		cacheConfig = defaultCacheConfig
+	}
+	if privateCacheConfig == nil {
 		cacheConfig = defaultCacheConfig
 	}
 	bodyCache, _ := lru.New(bodyCacheLimit)
@@ -272,7 +275,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	var err error
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, cacheConfig, chainConfig.IsMPS); err != nil {
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, privateCacheConfig, chainConfig.IsMPS); err != nil {
 		return nil, err
 	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
@@ -398,8 +401,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 // Quorum
 // Decorates NewBlockChain with multitenancy flag
-func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
-	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit)
+func NewMultitenantBlockChain(db ethdb.Database, cacheConfig, privateCacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
+	bc, err := NewBlockChain(db, cacheConfig, privateCacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit)
 	if err != nil {
 		return nil, err
 	}

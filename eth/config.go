@@ -151,6 +151,18 @@ type Config struct {
 	TrieTimeout             time.Duration
 	SnapshotCache           int
 
+	// GoQuorum
+	PrivateTrieCleanCache          int
+	PrivateTrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
+	PrivateTrieCleanCacheRejournal time.Duration `toml:",omitempty"` // Time interval to regenerate the journal for clean cache
+	PrivateTrieDirtyCache          int
+	PrivateTrieTimeout             time.Duration
+	PrivateSnapshotCache           int
+
+	PrivateNoPruning  bool // Whether to disable pruning and flush everything to disk
+	PrivateNoPrefetch bool // Whether to disable prefetching and only load state on demand
+	// / GoQuorum
+
 	// Mining options
 	Miner miner.Config
 

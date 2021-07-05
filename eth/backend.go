@@ -213,12 +213,22 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 			SnapshotLimit:       config.SnapshotCache,
 		}
+		privateCacheConfig = &core.CacheConfig{
+			TrieCleanLimit:      config.PrivateTrieCleanCache,
+			TrieCleanJournal:    stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
+			TrieCleanRejournal:  config.PrivateTrieCleanCacheRejournal,
+			TrieCleanNoPrefetch: config.PrivateNoPrefetch,
+			TrieDirtyLimit:      config.PrivateTrieDirtyCache,
+			TrieDirtyDisabled:   config.PrivateNoPruning,
+			TrieTimeLimit:       config.PrivateTrieTimeout,
+			SnapshotLimit:       config.PrivateSnapshotCache,
+		}
 	)
 	newBlockChainFunc := core.NewBlockChain
 	if config.EnableMultitenancy {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
-	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, privateCacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
 	}
