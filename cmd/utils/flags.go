@@ -220,17 +220,6 @@ var (
 		Usage: "Number of recent blocks to maintain transactions index by-hash for (default = index all blocks)",
 		Value: 0,
 	}
-	// GoQuorum
-	PrivateGCModeFlag = cli.StringFlag{
-		Name:  "private.gcmode",
-		Usage: `Blockchain garbage collection mode ("full", "archive")`,
-		Value: "full",
-	}
-	PrivateSnapshotFlag = cli.BoolFlag{
-		Name:  "private.snapshot",
-		Usage: `Enables snapshot-database mode -- experimental work in progress feature`,
-	}
-	// / GoQuorum
 	LightKDFFlag = cli.BoolFlag{
 		Name:  "lightkdf",
 		Usage: "Reduce key-derivation RAM & CPU usage at some expense of KDF strength",
@@ -425,11 +414,6 @@ var (
 		Name:  "private.cache.trie",
 		Usage: "Percentage of cache memory allowance to use for trie caching (default = 15% full mode, 30% archive mode)",
 		Value: 15,
-	}
-	PrivateCacheTrieJournalFlag = cli.StringFlag{
-		Name:  "private.cache.trie.journal",
-		Usage: "Disk journal directory for trie cache to survive node restarts",
-		Value: eth.DefaultConfig.TrieCleanCacheJournal,
 	}
 	PrivateCacheTrieRejournalFlag = cli.DurationFlag{
 		Name:  "private.cache.trie.rejournal",
@@ -908,6 +892,13 @@ var (
 	RevertReasonFlag = cli.BoolFlag{
 		Name:  "revertreason",
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
+	}
+
+	// Private state cache
+	PrivateCacheTrieJournalFlag = cli.StringFlag{
+		Name:  "private.cache.trie.journal",
+		Usage: "Disk journal directory for private trie cache to survive node restarts",
+		Value: eth.DefaultConfig.PrivateTrieCleanCacheJournal,
 	}
 
 	// Quorum Private Transaction Manager connection options
@@ -1756,6 +1747,9 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
+	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
+		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
+	}
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was

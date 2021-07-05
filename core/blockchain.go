@@ -136,7 +136,7 @@ type CacheConfig struct {
 
 	SnapshotWait bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
 
-	PrivateTrieCleanJournal string // GoQuorum: Disk journal for saving clean cache entries.
+	PrivateTrieCleanJournal string // Quorum: Disk journal for saving clean private cache entries.
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
