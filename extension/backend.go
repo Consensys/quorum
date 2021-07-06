@@ -105,7 +105,7 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 		service.mu.Lock()
 		psiClient := service.client(psi)
 		defer psiClient.Close()
-		tx, _ := psiClient.TransactionByHash(foundLog.TxHash)
+		tx, _ := service.client(psi).TransactionInBlock(foundLog.BlockHash, foundLog.TxIndex)
 		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
