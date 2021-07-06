@@ -21,12 +21,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/consensus/qbft/message"
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qbft/message"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -132,8 +131,8 @@ func (c *core) handleRoundChange(roundChange *message.RoundChange) error {
 			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
 		}
 
-		if !justify(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()) {
-			logger.Info("QBFT: Justification of ROUND-CHANGE messages failed")
+		if err := isJustified(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()); err != nil {
+			logger.Error("QBFT: Justification of ROUND-CHANGE messages failed", "err", err)
 			return nil
 		}
 
@@ -202,7 +201,7 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg message.QBFTMessage, preparedRoun
 
 	if preparedRound != nil && (rcs.highestPreparedRound[round] == nil || preparedRound.Cmp(rcs.highestPreparedRound[round]) > 0) {
 		roundChange := msg.(*message.RoundChange)
-		if hasMatchingRoundChangeAndPrepares(roundChange, prepareMessages, quorumSize) {
+		if hasMatchingRoundChangeAndPrepares(roundChange, prepareMessages, quorumSize) == nil {
 			rcs.highestPreparedRound[round] = preparedRound
 			rcs.highestPreparedBlock[round] = preparedBlock
 			rcs.prepareMessages[round] = prepareMessages

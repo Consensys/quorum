@@ -182,10 +182,6 @@ func (h *Hash) SetBytes(b []byte) {
 	copy(h[HashLength-len(b):], b)
 }
 
-func (h *Hash) IsEmpty() bool {
-	return *h == Hash{}
-}
-
 func EmptyHash(h Hash) bool {
 	return h == Hash{}
 }

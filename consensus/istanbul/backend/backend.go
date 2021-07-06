@@ -374,7 +374,7 @@ func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
 		return true
 	}
 
-	if sb.chain != nil && header.Number.Cmp(sb.config.QbftBlock) >= 0 {
+	if header != nil && header.Number.Cmp(sb.config.QbftBlock) >= 0 {
 		return true
 	}
 	return false
