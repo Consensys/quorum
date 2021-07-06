@@ -659,7 +659,7 @@ func (w *worker) resultLoop() {
 							for _, log := range markerReceipt.Logs {
 								log.BlockHash = hash
 							}
-							logs = append(logs, markerReceipt.Logs...)
+							// Note that we don't append logs here, else will get duplicates.
 						}
 					}
 				}
