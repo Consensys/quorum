@@ -202,23 +202,7 @@ func ExtractQbftExtra(h *Header) (*QbftExtra, error) {
 // are clean to fulfill the Istanbul hash rules. It returns nil if the extra-data cannot be
 // decoded/encoded by rlp.
 func QbftFilteredHeader(h *Header) *Header {
-	newHeader := CopyHeader(h)
-	qbftExtra, err := ExtractQbftExtra(newHeader)
-	if err != nil {
-		return nil
-	}
-
-	qbftExtra.CommittedSeal = [][]byte{}
-	qbftExtra.Round = 0
-
-	payload, err := rlp.EncodeToBytes(&qbftExtra)
-	if err != nil {
-		return nil
-	}
-
-	newHeader.Extra = payload
-
-	return newHeader
+	return QbftFilteredHeaderWithRound(h, 0)
 }
 
 // QbftFilteredHeaderWithRound returns the copy of the header with round number set to the given round number

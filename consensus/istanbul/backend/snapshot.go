@@ -214,7 +214,7 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 	s.Tally = j.Tally
 
 	// Setting the By function to ValidatorSortByStringFunc should be fine, as the validator do not change only the order changes
-	pp := &istanbul.ProposerPolicy{Id: j.Policy, By: istanbul.ValidatorSortByStringFunc}
+	pp := &istanbul.ProposerPolicy{Id: j.Policy, By: istanbul.ValidatorSortByString()}
 	s.ValSet = validator.NewSet(j.Validators, pp)
 	return nil
 }

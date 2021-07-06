@@ -131,8 +131,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
 		}
 
-		if !justify(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()) {
-			logger.Info("QBFT: Justification of ROUND-CHANGE messages failed")
+		if err := isJustified(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()); err != nil {
+			logger.Error("QBFT: Justification of ROUND-CHANGE messages failed", "err", err)
 			return nil
 		}
 
@@ -201,7 +201,7 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg qbfttypes.QBFTMessage, preparedRo
 
 	if preparedRound != nil && (rcs.highestPreparedRound[round] == nil || preparedRound.Cmp(rcs.highestPreparedRound[round]) > 0) {
 		roundChange := msg.(*qbfttypes.RoundChange)
-		if hasMatchingRoundChangeAndPrepares(roundChange, prepareMessages, quorumSize) {
+		if hasMatchingRoundChangeAndPrepares(roundChange, prepareMessages, quorumSize) == nil {
 			rcs.highestPreparedRound[round] = preparedRound
 			rcs.highestPreparedBlock[round] = preparedBlock
 			rcs.prepareMessages[round] = prepareMessages

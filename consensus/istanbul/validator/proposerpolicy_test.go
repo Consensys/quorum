@@ -37,7 +37,7 @@ func TestProposerPolicy(t *testing.T) {
 	addressSortedByString := []common.Address{addr6, addr4, addr1, addr2, addr5, addr3}
 
 	pp := istanbul.NewRoundRobinProposerPolicy()
-	pp.Use(istanbul.ValidatorSortByByteFunc)
+	pp.Use(istanbul.ValidatorSortByByte())
 
 	valSet := NewSet(addrSet, pp)
 	valList := valSet.List()
@@ -46,7 +46,7 @@ func TestProposerPolicy(t *testing.T) {
 		assert.Equal(t, addressSortedByByte[i].Hex(), valList[i].String(), "validatorSet not byte sorted")
 	}
 
-	pp.Use(istanbul.ValidatorSortByStringFunc)
+	pp.Use(istanbul.ValidatorSortByString())
 	for i := 0; i < 6; i++ {
 		assert.Equal(t, addressSortedByString[i].Hex(), valList[i].String(), "validatorSet not string sorted")
 	}

@@ -93,9 +93,11 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 	}
 
 	// Justification
-	if preprepare.Round.Uint64() > 0 && !justify(preprepare.Proposal, preprepare.JustificationRoundChanges, preprepare.JustificationPrepares, c.QuorumSize()) {
-		logger.Error("QBFT: Unable to justify PRE-PREPARE message")
-		return errInvalidPreparedBlock
+	if preprepare.Round.Uint64() > 0 {
+		if err := isJustified(preprepare.Proposal, preprepare.JustificationRoundChanges, preprepare.JustificationPrepares, c.QuorumSize()); err != nil {
+			logger.Error("QBFT: Unable to justify PRE-PREPARE message", "err", err)
+			return errInvalidPreparedBlock
+		}
 	}
 
 	// Verify the proposal we received

@@ -99,3 +99,23 @@ func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 
 	return nil
 }
+
+func (c *core) commitQBFT() {
+	c.setState(StateCommitted)
+
+	proposal := c.current.Proposal()
+	if proposal != nil {
+		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
+		for i, msg := range c.current.QBFTCommits.Values() {
+			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
+			commitMsg := msg.(*qbfttypes.Commit)
+			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
+		}
+
+		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
+			c.logger.Error("QBFT: Error committing", "err", err)
+			c.broadcastNextRoundChange()
+			return
+		}
+	}
+}

@@ -111,26 +111,6 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
-func (c *core) commitQBFT() {
-	c.setState(StateCommitted)
-
-	proposal := c.current.Proposal()
-	if proposal != nil {
-		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
-		for i, msg := range c.current.QBFTCommits.Values() {
-			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			commitMsg := msg.(*qbfttypes.Commit)
-			copy(committedSeals[i][:], commitMsg.CommitSeal[:])
-		}
-
-		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
-			log.Error("QBFT: Error committing", "err", err)
-			c.broadcastNextRoundChange()
-			return
-		}
-	}
-}
-
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
 func (c *core) startNewRound(round *big.Int) {
 	var logger log.Logger

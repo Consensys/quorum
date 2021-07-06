@@ -50,20 +50,24 @@ func (vs validatorSorter) Less(i, j int) bool {
 
 type validatorSorter struct {
 	validators Validators
-	by         validatorSortByFunc
+	by         ValidatorSortByFunc
 }
 
-type validatorSortByFunc func(v1 Validator, v2 Validator) bool
+type ValidatorSortByFunc func(v1 Validator, v2 Validator) bool
 
-var ValidatorSortByStringFunc validatorSortByFunc = func(v1 Validator, v2 Validator) bool {
-	return strings.Compare(v1.String(), v2.String()) < 0
+func ValidatorSortByString() ValidatorSortByFunc {
+	return func(v1 Validator, v2 Validator) bool {
+		return strings.Compare(v1.String(), v2.String()) < 0
+	}
 }
 
-var ValidatorSortByByteFunc validatorSortByFunc = func(v1 Validator, v2 Validator) bool {
-	return bytes.Compare(v1.Address().Bytes(), v2.Address().Bytes()) < 0
+func ValidatorSortByByte() ValidatorSortByFunc {
+	return func(v1 Validator, v2 Validator) bool {
+		return bytes.Compare(v1.Address().Bytes(), v2.Address().Bytes()) < 0
+	}
 }
 
-func (by validatorSortByFunc) Sort(validators []Validator) {
+func (by ValidatorSortByFunc) Sort(validators []Validator) {
 	v := &validatorSorter{
 		validators: validators,
 		by:         by,

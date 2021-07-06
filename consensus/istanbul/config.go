@@ -19,6 +19,7 @@ package istanbul
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/naoina/toml"
 )
 
@@ -33,21 +34,21 @@ const (
 type ProposerPolicy struct {
 	Id       ProposerPolicyId    // Could be RoundRobin or Sticky
 	Registry []ValidatorSet      // Holds the ValidatorSet for a given block height
-	By       validatorSortByFunc // func that defines how the ValidatorSet should be sorted
+	By       ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
 }
 
-// NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByStringFunc as default sort function
+// NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByString as default sort function
 func NewRoundRobinProposerPolicy() *ProposerPolicy {
 	return NewProposerPolicy(RoundRobin)
 }
 
-// NewStickyProposerPolicy return a Sticky ProposerPolicy with ValidatorSortByStringFunc as default sort function
+// NewStickyProposerPolicy return a Sticky ProposerPolicy with ValidatorSortByString as default sort function
 func NewStickyProposerPolicy() *ProposerPolicy {
 	return NewProposerPolicy(Sticky)
 }
 
 func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
-	return &ProposerPolicy{Id: id, By: ValidatorSortByStringFunc}
+	return &ProposerPolicy{Id: id, By: ValidatorSortByString()}
 }
 
 type proposerPolicyToml struct {
@@ -66,12 +67,12 @@ func (p *ProposerPolicy) UnmarshalTOML(input []byte) error {
 		return err
 	}
 	p.Id = pp.Id
-	p.By = ValidatorSortByStringFunc
+	p.By = ValidatorSortByString()
 	return nil
 }
 
-// Use sets the validatorSortByFunc for the given ProposerPolicy and sorts the validatorSets according to it
-func (p *ProposerPolicy) Use(v validatorSortByFunc) {
+// Use sets the ValidatorSortByFunc for the given ProposerPolicy and sorts the validatorSets according to it
+func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 
 	for _, validatorSet := range p.Registry {
@@ -111,4 +112,28 @@ var DefaultConfig = &Config{
 	Ceil2Nby3Block:         big.NewInt(0),
 	AllowedFutureBlockTime: 0,
 	QbftBlock:              big.NewInt(0),
+}
+
+// QBFTBlock returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
+func (c Config) QBFTBlock() int64 {
+	if c.QbftBlock == nil {
+		return -1
+	}
+	return c.QbftBlock.Int64()
+}
+
+// IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
+func (c *Config) IsQBFTConsensusForHeader(header *types.Header) bool {
+	// If qbftBlock is not defined in genesis qbft consensus is not used
+	if c.QbftBlock == nil {
+		return false
+	}
+	if c.QbftBlock.Uint64() == 0 {
+		return true
+	}
+
+	if header != nil && header.Number.Cmp(c.QbftBlock) >= 0 {
+		return true
+	}
+	return false
 }

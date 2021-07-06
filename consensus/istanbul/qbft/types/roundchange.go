@@ -139,7 +139,7 @@ func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 
 func (p *SignedRoundChangePayload) encodePayloadInternal() ([]byte, error) {
 	var prepared = []interface{}{}
-	if p.PreparedRound != nil && !p.PreparedDigest.IsEmpty() {
+	if p.PreparedRound != nil && !common.EmptyHash(p.PreparedDigest) {
 		prepared = []interface{}{p.PreparedRound, p.PreparedDigest}
 	}
 	return rlp.EncodeToBytes(

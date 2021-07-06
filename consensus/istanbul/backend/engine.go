@@ -272,7 +272,7 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 		sb.core = qbftcore.New(sb, sb.config)
 
 		sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
-		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
+		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
 	} else {
 		sb.core = ibftcore.New(sb, sb.config)
 	}
