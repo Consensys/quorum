@@ -21,7 +21,7 @@ type DefaultPrivateStateManager struct {
 func newDefaultPrivateStateManager(db ethdb.Database, cacheConfig *CacheConfig) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:        db,
-		repoCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		repoCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.PrivateTrieCleanJournal),
 	}
 }
 
