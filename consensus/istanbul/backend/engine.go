@@ -657,7 +657,7 @@ func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	if sb.IsQBFTConsensus() {
 		sb.core = qbftCore.New(sb, sb.config)
 		sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
-		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
+		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
 	} else {
 		sb.core = istanbulCore.New(sb, sb.config)
 	}
@@ -768,7 +768,7 @@ func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	for i := 0; i < len(headers)/2; i++ {
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
-	snap, err := snap.apply(headers, sb.IsQBFTConsensus(), sb.qbftBlockNumber())
+	snap, err := snap.apply(headers, sb.IsQBFTConsensus(), sb.config.QBFTBlock())
 	if err != nil {
 		return nil, err
 	}

@@ -366,26 +366,7 @@ func (sb *backend) IsQBFTConsensus() bool {
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
 func (sb *backend) IsQBFTConsensusForHeader(header *types.Header) bool {
-	// If qbftBlock is not defined in genesis qbft consensus is not used
-	if sb.config.QbftBlock == nil {
-		return false
-	}
-	if sb.config.QbftBlock.Uint64() == 0 {
-		return true
-	}
-
-	if header != nil && header.Number.Cmp(sb.config.QbftBlock) >= 0 {
-		return true
-	}
-	return false
-}
-
-// qbftBlockNumber returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
-func (sb *backend) qbftBlockNumber() int64 {
-	if sb.config.QbftBlock == nil {
-		return -1
-	}
-	return sb.config.QbftBlock.Int64()
+	return sb.config.IsQBFTConsensusForHeader(header)
 }
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
@@ -401,7 +382,7 @@ func (sb *backend) StartQBFTConsensus() error {
 	sb.core = qbftCore.New(sb, sb.config)
 
 	sb.logger.Trace("Starting qbft")
-	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByteFunc)
+	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
 	if err := sb.core.Start(); err != nil {
 		return err
 	}

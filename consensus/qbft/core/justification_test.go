@@ -81,7 +81,7 @@ func testParameterizedCase(
 	messageJustified bool) {
 
 	pp := istanbul.NewRoundRobinProposerPolicy()
-	pp.Use(istanbul.ValidatorSortByByteFunc)
+	pp.Use(istanbul.ValidatorSortByByte())
 	validatorSet := validator.NewSet(generateValidators(quorumSize), pp)
 	block := makeBlock(1)
 	var round int64 = 10
