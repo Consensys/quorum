@@ -120,10 +120,18 @@ type Backend struct {
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
-	if sb.IsQBFTConsensus() {
+	return sb.EngineForHeader(nil)
+}
+
+func (sb *Backend) EngineForHeader(header *types.Header) istanbul.Engine {
+	switch {
+	case header == nil && sb.IsQBFTConsensus():
 		return sb.qbftEngine
+	case header != nil && sb.IsQBFTConsensusForHeader(header):
+		return sb.qbftEngine
+	default:
+		return sb.ibftEngine
 	}
-	return sb.ibftEngine
 }
 
 // zekun: HACK
@@ -396,7 +404,6 @@ func (sb *Backend) StartQBFTConsensus() error {
 	defer sb.coreMu.Unlock()
 
 	// Set the core to qbft
-	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
 	sb.core = qbftcore.New(sb, sb.config)
 
 	sb.logger.Trace("Starting qbft")

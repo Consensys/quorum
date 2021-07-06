@@ -435,7 +435,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Resolve the authorization key and check against validators
-	validator, err := sb.Engine().Author(header)
+	validator, err := sb.EngineForHeader(header).Author(header)
 	if err != nil {
 		return err
 	}
@@ -445,7 +445,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Read vote from header
-	candidate, authorize, err := sb.Engine().ReadVote(header)
+	candidate, authorize, err := sb.EngineForHeader(header).ReadVote(header)
 	if err != nil {
 		return err
 	}
