@@ -416,10 +416,15 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			bc.cacheConfig.TrieCleanRejournal = time.Minute
 		}
 		triedb := bc.stateCache.TrieDB()
-		bc.wg.Add(1)
+		bc.wg.Add(2)
 		go func() {
 			defer bc.wg.Done()
 			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
+		}()
+		privatetriedb := bc.PrivateStateManager()
+		go func() {
+			defer bc.wg.Done()
+			privatetriedb.SaveCachePeriodically(bc.cacheConfig.PrivateTrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
 		}()
 	}
 	return bc, nil
@@ -1154,6 +1159,10 @@ func (bc *BlockChain) Stop() {
 	if bc.cacheConfig.TrieCleanJournal != "" {
 		triedb := bc.stateCache.TrieDB()
 		triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
+	}
+	if bc.cacheConfig.PrivateTrieCleanJournal != "" {
+		triedb := bc.privateStateManager.TrieDB()
+		triedb.SaveCache(bc.cacheConfig.PrivateTrieCleanJournal)
 	}
 	log.Info("Blockchain stopped")
 }

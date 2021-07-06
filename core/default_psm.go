@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/mps"
@@ -10,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 type DefaultPrivateStateManager struct {
@@ -55,4 +57,12 @@ func (d *DefaultPrivateStateManager) NotIncludeAny(_ *mps.PrivateStateMetadata, 
 func (d *DefaultPrivateStateManager) CheckAt(root common.Hash) error {
 	_, err := state.New(rawdb.GetPrivateStateRoot(d.db, root), d.repoCache, nil)
 	return err
+}
+
+func (d *DefaultPrivateStateManager) SaveCachePeriodically(dir string, interval time.Duration, stopCh <-chan struct{}) {
+	d.repoCache.TrieDB().SaveCachePeriodically(dir, interval, stopCh)
+}
+
+func (d *DefaultPrivateStateManager) TrieDB() *trie.Database {
+	return d.repoCache.TrieDB()
 }
