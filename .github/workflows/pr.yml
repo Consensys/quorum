@@ -5,9 +5,6 @@ on:
       - 'docs/**'
       - '**.md'
       - .gitignore
-  push:
-    branches:
-      - 'consensysengineering-privacy-support-using-precompile-v2-merge-temp'
 env:
   GO_VERSION: 1.15.5
 jobs:
