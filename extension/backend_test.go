@@ -78,7 +78,7 @@ type MockEthAPIBackend struct {
 	eth.EthAPIBackend
 }
 
-func (b *MockEthAPIBackend) QuorumCreatePrivacyMarkerTransactions() bool {
+func (b *MockEthAPIBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
 	return false
 }
 

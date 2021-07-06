@@ -558,6 +558,10 @@ func (sb *StubBackend) PSMR() mps.PrivateStateMetadataResolver {
 	return &StubPSMR{}
 }
 
+func (sb *StubBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	panic("implement me")
+}
+
 type StubPSMR struct {
 }
 
@@ -572,8 +576,4 @@ func (psmr *StubPSMR) PSIs() []types.PrivateStateIdentifier {
 }
 func (psmr *StubPSMR) NotIncludeAny(psm *mps.PrivateStateMetadata, managedParties ...string) bool {
 	return false
-}
-
-func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
-	panic("implement me")
 }

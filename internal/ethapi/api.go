@@ -117,7 +117,7 @@ func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 }
 
 func (s *PublicEthereumAPI) GetPrivacyPrecompileAddress() common.Address {
-	return vm.PrivacyMarkerAddress()
+	return common.QuorumPrivacyPrecompileContractAddress()
 }
 
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
@@ -457,7 +457,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
 	var err error
 	var pmtNonce uint64
-	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		if args.Nonce != nil {
 			pmtNonce = uint64(*args.Nonce)
 		} else {
@@ -495,7 +495,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		// Look up the wallet containing the requested signer
 		account := accounts.Account{Address: args.From}
 		wallet, err := s.am.Find(account)
@@ -1943,7 +1943,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if token, ok := b.SupportsMultitenancy(ctx); ok {
 		tx := tx
 		// If we are sending a Privacy Marker Transaction, then get the private txn details
-		if vm.IsPrivacyMarkerTransaction(tx) {
+		if tx.IsPrivacyMarker() {
 			tx, _, err = private.FetchPrivateTransaction(tx.Data())
 			if err != nil {
 				return common.Hash{}, err
@@ -2033,7 +2033,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	var contractAddr common.Address
 
 	// if privacy precompile is enabled then we must pre-increment the nonce to mimic the execution of the PMT before the internal private tx
-	if b.QuorumCreatePrivacyMarkerTransactions() {
+	if b.IsPrivacyMarkerTransactionCreationEnabled() {
 		evm.StateDB.SetNonce(addr, evm.StateDB.GetNonce(addr)+1)
 	}
 
@@ -2073,7 +2073,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// If PMTs are enabled the PMT must have the current nonce and the internal private tx the next nonce
 	var pmtNonce uint64
-	if args.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		if args.Nonce != nil {
 			pmtNonce = uint64(*args.Nonce)
 		} else {
@@ -2125,7 +2125,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	if signed.IsPrivate() && s.b.QuorumCreatePrivacyMarkerTransactions() {
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -2250,7 +2250,7 @@ func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Cont
 		return "", err
 	}
 	log.Debug("private transaction sent to PTM", "generated ptm-hash", txnHash)
-	return txnHash.String(), nil
+	return txnHash.Hex(), nil
 }
 
 // /Quorum
@@ -2906,7 +2906,7 @@ func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transactio
 	//TODO (peter): sender should be removed when possible
 	senderAndHash := append(privateTx.From().Bytes(), txnHash.Bytes()...)
 
-	pmt := types.NewTransaction(pmtNonce, vm.PrivacyMarkerAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
+	pmt := types.NewTransaction(pmtNonce, common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
 
 	return pmt, nil
 }

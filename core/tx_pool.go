@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -266,7 +265,9 @@ type TxPool struct {
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
 
-	quorumCreatePrivacyMarkerTransactions func() bool
+	// (Quorum) isPrivacyMarkerTransactionCreationEnabled returns true if the node is configured to use privacy marker
+	// transactions and the fork block to make the necessary precompile available has been passed
+	isPrivacyMarkerTransactionCreationEnabled func() bool
 }
 
 type txpoolResetRequest struct {
@@ -565,7 +566,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	if pool.chainconfig.IsQuorum {
 		// Quorum
-		if vm.IsPrivacyMarkerTransaction(tx) {
+		if tx.IsPrivacyMarker() {
 			innerTx, _, _ := private.FetchPrivateTransaction(tx.Data())
 			if innerTx != nil {
 				if err := pool.validateTx(innerTx, local); err != nil {
@@ -777,7 +778,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
-	if vm.IsPrivacyMarkerTransaction(tx) && pool.quorumCreatePrivacyMarkerTransactions() {
+	if tx.IsPrivacyMarker() && pool.isPrivacyMarkerTransactionCreationEnabled() {
 		pool.pendingNonces.set(addr, tx.Nonce()+2)
 	} else {
 		pool.pendingNonces.set(addr, tx.Nonce()+1)
@@ -1130,7 +1131,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		highestPending := list.LastElement()
-		if vm.IsPrivacyMarkerTransaction(highestPending) && pool.quorumCreatePrivacyMarkerTransactions() {
+		if highestPending.IsPrivacyMarker() && pool.isPrivacyMarkerTransactionCreationEnabled() {
 			pool.pendingNonces.set(addr, highestPending.Nonce()+2)
 		} else {
 			pool.pendingNonces.set(addr, highestPending.Nonce()+1)
@@ -1503,8 +1504,8 @@ func (pool *TxPool) demoteUnexecutables() {
 	}
 }
 
-func (pool *TxPool) SetQuorumCreatePrivacyMarkerTransactions(fn func() bool) {
-	pool.quorumCreatePrivacyMarkerTransactions = fn
+func (pool *TxPool) SetIsPrivacyMarkerTransactionCreationEnabled(fn func() bool) {
+	pool.isPrivacyMarkerTransactionCreationEnabled = fn
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.

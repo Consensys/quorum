@@ -581,6 +581,10 @@ func (tx *Transaction) SetPrivate() {
 	}
 }
 
+func (tx *Transaction) IsPrivacyMarker() bool {
+	return tx.To() != nil && *tx.To() == common.QuorumPrivacyPrecompileContractAddress()
+}
+
 // PrivacyMetadata encapsulates privacy information to be attached
 // to a transaction being processed
 type PrivacyMetadata struct {

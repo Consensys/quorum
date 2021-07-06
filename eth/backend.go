@@ -259,7 +259,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut}
 
 	// (Quorum) enable the txpool to determine when it needs to apply PMT nonce corrections
-	eth.txPool.SetQuorumCreatePrivacyMarkerTransactions(eth.APIBackend.QuorumCreatePrivacyMarkerTransactions)
+	eth.txPool.SetIsPrivacyMarkerTransactionCreationEnabled(eth.APIBackend.IsPrivacyMarkerTransactionCreationEnabled)
 
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {

@@ -537,7 +537,7 @@ func TestSubmitPrivateTransaction(t *testing.T) {
 
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
-	stbBackend.quorumPrivacyMarkerTransactionsEnabled = false
+	stbBackend.isPrivacyMarkerTransactionCreationEnabled = false
 	stbBackend.ks = keystore
 	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
 	stbBackend.poolNonce = 999
@@ -570,7 +570,7 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false
-	stbBackend.quorumPrivacyMarkerTransactionsEnabled = true
+	stbBackend.isPrivacyMarkerTransactionCreationEnabled = true
 	stbBackend.ks = keystore
 	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
 
@@ -588,7 +588,7 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
 	assert.False(stbBackend.txThatWasSent.IsPrivate(), "transaction was private, instead of privacy marker transaction (public)")
 	assert.Equal(fromAcct.Address, stbBackend.txThatWasSent.From(), "expected private marker transaction to have same 'from' address as internal private tx")
-	assert.Equal(vm.PrivacyMarkerAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' address should be privacy marker precompile")
+	assert.Equal(common.QuorumPrivacyPrecompileContractAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' address should be privacy marker precompile")
 	assert.Equal(uint64(nonce), stbBackend.txThatWasSent.Nonce(), "incorrect nonce on transaction")
 }
 
@@ -605,18 +605,18 @@ func createKeystore(t *testing.T) (*keystore.KeyStore, accounts.Account, account
 }
 
 type StubBackend struct {
-	getEVMCalled                           bool
-	sendTxCalled                           bool
-	txThatWasSent                          *types.Transaction
-	mockAccountExtraDataStateGetter        *vm.MockAccountExtraDataStateGetter
-	multitenancySupported                  bool
-	quorumPrivacyMarkerTransactionsEnabled bool
-	accountManager                         *accounts.Manager
-	ks                                     *keystore.KeyStore
-	poolNonce                              uint64
+	getEVMCalled                              bool
+	sendTxCalled                              bool
+	txThatWasSent                             *types.Transaction
+	mockAccountExtraDataStateGetter           *vm.MockAccountExtraDataStateGetter
+	multitenancySupported                     bool
+	isPrivacyMarkerTransactionCreationEnabled bool
+	accountManager                            *accounts.Manager
+	ks                                        *keystore.KeyStore
+	poolNonce                                 uint64
 
-	IstanbulBlock                          *big.Int
-	CurrentHeadNumber                      *big.Int
+	IstanbulBlock     *big.Int
+	CurrentHeadNumber *big.Int
 }
 
 func (sb *StubBackend) CurrentHeader() *types.Header {
@@ -845,8 +845,8 @@ func (sb *MPSStubBackend) PSMR() mps.PrivateStateMetadataResolver {
 	return sb.psmr
 }
 
-func (sb *StubBackend) QuorumCreatePrivacyMarkerTransactions() bool {
-	return sb.quorumPrivacyMarkerTransactionsEnabled
+func (sb *StubBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	return sb.isPrivacyMarkerTransactionCreationEnabled
 }
 
 type StubMinimalApiState struct {

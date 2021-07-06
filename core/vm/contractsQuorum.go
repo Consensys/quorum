@@ -17,16 +17,10 @@
 package vm
 
 import (
-	"math"
-
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
-
-// Last address that can be used for a pre-compiled contract
-var QUORUM_MAX_PRECOMPILE = math.MaxInt8
 
 // QuorumPrecompiledContract is an extended interface for native Quorum Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -36,9 +30,9 @@ type QuorumPrecompiledContract interface {
 	Run(evm *EVM, input []byte) ([]byte, error) // Run runs the precompiled contract
 }
 
-// Ths contains the default set of pre-compiled Quorum contracts (with an extended interface).
+// QuorumPrecompiledContracts is the default set of pre-compiled Quorum contracts (with an extended interface).
 var QuorumPrecompiledContracts = map[common.Address]QuorumPrecompiledContract{
-	PrivacyMarkerAddress(): &privacyMarker{},
+	common.QuorumPrivacyPrecompileContractAddress(): &privacyMarker{},
 }
 
 // QuorumRunPrecompiledContract runs and evaluates the output of an extended precompiled contract.
@@ -58,15 +52,6 @@ func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input [
 
 type privacyMarker struct{}
 
-func PrivacyMarkerAddress() common.Address {
-	address := QUORUM_MAX_PRECOMPILE - 1
-	return common.BytesToAddress([]byte{byte(address)})
-}
-
-func IsPrivacyMarkerTransaction(tx *types.Transaction) bool {
-	return tx.To() != nil && *tx.To() == PrivacyMarkerAddress()
-}
-
 func (c *privacyMarker) RequiredGas(_ []byte) uint64 {
 	return uint64(0)
 }
@@ -83,7 +68,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	if evm.depth != 0 || !IsPrivacyMarkerTransaction(evm.currentTx) {
+	if evm.depth != 0 || !evm.currentTx.IsPrivacyMarker() {
 		// only supporting direct precompile calls so far
 		return nil, nil
 	}
@@ -95,14 +80,15 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	}
 
 	data := evm.currentTx.Data()
+	fromAddr := common.BytesToAddress(data[:20]) //TODO (peter): sender from tx data should be removed when possible
+
 	tx, _, err := private.FetchPrivateTransaction(data)
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
+		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 		return nil, nil
 	}
 
-	//TODO (peter): sender from tx data should be removed when possible
-	fromAddr := common.BytesToAddress(data[:20])
 	if tx == nil {
 		log.Debug("not a participant, precompile performing no action")
 		// must increment the nonce to mirror the state change that is done in evm.create() for participants
@@ -122,7 +108,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	}
 	//validate the tx is signed
 	signedBy := tx.From()
-	if signedBy.String() == (common.Address{}).String() || signedBy.String() != fromAddr.String() {
+	if signedBy.Hex() == (common.Address{}).Hex() || signedBy.Hex() != fromAddr.Hex() {
 		// the private tx is signed by someone else or is not properly signed, abort
 		// still need to increment the public nonce
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
@@ -130,7 +116,10 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	}
 
 	nonceBefore := evm.PublicState().GetNonce(fromAddr)
-	if err := evm.InnerApply(tx); err != nil {
+
+	if evm.InnerApply == nil {
+		log.Warn("Unable to apply PMT's inner tx to EVM", "err", "nil inner apply function")
+	} else if err := evm.InnerApply(tx); err != nil {
 		log.Warn("Unable to apply PMT's inner tx to EVM", "err", err)
 		// we continue as we must ensure the nonce is updated and don't want to fail the PMT execution due to the invalid internal tx
 	}

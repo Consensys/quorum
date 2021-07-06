@@ -1036,7 +1036,8 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
-// Retrieve the receipts for all private transactions in a given block.
+// (Quorum) GetPrivateReceiptsByHash retrieves the receipts for all internal private transactions (i.e. the private
+// transaction for a public marker transaction) in a given block.
 func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	psm, err := bc.privateStateManager.ResolveForUserContext(ctx)
 	if err != nil {
@@ -1052,7 +1053,7 @@ func (bc *BlockChain) GetPrivateReceiptsByHash(ctx context.Context, hash common.
 
 	privateReceipts := make([]*types.Receipt, 0)
 	for i, tx := range block.Transactions() {
-		if vm.IsPrivacyMarkerTransaction(tx) {
+		if tx.IsPrivacyMarker() {
 			receipt := allReceipts[i]
 			if receipt.PSReceipts != nil && receipt.PSReceipts[psm.ID] != nil {
 				privateReceipts = append(privateReceipts, receipt.PSReceipts[psm.ID])

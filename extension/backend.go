@@ -105,7 +105,7 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 		service.mu.Lock()
 		psiClient := service.client(psi)
 		defer psiClient.Close()
-		tx, _ := service.client(psi).TransactionInBlock(foundLog.BlockHash, foundLog.TxIndex)
+		tx, _ := psiClient.TransactionByHash(foundLog.TxHash)
 		from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 		newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
@@ -378,7 +378,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
 	txArgs.GasPrice = defaultGasPrice
-	txArgs.IsUsingPrivacyPrecompile = service.apiBackendHelper.QuorumCreatePrivacyMarkerTransactions()
+	txArgs.IsUsingPrivacyPrecompile = service.apiBackendHelper.IsPrivacyMarkerTransactionCreationEnabled()
 
 	if txa.GasPrice != nil {
 		txArgs.GasPrice = txa.GasPrice.ToInt()
