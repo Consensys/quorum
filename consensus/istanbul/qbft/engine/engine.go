@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
@@ -287,6 +288,7 @@ func (e *Engine) VerifyUncles(chain consensus.ChainReader, block *types.Block) e
 func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
+	log.Info("qbft.VerifySeal", "number", number)
 	if number == 0 {
 		return istanbulcommon.ErrUnknownBlock
 	}
@@ -306,6 +308,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 	// copy the parent extra data as the header extra data
 	number := header.Number.Uint64()
+
+	log.Info("qbft.Prepare", "number", number)
 	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
@@ -364,6 +368,7 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 	}
 
 	header := block.Header()
+	log.Info("qbft.Seal", "number", header.Number.Uint64())
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return block, consensus.ErrUnknownAncestor

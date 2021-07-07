@@ -125,9 +125,9 @@ func (sb *Backend) Engine() istanbul.Engine {
 
 func (sb *Backend) EngineForHeader(header *types.Header) istanbul.Engine {
 	switch {
-	case header == nil && sb.IsQBFTConsensus():
-		return sb.qbftEngine
 	case header != nil && sb.IsQBFTConsensusForHeader(header):
+		return sb.qbftEngine
+	case header == nil && sb.IsQBFTConsensus():
 		return sb.qbftEngine
 	default:
 		return sb.ibftEngine
