@@ -7,7 +7,6 @@ package mps
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	common "github.com/ethereum/go-ethereum/common"
 	state "github.com/ethereum/go-ethereum/core/state"
@@ -114,18 +113,6 @@ func (m *MockPrivateStateManager) ResolveForUserContext(ctx context.Context) (*P
 func (mr *MockPrivateStateManagerMockRecorder) ResolveForUserContext(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveForUserContext", reflect.TypeOf((*MockPrivateStateManager)(nil).ResolveForUserContext), ctx)
-}
-
-// SaveCachePeriodically mocks base method.
-func (m *MockPrivateStateManager) SaveCachePeriodically(dir string, interval time.Duration, stopCh <-chan struct{}) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SaveCachePeriodically", dir, interval, stopCh)
-}
-
-// SaveCachePeriodically indicates an expected call of SaveCachePeriodically.
-func (mr *MockPrivateStateManagerMockRecorder) SaveCachePeriodically(dir, interval, stopCh interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveCachePeriodically", reflect.TypeOf((*MockPrivateStateManager)(nil).SaveCachePeriodically), dir, interval, stopCh)
 }
 
 // StateRepository mocks base method.

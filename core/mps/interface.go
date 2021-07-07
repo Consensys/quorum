@@ -4,7 +4,6 @@ package mps
 
 import (
 	"context"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -19,8 +18,6 @@ type PrivateStateManager interface {
 	StateRepository(blockHash common.Hash) (PrivateStateRepository, error)
 	// CheckAt verifies if there's a state being managed at a block hash
 	CheckAt(blockHash common.Hash) error
-	// SaveCachePeriodically saves the trie cache in the file system
-	SaveCachePeriodically(dir string, interval time.Duration, stopCh <-chan struct{})
 	// TrieDB returns the trie database
 	TrieDB() *trie.Database
 }
