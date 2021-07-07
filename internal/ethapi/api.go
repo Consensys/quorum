@@ -1754,6 +1754,12 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 		"logsBloom":         receipt.Bloom,
 	}
 
+	// Quorum
+	if len(receipt.RevertReason) > 0 {
+		fields["revertReason"] = hexutil.Encode(receipt.RevertReason)
+	}
+	// End Quorum
+
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
 		fields["root"] = hexutil.Bytes(receipt.PostState)
