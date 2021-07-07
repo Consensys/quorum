@@ -192,15 +192,6 @@ func (c *core) startNewRound(round *big.Int) {
 
 	logger.Trace("Start new ibft round")
 
-	// If new round is 0, then check if qbftConsensus needs to be enabled
-	if round.Uint64() == 0 && c.backend.IsQBFTConsensus() {
-		logger.Trace("Starting qbft consensus as qbftBlock has passed")
-		if err := c.backend.StartQBFTConsensus(); err != nil {
-			// If err is returned, then QBFT consensus is started for the next block
-			logger.Error("Unable to start QBFT Consensus, retrying for the next block", "error", err)
-		}
-	}
-
 	roundChange := false
 	// Try to get last proposal
 	lastProposal, lastProposer := c.backend.LastProposal()
@@ -241,6 +232,16 @@ func (c *core) startNewRound(round *big.Int) {
 			Round:    new(big.Int),
 		}
 		c.valSet = c.backend.Validators(lastProposal)
+	}
+
+	// If new round is 0, then check if qbftConsensus needs to be enabled
+	if round.Uint64() == 0 && c.backend.IsQBFTConsensusForBlockNumber(newView.Sequence) {
+		logger.Trace("Starting qbft consensus as qbftBlock has passed")
+		if err := c.backend.StartQBFTConsensus(); err != nil {
+			// If err is returned, then QBFT consensus is started for the next block
+			logger.Error("Unable to start QBFT Consensus, retrying for the next block", "error", err)
+		}
+		return
 	}
 
 	// Update logger

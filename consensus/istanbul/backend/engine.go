@@ -44,14 +44,14 @@ const (
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
 func (sb *Backend) Author(header *types.Header) (common.Address, error) {
-	return sb.EngineForHeader(header).Author(header)
+	return sb.EngineForBlockNumber(header.Number).Author(header)
 }
 
 // Signers extracts all the addresses who have signed the given header
 // It will extract for each seal who signed it, regardless of if the seal is
 // repeated
 func (sb *Backend) Signers(header *types.Header) ([]common.Address, error) {
-	return sb.EngineForHeader(header).Signers(header)
+	return sb.EngineForBlockNumber(header.Number).Signers(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
@@ -68,7 +68,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		return err
 	}
 
-	return sb.EngineForHeader(header).VerifyHeader(chain, header, parents, snap.ValSet)
+	return sb.EngineForBlockNumber(header.Number).VerifyHeader(chain, header, parents, snap.ValSet)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -105,7 +105,7 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
 func (sb *Backend) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	return sb.EngineForHeader(block.Header()).VerifyUncles(chain, block)
+	return sb.EngineForBlockNumber(block.Header().Number).VerifyUncles(chain, block)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -124,7 +124,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 		return err
 	}
 
-	return sb.EngineForHeader(header).VerifySeal(chain, header, snap.ValSet)
+	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, snap.ValSet)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -138,7 +138,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		return err
 	}
 
-	err = sb.EngineForHeader(header).Prepare(chain, header, snap.ValSet)
+	err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if len(addresses) > 0 {
 		index := rand.Intn(len(addresses))
 
-		err = sb.EngineForHeader(header).WriteVote(header, addresses[index], authorizes[index])
+		err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
 		if err != nil {
 			log.Error("Error writing validator vote", "err", err)
 			return err
@@ -174,13 +174,13 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	sb.EngineForHeader(header).Finalize(chain, header, state, txs, uncles)
+	sb.EngineForBlockNumber(header.Number).Finalize(chain, header, state, txs, uncles)
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return sb.EngineForHeader(header).FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+	return sb.EngineForBlockNumber(header.Number).FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
 
 // Seal generates a new block for the given input block with the local miner's
@@ -197,7 +197,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return err
 	}
 
-	block, err = sb.EngineForHeader(header).Seal(chain, block, snap.ValSet)
+	block, err = sb.EngineForBlockNumber(header.Number).Seal(chain, block, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *Backend) SealHash(header *types.Header) common.Hash {
-	return sb.EngineForHeader(header).SealHash(header)
+	return sb.EngineForBlockNumber(header.Number).SealHash(header)
 }
 
 func (sb *Backend) snapApply(snap *Snapshot, headers []*types.Header) (*Snapshot, error) {
@@ -440,7 +440,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Resolve the authorization key and check against validators
-	validator, err := sb.EngineForHeader(header).Author(header)
+	validator, err := sb.EngineForBlockNumber(header.Number).Author(header)
 	if err != nil {
 		return err
 	}
@@ -450,7 +450,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Read vote from header
-	candidate, authorize, err := sb.EngineForHeader(header).ReadVote(header)
+	candidate, authorize, err := sb.EngineForBlockNumber(header.Number).ReadVote(header)
 	if err != nil {
 		return err
 	}

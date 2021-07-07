@@ -120,14 +120,14 @@ type Backend struct {
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
-	return sb.EngineForHeader(nil)
+	return sb.EngineForBlockNumber(nil)
 }
 
-func (sb *Backend) EngineForHeader(header *types.Header) istanbul.Engine {
+func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	switch {
-	case header != nil && sb.IsQBFTConsensusForHeader(header):
+	case blockNumber != nil && sb.IsQBFTConsensusForBlockNumber(blockNumber):
 		return sb.qbftEngine
-	case header == nil && sb.IsQBFTConsensus():
+	case blockNumber == nil && sb.IsQBFTConsensus():
 		return sb.qbftEngine
 	default:
 		return sb.ibftEngine
@@ -136,7 +136,7 @@ func (sb *Backend) EngineForHeader(header *types.Header) istanbul.Engine {
 
 // zekun: HACK
 func (sb *Backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	return sb.EngineForHeader(parent).CalcDifficulty(chain, time, parent)
+	return sb.EngineForBlockNumber(parent.Number).CalcDifficulty(chain, time, parent)
 }
 
 // Address implements istanbul.Backend.Address
@@ -215,7 +215,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	}
 
 	h := block.Header()
-	err = sb.EngineForHeader(h).CommitHeader(h, seals, round)
+	err = sb.EngineForBlockNumber(h.Number).CommitHeader(h, seals, round)
 	if err != nil {
 		return
 	}
@@ -271,7 +271,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return 0, err
 	}
 
-	return sb.EngineForHeader(header).VerifyBlockProposal(sb.chain, block, snap.ValSet)
+	return sb.EngineForBlockNumber(header.Number).VerifyBlockProposal(sb.chain, block, snap.ValSet)
 }
 
 // Sign implements istanbul.Backend.Sign
@@ -364,14 +364,14 @@ func (sb *Backend) IsQBFTConsensus() bool {
 		return true
 	}
 	if sb.chain != nil {
-		return sb.IsQBFTConsensusForHeader(sb.chain.CurrentHeader())
+		return sb.IsQBFTConsensusForBlockNumber(sb.chain.CurrentHeader().Number)
 	}
 	return false
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *Backend) IsQBFTConsensusForHeader(header *types.Header) bool {
-	return sb.config.IsQBFTConsensusForHeader(header)
+func (sb *Backend) IsQBFTConsensusForBlockNumber(blockNumber *big.Int) bool {
+	return sb.config.IsQBFTConsensusForBlockNumber(blockNumber)
 }
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus

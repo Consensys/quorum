@@ -19,7 +19,6 @@ package istanbul
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/naoina/toml"
 )
 
@@ -123,16 +122,17 @@ func (c Config) QBFTBlock() int64 {
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (c *Config) IsQBFTConsensusForHeader(header *types.Header) bool {
+func (c *Config) IsQBFTConsensusForBlockNumber(blockNumber *big.Int) bool {
 	// If qbftBlock is not defined in genesis qbft consensus is not used
 	if c.QbftBlock == nil {
 		return false
 	}
+
 	if c.QbftBlock.Uint64() == 0 {
 		return true
 	}
 
-	if header != nil && header.Number.Cmp(c.QbftBlock) >= 0 {
+	if blockNumber.Cmp(c.QbftBlock) >= 0 {
 		return true
 	}
 	return false
