@@ -17,7 +17,7 @@ import (
 type RoundChange struct {
 	SignedRoundChangePayload
 	PreparedBlock *types.Block
-	Justification []*SignedPreparePayload
+	Justification []*Prepare
 }
 
 func NewRoundChange(sequence *big.Int, round *big.Int, preparedRound *big.Int, preparedBlock istanbul.Proposal) *RoundChange {

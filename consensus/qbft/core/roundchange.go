@@ -92,7 +92,7 @@ func (c *core) handleRoundChange(roundChange *message.RoundChange) error {
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	if view.Round.Cmp(currentRound) >= 0 {
-		var prepareMessages []*message.SignedPreparePayload = nil
+		var prepareMessages []*message.Prepare = nil
 		var pr *big.Int = nil
 		var pb *types.Block = nil
 		if roundChange.PreparedRound != nil && roundChange.PreparedBlock != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
@@ -158,7 +158,7 @@ func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
 		validatorSet:         valSet,
 		roundChanges:         make(map[uint64]*qbftMsgSet),
-		prepareMessages:      make(map[uint64][]*message.SignedPreparePayload),
+		prepareMessages:      make(map[uint64][]*message.Prepare),
 		highestPreparedRound: make(map[uint64]*big.Int),
 		highestPreparedBlock: make(map[uint64]istanbul.Proposal),
 		mu:                   new(sync.Mutex),
@@ -168,7 +168,7 @@ func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 type roundChangeSet struct {
 	validatorSet         istanbul.ValidatorSet
 	roundChanges         map[uint64]*qbftMsgSet
-	prepareMessages      map[uint64][]*message.SignedPreparePayload
+	prepareMessages      map[uint64][]*message.Prepare
 	highestPreparedRound map[uint64]*big.Int
 	highestPreparedBlock map[uint64]istanbul.Proposal
 	mu                   *sync.Mutex
@@ -182,12 +182,12 @@ func (rcs *roundChangeSet) NewRound(r *big.Int) {
 		rcs.roundChanges[round] = newQBFTMsgSet(rcs.validatorSet)
 	}
 	if rcs.prepareMessages[round] == nil {
-		rcs.prepareMessages[round] = make([]*message.SignedPreparePayload, 0)
+		rcs.prepareMessages[round] = make([]*message.Prepare, 0)
 	}
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg message.QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*message.SignedPreparePayload, quorumSize int) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg message.QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*message.Prepare, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 

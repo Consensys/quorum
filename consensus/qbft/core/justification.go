@@ -20,7 +20,7 @@ import (
 func isJustified(
 	proposal istanbul.Proposal,
 	roundChangeMessages []*message.SignedRoundChangePayload,
-	prepareMessages []*message.SignedPreparePayload,
+	prepareMessages []*message.Prepare,
 	quorumSize int) error {
 
 	// Check the size of the set of ROUND-CHANGE messages
@@ -91,7 +91,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 // Checks whether the round and block of a set of PREPARE messages of at least quorumSize match the
 // preparedRound and preparedBlockDigest of a ROUND-CHANGE message.
 func hasMatchingRoundChangeAndPrepares(
-	roundChange *message.RoundChange, prepareMessages []*message.SignedPreparePayload, quorumSize int) error {
+	roundChange *message.RoundChange, prepareMessages []*message.Prepare, quorumSize int) error {
 
 	if len(prepareMessages) < quorumSize {
 		return errors.New("number of prepare messages is less than quorum of messages")

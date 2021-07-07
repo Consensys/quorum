@@ -97,7 +97,7 @@ type core struct {
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
 
-	QBFTPreparedPrepares []*message.SignedPreparePayload
+	QBFTPreparedPrepares []*message.Prepare
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex

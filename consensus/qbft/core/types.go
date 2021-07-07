@@ -80,7 +80,7 @@ func (s State) Cmp(y State) int {
 type Request struct {
 	Proposal        qbft.Proposal
 	RCMessages      *qbftMsgSet
-	PrepareMessages []*message.SignedPreparePayload
+	PrepareMessages []*message.Prepare
 }
 
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted

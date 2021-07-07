@@ -117,9 +117,9 @@ func testParameterizedCase(
 	}
 
 	// PREPARE messages
-	prepareMessages := make([]*message.SignedPreparePayload, 0)
+	prepareMessages := make([]*message.Prepare, 0)
 	for index, validator := range validatorSet.List() {
-		var m *message.SignedPreparePayload
+		var m *message.Prepare
 		if index < preparesForTargetRound {
 			m = createPrepareMessage(validator.Address(), targetPreparedRound, block)
 		} else if index >= preparesForTargetRound && index < preparesForTargetRound+preparesNotForTargetRound {
@@ -154,8 +154,8 @@ func createRoundChangeMessage(from common.Address, round int64, preparedRound in
 	return &m.SignedRoundChangePayload
 }
 
-func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message.SignedPreparePayload {
-	return message.NewSignedPreparePayload(big.NewInt(1), big.NewInt(round), preparedBlock.Hash(), nil, from)
+func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message.Prepare {
+	return message.NewPrepareWithSigAndSource(big.NewInt(1), big.NewInt(round), preparedBlock.Hash(), nil, from)
 }
 
 func generateValidators(n int) []common.Address {

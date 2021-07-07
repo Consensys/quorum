@@ -14,7 +14,7 @@ type Preprepare struct {
 	CommonPayload
 	Proposal                  qbft.Proposal
 	JustificationRoundChanges []*SignedRoundChangePayload
-	JustificationPrepares     []*SignedPreparePayload
+	JustificationPrepares     []*Prepare
 }
 
 func NewPreprepare(sequence *big.Int, round *big.Int, proposal qbft.Proposal) *Preprepare {
@@ -63,7 +63,7 @@ func (m *Preprepare) DecodeRLP(stream *rlp.Stream) error {
 		}
 		Justification struct {
 			RoundChanges []*SignedRoundChangePayload
-			Prepares     []*SignedPreparePayload
+			Prepares     []*Prepare
 		}
 	}
 	if err := stream.Decode(&message); err != nil {
