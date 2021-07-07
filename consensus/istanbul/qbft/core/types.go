@@ -65,7 +65,7 @@ func (s State) Cmp(y State) int {
 type Request struct {
 	Proposal        istanbul.Proposal
 	RCMessages      *qbftMsgSet
-	PrepareMessages []*qbfttypes.SignedPreparePayload
+	PrepareMessages []*qbfttypes.Prepare
 }
 
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted

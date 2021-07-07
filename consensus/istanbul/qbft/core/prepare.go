@@ -83,11 +83,11 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 		logger.Info("QBFT: have quorum of prepares")
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round
-		c.QBFTPreparedPrepares = make([]*qbfttypes.SignedPreparePayload, 0)
+		c.QBFTPreparedPrepares = make([]*qbfttypes.Prepare, 0)
 		for _, m := range c.current.QBFTPrepares.Values() {
 			c.QBFTPreparedPrepares = append(
 				c.QBFTPreparedPrepares,
-				qbfttypes.NewSignedPreparePayload(
+				qbfttypes.NewPrepareWithSigAndSource(
 					m.View().Sequence, m.View().Round, m.(*qbfttypes.Prepare).Digest, m.Signature(), m.Source()))
 		}
 
