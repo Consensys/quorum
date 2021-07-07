@@ -1836,6 +1836,29 @@ func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend)
 	return nil
 }
 
+func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b Backend, tx *types.Transaction) error {
+	if args.PrivateFor != nil && b.ChainConfig().IsMPS {
+		retrievedPrivateFrom, err := getRawTransactionPrivateFrom(tx)
+		if err != nil {
+			return err
+		}
+		if len(args.PrivateFrom) == 0 {
+			args.PrivateFrom = retrievedPrivateFrom
+		}
+		if args.PrivateFrom != retrievedPrivateFrom {
+			return fmt.Errorf("The PrivateFrom address retrieved from the privacy manager does not match private PrivateFrom (%s) specified in transaction arguments.", args.PrivateFrom)
+		}
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return err
+		}
+		if psm.NotIncludeAny(args.PrivateFrom) {
+			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s) ", psm.ID)
+		}
+	}
+	return nil
+}
+
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.GasPrice == nil {
@@ -2204,7 +2227,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	}
 
 	// Quorum
-	if err := args.SetDefaultPrivateFrom(ctx, s.b); err != nil {
+	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return common.Hash{}, err
 	}
 	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
@@ -2233,7 +2256,7 @@ func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Cont
 	log.Debug("deserialised raw private tx", "hash", tx.Hash())
 
 	// Quorum
-	if err := args.SetDefaultPrivateFrom(ctx, s.b); err != nil {
+	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return "", err
 	}
 	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
@@ -2817,6 +2840,16 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	return
 }
 
+func getRawTransactionPrivateFrom(tx *types.Transaction) (string, error) {
+	data := tx.Data()
+	hash := common.BytesToEncryptedPayloadHash(data)
+	_, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
+	if revErr != nil {
+		return "", revErr
+	}
+	return privateFrom, revErr
+}
+
 // Quorum
 func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address) (hash common.EncryptedPayloadHash, err error) {
 	data := tx.Data()
@@ -2826,14 +2859,6 @@ func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Trans
 		return common.EncryptedPayloadHash{}, revErr
 	}
 	log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload), "privateFrom", privateFrom)
-
-	if b.ChainConfig().IsMPS {
-		// validate that the PrivateFrom resolved from tessera is same as the one specified in tx params
-		if privateFrom != privateTxArgs.PrivateFrom {
-			err = fmt.Errorf("The PrivateFrom (%s) address retrieved from tessera does not match the default/PrivateFrom (%s) specified in transaction arguments.", privateFrom, privateTxArgs.PrivateFrom)
-			return
-		}
-	}
 
 	privateTxArgs.PrivateFrom = privateFrom
 	var privateTx *types.Transaction
