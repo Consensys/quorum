@@ -678,6 +678,7 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 		// Execute the transaction and flush any traces to disk
 		// Quorum
 		privateStateDbToUse := core.PrivateStateDBForTxn(chainConfig.IsQuorum, tx, statedb, privateStateDb)
+		vmConf.ApplyOnPartyOverride = &psm.ID
 		vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, chainConfig, vmConf)
 		vmenv.SetCurrentTX(tx)
 		vmenv.InnerApply = func(innerTx *types.Transaction) error {
@@ -927,8 +928,13 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	// Set the private state to public state if it is not a private tx
 	privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
 
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tracing failed: %v", err)
+	}
+
 	// Run the transaction with tracing enabled.
-	vmconf := &vm.Config{Debug: true, Tracer: tracer}
+	vmconf := &vm.Config{Debug: true, Tracer: tracer, ApplyOnPartyOverride: &psm.ID}
 	vmenv := vm.NewEVM(vmctx, statedb, privateStateDbToUse, api.eth.blockchain.Config(), *vmconf)
 	vmenv.SetCurrentTX(tx)
 	vmenv.InnerApply = func(innerTx *types.Transaction) error {

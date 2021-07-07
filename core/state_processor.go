@@ -229,6 +229,9 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	// execute in all the managed private states
 	// TODO this could be enhanced to run in parallel
 	for _, psi := range bc.PrivateStateManager().PSIs() {
+		if cfg.ApplyOnPartyOverride != nil && *cfg.ApplyOnPartyOverride != psi {
+			continue
+		}
 		_, applyAsParty := targetPsi[psi]
 		if !applyAsParty && applyOnPartiesOnly {
 			continue
