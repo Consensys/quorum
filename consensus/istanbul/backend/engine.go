@@ -63,7 +63,7 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	// Assemble the voting snapshot
-	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
+	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents)
 	if err != nil {
 		return err
 	}
