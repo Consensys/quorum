@@ -525,3 +525,288 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 	log.TxIndex = math.MaxUint32
 	log.Index = math.MaxUint32
 }
+
+
+// Test that ReceiptForStorage can be encoded and decoded and preserve all necessary data
+func TestReceiptForStorage_NoPSReceipts_EncodeAndDecode(t *testing.T) {
+	stubHash := common.HexToHash("0xabcdef")
+
+	tests := []struct {
+		name             string
+		withRevertReason bool
+	}{
+		{
+			name:             "noRevertReason",
+			withRevertReason: false,
+		},
+		{
+			name:             "revertReason",
+			withRevertReason: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fullReceipt := &ReceiptForStorage{
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 1,
+				Logs: []*Log{
+					{
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+						// log fields that shouldn't be encoded/decoded
+						BlockNumber: uint64(5),
+						TxHash:      stubHash,
+						TxIndex:     uint(3),
+						BlockHash:   stubHash,
+						Index:       uint(54),
+						Removed:     true,
+					},
+					{
+						Address: common.BytesToAddress([]byte{0x01, 0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+						// log fields that shouldn't be encoded/decoded
+						BlockNumber: uint64(5),
+						TxHash:      stubHash,
+						TxIndex:     uint(3),
+						BlockHash:   stubHash,
+						Index:       uint(54),
+						Removed:     true,
+					},
+				},
+				// receipt fields that shouldn't be encoded/decoded
+				TxHash:           stubHash,
+				ContractAddress:  common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+				GasUsed:          111111,
+				BlockHash:        stubHash,
+				BlockNumber:      big.NewInt(14),
+				TransactionIndex: uint(4),
+			}
+
+			bloom := CreateBloom(Receipts{(*Receipt)(fullReceipt)})
+			fullReceipt.Bloom = bloom
+
+			if tt.withRevertReason {
+				fullReceipt.RevertReason = []byte{0x01, 0x00, 0xff}
+			}
+
+			buf := new(bytes.Buffer)
+
+			if err := rlp.Encode(buf, fullReceipt); err != nil {
+				t.Fatalf("Error RLP encoding receipt: %v", err)
+			}
+
+			got := new(ReceiptForStorage)
+			if err := rlp.Decode(buf, got); err != nil {
+				t.Fatalf("Error RLP encoding receipt: %v", err)
+			}
+
+			// only a subset of fields are to be encoded, the rest are derived after decoding
+			want := &ReceiptForStorage{
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 1,
+				Logs: []*Log{
+					{
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+					{
+						Address: common.BytesToAddress([]byte{0x01, 0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+				},
+				Bloom: bloom,
+			}
+
+			if tt.withRevertReason {
+				want.RevertReason = []byte{0x01, 0x00, 0xff}
+			}
+
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+// Test that ReceiptForStorage with PSReceipts can be encoded and decoded and preserve all necessary data
+func TestReceiptForStorage_WithPSReceipts_EncodeAndDecode(t *testing.T) {
+	stubHash := common.HexToHash("0xabcdef")
+
+	tests := []struct {
+		name                            string
+		withTopLevelReceiptRevertReason bool
+		withPSReceiptRevertReason       bool
+	}{
+		{
+			name:                            "noRevertReason",
+			withTopLevelReceiptRevertReason: false,
+			withPSReceiptRevertReason:       false,
+		},
+		{
+			name:                            "topLevelReceiptRevertReason",
+			withTopLevelReceiptRevertReason: true,
+			withPSReceiptRevertReason:       false,
+		},
+		{
+			name:                            "psReceiptRevertReason",
+			withTopLevelReceiptRevertReason: false,
+			withPSReceiptRevertReason:       true,
+		},
+		{
+			name:                            "topLevelAndPSReceiptRevertReason",
+			withTopLevelReceiptRevertReason: true,
+			withPSReceiptRevertReason:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fullReceipt := &ReceiptForStorage{
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 1,
+				Logs: []*Log{
+					{
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+						// log fields that shouldn't be encoded/decoded
+						BlockNumber: uint64(5),
+						TxHash:      stubHash,
+						TxIndex:     uint(3),
+						BlockHash:   stubHash,
+						Index:       uint(54),
+						Removed:     true,
+					},
+					{
+						Address: common.BytesToAddress([]byte{0x01, 0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+						// log fields that shouldn't be encoded/decoded
+						BlockNumber: uint64(5),
+						TxHash:      stubHash,
+						TxIndex:     uint(3),
+						BlockHash:   stubHash,
+						Index:       uint(54),
+						Removed:     true,
+					},
+				},
+				PSReceipts: map[PrivateStateIdentifier]*Receipt{
+					"myPSI": {
+						Status:            ReceiptStatusSuccessful,
+						CumulativeGasUsed: 1,
+						Logs: []*Log{
+							{
+								Address: common.BytesToAddress([]byte{0x11}),
+								Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+								Data:    []byte{0x01, 0x00, 0xff},
+								// log fields that shouldn't be encoded/decoded
+								BlockNumber: uint64(5),
+								TxHash:      stubHash,
+								TxIndex:     uint(3),
+								BlockHash:   stubHash,
+								Index:       uint(54),
+								Removed:     true,
+							},
+						},
+						// txhash and contractAddress should be encoded/decoded for PSReceipts only
+						TxHash:          stubHash,
+						ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+						// psReceipt fields that shouldn't be encoded/decoded
+						GasUsed:          111111,
+						BlockHash:        stubHash,
+						BlockNumber:      big.NewInt(14),
+						TransactionIndex: uint(4),
+					},
+				},
+				// receipt fields that shouldn't be encoded/decoded
+				TxHash:           stubHash,
+				ContractAddress:  common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+				GasUsed:          111111,
+				BlockHash:        stubHash,
+				BlockNumber:      big.NewInt(14),
+				TransactionIndex: uint(4),
+			}
+			topLevelReceiptBloom := CreateBloom(Receipts{(*Receipt)(fullReceipt)})
+			psReceiptBloom := CreateBloom(Receipts{(fullReceipt.PSReceipts["myPSI"])})
+
+			fullReceipt.Bloom = topLevelReceiptBloom
+			fullReceipt.PSReceipts["myPSI"].Bloom = psReceiptBloom
+
+			if tt.withTopLevelReceiptRevertReason {
+				fullReceipt.RevertReason = []byte{0x01, 0x00, 0xff}
+			}
+			if tt.withPSReceiptRevertReason {
+				fullReceipt.PSReceipts["myPSI"].RevertReason = []byte{0x01, 0x00, 0xff}
+			}
+
+			buf := new(bytes.Buffer)
+
+			if err := rlp.Encode(buf, fullReceipt); err != nil {
+				t.Fatalf("Error RLP encoding receipt: %v", err)
+			}
+
+			got := new(ReceiptForStorage)
+			if err := rlp.Decode(buf, got); err != nil {
+				t.Fatalf("Error RLP encoding receipt: %v", err)
+			}
+
+			// only a subset of fields are to be encoded, the rest are derived after decoding
+			want := &ReceiptForStorage{
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 1,
+				Logs: []*Log{
+					{
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+					{
+						Address: common.BytesToAddress([]byte{0x01, 0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+				},
+				Bloom: topLevelReceiptBloom,
+				//RevertReason:    fullReceipt.RevertReason,
+				PSReceipts: map[PrivateStateIdentifier]*Receipt{
+					"myPSI": {
+						Status:            ReceiptStatusSuccessful,
+						CumulativeGasUsed: 1,
+						Logs: []*Log{
+							{
+								Address: common.BytesToAddress([]byte{0x11}),
+								Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+								Data:    []byte{0x01, 0x00, 0xff},
+								PSI:     "myPSI",
+							},
+						},
+						Bloom: psReceiptBloom,
+						//RevertReason:     fullReceipt.PSReceipts["myPSI"].RevertReason,
+						TxHash:          stubHash,
+						ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+					},
+				},
+			}
+
+			if tt.withTopLevelReceiptRevertReason || tt.withPSReceiptRevertReason {
+				// if there's at least 1 revertreason, then the values of the deocded revertreasons will be the revertreason
+				// or an empty slice.  if there are no revertreasons, then the values of the decoded revertreasons will
+				// simply be nil
+				want.RevertReason = []byte{}
+				want.PSReceipts["myPSI"].RevertReason = []byte{}
+
+				if tt.withTopLevelReceiptRevertReason {
+					want.RevertReason = []byte{0x01, 0x00, 0xff}
+				}
+				if tt.withPSReceiptRevertReason {
+					want.PSReceipts["myPSI"].RevertReason = []byte{0x01, 0x00, 0xff}
+				}
+			}
+
+			assert.Equal(t, want, got)
+		})
+	}
+}

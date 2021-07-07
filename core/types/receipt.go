@@ -205,19 +205,32 @@ type ReceiptForStorage Receipt
 // - original EncodeRLP is now encodeRLPOriginal
 // Note that PMTReceipts also have TxHash & ContractAddress encoded, as needed for privacy marker transactions
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
-	hasRevertReason := r.RevertReason != nil && len(r.RevertReason) > 0
 	if r.PSReceipts == nil {
-		if hasRevertReason {
+		if hasRevertReason((*Receipt)(r)) {
 			return r.encodeRLPOriginalWithRevertReason(w)
 		} else {
 			return r.encodeRLPOriginal(w)
 		}
 	}
-	if hasRevertReason {
+	return r.encodeRLPWithPSReceipts(w)
+}
+
+func (r *ReceiptForStorage) encodeRLPWithPSReceipts(w io.Writer) error {
+	// if any PSReceipts have a RevertReason then encode all with RevertReason
+	if hasRevertReason((*Receipt)(r)) {
 		return r.encodeRLPForMPSWithRevertReason(w)
-	} else {
-		return r.encodeRLPForMPS(w)
 	}
+	for _, psr := range r.PSReceipts {
+		if hasRevertReason(psr) {
+			return r.encodeRLPForMPSWithRevertReason(w)
+		}
+	}
+
+	return r.encodeRLPForMPS(w)
+}
+
+func hasRevertReason(r *Receipt) bool {
+	return r.RevertReason != nil && len(r.RevertReason) > 0
 }
 
 // Quorum - MPS
