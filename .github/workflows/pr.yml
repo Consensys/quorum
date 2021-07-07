@@ -161,6 +161,22 @@ jobs:
             privacy-enhancements: false
             quorum-precompiles-v1: true
             privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+            privacy-enhancements: false
+            quorum-precompiles-v1: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+            privacy-enhancements: false
+            quorum-precompiles-v1: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || networks/typical::raftmps'
+            privacy-enhancements: false
+            quorum-precompiles-v1: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || networks/typical::istanbulmps'
+            privacy-enhancements: false
+            quorum-precompiles-v1: true
+            privacy-marker-transactions: true
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
