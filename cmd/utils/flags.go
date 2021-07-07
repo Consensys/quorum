@@ -1715,6 +1715,9 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
 		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
 	}
+	if cfg.TrieCleanCacheJournal == cfg.PrivateTrieCleanCacheJournal {
+		Fatalf("'%s' and '%s' must be different in order to avoid collision", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
+	}
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
