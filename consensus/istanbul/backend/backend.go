@@ -136,7 +136,7 @@ func (sb *Backend) EngineForHeader(header *types.Header) istanbul.Engine {
 
 // zekun: HACK
 func (sb *Backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	return sb.Engine().CalcDifficulty(chain, time, parent)
+	return sb.EngineForHeader(parent).CalcDifficulty(chain, time, parent)
 }
 
 // Address implements istanbul.Backend.Address
@@ -215,7 +215,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	}
 
 	h := block.Header()
-	err = sb.Engine().CommitHeader(h, seals, round)
+	err = sb.EngineForHeader(h).CommitHeader(h, seals, round)
 	if err != nil {
 		return
 	}
@@ -271,7 +271,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return 0, err
 	}
 
-	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet)
+	return sb.EngineForHeader(header).VerifyBlockProposal(sb.chain, block, snap.ValSet)
 }
 
 // Sign implements istanbul.Backend.Sign
