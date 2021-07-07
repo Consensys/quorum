@@ -111,7 +111,6 @@ func (sb *Backend) VerifyUncles(chain consensus.ChainReader, block *types.Block)
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header) error {
-	sb.logger.Info("backend.VerifySeal", "number", header.Number.Uint64())
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -130,8 +129,6 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	sb.logger.Info("backend.Prepare", "number", header.Number.Uint64())
-
 	// Assemble the voting snapshot
 	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
 	if err != nil {
@@ -190,7 +187,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
-	sb.logger.Info("backend.Seal", "number", number)
+
 	// Bail out if we're unauthorized to sign a block
 	snap, err := sb.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {

@@ -169,7 +169,7 @@ func (sb *testSystemBackend) Close() error {
 	return nil
 }
 
-func (sb *testSystemBackend) IsQBFTConsensus() bool {
+func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
 	return true
 }
 

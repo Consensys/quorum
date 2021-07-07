@@ -235,7 +235,7 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
-	if round.Uint64() == 0 && c.backend.IsQBFTConsensusForBlockNumber(newView.Sequence) {
+	if round.Uint64() == 0 && c.backend.IsQBFTConsensusAt(newView.Sequence) {
 		logger.Trace("Starting qbft consensus as qbftBlock has passed")
 		if err := c.backend.StartQBFTConsensus(); err != nil {
 			// If err is returned, then QBFT consensus is started for the next block

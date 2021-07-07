@@ -121,8 +121,8 @@ func (c Config) QBFTBlock() int64 {
 	return c.QbftBlock.Int64()
 }
 
-// IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (c *Config) IsQBFTConsensusForBlockNumber(blockNumber *big.Int) bool {
+// IsQBFTConsensusAt checks if qbft consensus is enabled for the block height identified by the given header
+func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 	// If qbftBlock is not defined in genesis qbft consensus is not used
 	if c.QbftBlock == nil {
 		return false

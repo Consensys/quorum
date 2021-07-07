@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
@@ -250,7 +249,6 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
-	log.Info("ibft.VerifySeal", "number", number)
 	if number == 0 {
 		return istanbulcommon.ErrUnknownBlock
 	}
@@ -264,8 +262,6 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
-	log.Info("ibft.Prepare", "number", header.Number.Uint64())
-
 	header.Coinbase = common.Address{}
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
@@ -324,8 +320,6 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
-
-	log.Info("ibft.Seal", "number", number)
 
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, istanbulcommon.ErrUnauthorized

@@ -125,7 +125,7 @@ func (sb *Backend) Engine() istanbul.Engine {
 
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	switch {
-	case blockNumber != nil && sb.IsQBFTConsensusForBlockNumber(blockNumber):
+	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):
 		return sb.qbftEngine
 	case blockNumber == nil && sb.IsQBFTConsensus():
 		return sb.qbftEngine
@@ -363,15 +363,17 @@ func (sb *Backend) IsQBFTConsensus() bool {
 	if sb.qbftConsensusEnabled {
 		return true
 	}
+
 	if sb.chain != nil {
-		return sb.IsQBFTConsensusForBlockNumber(sb.chain.CurrentHeader().Number)
+		return sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
 	}
+
 	return false
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *Backend) IsQBFTConsensusForBlockNumber(blockNumber *big.Int) bool {
-	return sb.config.IsQBFTConsensusForBlockNumber(blockNumber)
+func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
+	return sb.config.IsQBFTConsensusAt(blockNumber)
 }
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
