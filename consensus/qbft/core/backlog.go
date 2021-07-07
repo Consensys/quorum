@@ -107,10 +107,10 @@ func (c *core) storeQBFTBacklog(msg message.QBFTMessage) {
 	backlog := c.backlogs[src]
 	if backlog == nil {
 		backlog = prque.New()
+		c.backlogs[src] = backlog
 	}
 	view := msg.View()
 	backlog.Push(msg, toPriority(msg.Code(), &view))
-	c.backlogs[src] = backlog
 }
 
 func (c *core) processBacklog() {
