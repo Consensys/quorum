@@ -361,11 +361,13 @@ func (sb *Backend) Close() error {
 
 // IsQBFTConsensus returns whether qbft consensus should be used
 func (sb *Backend) IsQBFTConsensus() bool {
+	if sb.qbftConsensusEnabled {
+		return true
+	}
 	if sb.chain != nil {
 		return sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
 	}
-
-	return sb.qbftConsensusEnabled
+	return false
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header

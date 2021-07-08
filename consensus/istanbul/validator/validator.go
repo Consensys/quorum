@@ -50,8 +50,8 @@ func ValidExtraData(extraData []byte) bool {
 
 func SortedAddresses(validators []istanbul.Validator) []common.Address {
 	addrs := make([]common.Address, len(validators))
-	for _, validator := range validators {
-		addrs = append(addrs, validator.Address())
+	for i, validator := range validators {
+		addrs[i] = validator.Address()
 	}
 
 	for i := 0; i < len(addrs); i++ {
