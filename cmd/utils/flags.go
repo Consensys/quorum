@@ -1706,7 +1706,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
 }
 
-func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
 	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
@@ -1716,8 +1716,9 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
 	}
 	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
-		Fatalf("'%s' and '%s' must be different in order to avoid collision", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
+		return fmt.Errorf("configuation collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
 	}
+	return nil
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1795,7 +1796,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setLes(ctx, cfg)
 
 	// Quorum
-	setQuorumConfig(ctx, cfg)
+	err := setQuorumConfig(ctx, cfg)
+	if err != nil {
+		Fatalf("Quorum configuration has an error: %v", err)
+	}
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
