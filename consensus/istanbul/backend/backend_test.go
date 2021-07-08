@@ -185,7 +185,7 @@ func TestGetProposer(t *testing.T) {
 }
 
 func TestIsQBFTConsensus(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(1))
+	chain, engine := newBlockChain(1, big.NewInt(2))
 	qbftConsensus := engine.IsQBFTConsensus()
 	if qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return false")
@@ -200,6 +200,16 @@ func TestIsQBFTConsensus(t *testing.T) {
 	// Create an insert a new block into the chain.
 	block := makeBlock(chain, engine, chain.Genesis())
 	_, err := chain.InsertChain(types.Blocks{block})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	if err = engine.NewChainHead(); err != nil {
+		t.Errorf("Error posting NewChainHead Event: %v", err)
+	}
+
+	secondBlock := makeBlock(chain, engine, block)
+	_, err = chain.InsertChain(types.Blocks{secondBlock})
 	if err != nil {
 		t.Errorf("Error inserting block: %v", err)
 	}
