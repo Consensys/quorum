@@ -128,7 +128,7 @@ func TestCommit(t *testing.T) {
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1, true)
+				chain, engine := newBlockChain(1, big.NewInt(0))
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -138,7 +138,7 @@ func TestCommit(t *testing.T) {
 			istanbulcommon.ErrInvalidCommittedSeals,
 			nil,
 			func() *types.Block {
-				chain, engine := newBlockChain(1, true)
+				chain, engine := newBlockChain(1, big.NewInt(0))
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -174,7 +174,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestGetProposer(t *testing.T) {
-	chain, engine := newBlockChain(1, true)
+	chain, engine := newBlockChain(1, big.NewInt(0))
 	block := makeBlock(chain, engine, chain.Genesis())
 	chain.InsertChain(types.Blocks{block})
 	expected := engine.GetProposer(1)
@@ -185,15 +185,13 @@ func TestGetProposer(t *testing.T) {
 }
 
 func TestIsQBFTConsensus(t *testing.T) {
-	chain, engine := newBlockChain(1, false)
-
+	chain, engine := newBlockChain(1, big.NewInt(1))
 	qbftConsensus := engine.IsQBFTConsensus()
 	if qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return false")
 	}
 
 	// Set the value of qbftBlock to 1
-	engine.config.QbftBlock = big.NewInt(1)
 	qbftConsensus = engine.IsQBFTConsensus()
 	if qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return false")
@@ -262,7 +260,7 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(4, true)
+	_, b = newBlockChain(1, big.NewInt(0))
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return

@@ -17,6 +17,7 @@
 package backend
 
 import (
+	"math/big"
 	"math/rand"
 	"time"
 
@@ -24,8 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
-	ibftcore "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/core"
-	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -183,7 +182,6 @@ func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
@@ -270,25 +268,18 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.hasBadBlock = hasBadBlock
 
 	// Check if qbft Consensus needs to be used after chain is set
+	var err error
 	if sb.IsQBFTConsensus() {
-		sb.core = qbftcore.New(sb, sb.config)
-
-		sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
-		sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
+		err = sb.startQBFT()
 	} else {
-		sb.core = ibftcore.New(sb, sb.config)
+		err = sb.startIBFT()
 	}
 
-	if err := sb.core.Start(); err != nil {
+	if err != nil {
 		return err
 	}
 
 	sb.coreStarted = true
-
-	if sb.IsQBFTConsensus() {
-		sb.logger.Trace("Started qbft consensus")
-		sb.qbftConsensusEnabled = true
-	}
 
 	return nil
 }
@@ -300,14 +291,10 @@ func (sb *Backend) Stop() error {
 	if !sb.coreStarted {
 		return istanbul.ErrStoppedEngine
 	}
-	if err := sb.core.Stop(); err != nil {
+	if err := sb.stop(); err != nil {
 		return err
 	}
 	sb.coreStarted = false
-
-	if sb.IsQBFTConsensus() {
-		sb.qbftConsensusEnabled = false
-	}
 
 	return nil
 }
@@ -336,12 +323,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If we're at block zero, make a snapshot
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
-			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil); err != nil {
+			if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
 				return nil, err
 			}
 
 			// Get the validators from genesis to create a snapshot
-			validators, err := sb.Engine().Validators(genesis)
+			validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
 			if err != nil {
 				return nil, err
 			}

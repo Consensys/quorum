@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	ibftcore "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/core"
 	ibftengine "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/engine"
 	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
 	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
@@ -360,15 +361,11 @@ func (sb *Backend) Close() error {
 
 // IsQBFTConsensus returns whether qbft consensus should be used
 func (sb *Backend) IsQBFTConsensus() bool {
-	if sb.qbftConsensusEnabled {
-		return true
-	}
-
 	if sb.chain != nil {
 		return sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
 	}
 
-	return false
+	return sb.qbftConsensusEnabled
 }
 
 // IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
@@ -376,28 +373,59 @@ func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 	return sb.config.IsQBFTConsensusAt(blockNumber)
 }
 
-// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
-func (sb *Backend) StartQBFTConsensus() error {
-	sb.logger.Trace("Starting QBFT Consensus")
-	if err := sb.Stop(); err != nil {
-		return err
-	}
-	sb.logger.Trace("Stopped legacy IBFT consensus")
-	sb.coreMu.Lock()
-	defer sb.coreMu.Unlock()
+func (sb *Backend) startIBFT() error {
+	sb.logger.Info("Start IBFT Consensus")
+	sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByStringFunc and sort")
+	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
+	sb.qbftConsensusEnabled = false
 
-	// Set the core to qbft
-	sb.core = qbftcore.New(sb, sb.config)
-
-	sb.logger.Trace("Starting qbft")
-	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
+	sb.core = ibftcore.New(sb, sb.config)
 	if err := sb.core.Start(); err != nil {
+		sb.logger.Error("Fail to start IBFT Consensus", "err", err)
 		return err
 	}
-
-	sb.logger.Trace("Started qbft consensus")
-	sb.coreStarted = true
-	sb.qbftConsensusEnabled = true
 
 	return nil
+}
+
+func (sb *Backend) startQBFT() error {
+	sb.logger.Info("Start QBFT Consensus")
+	sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
+	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
+	sb.qbftConsensusEnabled = true
+
+	sb.core = qbftcore.New(sb, sb.config)
+	if err := sb.core.Start(); err != nil {
+		sb.logger.Error("Fail to start QBFT Consensus", "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func (sb *Backend) stop() error {
+	core := sb.core
+	sb.core = nil
+
+	if core != nil {
+		sb.logger.Info("Stop consensus")
+		if err := core.Stop(); err != nil {
+			sb.logger.Error("Fail to stop  Consensus", "err", err)
+			return err
+		}
+	}
+
+	sb.qbftConsensusEnabled = false
+
+	return nil
+}
+
+// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
+func (sb *Backend) StartQBFTConsensus() error {
+	sb.logger.Info("Switch from IBFT to QBFT Consensus")
+	if err := sb.stop(); err != nil {
+		return err
+	}
+
+	return sb.startQBFT()
 }

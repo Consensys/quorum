@@ -27,13 +27,13 @@ import (
 
 // Start implements core.Engine.Start
 func (c *core) Start() error {
-	// Start a new round from last sequence + 1
-	c.startNewRound(common.Big0)
-
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
 	c.subscribeEvents()
 	go c.handleEvents()
+
+	// Start a new round from last sequence + 1
+	c.startNewRound(common.Big0)
 
 	return nil
 }
@@ -88,6 +88,7 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
+
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case istanbul.RequestEvent:
