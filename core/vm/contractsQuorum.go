@@ -82,7 +82,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	data := evm.currentTx.Data()
 	fromAddr := common.BytesToAddress(data[:20]) //TODO (peter): sender from tx data should be removed when possible
 
-	tx, _, err := private.FetchPrivateTransaction(data)
+	tx, _, _, err := private.FetchPrivateTransaction(data)
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)

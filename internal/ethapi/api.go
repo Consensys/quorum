@@ -1661,6 +1661,14 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 // GetPrivateTransactionByHash accepts the hash for a privacy marker transaction,
 // but returns the associated private transaction
 func (s *PublicTransactionPoolAPI) GetPrivateTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+	if !private.IsQuorumPrivacyEnabled() {
+		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// first need the privacy marker transaction
 	pmt, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if err != nil {
@@ -1669,11 +1677,11 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionByHash(ctx context.Conte
 
 	// now retrieve the private transaction
 	if pmt != nil {
-		tx, _, err := private.FetchPrivateTransaction(pmt.Data())
+		tx, managedParties, _, err := private.FetchPrivateTransaction(pmt.Data())
 		if err != nil {
 			return nil, err
 		}
-		if tx != nil {
+		if tx != nil && !s.b.PSMR().NotIncludeAny(psm, managedParties...) {
 			return newRPCTransaction(tx, blockHash, blockNumber, index), nil
 		}
 	}
@@ -1697,7 +1705,7 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 	}
 
 	// now retrieve the private transaction
-	tx, _, err := private.FetchPrivateTransaction(pmt.Data())
+	tx, _, _, err := private.FetchPrivateTransaction(pmt.Data())
 	if err != nil {
 		return nil, err
 	}
@@ -1967,7 +1975,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		tx := tx
 		// If we are sending a Privacy Marker Transaction, then get the private txn details
 		if tx.IsPrivacyMarker() {
-			tx, _, err = private.FetchPrivateTransaction(tx.Data())
+			tx, _, _, err = private.FetchPrivateTransaction(tx.Data())
 			if err != nil {
 				return common.Hash{}, err
 			}

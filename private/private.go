@@ -127,24 +127,24 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 }
 
 // Retrieve the private transaction that is associated with a privacy marker transaction
-func FetchPrivateTransaction(data []byte) (*types.Transaction, *engine.ExtraMetadata, error) {
+func FetchPrivateTransaction(data []byte) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
 	// data currently contains 20 byte 'from' address, followed by the hash
 	txHash := common.BytesToEncryptedPayloadHash(data[20:])
 
-	_, _, txData, metadata, err := P.Receive(txHash)
+	_, managedParties, txData, metadata, err := P.Receive(txHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if txData == nil {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	var tx types.Transaction
 	err = json.NewDecoder(bytes.NewReader(txData)).Decode(&tx)
 	if err != nil {
 		log.Trace("failed to deserialize private transaction", "err", err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return &tx, metadata, nil
+	return &tx, managedParties, metadata, nil
 }

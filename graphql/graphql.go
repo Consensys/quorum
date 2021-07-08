@@ -375,7 +375,7 @@ func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, err
 		return nil, err
 	}
 
-	pvtTx, _, err := private.FetchPrivateTransaction(tx.Data())
+	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
 	if err != nil {
 		return nil, err
 	}

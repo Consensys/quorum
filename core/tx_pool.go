@@ -567,7 +567,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.chainconfig.IsQuorum {
 		// Quorum
 		if tx.IsPrivacyMarker() {
-			innerTx, _, _ := private.FetchPrivateTransaction(tx.Data())
+			innerTx, _, _, _ := private.FetchPrivateTransaction(tx.Data())
 			if innerTx != nil {
 				if err := pool.validateTx(innerTx, local); err != nil {
 					return err
