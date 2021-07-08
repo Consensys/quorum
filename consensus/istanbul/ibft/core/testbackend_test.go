@@ -170,7 +170,7 @@ func (sb *testSystemBackend) Close() error {
 }
 
 func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
-	return true
+	return false
 }
 
 func (sb *testSystemBackend) StartQBFTConsensus() error {
