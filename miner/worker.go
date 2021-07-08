@@ -817,7 +817,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateRepo := workerEnv.privateStateRepo
 	txnStart := time.Now()
 
-	mpsReceipt, privateStateSnaphots, err := w.handleMPS(tx, coinbase)
+	mpsReceipt, privateStateSnaphots, err := w.handleMPS(tx, coinbase, false)
 	if err != nil {
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
@@ -1182,7 +1182,7 @@ func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateI
 // handleMPS returns the auxiliary receipt and the non-nil snapshots.
 //
 // Caller must check for error and reverts private states.
-func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
+func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address, applyOnPartyOnly bool) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
 	workerEnv := w.current
 	privateStateRepo := workerEnv.privateStateRepo
 	// make sure we don't return NIL map
@@ -1202,7 +1202,7 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsR
 			privateStateSnaphots[psi] = db.Snapshot()
 			return db, nil
 		}
-		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo)
+		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo, applyOnPartyOnly)
 	}
 	return
 }

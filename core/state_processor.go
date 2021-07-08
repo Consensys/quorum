@@ -80,7 +80,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		mpsReceipt, err := handleMPS(i, tx, gp, usedGas, cfg, statedb, privateStateRepo, p.config, p.bc, header)
+		mpsReceipt, err := handleMPS(i, tx, gp, usedGas, cfg, statedb, privateStateRepo, p.config, p.bc, header, false)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -175,7 +175,7 @@ func PrivateStateDBForTxn(isQuorum bool, tx *types.Transaction, stateDb, private
 // handling MPS scenario for a private transaction
 //
 // handleMPS returns the auxiliary receipt and not the standard receipt
-func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg vm.Config, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, config *params.ChainConfig, bc *BlockChain, header *types.Header) (mpsReceipt *types.Receipt, err error) {
+func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg vm.Config, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, config *params.ChainConfig, bc *BlockChain, header *types.Header, applyOnPartiesOnly bool) (mpsReceipt *types.Receipt, err error) {
 	if tx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
 		publicStateDBFactory := func() *state.StateDB {
 			db := statedb.Copy()
@@ -190,7 +190,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 			db.Prepare(tx.Hash(), header.Hash(), ti)
 			return db, nil
 		}
-		mpsReceipt, err = ApplyTransactionOnMPS(config, bc, nil, gp, publicStateDBFactory, privateStateDBFactory, header, tx, usedGas, cfg, privateStateRepo)
+		mpsReceipt, err = ApplyTransactionOnMPS(config, bc, nil, gp, publicStateDBFactory, privateStateDBFactory, header, tx, usedGas, cfg, privateStateRepo, applyOnPartiesOnly)
 	}
 	return
 }
@@ -207,7 +207,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 // The originalGP gas pool will not be modified
 func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, originalGP *GasPool,
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
-	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, error) {
+	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository, applyOnPartiesOnly bool) (*types.Receipt, error) {
 	// clone the gas pool (as we don't want to keep consuming intrinsic gas multiple times for each MPS execution)
 	gp := new(GasPool).AddGas(originalGP.Gas())
 	mpsReceipt := &types.Receipt{
@@ -229,7 +229,13 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	// execute in all the managed private states
 	// TODO this could be enhanced to run in parallel
 	for _, psi := range bc.PrivateStateManager().PSIs() {
+		if cfg.ApplyOnPartyOverride != nil && *cfg.ApplyOnPartyOverride != psi {
+			continue
+		}
 		_, applyAsParty := targetPsi[psi]
+		if !applyAsParty && applyOnPartiesOnly {
+			continue
+		}
 		privateStateDB, err := privateStateDBFactory(psi)
 		if err != nil {
 			return nil, err
@@ -392,7 +398,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, usedGas *uint64, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
 	if innerTx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
 		// TODO(cjh) does using gp and usedGas here mean that gas gets used twice (i.e. by both the inner and outer applies)? or does the fact that handleMPS itself results in ApplyTransaction and ApplyInnerTransaction being called prevent this?
-		mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header)
+		mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true)
 		if err != nil {
 			return err
 		}
