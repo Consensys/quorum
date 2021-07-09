@@ -19,10 +19,11 @@ package core
 import "github.com/ethereum/go-ethereum/common"
 
 func (c *core) handleFinalCommitted() error {
-	logger := c.logger.New("state", c.state)
-	logger.Trace("Received a final committed proposal")
+	c.withState(c.currentLogger()).Info("QBFT: handle final committed")
+
 	// Stopping the timer, so that round changes do not happen
 	c.stopTimer()
 	c.startNewRound(common.Big0)
+
 	return nil
 }

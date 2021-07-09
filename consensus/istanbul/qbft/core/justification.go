@@ -56,7 +56,7 @@ func isJustified(
 func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, quorumSize int) error {
 	nilCount := 0
 	for _, m := range roundChangeMessages {
-		log.Info("QBFT: hasQuorumOfRoundChangeMessagesForNil", "rc", m)
+		log.Trace("QBFT: hasQuorumOfRoundChangeMessagesForNil", "rc", m)
 		if (m.PreparedRound == nil || m.PreparedRound.Cmp(common.Big0) == 0) && common.EmptyHash(m.PreparedDigest) {
 			nilCount++
 			if nilCount == quorumSize {
@@ -73,7 +73,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 	lowerOrEqualRoundCount := 0
 	hasMatchingMessage := false
 	for _, m := range roundChangeMessages {
-		log.Info("QBFT: hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock", "rc", m)
+		log.Trace("QBFT: hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock", "rc", m)
 		if m.PreparedRound == nil || m.PreparedRound.Cmp(preparedRound) <= 0 {
 			lowerOrEqualRoundCount++
 			if m.PreparedRound != nil && m.PreparedRound.Cmp(preparedRound) == 0 && m.PreparedDigest == preparedBlock.Hash() {

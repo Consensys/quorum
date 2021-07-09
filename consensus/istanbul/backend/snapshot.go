@@ -55,8 +55,6 @@ type Snapshot struct {
 	Votes  []*Vote                  // List of votes cast in chronological order
 	Tally  map[common.Address]Tally // Current vote tally to avoid recalculating
 	ValSet istanbul.ValidatorSet    // Set of authorized validators at this moment
-
-	engine istanbul.Engine
 }
 
 // newSnapshot create a new snapshot with the specified startup parameters. This

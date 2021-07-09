@@ -22,11 +22,15 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// broadcastPrepare is called after receiving PRE-PREPARE from proposer node
+
+// It
+// - creates a PREPARE message
+// - broadcast PREPARE message to other validators
 func (c *core) broadcastPrepare() {
-	var err error
+	logger := c.withState(c.currentLogger())
 
-	logger := c.logger.New("state", c.state)
-
+	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
 	prepare := qbfttypes.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest)
 	prepare.SetSource(c.Address())
@@ -34,12 +38,12 @@ func (c *core) broadcastPrepare() {
 	// Sign Message
 	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode payload of prepare message", "msg", prepare, "err", err)
+		c.withMsg(logger, prepare).Error("QBFT: failed to encode payload of PREPARE message", "err", err)
 		return
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign prepare message", "msg", prepare, "err", err)
+		c.withMsg(logger, prepare).Error("QBFT: failed to sign PREPARE message", "err", err)
 		return
 	}
 	prepare.SetSignature(signature)
@@ -47,41 +51,51 @@ func (c *core) broadcastPrepare() {
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode prepare message", "msg", prepare, "err", err)
+		c.withMsg(logger, prepare).Error("QBFT: failed to encode PREPARE message", "err", err)
 		return
 	}
 
-	logger.Info("QBFT: broadcastPrepare", "m", sub, "payload", hexutil.Encode(payload))
+	c.withMsg(logger, prepare).Info("QBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
-		logger.Error("QBFT: Failed to broadcast message", "msg", prepare, "err", err)
+		c.withMsg(logger, prepare).Error("QBFT: failed to broadcast PREPARE message", "err", err)
 		return
 	}
 }
 
-func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
-	logger := c.logger.New("state", c.state)
+// handlePrepare is called when receiving a PREPARE message
 
-	logger.Info("QBFT: handlePrepare", "msg", &prepare)
+// It
+// - validates PREPARE message digest matches the current block proposal
+// - accumulates valid PREPARE message until reaching quorum
+// - when quorum is reached update states to "Prepared" and broadcast COMMIT
+func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
+	logger := c.withMsg(c.withState(c.currentLogger()), prepare)
+
+	logger.Info("QBFT: handle PREPARE message")
 
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
-		logger.Error("QBFT: Failed to check digest")
+		logger.Error("QBFT: invalid PREPARE message digest")
 		return errInvalidMessage
 	}
 
-	// Add to received msgs
+	// Save PREPARE messages
 	if err := c.current.QBFTPrepares.Add(prepare); err != nil {
-		c.logger.Error("QBFT: Failed to save prepare message", "msg", prepare, "err", err)
+		logger.Error("QBFT: failed to save PREPARE message", "err", err)
 		return err
 	}
 
-	// Change to Prepared state if we've received enough PREPARE messages
-	// and we are in earlier state before Prepared state.
+	logger = logger.New("prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
+
+	// Change to "Prepared" state if we've received quorum of PREPARE messages
+	// and we are in earlier state than "Prepared"
 	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 
-		logger.Info("QBFT: have quorum of prepares")
-		// IBFT REDUX
+		logger.Info("QBFT: received quorum of PREPARE messages")
+
+		// Accumulates PREPARE messages
 		c.current.preparedRound = c.currentView().Round
 		c.QBFTPreparedPrepares = make([]*qbfttypes.Prepare, 0)
 		for _, m := range c.current.QBFTPrepares.Values() {
@@ -98,6 +112,8 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 
 		c.setState(StatePrepared)
 		c.broadcastCommit()
+	} else {
+		logger.Info("QBFT: accepted PREPARE messages")
 	}
 
 	return nil

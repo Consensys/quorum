@@ -18,7 +18,6 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -212,10 +211,11 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("Invalid proposal, %v", proposal)
+		sb.logger.Error("BFT: invalid block proposal, %v", proposal)
 		return istanbulcommon.ErrInvalidProposal
 	}
 
+	// Commit header
 	h := block.Header()
 	err = sb.EngineForBlockNumber(h.Number).CommitHeader(h, seals, round)
 	if err != nil {
@@ -224,10 +224,11 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 
 	// Remove ValidatorSet added to ProposerPolicy registry, if not done, the registry keeps increasing size with each block height
 	sb.config.ProposerPolicy.ClearRegistry()
+
 	// update block's header
 	block = block.WithSeal(h)
 
-	sb.logger.Info("Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
+	sb.logger.Info("BFT: block proposal committed", "author", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
 
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
@@ -258,12 +259,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("Invalid proposal, %v", proposal)
+		sb.logger.Error("BFT: invalid block proposal, %v", proposal)
 		return 0, istanbulcommon.ErrInvalidProposal
 	}
 
 	// check bad block
 	if sb.HasBadProposal(block.Hash()) {
+		sb.logger.Warn("BFT: bad block proposal, %v", proposal)
 		return 0, core.ErrBlacklistedHash
 	}
 
@@ -291,7 +293,6 @@ func (sb *Backend) SignWithoutHashing(data []byte) ([]byte, error) {
 func (sb *Backend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := istanbul.GetSignatureAddress(data, sig)
 	if err != nil {
-		log.Error("Failed to get signer address", "err", err)
 		return err
 	}
 	// Compare derived addresses
@@ -340,7 +341,7 @@ func (sb *Backend) LastProposal() (istanbul.Proposal, common.Address) {
 		var err error
 		proposer, err = sb.Author(block.Header())
 		if err != nil {
-			sb.logger.Error("Failed to get block proposer", "err", err)
+			sb.logger.Error("BFT: last block proposal invalid", "err", err)
 			return nil, common.Address{}
 		}
 	}
@@ -377,14 +378,14 @@ func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 }
 
 func (sb *Backend) startIBFT() error {
-	sb.logger.Info("Start IBFT Consensus")
-	sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByStringFunc and sort")
+	sb.logger.Info("BFT: activate IBFT")
+	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByStringFun")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
 	sb.qbftConsensusEnabled = false
 
 	sb.core = ibftcore.New(sb, sb.config)
 	if err := sb.core.Start(); err != nil {
-		sb.logger.Error("Fail to start IBFT Consensus", "err", err)
+		sb.logger.Error("BFT: failed to activate IBFT", "err", err)
 		return err
 	}
 
@@ -392,14 +393,14 @@ func (sb *Backend) startIBFT() error {
 }
 
 func (sb *Backend) startQBFT() error {
-	sb.logger.Info("Start QBFT Consensus")
-	sb.logger.Trace("Setting ProposerPolicy sorter to ValidatorSortByByteFunc and sort")
+	sb.logger.Info("BFT: activate QBFT")
+	sb.logger.Trace("SettBFT: set ProposerPolicy sorter to ValidatorSortByByteFunc")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
 	sb.qbftConsensusEnabled = true
 
 	sb.core = qbftcore.New(sb, sb.config)
 	if err := sb.core.Start(); err != nil {
-		sb.logger.Error("Fail to start QBFT Consensus", "err", err)
+		sb.logger.Error("BFT: failed to activate QBFT", "err", err)
 		return err
 	}
 
@@ -411,9 +412,9 @@ func (sb *Backend) stop() error {
 	sb.core = nil
 
 	if core != nil {
-		sb.logger.Info("Stop consensus")
+		sb.logger.Info("BFT: deactivate")
 		if err := core.Stop(); err != nil {
-			sb.logger.Error("Fail to stop  Consensus", "err", err)
+			sb.logger.Error("BFT: failed to deactivate", "err", err)
 			return err
 		}
 	}
@@ -425,8 +426,7 @@ func (sb *Backend) stop() error {
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
 func (sb *Backend) StartQBFTConsensus() error {
-	fmt.Println("Switch from IBFT to QBFT Consensus")
-	sb.logger.Info("Switch from IBFT to QBFT Consensus")
+	sb.logger.Info("BFT: switch from IBFT to QBFT")
 	if err := sb.stop(); err != nil {
 		return err
 	}

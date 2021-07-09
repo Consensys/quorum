@@ -25,11 +25,20 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// sendPreprepareMsg is called either
+// - when we are proposer after calling `miner.Seal(...)`
+// - roundChange happens and we are the proposer
+
+// It
+// - creates and sign PRE-PREPARE message with block proposed on `miner.Seal()`
+// - extends PRE-PREPARE message with ROUND-CHANGE and PREPARE justification
+// - broadcast PRE-PREPARE message to other validators
 func (c *core) sendPreprepareMsg(request *Request) {
-	logger := c.logger.New("state", c.state)
+	logger := c.withState(c.currentLogger())
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+		// Creates PRE-PREPARE message
 		curView := c.currentView()
 		preprepare := qbfttypes.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
 		preprepare.SetSource(c.Address())
@@ -37,41 +46,46 @@ func (c *core) sendPreprepareMsg(request *Request) {
 		// Sign payload
 		encodedPayload, err := preprepare.EncodePayloadForSigning()
 		if err != nil {
-			logger.Error("QBFT: Failed to encode payload of pre-prepare message", "msg", preprepare, "err", err)
+			c.withMsg(logger, preprepare).Error("QBFT: failed to encode payload of PRE-PREPARE message", "err", err)
 			return
 		}
 		signature, err := c.backend.Sign(encodedPayload)
 		if err != nil {
-			logger.Error("QBFT: Failed to sign pre-prepare message", "msg", preprepare, "err", err)
+			c.withMsg(logger, preprepare).Error("QBFT: failed to sign PRE-PREPARE message", "err", err)
 			return
 		}
 		preprepare.SetSignature(signature)
 
-		// Justification
+		// Extend PRE-PREPARE message with ROUND-CHANGE justification
 		if request.RCMessages != nil {
 			preprepare.JustificationRoundChanges = make([]*qbfttypes.SignedRoundChangePayload, 0)
 			for _, m := range request.RCMessages.Values() {
 				preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
-				logger.Info("QBFT: Appending RC justification", "rc", m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
+				c.withMsg(logger, preprepare).Trace("QBFT: add ROUND-CHANGE justification", "rc", m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
 			}
-			logger.Info("QBFT: On Pre-prepare", "rc justification", preprepare.JustificationRoundChanges)
+			c.withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
 		}
+
+		// Extend PRE-PREPARE message with PREPARE justification
 		if request.PrepareMessages != nil {
 			preprepare.JustificationPrepares = request.PrepareMessages
-			logger.Info("QBFT: On Pre-prepare", "prepare justification", preprepare.JustificationPrepares)
+			c.withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 		}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepare)
 		if err != nil {
-			logger.Error("QBFT: Failed to encode pre-prepare message", "msg", preprepare, "err", err)
+			c.withMsg(logger, preprepare).Error("QBFT: failed to encode PRE-PREPARE message", "err", err)
 			return
 		}
 
-		logger.Info("QBFT: sendPreprepareMsg", "m", preprepare, "payload", hexutil.Encode(payload))
+		logger = c.withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+
+		logger.Info("QBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
-			logger.Error("QBFT: Failed to broadcast message", "msg", preprepare, "err", err)
+			logger.Error("QBFT: failed to broadcast PRE-PREPARE message", "err", err)
 			return
 		}
 
@@ -80,31 +94,40 @@ func (c *core) sendPreprepareMsg(request *Request) {
 	}
 }
 
+// handlePreprepareMsg is called when receiving a PRE-PREPARE message from the proposer
+
+// It
+// - validates PRE-PREPARE message was created by the right proposer node
+// - validates PRE-PREPARE message justification
+// - validates PRE-PREPARE message block proposal
 func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
-	logger := c.logger.New("state", c.state)
+	logger := c.withMsg(c.withState(c.currentLogger()), preprepare)
 
-	c.logger.Info("QBFT: handlePreprepareMsg", "view", preprepare.View(), "m", preprepare)
+	logger = logger.New("proposal.number", preprepare.Proposal.Number().Uint64(), "proposal.hash", preprepare.Proposal.Hash().String())
 
-	// Check if the message comes from current proposer
-	logger.Warn("QBFT who's proposer?", "source", preprepare.Source(), "proposer", c.valSet.GetProposer().Address())
+	c.logger.Info("QBFT: handle PRE-PREPARE message")
+
+	// Validates PRE-PREPARE message comes from current proposer
 	if !c.valSet.IsProposer(preprepare.Source()) {
-		logger.Warn("Ignore preprepare messages from non-proposer")
+		logger.Warn("QBFT: ignore PRE-PREPARE message from non proposer", "proposer", c.valSet.GetProposer().Address())
 		return errNotFromProposer
 	}
 
-	// Justification
+	// Validates PRE-PREPARE message justification
 	if preprepare.Round.Uint64() > 0 {
 		if err := isJustified(preprepare.Proposal, preprepare.JustificationRoundChanges, preprepare.JustificationPrepares, c.QuorumSize()); err != nil {
-			logger.Error("QBFT: Unable to justify PRE-PREPARE message", "err", err)
+			logger.Warn("QBFT: invalid PRE-PREPARE message justification", "err", err)
 			return errInvalidPreparedBlock
 		}
 	}
 
-	// Verify the proposal we received
+	// Validates PRE-PREPARE block proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
-			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
+			logger.Info("QBFT: PRE-PREPARE block proposal is in the future (will be treated again later)", "duration", duration)
+
+			// start a timer to re-input PRE-PREPARE message as a backlog event
 			c.stopFuturePreprepareTimer()
 			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
 				_, validator := c.valSet.GetByAddress(preprepare.Source())
@@ -114,15 +137,25 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 				})
 			})
 		}
+
+		logger.Warn("QBFT: invalid PRE-PREPARE block proposal", "err", err)
+
 		return err
 	}
 
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
+		c.logger.Info("QBFT: accepted PRE-PREPARE message")
+
+		// Re-initialize ROUND-CHANGE timer
 		c.newRoundChangeTimer()
 		c.consensusTimestamp = time.Now()
+
+		// Update current state
 		c.current.SetPreprepare(preprepare)
 		c.setState(StatePreprepared)
+
+		// Broadcast prepare message to other validators
 		c.broadcastPrepare()
 	}
 
