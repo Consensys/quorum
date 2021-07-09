@@ -310,6 +310,7 @@ func TestVoting(t *testing.T) {
 			results: []string{"A", "B"},
 		},
 	}
+
 	// Run through the scenarios and test them
 	for i, tt := range tests {
 		// Create the account pool and generate the initial set of validators
@@ -328,7 +329,8 @@ func TestVoting(t *testing.T) {
 		}
 
 		genesis := testutils.Genesis(validators, true)
-		config := istanbul.DefaultConfig
+		config := new(istanbul.Config)
+		*config = *istanbul.DefaultConfig
 		config.QbftBlock = big.NewInt(0)
 		if tt.epoch != 0 {
 			config.Epoch = tt.epoch
@@ -374,6 +376,7 @@ func TestVoting(t *testing.T) {
 		snap, err := backend.snapshot(chain, head.Number.Uint64(), head.Hash(), headers)
 		if err != nil {
 			t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+			backend.Stop()
 			continue
 		}
 		// Verify the final list of validators against the expected ones
@@ -391,6 +394,7 @@ func TestVoting(t *testing.T) {
 		result := snap.validators()
 		if len(result) != len(validators) {
 			t.Errorf("test %d: validators mismatch: have %x, want %x", i, result, validators)
+			backend.Stop()
 			continue
 		}
 		for j := 0; j < len(result); j++ {
@@ -398,6 +402,7 @@ func TestVoting(t *testing.T) {
 				t.Errorf("test %d, validator %d: validator mismatch: have %x, want %x", i, j, result[j], validators[j])
 			}
 		}
+		backend.Stop()
 	}
 }
 

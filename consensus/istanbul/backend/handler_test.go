@@ -33,6 +33,7 @@ import (
 
 func TestIstanbulMessage(t *testing.T) {
 	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 
 	// generate one msg
 	data := []byte("data1")
@@ -78,6 +79,7 @@ func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
 
 func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, arbitraryBlock, t)
@@ -97,6 +99,7 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 
 func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, types.NewBlock(&types.Header{
@@ -121,6 +124,7 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 
 func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
 	postAndWait(backend, types.NewBlock(&types.Header{

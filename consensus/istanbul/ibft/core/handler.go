@@ -169,13 +169,17 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 
 	switch msg.Code {
 	case ibfttypes.MsgPreprepare:
-		return testBacklog(c.handlePreprepare(msg, src))
+		err := c.handlePreprepare(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgPrepare:
-		return testBacklog(c.handlePrepare(msg, src))
+		err := c.handlePrepare(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgCommit:
-		return testBacklog(c.handleCommit(msg, src))
+		err := c.handleCommit(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgRoundChange:
-		return testBacklog(c.handleRoundChange(msg, src))
+		err := c.handleRoundChange(msg, src)
+		return testBacklog(err)
 	default:
 		logger.Error("Invalid message", "msg", msg)
 	}

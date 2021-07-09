@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -424,6 +425,7 @@ func (sb *Backend) stop() error {
 
 // StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
 func (sb *Backend) StartQBFTConsensus() error {
+	fmt.Println("Switch from IBFT to QBFT Consensus")
 	sb.logger.Info("Switch from IBFT to QBFT Consensus")
 	if err := sb.stop(); err != nil {
 		return err

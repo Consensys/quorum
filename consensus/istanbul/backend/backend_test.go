@@ -35,6 +35,7 @@ import (
 
 func TestSign(t *testing.T) {
 	b := newBackend()
+	defer b.Stop()
 	data := []byte("Here is a string....")
 	sig, err := b.Sign(data)
 	if err != nil {
@@ -56,6 +57,7 @@ func TestCheckSignature(t *testing.T) {
 	hashData := crypto.Keccak256(data)
 	sig, _ := crypto.Sign(hashData, key)
 	b := newBackend()
+	defer b.Stop()
 	a := getAddress()
 	err := b.CheckSignature(data, a, sig)
 	if err != nil {
@@ -115,6 +117,7 @@ func TestCheckValidatorSignature(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	backend := newBackend()
+	defer backend.Stop()
 
 	commitCh := make(chan *types.Block)
 	// Case: it's a proposer, so the backend.commit will receive channel result from backend.Commit function
@@ -175,6 +178,7 @@ func TestCommit(t *testing.T) {
 
 func TestGetProposer(t *testing.T) {
 	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	block := makeBlock(chain, engine, chain.Genesis())
 	chain.InsertChain(types.Blocks{block})
 	expected := engine.GetProposer(1)
@@ -186,6 +190,7 @@ func TestGetProposer(t *testing.T) {
 
 func TestIsQBFTConsensus(t *testing.T) {
 	chain, engine := newBlockChain(1, big.NewInt(2))
+	defer engine.Stop()
 	qbftConsensus := engine.IsQBFTConsensus()
 	if qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return false")
@@ -218,8 +223,6 @@ func TestIsQBFTConsensus(t *testing.T) {
 	if !qbftConsensus {
 		t.Errorf("IsQBFTConsensus() should return true after block insertion")
 	}
-	// Stop the backend engine
-	engine.Stop()
 }
 
 /**
