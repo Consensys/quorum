@@ -190,8 +190,8 @@ func (vv *ValidatorVote) DecodeRLP(s *rlp.Stream) error {
 // error if the length of the given extra-data is less than 32 bytes or the extra-data can not
 // be decoded.
 func ExtractQbftExtra(h *Header) (*QbftExtra, error) {
-	var qbftExtra *QbftExtra
-	err := rlp.DecodeBytes(h.Extra[:], &qbftExtra)
+	qbftExtra := new(QbftExtra)
+	err := rlp.DecodeBytes(h.Extra[:], qbftExtra)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	qbftMessage "github.com/ethereum/go-ethereum/consensus/qbft/message"
+	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -47,11 +47,11 @@ var (
 )
 
 // Protocol implements consensus.Engine.Protocol
-func (sb *backend) Protocol() consensus.Protocol {
+func (sb *Backend) Protocol() consensus.Protocol {
 	return consensus.IstanbulProtocol
 }
 
-func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
+func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
 	if sb.IsQBFTConsensus() {
 		data = make([]byte, msg.Size)
@@ -67,10 +67,10 @@ func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 }
 
 // HandleMsg implements consensus.Handler.HandleMsg
-func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
+func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	if _, ok := qbftMessage.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
+	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			return true, istanbul.ErrStoppedEngine
 		}
@@ -134,11 +134,11 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 }
 
 // SetBroadcaster implements consensus.Handler.SetBroadcaster
-func (sb *backend) SetBroadcaster(broadcaster consensus.Broadcaster) {
+func (sb *Backend) SetBroadcaster(broadcaster consensus.Broadcaster) {
 	sb.broadcaster = broadcaster
 }
 
-func (sb *backend) NewChainHead() error {
+func (sb *Backend) NewChainHead() error {
 	sb.coreMu.RLock()
 	defer sb.coreMu.RUnlock()
 	if !sb.coreStarted {

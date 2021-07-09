@@ -25,36 +25,34 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/testutils"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// in this test, we can set n to 1, and it means we can process Istanbul and commit a
-// block by one node. Otherwise, if n is larger than 1, we have to generate
-// other fake events to process Istanbul.
-func newBlockChain(n int) (*core.BlockChain, *backend) {
-	genesis, nodeKeys := getGenesisAndKeys(n, true)
+func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *istanbul.Config) (*core.BlockChain, *Backend) {
 	memDB := rawdb.NewMemoryDatabase()
-	config := istanbul.DefaultConfig
+
 	// Use the first key as private key
-	b, _ := New(config, nodeKeys[0], memDB).(*backend)
-	// set the qbft consensus enabled to true
-	b.qbftConsensusEnabled = true
+	backend := New(cfg, nodeKeys[0], memDB)
+
+	backend.qbftConsensusEnabled = backend.IsQBFTConsensus()
 	genesis.MustCommit(memDB)
-	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
+
+	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, backend, vm.Config{}, nil, nil)
 	if err != nil {
 		panic(err)
 	}
-	b.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
-	snap, err := b.snapshot(blockchain, 0, common.Hash{}, nil)
+
+	backend.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
+
+	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -67,51 +65,26 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	for _, key := range nodeKeys {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		if addr.String() == proposerAddr.String() {
-			b.privateKey = key
-			b.address = addr
+			backend.privateKey = key
+			backend.address = addr
 		}
 	}
 
-	return blockchain, b
+	return blockchain, backend
 }
 
 // in this test, we can set n to 1, and it means we can process Istanbul and commit a
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
-func newLegacyBlockChain(n int) (*core.BlockChain, *backend) {
-	genesis, nodeKeys := getGenesisAndKeys(n, false)
-	memDB := rawdb.NewMemoryDatabase()
+func newBlockChain(n int, qbftBlock *big.Int) (*core.BlockChain, *Backend) {
+	isQBFT := qbftBlock != nil && qbftBlock.Uint64() == 0
+	genesis, nodeKeys := testutils.GenesisAndKeys(n, isQBFT)
+
 	config := copyConfig(istanbul.DefaultConfig)
-	// Use the first key as private key
-	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 
-	config.QbftBlock = nil
+	config.QbftBlock = qbftBlock
 
-	genesis.MustCommit(memDB)
-	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	b.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
-	snap, err := b.snapshot(blockchain, 0, common.Hash{}, nil)
-	if err != nil {
-		panic(err)
-	}
-	if snap == nil {
-		panic("failed to get snapshot")
-	}
-	proposerAddr := snap.ValSet.GetProposer().Address()
-
-	// find proposer key
-	for _, key := range nodeKeys {
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		if addr.String() == proposerAddr.String() {
-			b.privateKey = key
-			b.address = addr
-		}
-	}
-
-	return blockchain, b
+	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
 
 // copyConfig create a copy of istanbul.Config, so that changing it does not update the original
@@ -120,84 +93,19 @@ func copyConfig(config *istanbul.Config) *istanbul.Config {
 	return &cpy
 }
 
-func getGenesisAndKeys(n int, isQbft bool) (*core.Genesis, []*ecdsa.PrivateKey) {
-	// Setup validators
-	var nodeKeys = make([]*ecdsa.PrivateKey, n)
-	var addrs = make([]common.Address, n)
-	for i := 0; i < n; i++ {
-		nodeKeys[i], _ = crypto.GenerateKey()
-		addrs[i] = crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
-	}
-
-	// generate genesis block
-	genesis := core.DefaultGenesisBlock()
-	genesis.Config = params.TestChainConfig
-	// force enable Istanbul engine
-	genesis.Config.Istanbul = &params.IstanbulConfig{}
-	genesis.Config.Ethash = nil
-	genesis.Difficulty = defaultDifficulty
-	genesis.Nonce = emptyNonce.Uint64()
-	genesis.Mixhash = types.IstanbulDigest
-
-	if isQbft {
-		appendValidators(genesis, addrs)
-	} else {
-		appendValidatorsIstanbulExtra(genesis, addrs)
-	}
-
-	return genesis, nodeKeys
-}
-
-func appendValidatorsIstanbulExtra(genesis *core.Genesis, addrs []common.Address) {
-	if len(genesis.ExtraData) < types.IstanbulExtraVanity {
-		genesis.ExtraData = append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...)
-	}
-	genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
-
-	ist := &types.IstanbulExtra{
-		Validators:    addrs,
-		Seal:          []byte{},
-		CommittedSeal: [][]byte{},
-	}
-
-	istPayload, err := rlp.EncodeToBytes(&ist)
-	if err != nil {
-		panic("failed to encode istanbul extra")
-	}
-	genesis.ExtraData = append(genesis.ExtraData, istPayload...)
-}
-
-func appendValidators(genesis *core.Genesis, addrs []common.Address) {
-	ist := &types.QbftExtra{
-		VanityData:    []byte{},
-		Validators:    addrs,
-		Vote:          nil,
-		CommittedSeal: [][]byte{},
-		Round:         0,
-	}
-
-	istPayload, err := rlp.EncodeToBytes(&ist)
-	if err != nil {
-		panic("failed to encode istanbul extra")
-	}
-	genesis.ExtraData = istPayload
-}
-
 func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     parent.Number().Add(parent.Number(), common.Big1),
 		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
-		Extra:      parent.Extra(),
 		Time:       parent.Time() + config.BlockPeriod,
-
-		Difficulty: defaultDifficulty,
+		Difficulty: istanbulcommon.DefaultDifficulty,
 	}
 	return header
 }
 
-func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
+func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	block := makeBlockWithoutSeal(chain, engine, parent)
 	stopCh := make(chan struct{})
 	resultCh := make(chan *types.Block, 10)
@@ -206,7 +114,7 @@ func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *ty
 	return blk
 }
 
-func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
+func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
 	state, _, _ := chain.StateAt(parent.Root())
@@ -214,8 +122,9 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types
 	return block
 }
 
-func TestLegacyPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1)
+func TestIBFTPrepare(t *testing.T) {
+	chain, engine := newBlockChain(1, nil)
+	defer engine.Stop()
 	chain.Config().Istanbul.QbftBlock = nil
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
@@ -229,22 +138,25 @@ func TestLegacyPrepare(t *testing.T) {
 	}
 }
 
-func TestPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1)
+func TestQBFTPrepare(t *testing.T) {
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	header := makeHeader(chain.Genesis(), engine.config)
-	err := engine.QbftPrepare(chain, header)
+	err := engine.Prepare(chain, header)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
+
 	header.ParentHash = common.StringToHash("1234567890")
-	err = engine.QbftPrepare(chain, header)
+	err = engine.Prepare(chain, header)
 	if err != consensus.ErrUnknownAncestor {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
 	}
 }
 
 func TestSealStopChannel(t *testing.T) {
-	chain, engine := newBlockChain(4)
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
 	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
@@ -273,7 +185,8 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(4)
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
@@ -313,10 +226,18 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	}
 }
 
+func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
+	header := block.Header()
+	header.Coinbase = addr
+	return block.WithSeal(header)
+}
+
 func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	expectedBlock, _ := engine.updateBlock(engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1), block)
+	expectedBlock := updateQBFTBlock(block, engine.Address())
+
 	resultCh := make(chan *types.Block, 10)
 	go func() {
 		err := engine.Seal(chain, block, resultCh, make(chan struct{}))
@@ -333,28 +254,30 @@ func TestSealCommitted(t *testing.T) {
 }
 
 func TestVerifyHeader(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 
-	// errEmptyCommittedSeals case
+	// istanbulcommon.ErrEmptyCommittedSeals case
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	block, _ = engine.updateBlock(chain.Genesis().Header(), block)
+	header := engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1)
+	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header(), false)
-	if err != errEmptyCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, errEmptyCommittedSeals)
+	if err != istanbulcommon.ErrEmptyCommittedSeals {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrEmptyCommittedSeals)
 	}
 
 	// short extra data
-	header := block.Header()
+	header = block.Header()
 	header.Extra = []byte{}
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidExtraDataFormat {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidExtraDataFormat)
+	if err != istanbulcommon.ErrInvalidExtraDataFormat {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidExtraDataFormat)
 	}
 	// incorrect extra format
 	header.Extra = []byte("0000000000000000000000000000000012300000000000000000000000000000000000000000000000000000000000000000")
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidExtraDataFormat {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidExtraDataFormat)
+	if err != istanbulcommon.ErrInvalidExtraDataFormat {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidExtraDataFormat)
 	}
 
 	// non zero MixDigest
@@ -362,8 +285,8 @@ func TestVerifyHeader(t *testing.T) {
 	header = block.Header()
 	header.MixDigest = common.StringToHash("123456789")
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidMixDigest {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMixDigest)
+	if err != istanbulcommon.ErrInvalidMixDigest {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMixDigest)
 	}
 
 	// invalid uncles hash
@@ -371,8 +294,8 @@ func TestVerifyHeader(t *testing.T) {
 	header = block.Header()
 	header.UncleHash = common.StringToHash("123456789")
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidUncleHash {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidUncleHash)
+	if err != istanbulcommon.ErrInvalidUncleHash {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidUncleHash)
 	}
 
 	// invalid difficulty
@@ -380,8 +303,8 @@ func TestVerifyHeader(t *testing.T) {
 	header = block.Header()
 	header.Difficulty = big.NewInt(2)
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidDifficulty {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidDifficulty)
+	if err != istanbulcommon.ErrInvalidDifficulty {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidDifficulty)
 	}
 
 	// invalid timestamp
@@ -389,14 +312,14 @@ func TestVerifyHeader(t *testing.T) {
 	header = block.Header()
 	header.Time = chain.Genesis().Time() + (engine.config.BlockPeriod - 1)
 	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidTimestamp {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidTimestamp)
+	if err != istanbulcommon.ErrInvalidTimestamp {
+		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidTimestamp)
 	}
 
 	// future block
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = uint64(now().Unix() + 10)
+	header.Time = uint64(time.Now().Unix() + 10)
 	err = engine.VerifyHeader(chain, header, false)
 	if err != consensus.ErrFutureBlock {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrFutureBlock)
@@ -405,7 +328,7 @@ func TestVerifyHeader(t *testing.T) {
 	// future block which is within AllowedFutureBlockTime
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10)).Uint64()
+	header.Time = new(big.Int).Add(big.NewInt(time.Now().Unix()), new(big.Int).SetUint64(10)).Uint64()
 	priorValue := engine.config.AllowedFutureBlockTime
 	engine.config.AllowedFutureBlockTime = 10
 	err = engine.VerifyHeader(chain, header, false)
@@ -427,7 +350,8 @@ func TestVerifyHeader(t *testing.T) {
 }
 
 func TestVerifyHeaders(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
 	genesis := chain.Genesis()
 
 	// success case
@@ -439,17 +363,17 @@ func TestVerifyHeaders(t *testing.T) {
 		var b *types.Block
 		if i == 0 {
 			b = makeBlockWithoutSeal(chain, engine, genesis)
-			b, _ = engine.updateBlock(genesis.Header(), b)
+			b = updateQBFTBlock(b, engine.Address())
 		} else {
 			b = makeBlockWithoutSeal(chain, engine, blocks[i-1])
-			b, _ = engine.updateBlock(blocks[i-1].Header(), b)
+			b = updateQBFTBlock(b, engine.Address())
 		}
 		blocks = append(blocks, b)
 		headers = append(headers, blocks[i].Header())
 	}
-	now = func() time.Time {
-		return time.Unix(int64(headers[size-1].Time), 0)
-	}
+	// now = func() time.Time {
+	// 	return time.Unix(int64(headers[size-1].Time), 0)
+	// }
 	_, results := engine.VerifyHeaders(chain, headers, nil)
 	const timeoutDura = 2 * time.Second
 	timeout := time.NewTimer(timeoutDura)
@@ -459,8 +383,8 @@ OUT1:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals|ErrUnknownAncestor", err)
+				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT1
 				}
 			}
@@ -479,8 +403,8 @@ OUT2:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals|ErrUnknownAncestor", err)
+				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT2
 				}
 			}
@@ -500,7 +424,7 @@ OUT3:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					errors++
 				}
 			}
@@ -514,257 +438,5 @@ OUT3:
 		case <-timeout.C:
 			break OUT3
 		}
-	}
-}
-
-func TestLegacyPrepareExtra(t *testing.T) {
-	validators := make([]common.Address, 4)
-	validators[0] = common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a"))
-	validators[1] = common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212"))
-	validators[2] = common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6"))
-	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
-
-	vanity := make([]byte, types.IstanbulExtraVanity)
-	expectedResult := append(vanity, hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")...)
-
-	h := &types.Header{
-		Extra: vanity,
-	}
-
-	payload, err := prepareExtra(h, validators)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want: nil", err)
-	}
-	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
-	}
-
-	// append useless information to extra-data
-	h.Extra = append(vanity, make([]byte, 15)...)
-
-	payload, _ = prepareExtra(h, validators)
-	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
-	}
-}
-
-func TestPrepareExtra(t *testing.T) {
-	validators := make([]common.Address, 4)
-	validators[0] = common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a"))
-	validators[1] = common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212"))
-	validators[2] = common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6"))
-	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
-
-	expectedResult := hexutil.MustDecode("0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
-
-	h := &types.Header{}
-
-	payload, err := qbftPrepareExtra(h, validators)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want: nil", err)
-	}
-	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
-	}
-}
-
-func TestWriteSeal(t *testing.T) {
-	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
-	expectedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
-	expectedIstExtra := &types.IstanbulExtra{
-		Validators: []common.Address{
-			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
-			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
-			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
-			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
-		},
-		Seal:          expectedSeal,
-		CommittedSeal: [][]byte{},
-	}
-	var expectedErr error
-
-	h := &types.Header{
-		Extra: append(vanity, istRawData...),
-	}
-
-	// normal case
-	err := writeSeal(h, expectedSeal)
-	if err != expectedErr {
-		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
-	}
-
-	// verify istanbul extra-data
-	istExtra, err := types.ExtractIstanbulExtra(h)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
-	}
-
-	// invalid seal
-	unexpectedSeal := append(expectedSeal, make([]byte, 1)...)
-	err = writeSeal(h, unexpectedSeal)
-	if err != errInvalidSignature {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidSignature)
-	}
-}
-
-func TestLegacyWriteCommittedSeals(t *testing.T) {
-	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
-	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
-	expectedIstExtra := &types.IstanbulExtra{
-		Validators: []common.Address{
-			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
-			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
-			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
-			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
-		},
-		Seal:          []byte{},
-		CommittedSeal: [][]byte{expectedCommittedSeal},
-	}
-	var expectedErr error
-
-	h := &types.Header{
-		Extra: append(vanity, istRawData...),
-	}
-
-	// normal case
-	err := writeCommittedSeals(h, [][]byte{expectedCommittedSeal})
-	if err != expectedErr {
-		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
-	}
-
-	// verify istanbul extra-data
-	istExtra, err := types.ExtractIstanbulExtra(h)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
-	}
-
-	// invalid seal
-	unexpectedCommittedSeal := append(expectedCommittedSeal, make([]byte, 1)...)
-	err = writeCommittedSeals(h, [][]byte{unexpectedCommittedSeal})
-	if err != errInvalidCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidCommittedSeals)
-	}
-}
-
-func TestWriteCommittedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
-	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
-	expectedIstExtra := &types.QbftExtra{
-		VanityData: []byte{},
-		Validators: []common.Address{
-			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
-			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
-			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
-			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
-		},
-		CommittedSeal: [][]byte{expectedCommittedSeal},
-		Round:         0,
-		Vote:          nil,
-	}
-	var expectedErr error
-
-	h := &types.Header{
-		Extra: istRawData,
-	}
-
-	// normal case
-	err := writeQBFTCommittedSeals(h, [][]byte{expectedCommittedSeal})
-	if err != expectedErr {
-		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
-	}
-
-	// verify istanbul extra-data
-	istExtra, err := types.ExtractQbftExtra(h)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
-	}
-
-	// invalid seal
-	unexpectedCommittedSeal := append(expectedCommittedSeal, make([]byte, 1)...)
-	err = writeQBFTCommittedSeals(h, [][]byte{unexpectedCommittedSeal})
-	if err != errInvalidCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidCommittedSeals)
-	}
-}
-
-func TestWriteRoundNumber(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c005c0")
-	expectedIstExtra := &types.QbftExtra{
-		VanityData: []byte{},
-		Validators: []common.Address{
-			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
-			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
-			common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
-			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
-		},
-		CommittedSeal: [][]byte{},
-		Round:         5,
-		Vote:          nil,
-	}
-
-	var expectedErr error
-
-	h := &types.Header{
-		Extra: istRawData,
-	}
-
-	// normal case
-	err := writeRoundNumber(h, big.NewInt(5))
-	if err != expectedErr {
-		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
-	}
-
-	// verify istanbul extra-data
-	istExtra, err := types.ExtractQbftExtra(h)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("extra data mismatch: have %v, want %v", istExtra.VanityData, expectedIstExtra.VanityData)
-	}
-}
-
-func TestWriteValidatorVote(t *testing.T) {
-	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf83da00000000000000000000000000000000000000000000000000000000000000000c0d8d79444add0ec310f115a0e603b2d7db9f0677712345681ff80c0")
-	vote := &types.ValidatorVote{RecipientAddress: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), VoteType: types.QbftAuthVote}
-	expectedIstExtra := &types.QbftExtra{
-		VanityData:    vanity,
-		Validators:    []common.Address{},
-		CommittedSeal: [][]byte{},
-		Round:         0,
-		Vote:          vote,
-	}
-
-	var expectedErr error
-
-	h := &types.Header{
-		Extra: istRawData,
-	}
-
-	// normal case
-	err := writeValidatorVote(h, common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), types.QbftAuthVote)
-	if err != expectedErr {
-		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
-	}
-
-	// verify istanbul extra-data
-	istExtra, err := types.ExtractQbftExtra(h)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-	if !reflect.DeepEqual(istExtra.Vote, expectedIstExtra.Vote) {
-		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 }
