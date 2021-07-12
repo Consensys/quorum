@@ -1716,7 +1716,7 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
 	}
 	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
-		return fmt.Errorf("configuation collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
+		return fmt.Errorf("configuration collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
 	}
 	return nil
 }
