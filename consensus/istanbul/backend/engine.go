@@ -156,7 +156,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 
 		err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
 		if err != nil {
-			log.Error("Error writing validator vote", "err", err)
+			log.Error("BFT: error writing validator vote", "err", err)
 			return err
 		}
 	}
@@ -299,12 +299,20 @@ func (sb *Backend) Stop() error {
 	return nil
 }
 
+func addrsToString(addrs []common.Address) []string {
+	strs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		strs[i] = addr.String()
+	}
+	return strs
+}
+
 func (sb *Backend) snapLogger(snap *Snapshot) log.Logger {
 	return sb.logger.New(
 		"snap.number", snap.Number,
 		"snap.hash", snap.Hash.String(),
 		"snap.epoch", snap.Epoch,
-		"snap.validators", snap.validators(),
+		"snap.validators", addrsToString(snap.validators()),
 		"snap.votes", snap.Votes,
 	)
 }
@@ -347,14 +355,14 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
 			if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
-				sb.logger.Trace("BFT: invalid genesis block", err)
+				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}
 
 			// Get the validators from genesis to create a snapshot
 			validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
 			if err != nil {
-				sb.logger.Trace("BFT: invalid genesis block", err)
+				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}
 
@@ -381,6 +389,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, consensus.ErrUnknownAncestor
 			}
 		}
+
 		headers = append(headers, header)
 		number, hash = number-1, header.ParentHash
 	}
@@ -455,7 +464,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	// Resolve the authorization key and check against validators
 	validator, err := sb.EngineForBlockNumber(header.Number).Author(header)
 	if err != nil {
-		logger.Error("BFT: invalid header author")
+		logger.Error("BFT: invalid header author", "err", err)
 		return err
 	}
 
@@ -469,7 +478,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	// Read vote from header
 	candidate, authorize, err := sb.EngineForBlockNumber(header.Number).ReadVote(header)
 	if err != nil {
-		logger.Error("BFT: invalid header vote")
+		logger.Error("BFT: invalid header vote", "err", err)
 		return err
 	}
 

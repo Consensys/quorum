@@ -211,7 +211,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("BFT: invalid block proposal, %v", proposal)
+		sb.logger.Error("BFT: invalid block proposal", "proposal", proposal)
 		return istanbulcommon.ErrInvalidProposal
 	}
 
@@ -259,13 +259,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("BFT: invalid block proposal, %v", proposal)
+		sb.logger.Error("BFT: invalid block proposal", "proposal", proposal)
 		return 0, istanbulcommon.ErrInvalidProposal
 	}
 
 	// check bad block
 	if sb.HasBadProposal(block.Hash()) {
-		sb.logger.Warn("BFT: bad block proposal, %v", proposal)
+		sb.logger.Warn("BFT: bad block proposal", "proposal", proposal)
 		return 0, core.ErrBlacklistedHash
 	}
 
@@ -394,7 +394,7 @@ func (sb *Backend) startIBFT() error {
 
 func (sb *Backend) startQBFT() error {
 	sb.logger.Info("BFT: activate QBFT")
-	sb.logger.Trace("SettBFT: set ProposerPolicy sorter to ValidatorSortByByteFunc")
+	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByByteFunc")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
 	sb.qbftConsensusEnabled = true
 

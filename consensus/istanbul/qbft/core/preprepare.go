@@ -34,7 +34,7 @@ import (
 // - extends PRE-PREPARE message with ROUND-CHANGE and PREPARE justification
 // - broadcast PRE-PREPARE message to other validators
 func (c *core) sendPreprepareMsg(request *Request) {
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
@@ -46,12 +46,12 @@ func (c *core) sendPreprepareMsg(request *Request) {
 		// Sign payload
 		encodedPayload, err := preprepare.EncodePayloadForSigning()
 		if err != nil {
-			c.withMsg(logger, preprepare).Error("QBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+			withMsg(logger, preprepare).Error("QBFT: failed to encode payload of PRE-PREPARE message", "err", err)
 			return
 		}
 		signature, err := c.backend.Sign(encodedPayload)
 		if err != nil {
-			c.withMsg(logger, preprepare).Error("QBFT: failed to sign PRE-PREPARE message", "err", err)
+			withMsg(logger, preprepare).Error("QBFT: failed to sign PRE-PREPARE message", "err", err)
 			return
 		}
 		preprepare.SetSignature(signature)
@@ -61,25 +61,25 @@ func (c *core) sendPreprepareMsg(request *Request) {
 			preprepare.JustificationRoundChanges = make([]*qbfttypes.SignedRoundChangePayload, 0)
 			for _, m := range request.RCMessages.Values() {
 				preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
-				c.withMsg(logger, preprepare).Trace("QBFT: add ROUND-CHANGE justification", "rc", m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
+				withMsg(logger, preprepare).Trace("QBFT: add ROUND-CHANGE justification", "rc", m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
 			}
-			c.withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+			withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
 		}
 
 		// Extend PRE-PREPARE message with PREPARE justification
 		if request.PrepareMessages != nil {
 			preprepare.JustificationPrepares = request.PrepareMessages
-			c.withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+			withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 		}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepare)
 		if err != nil {
-			c.withMsg(logger, preprepare).Error("QBFT: failed to encode PRE-PREPARE message", "err", err)
+			withMsg(logger, preprepare).Error("QBFT: failed to encode PRE-PREPARE message", "err", err)
 			return
 		}
 
-		logger = c.withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+		logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
 		logger.Info("QBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 
@@ -101,7 +101,7 @@ func (c *core) sendPreprepareMsg(request *Request) {
 // - validates PRE-PREPARE message justification
 // - validates PRE-PREPARE message block proposal
 func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
-	logger := c.withMsg(c.withState(c.currentLogger()), preprepare)
+	logger := c.currentLogger(true, preprepare)
 
 	logger = logger.New("proposal.number", preprepare.Proposal.Number().Uint64(), "proposal.hash", preprepare.Proposal.Hash().String())
 

@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -167,6 +168,11 @@ func (c *core) sendEvent(ev interface{}) {
 func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 	logger := c.logger.New("code", code, "data", data)
 
+	if _, ok := qbfttypes.MessageCodes()[code]; !ok {
+		logger.Error("QBFT: invalid message event code")
+		return fmt.Errorf("invalid message event code %v", code)
+	}
+
 	// Decode data into a QBFTMessage
 	m, err := qbfttypes.Decode(code, data)
 	if err != nil {
@@ -218,7 +224,7 @@ func (c *core) deliverMessage(m qbfttypes.QBFTMessage) error {
 }
 
 func (c *core) handleTimeoutMsg() {
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 	// Start the new round
 	round := c.current.Round()
 	nextRound := new(big.Int).Add(round, common.Big1)
@@ -235,7 +241,7 @@ func (c *core) handleTimeoutMsg() {
 // piggybacked in m, if any. It also sets the source address on the messages
 // and justification payloads.
 func (c *core) verifySignatures(m qbfttypes.QBFTMessage) error {
-	logger := c.withMsg(c.withState(c.currentLogger()), m)
+	logger := c.currentLogger(true, m)
 
 	// Anonymous function to verify the signature of a single message or payload
 	verify := func(m qbfttypes.QBFTMessage) error {
@@ -279,18 +285,34 @@ func (c *core) verifySignatures(m qbfttypes.QBFTMessage) error {
 	return nil
 }
 
-func (c *core) currentLogger() log.Logger {
-	return c.logger.New(
+func (c *core) currentLogger(state bool, msg qbfttypes.QBFTMessage) log.Logger {
+	logCtx := []interface{}{
 		"current.round", c.current.Round().Uint64(),
 		"current.sequence", c.current.Sequence().Uint64(),
-	)
+	}
+
+	if state {
+		logCtx = append(logCtx, "state", c.state)
+	}
+
+	if msg != nil {
+		logCtx = append(
+			logCtx,
+			"msg.code", msg.Code(),
+			"msg.source", msg.Source().String(),
+			"msg.round", msg.View().Round.Uint64(),
+			"msg.sequence", msg.View().Sequence.Uint64(),
+		)
+	}
+
+	return c.logger.New(logCtx...)
 }
 
 func (c *core) withState(logger log.Logger) log.Logger {
 	return logger.New("state", c.state)
 }
 
-func (c *core) withMsg(logger log.Logger, msg qbfttypes.QBFTMessage) log.Logger {
+func withMsg(logger log.Logger, msg qbfttypes.QBFTMessage) log.Logger {
 	return logger.New(
 		"msg.code", msg.Code(),
 		"msg.source", msg.Source().String(),

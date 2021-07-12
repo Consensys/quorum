@@ -117,7 +117,7 @@ func (c *core) startNewRound(round *big.Int) {
 	if c.current == nil {
 		logger = c.logger.New("old.round", -1, "old.seq", 0)
 	} else {
-		logger = c.currentLogger()
+		logger = c.currentLogger(false, nil)
 	}
 	logger = logger.New("target.round", round)
 
@@ -220,7 +220,7 @@ func (c *core) setState(state State) {
 	if c.state != state {
 		oldState := c.state
 		c.state = state
-		c.currentLogger().Info("QBFT: changed state", "old.state", oldState.String(), "new.state", state.String())
+		c.currentLogger(false, nil).Info("QBFT: changed state", "old.state", oldState.String(), "new.state", state.String())
 	}
 	if state == StateAcceptRequest {
 		c.processPendingRequests()
@@ -257,7 +257,7 @@ func (c *core) newRoundChangeTimer() {
 
 	timeout := baseTimeout * time.Duration(math.Pow(2, float64(round)))
 
-	c.withState(c.currentLogger()).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
+	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})
@@ -269,10 +269,10 @@ func (c *core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 
 func (c *core) QuorumSize() int {
 	if c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
-		c.withState(c.currentLogger()).Trace("QBFT: confirmation Formula used 2F+ 1")
+		c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used 2F+ 1")
 		return (2 * c.valSet.F()) + 1
 	}
-	c.withState(c.currentLogger()).Trace("QBFT: confirmation Formula used ceil(2N/3)")
+	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
 	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
 }
 

@@ -105,15 +105,15 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 
 // it adds the message to backlog which is read on every state change
 func (c *core) addToBacklog(msg qbfttypes.QBFTMessage) {
-	src := msg.Source()
-	logger := c.logger.New("from", src, "state", c.state)
+	logger := c.currentLogger(true, msg)
 
+	src := msg.Source()
 	if src == c.Address() {
 		logger.Warn("QBFT: backlog from self")
 		return
 	}
 
-	logger.Trace("QBFT: new backlog message", "for", src, "backlogs_size", len(c.backlogs))
+	logger.Trace("QBFT: new backlog message", "backlogs_size", len(c.backlogs))
 
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()

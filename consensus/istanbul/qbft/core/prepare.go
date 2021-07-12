@@ -28,7 +28,7 @@ import (
 // - creates a PREPARE message
 // - broadcast PREPARE message to other validators
 func (c *core) broadcastPrepare() {
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 
 	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
@@ -38,12 +38,12 @@ func (c *core) broadcastPrepare() {
 	// Sign Message
 	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
-		c.withMsg(logger, prepare).Error("QBFT: failed to encode payload of PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("QBFT: failed to encode payload of PREPARE message", "err", err)
 		return
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		c.withMsg(logger, prepare).Error("QBFT: failed to sign PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("QBFT: failed to sign PREPARE message", "err", err)
 		return
 	}
 	prepare.SetSignature(signature)
@@ -51,15 +51,15 @@ func (c *core) broadcastPrepare() {
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		c.withMsg(logger, prepare).Error("QBFT: failed to encode PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("QBFT: failed to encode PREPARE message", "err", err)
 		return
 	}
 
-	c.withMsg(logger, prepare).Info("QBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+	withMsg(logger, prepare).Info("QBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
-		c.withMsg(logger, prepare).Error("QBFT: failed to broadcast PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("QBFT: failed to broadcast PREPARE message", "err", err)
 		return
 	}
 }
@@ -71,7 +71,7 @@ func (c *core) broadcastPrepare() {
 // - accumulates valid PREPARE message until reaching quorum
 // - when quorum is reached update states to "Prepared" and broadcast COMMIT
 func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
-	logger := c.withMsg(c.withState(c.currentLogger()), prepare)
+	logger := c.currentLogger(true, prepare)
 
 	logger.Info("QBFT: handle PREPARE message")
 

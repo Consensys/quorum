@@ -120,7 +120,7 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				TD    *big.Int
 			}
 			if err := msg.Decode(&request); err != nil {
-				log.Debug("BFT: unable to decode the NewBlockMsg", "error", err)
+				log.Error("BFT: unable to decode the NewBlockMsg", "error", err)
 				return false, nil
 			}
 			newRequestedBlock := request.Block

@@ -27,7 +27,7 @@ import (
 // - validates block proposal is not empty and number correspond to the current sequence
 // - creates and send PRE-PREPARE message to other validators
 func (c *core) handleRequest(request *Request) error {
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 
 	logger.Info("QBFT: handle block proposal request")
 
@@ -71,7 +71,7 @@ func (c *core) checkRequestMsg(request *Request) error {
 }
 
 func (c *core) storeRequestMsg(request *Request) {
-	logger := c.withState(c.currentLogger()).New("proposal.number", request.Proposal.Number(), "proposal.hash", request.Proposal.Hash())
+	logger := c.currentLogger(true, nil).New("proposal.number", request.Proposal.Number(), "proposal.hash", request.Proposal.Hash())
 
 	logger.Trace("QBFT: store block proposal request for future treatment")
 
@@ -87,7 +87,7 @@ func (c *core) processPendingRequests() {
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()
 
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 	logger.Debug("QBFT: lookup for pending block proposal requests")
 
 	for !(c.pendingRequests.Empty()) {

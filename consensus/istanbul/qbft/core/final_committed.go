@@ -19,7 +19,7 @@ package core
 import "github.com/ethereum/go-ethereum/common"
 
 func (c *core) handleFinalCommitted() error {
-	c.withState(c.currentLogger()).Info("QBFT: handle final committed")
+	c.currentLogger(true, nil).Info("QBFT: handle final committed")
 
 	// Stopping the timer, so that round changes do not happen
 	c.stopTimer()

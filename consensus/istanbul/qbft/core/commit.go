@@ -31,7 +31,7 @@ import (
 func (c *core) broadcastCommit() {
 	var err error
 
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 
 	sub := c.current.Subject()
 
@@ -52,13 +52,13 @@ func (c *core) broadcastCommit() {
 	// Sign Message
 	encodedPayload, err := commit.EncodePayloadForSigning()
 	if err != nil {
-		c.withMsg(logger, commit).Error("QBFT: failed to encode payload of COMMIT message", "err", err)
+		withMsg(logger, commit).Error("QBFT: failed to encode payload of COMMIT message", "err", err)
 		return
 	}
 
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		c.withMsg(logger, commit).Error("QBFT: failed to sign COMMIT message", "err", err)
+		withMsg(logger, commit).Error("QBFT: failed to sign COMMIT message", "err", err)
 		return
 	}
 	commit.SetSignature(signature)
@@ -66,15 +66,15 @@ func (c *core) broadcastCommit() {
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&commit)
 	if err != nil {
-		c.withMsg(logger, commit).Error("QBFT: failed to encode COMMIT message", "err", err)
+		withMsg(logger, commit).Error("QBFT: failed to encode COMMIT message", "err", err)
 		return
 	}
 
-	c.withMsg(logger, commit).Info("QBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+	withMsg(logger, commit).Info("QBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-		c.withMsg(logger, commit).Error("QBFT: failed to broadcast COMMIT message", "err", err)
+		withMsg(logger, commit).Error("QBFT: failed to broadcast COMMIT message", "err", err)
 		return
 	}
 }
@@ -86,7 +86,7 @@ func (c *core) broadcastCommit() {
 // - accumulates valid COMMIT messages until reaching quorum
 // - when quorum of COMMIT messages is reached then update state and commits
 func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
-	logger := c.withMsg(c.withState(c.currentLogger()), commit)
+	logger := c.currentLogger(true, commit)
 
 	logger.Info("QBFT: handle COMMIT message")
 
@@ -134,7 +134,7 @@ func (c *core) commitQBFT() {
 
 		// Commit proposal to database
 		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
-			c.withState(c.currentLogger()).Error("QBFT: error committing proposal", "err", err)
+			c.currentLogger(true, nil).Error("QBFT: error committing proposal", "err", err)
 			c.broadcastNextRoundChange()
 			return
 		}

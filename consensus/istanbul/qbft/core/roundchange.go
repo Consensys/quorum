@@ -43,7 +43,7 @@ func (c *core) broadcastNextRoundChange() {
 // - Creates and sign ROUND-CHANGE message
 // - broadcast the ROUND-CHANGE message with the given round
 func (c *core) broadcastRoundChange(round *big.Int) {
-	logger := c.withState(c.currentLogger())
+	logger := c.currentLogger(true, nil)
 
 	// Validates new round corresponds to current view
 	cv := c.currentView()
@@ -57,12 +57,12 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
-		c.withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		c.withMsg(logger, roundChange).Error("QBFT: failed to sign ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to sign ROUND-CHANGE message", "err", err)
 		return
 	}
 	roundChange.SetSignature(signature)
@@ -70,21 +70,21 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	// Extend ROUND-CHANGE message with PREPARE justification
 	if c.QBFTPreparedPrepares != nil {
 		roundChange.Justification = c.QBFTPreparedPrepares
-		c.withMsg(logger, roundChange).Debug("QBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
+		withMsg(logger, roundChange).Debug("QBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
 	}
 
 	// RLP-encode message
 	data, err := rlp.EncodeToBytes(roundChange)
 	if err != nil {
-		c.withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return
 	}
 
-	c.withMsg(logger, roundChange).Info("QBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
+	withMsg(logger, roundChange).Info("QBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
 
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
-		c.withMsg(logger, roundChange).Error("QBFT: failed to broadcast ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to broadcast ROUND-CHANGE message", "err", err)
 		return
 	}
 }
@@ -93,7 +93,7 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 // - accumulates ROUND-CHANGE messages until reaching quorum for a given round
 // - when quorum of ROUND-CHANGE messages is reached then
 func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
-	logger := c.withMsg(c.withState(c.currentLogger()), roundChange)
+	logger := c.currentLogger(true, roundChange)
 
 	logger.Info("QBFT: handle ROUND-CHANGE message")
 
