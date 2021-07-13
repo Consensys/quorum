@@ -457,6 +457,152 @@ func TestReceiptForStorage_WithPSReceipts_FieldsPreservedDuringSerialisation(t *
 	}
 }
 
+func TestReceiptForStorage_DecodePrePrivacyPrecompileMPSReceipt(t *testing.T) {
+	legacyReceipt := v1StoredMPSReceiptRLP{
+		PostStateOrStatus: receiptStatusSuccessfulRLP,
+		CumulativeGasUsed: 155,
+		Logs: []*LogForStorage{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		PSReceipts: []v1StoredPSIToReceiptMapEntry{
+			{
+				Key: "myPSI",
+				Value: v1StoredMPSReceiptRLP{
+					PostStateOrStatus: receiptStatusSuccessfulRLP,
+					CumulativeGasUsed: 206,
+					Logs: []*LogForStorage{
+						{
+							Address: common.BytesToAddress([]byte{0x11}),
+							Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+							Data:    []byte{0x01, 0x00, 0xff},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	buf := new(bytes.Buffer)
+	if err := rlp.Encode(buf, legacyReceipt); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	got := new(ReceiptForStorage)
+	if err := rlp.Decode(buf, got); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	// only a subset of fields are to be encoded, the rest are derived after decoding
+	want := &ReceiptForStorage{
+		Status:            ReceiptStatusSuccessful,
+		CumulativeGasUsed: 155,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		PSReceipts: map[PrivateStateIdentifier]*Receipt{
+			"myPSI": {
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 206,
+				Logs: []*Log{
+					{
+						PSI:     "myPSI",
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+				},
+			},
+		},
+	}
+	want.Bloom = CreateBloom(Receipts{(*Receipt)(want)})
+	want.PSReceipts["myPSI"].Bloom = CreateBloom(Receipts{(want.PSReceipts["myPSI"])})
+
+	assert.Equal(t, want, got)
+}
+
+func TestReceiptForStorage_DecodePrePrivacyPrecompileMPSReceiptWithRevertReason(t *testing.T) {
+	legacyReceipt := v1StoredMPSReceiptRLPWithRevertReason{
+		PostStateOrStatus: receiptStatusSuccessfulRLP,
+		CumulativeGasUsed: 155,
+		Logs: []*LogForStorage{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		PSReceipts: []v1StoredPSIToReceiptMapEntryWithRevertReason{
+			{
+				Key: "myPSI",
+				Value: v1StoredMPSReceiptRLPWithRevertReason{
+					PostStateOrStatus: receiptStatusSuccessfulRLP,
+					CumulativeGasUsed: 206,
+					Logs: []*LogForStorage{
+						{
+							Address: common.BytesToAddress([]byte{0x11}),
+							Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+							Data:    []byte{0x01, 0x00, 0xff},
+						},
+					},
+					RevertReason: []byte("bang!"),
+				},
+			},
+		},
+		RevertReason: []byte("bang!"),
+	}
+
+	buf := new(bytes.Buffer)
+	if err := rlp.Encode(buf, legacyReceipt); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	got := new(ReceiptForStorage)
+	if err := rlp.Decode(buf, got); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	// only a subset of fields are to be encoded, the rest are derived after decoding
+	want := &ReceiptForStorage{
+		Status:            ReceiptStatusSuccessful,
+		CumulativeGasUsed: 155,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		PSReceipts: map[PrivateStateIdentifier]*Receipt{
+			"myPSI": {
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 206,
+				Logs: []*Log{
+					{
+						PSI:     "myPSI",
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+					},
+				},
+				RevertReason: []byte("bang!"),
+			},
+		},
+		RevertReason: []byte("bang!"),
+	}
+	want.Bloom = CreateBloom(Receipts{(*Receipt)(want)})
+	want.PSReceipts["myPSI"].Bloom = CreateBloom(Receipts{(want.PSReceipts["myPSI"])})
+
+	assert.Equal(t, want, got)
+}
+
 var (
 	stubHash = common.HexToHash("0xabcdef")
 )
