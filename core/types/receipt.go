@@ -205,32 +205,29 @@ type ReceiptForStorage Receipt
 // - original EncodeRLP is now encodeRLPOriginal
 // Note that PMTReceipts also have TxHash & ContractAddress encoded, as needed for privacy marker transactions
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
-	if r.PSReceipts == nil {
-		if hasRevertReason((*Receipt)(r)) {
-			return r.encodeRLPOriginalWithRevertReason(w)
-		} else {
-			return r.encodeRLPOriginal(w)
-		}
-	}
-	return r.encodeRLPWithPSReceipts(w)
-}
-
-func (r *ReceiptForStorage) encodeRLPWithPSReceipts(w io.Writer) error {
-	// if any PSReceipts have a RevertReason then encode all with RevertReason
-	if hasRevertReason((*Receipt)(r)) {
-		return r.encodeRLPForMPSWithRevertReason(w)
-	}
-	for _, psr := range r.PSReceipts {
-		if hasRevertReason(psr) {
+	if r.PSReceipts != nil {
+		if hasRevertReason((*Receipt)(r)) || anyPSReceiptsHaveRevertReason(r.PSReceipts) {
 			return r.encodeRLPForMPSWithRevertReason(w)
 		}
+		return r.encodeRLPForMPS(w)
 	}
-
-	return r.encodeRLPForMPS(w)
+	if hasRevertReason((*Receipt)(r)) {
+		return r.encodeRLPOriginalWithRevertReason(w)
+	}
+	return r.encodeRLPOriginal(w)
 }
 
 func hasRevertReason(r *Receipt) bool {
 	return r.RevertReason != nil && len(r.RevertReason) > 0
+}
+
+func anyPSReceiptsHaveRevertReason(m map[PrivateStateIdentifier]*Receipt) bool {
+	for _, r := range m {
+		if hasRevertReason(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // Quorum - MPS
