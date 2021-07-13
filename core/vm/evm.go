@@ -339,7 +339,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 
 	if isQuorumPrecompile {
-		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+		ret, gas, err = RunQuorumPrecompiledContract(evm, qp, input, gas)
 	} else if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
@@ -401,7 +401,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 
 	// It is allowed to call precompiles, even via delegatecall
 	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
-		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+		ret, gas, err = RunQuorumPrecompiledContract(evm, qp, input, gas)
 	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
@@ -445,7 +445,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 
 	// It is allowed to call precompiles, even via delegatecall
 	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
-		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+		ret, gas, err = RunQuorumPrecompiledContract(evm, qp, input, gas)
 	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
@@ -496,7 +496,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	stateDb.AddBalance(addr, big0)
 
 	if qp, isQuorumPrecompile := evm.quorumPrecompile(addr); isQuorumPrecompile { // Quorum
-		ret, gas, err = QuorumRunPrecompiledContract(evm, qp, input, gas)
+		ret, gas, err = RunQuorumPrecompiledContract(evm, qp, input, gas)
 	} else if p, isPrecompile := evm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {

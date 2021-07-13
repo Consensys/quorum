@@ -424,6 +424,7 @@ func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload 
 
 	var nonce uint64
 	if isUsingPrivacyPrecompile {
+		// If PMTs are enabled the PMT will have the current nonce and the internal private tx the next nonce
 		nonce = tx.Nonce() + 1
 	} else {
 		nonce = tx.Nonce()
@@ -456,6 +457,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 
 	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
 
+	// The nonce is already double incremented for the PMT, PMT will have the lower nonce and the internal private tx the next nonce
 	nonce := signedTx.Nonce() - 1
 	return types.NewTransaction(nonce, common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
 }

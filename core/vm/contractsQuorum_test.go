@@ -182,7 +182,21 @@ func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			privacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+			unsignedPrivacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+			signer := types.HomesteadSigner{}
+			txHash := signer.Hash(unsignedPrivacyMarkerTx)
+			validSig, setupErr := crypto.Sign(txHash.Bytes(), senderPrivateKey)
+			if setupErr != nil {
+				t.Fatalf("unable to sign tx, err = %v", setupErr)
+			}
+			privacyMarkerTx, setupErr := unsignedPrivacyMarkerTx.WithSignature(
+				signer,
+				validSig,
+			)
+			if setupErr != nil {
+				t.Fatalf("unable to sign tx, err = %v", setupErr)
+			}
+
 			require.True(t, privacyMarkerTx.IsPrivacyMarker())
 
 			pm := privacyMarker{}
@@ -204,8 +218,13 @@ func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T
 			)
 
 			privacyManager.EXPECT().Receive(tmPrivateTxHash).Return("", []string{}, tt.privacyManagerResp, nil, tt.privacyManagerErr)
-			publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1)
-			publicState.EXPECT().SetNonce(sender, senderNextNonce).Times(1)
+
+			gomock.InOrder(
+				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceBefore
+				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceAfter
+				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // the call in SetNonce
+				publicState.EXPECT().SetNonce(sender, senderNextNonce).Times(1),
+			)
 
 			gotByt, gotErr := pm.Run(evm, []byte{})
 
@@ -268,7 +287,21 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_IncrementsSenderN
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			privacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+			unsignedPrivacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+			signer := types.HomesteadSigner{}
+			txHash := signer.Hash(unsignedPrivacyMarkerTx)
+			validSig, setupErr := crypto.Sign(txHash.Bytes(), senderPrivateKey)
+			if setupErr != nil {
+				t.Fatalf("unable to sign tx, err = %v", setupErr)
+			}
+			privacyMarkerTx, setupErr := unsignedPrivacyMarkerTx.WithSignature(
+				signer,
+				validSig,
+			)
+			if setupErr != nil {
+				t.Fatalf("unable to sign tx, err = %v", setupErr)
+			}
+
 			require.True(t, privacyMarkerTx.IsPrivacyMarker())
 
 			pm := privacyMarker{}
@@ -305,7 +338,7 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_IncrementsSenderN
 
 			executedTx := tt.innerApplier.innerTx()
 
-			// we only want to compare the values the matter in the embedded txdata - this is unexported so we resort to
+			// we only want to compare the values that matter in the embedded txdata - this is unexported so we resort to
 			// using the string representation of the txs for comparison
 			require.EqualValues(t, signedPrivateTx.String(), executedTx.String())
 
@@ -349,7 +382,21 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_IncrementsSend
 		t.Fatalf("unable to marshal tx to json, err = %v", setupErr)
 	}
 
-	privacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+	unsignedPrivacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), nil, 0, nil, pmtData)
+	ptmSigner := types.HomesteadSigner{}
+	ptmHash := ptmSigner.Hash(unsignedPrivacyMarkerTx)
+	validSig, setupErr = crypto.Sign(ptmHash.Bytes(), senderPrivateKey)
+	if setupErr != nil {
+		t.Fatalf("unable to sign tx, err = %v", setupErr)
+	}
+	privacyMarkerTx, setupErr := unsignedPrivacyMarkerTx.WithSignature(
+		ptmSigner,
+		validSig,
+	)
+	if setupErr != nil {
+		t.Fatalf("unable to sign tx, err = %v", setupErr)
+	}
+
 	require.True(t, privacyMarkerTx.IsPrivacyMarker())
 
 	pm := privacyMarker{}

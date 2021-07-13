@@ -247,7 +247,7 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	if receipts == nil {
 		return nil, nil
 	}
-	privateReceipts, err := b.eth.blockchain.GetPrivateReceiptsByHash(ctx, hash)
+	privateReceipts, err := b.eth.blockchain.GetPMTPrivateReceiptsByHash(ctx, hash)
 	if err != nil {
 		return nil, err
 	}

@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -167,9 +168,7 @@ func TestQuorumConfigFlags(t *testing.T) {
 	fs.Bool(RaftModeFlag.Name, false, "")
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
 
-	if !assert.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig)) {
-		t.FailNow()
-	}
+	require.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig))
 
 	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "EVMCallTimeOutFlag not set")
 	assert.True(t, arbitraryCLIContext.GlobalIsSet(MultitenancyFlag.Name), "MultitenancyFlag not set")

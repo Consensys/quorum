@@ -17,6 +17,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -395,9 +397,17 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	return receipt, privateReceipt, err
 }
 
+// Quorum
+// ApplyInnerTransaction is called from within the Quorum precompile for privacy marker transactions.
+// It's a call back which essentially duplicates the logic in Process(),
+// in this case to process the actual private transaction.
 func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, usedGas *uint64, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
-	if innerTx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
-		// TODO(cjh) does using gp and usedGas here mean that gas gets used twice (i.e. by both the inner and outer applies)? or does the fact that handleMPS itself results in ApplyTransaction and ApplyInnerTransaction being called prevent this?
+	// this should never happen, but added as sanity check
+	if !innerTx.IsPrivate() {
+		return errors.New("attempt to process non-private transaction from within ApplyInnerTransaction()")
+	}
+
+	if privateStateRepo != nil && privateStateRepo.IsMPS() {
 		mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true)
 		if err != nil {
 			return err

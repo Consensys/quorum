@@ -827,10 +827,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 // if the given transaction was added on top of the provided block and returns them as a JSON object.
 // You can provide -2 as a block number to trace on top of the pending block.
 func (api *PrivateDebugAPI) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceConfig) (interface{}, error) {
-	// First try to retrieve the state
-	//statedb, header, err := api.eth.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	txIndex := 0
-	//if err != nil {
 	// Try to retrieve the specified block
 	var block *types.Block
 	if hash, ok := blockNrOrHash.Hash(); ok {
@@ -1045,27 +1042,3 @@ func applyInnerTransaction(bc *core.BlockChain, stateDB *state.StateDB, privateS
 	)
 	return core.ApplyInnerTransaction(bc, author, gp, stateDB, privateStateDB, header, outerTx, &usedGas, evmConf, forceNonParty, privateStateRepo, vmenv, innerTx, txIndex)
 }
-
-//func evmInnerApply(stateDb *state.StateDB, privateStateDb *state.StateDB, bc *core.BlockChain, header *types.Header, txIndex int, outerTx *types.Transaction, innerTx *types.Transaction, evmConf *vm.Config, isMPS bool) (*types.Receipt, error) {
-//	defer func() {
-//		stateDb.Prepare(outerTx.Hash(), stateDb.BlockHash(), txIndex)
-//		privateStateDb.Prepare(outerTx.Hash(), privateStateDb.BlockHash(), txIndex)
-//	}()
-//	stateDb.Prepare(innerTx.Hash(), stateDb.BlockHash(), txIndex)
-//	privateStateDb.Prepare(innerTx.Hash(), privateStateDb.BlockHash(), txIndex)
-//
-//	singleUseGasPool := new(core.GasPool).AddGas(innerTx.Gas())
-//	used := uint64(0)
-//	var author *common.Address = nil // ApplyTransaction determines the author from the header so we won't do it here
-//
-//	_, privReceipt, err := core.ApplyTransaction(bc.Config(), bc, author, singleUseGasPool, stateDb, privateStateDb, header, innerTx, &used, *evmConf, isMPS)
-//
-//	if privReceipt != nil {
-//		if privReceipt.Logs == nil {
-//			privReceipt.Logs = make([]*types.Log, 0)
-//		}
-//		privateStateDb.MarkerTransactionReceipts = append(privateStateDb.MarkerTransactionReceipts, privReceipt)
-//		rawdb.WritePrivateTransactionReceipt(bc.DB(), outerTx.Hash(), privReceipt)
-//	}
-//	return privReceipt, err
-//}

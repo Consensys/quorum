@@ -35,12 +35,12 @@ var QuorumPrecompiledContracts = map[common.Address]QuorumPrecompiledContract{
 	common.QuorumPrivacyPrecompileContractAddress(): &privacyMarker{},
 }
 
-// QuorumRunPrecompiledContract runs and evaluates the output of an extended precompiled contract.
+// RunQuorumPrecompiledContract runs and evaluates the output of an extended precompiled contract.
 // It returns
 // - the returned bytes,
 // - the _remaining_ gas,
 // - any error that occurred
-func QuorumRunPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input []byte, suppliedGas uint64) (ret []byte, remainingGas uint64, err error) {
+func RunQuorumPrecompiledContract(evm *EVM, p QuorumPrecompiledContract, input []byte, suppliedGas uint64) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
 		return nil, 0, ErrOutOfGas
@@ -79,20 +79,26 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	data := evm.currentTx.Data()
-	fromAddr := common.BytesToAddress(data[:20]) //TODO (peter): sender from tx data should be removed when possible
+	// we must always increment the (public) nonce, even if this node is not a participant or fails to process the txn
+	// for this reason we use the PTM 'from' address for private txn too
+	fromAddr := evm.currentTx.From()
+	nonceBefore := evm.PublicState().GetNonce(fromAddr)
+	defer func() {
+		nonceAfter := evm.PublicState().GetNonce(fromAddr)
+		if nonceBefore == nonceAfter {
+			evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
+		}
+	}()
 
+	data := evm.currentTx.Data()
 	tx, _, _, err := private.FetchPrivateTransaction(data)
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
-		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 		return nil, nil
 	}
 
 	if tx == nil {
 		log.Debug("not a participant, precompile performing no action")
-		// must increment the nonce to mirror the state change that is done in evm.create() for participants
-		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 		return nil, nil
 	}
 
@@ -100,22 +106,14 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		//should only allow private txns from inside precompile, as many assumptions
 		//about how a tx operates are based on its privacy (e.g. which dbs to use, PE checks etc)
 		log.Warn("Public transaction pulled from PTM during privacy precompile execution")
-
-		// non-participants have already incremented the public nonce, so we need to as well
-		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
-
 		return nil, nil
 	}
-	//validate the tx is signed
+	//validate the private tx is signed, and that it's the same signer as the PMT
 	signedBy := tx.From()
 	if signedBy.Hex() == (common.Address{}).Hex() || signedBy.Hex() != fromAddr.Hex() {
 		// the private tx is signed by someone else or is not properly signed, abort
-		// still need to increment the public nonce
-		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
 		return nil, nil
 	}
-
-	nonceBefore := evm.PublicState().GetNonce(fromAddr)
 
 	if evm.InnerApply == nil {
 		log.Warn("Unable to apply PMT's inner tx to EVM", "err", "nil inner apply function")
@@ -124,11 +122,5 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		// we continue as we must ensure the nonce is updated and don't want to fail the PMT execution due to the invalid internal tx
 	}
 
-	nonceAfter := evm.PublicState().GetNonce(fromAddr)
-	if nonceBefore == nonceAfter {
-		// the nonce wasn't incremented for some reason, usually if an error occurred during processing
-		// this will need to be incremented to keep in line with non-party nodes
-		evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
-	}
 	return nil, nil
 }
