@@ -81,7 +81,9 @@ var DefaultConfig = Config{
 	GPO:         DefaultFullGPOConfig,
 	RPCTxFeeCap: 1, // 1 ether
 
-	Istanbul: *istanbul.DefaultConfig, // Quorum
+	// Quorum
+	Istanbul:                     *istanbul.DefaultConfig, // Quorum
+	PrivateTrieCleanCacheJournal: "privatetriecache",
 }
 
 func init() {
@@ -204,4 +206,7 @@ type Config struct {
 
 	// Quorum
 	SaveRevertReason bool `toml:"-"`
+
+	// Quorum
+	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
 }
