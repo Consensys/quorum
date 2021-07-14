@@ -1,12 +1,13 @@
 package raft
 
 import (
+	"go.uber.org/zap"
 	"os"
 
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/wal"
-	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/log"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/wal"
+	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
 func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
@@ -15,7 +16,9 @@ func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL 
 			fatalf("cannot create waldir: %s", err)
 		}
 
-		wal, err := wal.Create(pm.waldir, nil)
+		// TODO: @achraf
+		lg, _ := zap.NewProduction()
+		wal, err := wal.Create(lg, pm.waldir, nil)
 		if err != nil {
 			fatalf("failed to create waldir: %s", err)
 		}
@@ -30,7 +33,9 @@ func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL 
 		walsnap.Index, walsnap.Term = maybeRaftSnapshot.Metadata.Index, maybeRaftSnapshot.Metadata.Term
 	}
 
-	wal, err := wal.Open(pm.waldir, walsnap)
+	// TODO: @achraf
+	lg, _ := zap.NewProduction()
+	wal, err := wal.Open(lg, pm.waldir, walsnap)
 	if err != nil {
 		fatalf("error loading WAL: %s", err)
 	}

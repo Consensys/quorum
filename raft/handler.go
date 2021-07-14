@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,17 +13,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/etcd/etcdserver/stats"
-	"github.com/coreos/etcd/pkg/fileutil"
-	raftTypes "github.com/coreos/etcd/pkg/types"
-	etcdRaft "github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/rafthttp"
-	"github.com/coreos/etcd/snap"
-	"github.com/coreos/etcd/wal"
-	mapset "github.com/deckarep/golang-set"
-	"github.com/syndtr/goleveldb/leveldb"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
+	raftTypes "go.etcd.io/etcd/client/pkg/v3/types"
+	etcdRaft "go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/rafthttp"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	stats "go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
+	"go.etcd.io/etcd/server/v3/wal"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type ProtocolManager struct {
@@ -104,6 +105,8 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	snapdir := fmt.Sprintf("%s/raft-snap", raftLogDir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", raftLogDir)
 
+	// TODO: @achraf
+	lg, _ := zap.NewProduction()
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
@@ -118,7 +121,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		httpdonec:           make(chan struct{}),
 		waldir:              waldir,
 		snapdir:             snapdir,
-		snapshotter:         snap.New(snapdir),
+		snapshotter:         snap.New(lg, snapdir),
 		raftId:              raftId,
 		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
@@ -192,7 +195,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	defer pm.mu.RUnlock()
 
 	roleDescription := ""
-	if pm.role == minterRole {
+	if pm.role == int(etcdRaft.StateLeader) {
 		roleDescription = "minter"
 	} else if pm.isVerifierNode() {
 		roleDescription = "verifier"
@@ -454,12 +457,14 @@ func (pm *ProtocolManager) startRaft() {
 	id := raftTypes.ID(pm.raftId).String()
 	ss := stats.NewServerStats(id, id)
 
+	// TODO: @achraf
+	lg, _ := zap.NewProduction()
 	pm.transport = &rafthttp.Transport{
 		ID:          raftTypes.ID(pm.raftId),
 		ClusterID:   0x1000,
 		Raft:        pm,
 		ServerStats: ss,
-		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
+		LeaderStats: stats.NewLeaderStats(lg, strconv.Itoa(int(pm.raftId))),
 		ErrorC:      make(chan error),
 	}
 	pm.transport.Start()
@@ -602,7 +607,9 @@ func (pm *ProtocolManager) startRaft() {
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
-	go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
+
+	// TODO: @achraf
+	//go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
 }
 
 func (pm *ProtocolManager) setLocalAddress(addr *Address) {
@@ -661,7 +668,7 @@ func (pm *ProtocolManager) isVerifierNode() bool {
 func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	for _, n := range pm.confState.Nodes {
+	for _, n := range pm.confState.Voters {
 		if uint16(n) == rid {
 			return true
 		}
@@ -678,7 +685,7 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			if !ok {
 				panic("Couldn't cast role to int")
 			}
-			if intRole == minterRole {
+			if intRole == int(etcdRaft.StateLeader) {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
 			} else { // verifier
@@ -1074,7 +1081,7 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	if minterRole == pm.role {
+	if int(etcdRaft.StateLeader) == pm.role {
 		return pm.address, nil
 	} else if l, ok := pm.peers[pm.leader]; ok {
 		return l.address, nil
