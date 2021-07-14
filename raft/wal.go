@@ -1,13 +1,13 @@
 package raft
 
 import (
-	"go.uber.org/zap"
 	"os"
 
 	"github.com/ethereum/go-ethereum/log"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
+	"go.uber.org/zap"
 )
 
 func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {

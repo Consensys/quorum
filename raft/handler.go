@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,15 +11,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"go.etcd.io/etcd/client/pkg/v3/fileutil"
-	raftTypes "go.etcd.io/etcd/client/pkg/v3/types"
-	etcdRaft "go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
-	"go.etcd.io/etcd/server/v3/etcdserver/api/rafthttp"
-	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
-	stats "go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
-	"go.etcd.io/etcd/server/v3/wal"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/core"
@@ -33,6 +23,15 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
+	raftTypes "go.etcd.io/etcd/client/pkg/v3/types"
+	etcdRaft "go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/rafthttp"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	stats "go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
+	"go.etcd.io/etcd/server/v3/wal"
+	"go.uber.org/zap"
 )
 
 type ProtocolManager struct {

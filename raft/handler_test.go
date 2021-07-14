@@ -4,8 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
-	etcdRaft "go.etcd.io/etcd/raft/v3"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net"
 	"os"
@@ -20,8 +18,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	etcdRaft "go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
+	"go.uber.org/zap"
 )
 
 // pm.advanceAppliedIndex() and state updates are in different
