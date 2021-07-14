@@ -100,7 +100,7 @@ type Config struct {
 	Epoch                  uint64          `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	QbftBlock              *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	QBFTBlock              *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 }
 
 var DefaultConfig = &Config{
@@ -110,29 +110,29 @@ var DefaultConfig = &Config{
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
 	AllowedFutureBlockTime: 0,
-	QbftBlock:              big.NewInt(0),
+	QBFTBlock:              big.NewInt(0),
 }
 
-// QBFTBlock returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
-func (c Config) QBFTBlock() int64 {
-	if c.QbftBlock == nil {
+// QBFTBlockNumber returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
+func (c Config) QBFTBlockNumber() int64 {
+	if c.QBFTBlock == nil {
 		return -1
 	}
-	return c.QbftBlock.Int64()
+	return c.QBFTBlock.Int64()
 }
 
 // IsQBFTConsensusAt checks if qbft consensus is enabled for the block height identified by the given header
 func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 	// If qbftBlock is not defined in genesis qbft consensus is not used
-	if c.QbftBlock == nil {
+	if c.QBFTBlock == nil {
 		return false
 	}
 
-	if c.QbftBlock.Uint64() == 0 {
+	if c.QBFTBlock.Uint64() == 0 {
 		return true
 	}
 
-	if blockNumber.Cmp(c.QbftBlock) >= 0 {
+	if blockNumber.Cmp(c.QBFTBlock) >= 0 {
 		return true
 	}
 	return false

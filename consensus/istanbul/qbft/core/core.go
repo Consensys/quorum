@@ -261,5 +261,5 @@ func (c *core) QuorumSize() int {
 // PrepareCommittedSeal returns a committed seal for the given header and takes current round under consideration
 func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 	h := types.CopyHeader(header)
-	return h.QbftHashWithRoundNumber(round).Bytes()
+	return h.QBFTHashWithRoundNumber(round).Bytes()
 }

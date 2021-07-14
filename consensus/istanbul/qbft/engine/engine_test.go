@@ -37,7 +37,7 @@ func TestPrepareExtra(t *testing.T) {
 func TestWriteCommittedSeals(t *testing.T) {
 	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
-	expectedIstExtra := &types.QbftExtra{
+	expectedIstExtra := &types.QBFTExtra{
 		VanityData: []byte{},
 		Validators: []common.Address{
 			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
@@ -85,7 +85,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 
 func TestWriteRoundNumber(t *testing.T) {
 	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c005c0")
-	expectedIstExtra := &types.QbftExtra{
+	expectedIstExtra := &types.QBFTExtra{
 		VanityData: []byte{},
 		Validators: []common.Address{
 			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
@@ -126,8 +126,8 @@ func TestWriteRoundNumber(t *testing.T) {
 func TestWriteValidatorVote(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
 	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c005c0")
-	vote := &types.ValidatorVote{RecipientAddress: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), VoteType: types.QbftAuthVote}
-	expectedIstExtra := &types.QbftExtra{
+	vote := &types.ValidatorVote{RecipientAddress: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), VoteType: types.QBFTAuthVote}
+	expectedIstExtra := &types.QBFTExtra{
 		VanityData:    vanity,
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},

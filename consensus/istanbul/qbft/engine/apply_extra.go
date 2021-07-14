@@ -2,10 +2,10 @@ package qbftengine
 
 import "github.com/ethereum/go-ethereum/core/types"
 
-type ApplyQBFTExtra func(*types.QbftExtra) error
+type ApplyQBFTExtra func(*types.QBFTExtra) error
 
 func Combine(applies ...ApplyQBFTExtra) ApplyQBFTExtra {
-	return func(extra *types.QbftExtra) error {
+	return func(extra *types.QBFTExtra) error {
 		for _, apply := range applies {
 			err := apply(extra)
 			if err != nil {

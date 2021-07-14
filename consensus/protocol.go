@@ -75,6 +75,6 @@ type Peer interface {
 	// SendConsensus sends the message to this p2p peer using the consensus specific devp2p subprotocol
 	SendConsensus(msgcode uint64, data interface{}) error
 
-	// SendQbftConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
-	SendQbftConsensus(msgcode uint64, payload []byte) error
+	// SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
+	SendQBFTConsensus(msgcode uint64, payload []byte) error
 }
