@@ -276,7 +276,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, err
 		}
 		payload = hash.Bytes()
-		rawTx = c.createPrivateTransaction(rawTx, payload, opts.IsUsingPrivacyPrecompile)
+		rawTx = c.createPrivateTransaction(rawTx, payload)
 
 		if opts.IsUsingPrivacyPrecompile {
 			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
@@ -419,9 +419,8 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]interface{}, event strin
 
 // Quorum
 // createPrivateTransaction replaces the payload of private transaction to the hash from Tessera/Constellation
-func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte, isUsingPrivacyPrecompile bool) *types.Transaction {
+func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte) *types.Transaction {
 	var privateTx *types.Transaction
-
 	if tx.To() == nil {
 		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), payload)
 	} else {
@@ -447,9 +446,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 		return nil, err
 	}
 
-	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
-
-	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
+	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), common.FromHex(hash)), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

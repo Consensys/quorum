@@ -2752,11 +2752,6 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 		return "", err
 	}
 
-	//if hash has `from` account prepended (for privacy marker transaction), then must discard that
-	if len(b) == 84 {
-		b = b[20:]
-	}
-
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
@@ -2947,15 +2942,12 @@ func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transactio
 		return nil, err
 	}
 
-	_, _, txnHash, err := private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+	_, _, ptmHash, err := private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
 	if err != nil {
 		return nil, err
 	}
 
-	//TODO (peter): sender should be removed when possible
-	senderAndHash := append(privateTx.From().Bytes(), txnHash.Bytes()...)
-
-	pmt := types.NewTransaction(pmtNonce, common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), senderAndHash)
+	pmt := types.NewTransaction(pmtNonce, common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), ptmHash.Bytes())
 
 	return pmt, nil
 }
