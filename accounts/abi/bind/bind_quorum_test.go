@@ -95,7 +95,7 @@ func TestBoundContract_Transact_ContractCreation_PrivacyPrecompile(t *testing.T)
 	pvtTx := transactor.capturedInternalPrivateTransaction
 	pvtTxArgs := transactor.capturedInternalPrivateTransactionArgs
 
-	wantPvtTxNonce := uint64(senderNonce) + 1
+	wantPvtTxNonce := uint64(senderNonce)
 	wantPvtTxTo := (*common.Address)(nil)
 	wantPvtTxData := tmPrivatePayloadHash.Bytes()
 
@@ -178,7 +178,7 @@ func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
 	pvtTx := transactor.capturedInternalPrivateTransaction
 	pvtTxArgs := transactor.capturedInternalPrivateTransactionArgs
 
-	wantPvtTxNonce := uint64(senderNonce) + 1
+	wantPvtTxNonce := uint64(senderNonce)
 	wantPvtTxTo := &contractAddr
 	wantPvtTxData := tmPrivatePayloadHash.Bytes()
 

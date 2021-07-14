@@ -422,18 +422,10 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]interface{}, event strin
 func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte, isUsingPrivacyPrecompile bool) *types.Transaction {
 	var privateTx *types.Transaction
 
-	var nonce uint64
-	if isUsingPrivacyPrecompile {
-		// If PMTs are enabled the PMT will have the current nonce and the internal private tx the next nonce
-		nonce = tx.Nonce() + 1
-	} else {
-		nonce = tx.Nonce()
-	}
-
 	if tx.To() == nil {
-		privateTx = types.NewContractCreation(nonce, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), payload)
 	} else {
-		privateTx = types.NewTransaction(nonce, c.address, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+		privateTx = types.NewTransaction(tx.Nonce(), c.address, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
 	}
 	privateTx.SetPrivate()
 	return privateTx
@@ -457,9 +449,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 
 	data := append(signedTx.From().Bytes(), common.FromHex(hash)...)
 
-	// The nonce is already double incremented for the PMT, PMT will have the lower nonce and the internal private tx the next nonce
-	nonce := signedTx.Nonce() - 1
-	return types.NewTransaction(nonce, common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
+	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), data), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

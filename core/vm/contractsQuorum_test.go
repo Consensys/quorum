@@ -117,7 +117,7 @@ func TestPrivacyMarker_Run_NonZeroEVMDepth_DoesNothing(t *testing.T) {
 	require.Nil(t, gotErr)
 }
 
-func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T) {
+func TestPrivacyMarker_Run_InvalidTransaction_NonceUnchanged(t *testing.T) {
 	var (
 		publicTx                      *types.Transaction
 		publicTxByt                   []byte
@@ -204,7 +204,12 @@ func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T
 			privacyManager := mock_private.NewMockPrivateTransactionManager(ctrl)
 			private.P = privacyManager
 			publicState := NewMockStateDB(ctrl)
-			innerApplier := &stubInnerApplier{}
+			innerApplier := nonceIncrementingInnerApplier{
+				incrementNonceFunc: func() {
+					// this should not be called
+					publicState.SetNonce(sender, 1)
+				},
+			}
 
 			evm := &EVM{
 				currentTx:   privacyMarkerTx,
@@ -212,19 +217,10 @@ func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T
 				InnerApply:  innerApplier.InnerApply,
 			}
 
-			var (
-				senderCurrentNonce uint64 = 10
-				senderNextNonce    uint64 = 11
-			)
-
 			privacyManager.EXPECT().Receive(tmPrivateTxHash).Return("", []string{}, tt.privacyManagerResp, nil, tt.privacyManagerErr)
 
-			gomock.InOrder(
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceBefore
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceAfter
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // the call in SetNonce
-				publicState.EXPECT().SetNonce(sender, senderNextNonce).Times(1),
-			)
+			publicState.EXPECT().GetNonce(gomock.Any()).Times(0)
+			publicState.EXPECT().SetNonce(gomock.Any(), gomock.Any()).Times(0)
 
 			gotByt, gotErr := pm.Run(evm, []byte{})
 
@@ -237,7 +233,7 @@ func TestPrivacyMarker_Run_InvalidTransaction_IncrementsSenderNonce(t *testing.T
 	}
 }
 
-func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_IncrementsSenderNonce(t *testing.T) {
+func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_NonceUnchanged(t *testing.T) {
 	var (
 		unsignedPrivateTx  *types.Transaction
 		signedPrivateTx    *types.Transaction
@@ -317,17 +313,16 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_IncrementsSenderN
 			}
 
 			var (
-				senderCurrentNonce uint64 = 10
-				senderNextNonce    uint64 = 11
+				senderCurrentNonce  uint64 = 10
+				senderPreviousNonce uint64 = 9
 			)
 
 			privacyManager.EXPECT().Receive(tmPrivateTxHash).Return("", []string{}, signedPrivateTxByt, nil, nil)
 
 			gomock.InOrder(
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceBefore
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceAfter
-				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // the call in SetNonce
-				publicState.EXPECT().SetNonce(sender, senderNextNonce).Times(1),
+				publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting startingNonce
+				publicState.EXPECT().SetNonce(sender, senderPreviousNonce).Times(1),       // decrementing nonce to prepare for pvt tx execution
+				publicState.EXPECT().SetNonce(sender, senderCurrentNonce).Times(1),        // resetting nonce to startingNonce
 			)
 
 			gotByt, gotErr := pm.Run(evm, []byte{})
@@ -347,7 +342,7 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionFails_IncrementsSenderN
 	}
 }
 
-func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_IncrementsSenderNonce(t *testing.T) {
+func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_NonceUnchanged(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -406,13 +401,13 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_IncrementsSend
 	publicState := NewMockStateDB(ctrl)
 
 	var (
-		senderCurrentNonce uint64 = 10
-		senderNextNonce    uint64 = 11
+		senderCurrentNonce  uint64 = 10
+		senderPreviousNonce uint64 = 9
 	)
 
 	innerApplier := nonceIncrementingInnerApplier{
 		incrementNonceFunc: func() {
-			publicState.SetNonce(sender, senderNextNonce)
+			publicState.SetNonce(sender, senderPreviousNonce+1)
 		},
 	}
 
@@ -425,9 +420,10 @@ func TestPrivacyMarker_Run_SupportedTransaction_ExecutionSucceeds_IncrementsSend
 	privacyManager.EXPECT().Receive(tmPrivateTxHash).Return("", []string{}, signedPrivateTxByt, nil, nil)
 
 	gomock.InOrder(
-		publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting nonceBefore
-		publicState.EXPECT().SetNonce(sender, senderNextNonce).Times(1),           // the call in nonceIncrementingInnerApplier
-		publicState.EXPECT().GetNonce(sender).Return(senderNextNonce).Times(1),    // getting nonceAfter
+		publicState.EXPECT().GetNonce(sender).Return(senderCurrentNonce).Times(1), // getting startingNonce
+		publicState.EXPECT().SetNonce(sender, senderPreviousNonce).Times(1),       // decrementing nonce to prepare for pvt tx execution
+		publicState.EXPECT().SetNonce(sender, senderCurrentNonce).Times(1),        // the call in nonceIncrementingInnerApplier
+		publicState.EXPECT().SetNonce(sender, senderCurrentNonce).Times(1),        // resetting nonce to startingNonce
 	)
 
 	gotByt, gotErr := pm.Run(evm, []byte{})

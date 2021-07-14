@@ -778,12 +778,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
-	if tx.IsPrivacyMarker() && pool.isPrivacyMarkerTransactionCreationEnabled() {
-		// Quorum: for PMT we need to increment nonce by 2 to include the inner private txn
-		pool.pendingNonces.set(addr, tx.Nonce()+2)
-	} else {
-		pool.pendingNonces.set(addr, tx.Nonce()+1)
-	}
+	pool.pendingNonces.set(addr, tx.Nonce()+1)
 
 	// Successful promotion, bump the heartbeat
 	pool.beats[addr] = time.Now()
@@ -1132,12 +1127,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		highestPending := list.LastElement()
-		if highestPending.IsPrivacyMarker() && pool.isPrivacyMarkerTransactionCreationEnabled() {
-			// Quorum: for PMT we need to increment nonce by 2 to include the inner private txn
-			pool.pendingNonces.set(addr, highestPending.Nonce()+2)
-		} else {
-			pool.pendingNonces.set(addr, highestPending.Nonce()+1)
-		}
+		pool.pendingNonces.set(addr, highestPending.Nonce()+1)
 	}
 	pool.mu.Unlock()
 

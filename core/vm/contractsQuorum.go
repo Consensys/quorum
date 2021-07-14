@@ -17,7 +17,10 @@
 package vm
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -79,19 +82,7 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	// we must always increment the (public) nonce, even if this node is not a participant or fails to process the txn
-	// for this reason we use the PTM 'from' address for private txn too
-	fromAddr := evm.currentTx.From()
-	nonceBefore := evm.PublicState().GetNonce(fromAddr)
-	defer func() {
-		nonceAfter := evm.PublicState().GetNonce(fromAddr)
-		if nonceBefore == nonceAfter {
-			evm.publicState.SetNonce(fromAddr, evm.publicState.GetNonce(fromAddr)+1)
-		}
-	}()
-
-	data := evm.currentTx.Data()
-	tx, _, _, err := private.FetchPrivateTransaction(data)
+	tx, _, _, err := private.FetchPrivateTransaction(evm.currentTx.Data())
 	if err != nil {
 		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
 		return nil, nil
@@ -110,17 +101,41 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	}
 	//validate the private tx is signed, and that it's the same signer as the PMT
 	signedBy := tx.From()
-	if signedBy.Hex() == (common.Address{}).Hex() || signedBy.Hex() != fromAddr.Hex() {
+	if signedBy.Hex() == (common.Address{}).Hex() || signedBy.Hex() != evm.currentTx.From().Hex() {
 		// the private tx is signed by someone else or is not properly signed, abort
 		return nil, nil
 	}
 
-	if evm.InnerApply == nil {
-		log.Warn("Unable to apply PMT's inner tx to EVM", "err", "nil inner apply function")
-	} else if err := evm.InnerApply(tx); err != nil {
+	// validate the private tx has the same nonce as the PMT
+	if tx.Nonce() != evm.currentTx.Nonce() {
+		return nil, nil
+	}
+
+	if err := applyTransactionWithoutIncrementingNonce(evm, tx); err != nil {
 		log.Warn("Unable to apply PMT's inner tx to EVM", "err", err)
-		// we continue as we must ensure the nonce is updated and don't want to fail the PMT execution due to the invalid internal tx
+		return nil, nil
 	}
 
 	return nil, nil
+}
+
+// Effectively execute the internal private transaction without incrementing the nonce of the sender account.
+// (1)  make a copy of the sender's starting (i.e. current) account nonce.
+// (2)  decrement the sender's account nonce in the public state so that the internal private transaction (which has the same 'from' and 'nonce' as the outer PMT) can be executed.
+// (3a)  execute the internal private transaction.
+// (3b) if the internal private tx is successfully executed then the sender's account nonce will be incremented back to the starting nonce.
+// (3c) if the execution was unsuccessful then the nonce may not be incremented.
+// (4)  force reset the nonce to the starting value in any case.
+func applyTransactionWithoutIncrementingNonce(evm *EVM, tx *types.Transaction) error {
+	if evm.InnerApply == nil {
+		return errors.New("nil inner apply function")
+	}
+
+	fromAddr := evm.currentTx.From()
+
+	startingNonce := evm.PublicState().GetNonce(fromAddr)
+	evm.publicState.SetNonce(fromAddr, startingNonce-1)
+	defer evm.publicState.SetNonce(fromAddr, startingNonce)
+
+	return evm.InnerApply(tx)
 }
