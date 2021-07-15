@@ -95,10 +95,16 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	logger := c.currentLogger(true, roundChange)
 
-	logger.Info("QBFT: handle ROUND-CHANGE message")
-
 	view := roundChange.View()
 	currentRound := c.currentView().Round
+
+	// number of validators we received ROUND-CHANGE from for a round higher than the current one
+	num := c.roundChangeSet.higherRoundMessages(currentRound)
+
+	// number of validators we received ROUND-CHANGE from for the current round
+	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
+
+	logger.Info("QBFT: handle ROUND-CHANGE message", "higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
 
 	// Add ROUND-CHANGE message to message set
 	if view.Round.Cmp(currentRound) >= 0 {
@@ -118,12 +124,12 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	}
 
 	// number of validators we received ROUND-CHANGE from for a round higher than the current one
-	num := c.roundChangeSet.higherRoundMessages(currentRound)
+	num = c.roundChangeSet.higherRoundMessages(currentRound)
 
 	// number of validators we received ROUND-CHANGE from for the current round
-	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
+	currentRoundMessages = c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
 
-	logger = logger.New("roundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
+	logger = logger.New("higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
 
 	if num == c.valSet.F()+1 {
 		// We received F+1 ROUND-CHANGE messages (this may happen before our timeout exprired)
@@ -168,7 +174,7 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 		}
 		c.sendPreprepareMsg(r)
 	} else {
-		logger.Info("QBFT: accepted ROUND-CHANGE messages")
+		logger.Debug("QBFT: accepted ROUND-CHANGE messages")
 	}
 	return nil
 }

@@ -71,9 +71,9 @@ func (c *core) broadcastPrepare() {
 // - accumulates valid PREPARE message until reaching quorum
 // - when quorum is reached update states to "Prepared" and broadcast COMMIT
 func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
-	logger := c.currentLogger(true, prepare)
+	logger := c.currentLogger(true, prepare).New()
 
-	logger.Info("QBFT: handle PREPARE message")
+	logger.Info("QBFT: handle PREPARE message", "prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
 
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
@@ -92,7 +92,6 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	// Change to "Prepared" state if we've received quorum of PREPARE messages
 	// and we are in earlier state than "Prepared"
 	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
-
 		logger.Info("QBFT: received quorum of PREPARE messages")
 
 		// Accumulates PREPARE messages
@@ -106,14 +105,14 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 		}
 
 		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {
-			logger.Info("QBFT: the prepare matches the proposal", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
+			logger.Debug("QBFT: PREPARE message matches proposal", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
 			c.current.preparedBlock = c.current.Proposal()
 		}
 
 		c.setState(StatePrepared)
 		c.broadcastCommit()
 	} else {
-		logger.Info("QBFT: accepted PREPARE messages")
+		logger.Debug("QBFT: accepted PREPARE messages")
 	}
 
 	return nil

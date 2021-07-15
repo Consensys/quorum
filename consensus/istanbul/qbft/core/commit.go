@@ -88,7 +88,7 @@ func (c *core) broadcastCommit() {
 func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 	logger := c.currentLogger(true, commit)
 
-	logger.Info("QBFT: handle COMMIT message")
+	logger.Info("QBFT: handle COMMIT message", "commits.count", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
@@ -109,7 +109,7 @@ func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 		logger.Info("QBFT: received quorum of COMMIT messages")
 		c.commitQBFT()
 	} else {
-		logger.Info("QBFT: accepted new COMMIT messages")
+		logger.Debug("QBFT: accepted new COMMIT messages")
 	}
 
 	return nil
