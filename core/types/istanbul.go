@@ -32,8 +32,8 @@ var (
 	IstanbulExtraVanity = 32 // Fixed number of extra-data bytes reserved for validator vanity
 	IstanbulExtraSeal   = 65 // Fixed number of extra-data bytes reserved for validator seal
 
-	QbftAuthVote = byte(0xFF) // Magic number to vote on adding a new validator
-	QbftDropVote = byte(0x00) // Magic number to vote on removing a validator.
+	QBFTAuthVote = byte(0xFF) // Magic number to vote on adding a new validator
+	QBFTDropVote = byte(0x00) // Magic number to vote on removing a validator.
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid istanbul header extra-data")
@@ -87,13 +87,13 @@ func ExtractIstanbulExtra(h *Header) (*IstanbulExtra, error) {
 
 // FilteredHeader returns a filtered header which some information (like seal, committed seals)
 // are clean to fulfill the Istanbul hash rules. It first check if the extradata can be extracted into IstanbulExtra if that fails,
-//it extracts extradata into QbftExtra struct
+//it extracts extradata into QBFTExtra struct
 func FilteredHeader(h *Header) *Header {
 	// Check if the header extradata can be decoded in IstanbulExtra, if yes, then call IstanbulFilteredHeader()
-	// if not then call QbftFilteredHeader()
+	// if not then call QBFTFilteredHeader()
 	_, err := ExtractIstanbulExtra(h)
 	if err != nil {
-		return QbftFilteredHeader(h)
+		return QBFTFilteredHeader(h)
 	}
 	return IstanbulFilteredHeader(h, true)
 }
@@ -123,8 +123,8 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 	return newHeader
 }
 
-// QbftExtra represents header extradata for qbft protocol
-type QbftExtra struct {
+// QBFTExtra represents header extradata for qbft protocol
+type QBFTExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
 	Vote          *ValidatorVote
@@ -138,7 +138,7 @@ type ValidatorVote struct {
 }
 
 // EncodeRLP serializes qist into the Ethereum RLP format.
-func (qst *QbftExtra) EncodeRLP(w io.Writer) error {
+func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		qst.VanityData,
 		qst.Validators,
@@ -148,8 +148,8 @@ func (qst *QbftExtra) EncodeRLP(w io.Writer) error {
 	})
 }
 
-// DecodeRLP implements rlp.Decoder, and load the QbftIstanbulExtra fields from a RLP stream.
-func (qst *QbftExtra) DecodeRLP(s *rlp.Stream) error {
+// DecodeRLP implements rlp.Decoder, and load the QBFTExtra fields from a RLP stream.
+func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData    []byte
 		Validators    []common.Address
@@ -186,11 +186,11 @@ func (vv *ValidatorVote) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-// ExtractQbftExtra extracts all values of the QbftExtra from the header. It returns an
+// ExtractQBFTExtra extracts all values of the QBFTExtra from the header. It returns an
 // error if the length of the given extra-data is less than 32 bytes or the extra-data can not
 // be decoded.
-func ExtractQbftExtra(h *Header) (*QbftExtra, error) {
-	qbftExtra := new(QbftExtra)
+func ExtractQBFTExtra(h *Header) (*QBFTExtra, error) {
+	qbftExtra := new(QBFTExtra)
 	err := rlp.DecodeBytes(h.Extra[:], qbftExtra)
 	if err != nil {
 		return nil, err
@@ -198,18 +198,18 @@ func ExtractQbftExtra(h *Header) (*QbftExtra, error) {
 	return qbftExtra, nil
 }
 
-// QbftFilteredHeader returns a filtered header which some information (like committed seals, round, validator vote)
+// QBFTFilteredHeader returns a filtered header which some information (like committed seals, round, validator vote)
 // are clean to fulfill the Istanbul hash rules. It returns nil if the extra-data cannot be
 // decoded/encoded by rlp.
-func QbftFilteredHeader(h *Header) *Header {
-	return QbftFilteredHeaderWithRound(h, 0)
+func QBFTFilteredHeader(h *Header) *Header {
+	return QBFTFilteredHeaderWithRound(h, 0)
 }
 
-// QbftFilteredHeaderWithRound returns the copy of the header with round number set to the given round number
+// QBFTFilteredHeaderWithRound returns the copy of the header with round number set to the given round number
 // and commit seal set to its null value
-func QbftFilteredHeaderWithRound(h *Header, round uint32) *Header {
+func QBFTFilteredHeaderWithRound(h *Header, round uint32) *Header {
 	newHeader := CopyHeader(h)
-	qbftExtra, err := ExtractQbftExtra(newHeader)
+	qbftExtra, err := ExtractQBFTExtra(newHeader)
 	if err != nil {
 		return nil
 	}

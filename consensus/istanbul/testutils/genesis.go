@@ -69,7 +69,7 @@ func appendValidatorsIstanbulExtra(genesis *core.Genesis, addrs []common.Address
 
 func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
-	ist := &types.QbftExtra{
+	ist := &types.QBFTExtra{
 		VanityData:    vanity,
 		Validators:    addrs,
 		Vote:          nil,

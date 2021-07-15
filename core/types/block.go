@@ -139,9 +139,9 @@ func (h *Header) SanityCheck() error {
 	return nil
 }
 
-// QbftHashWithRoundNumber gets the hash of the Header with Only commit seal set to its null value
-func (h *Header) QbftHashWithRoundNumber(round uint32) common.Hash {
-	return rlpHash(QbftFilteredHeaderWithRound(h, round))
+// QBFTHashWithRoundNumber gets the hash of the Header with Only commit seal set to its null value
+func (h *Header) QBFTHashWithRoundNumber(round uint32) common.Hash {
+	return rlpHash(QBFTFilteredHeaderWithRound(h, round))
 }
 
 // hasherPool holds LegacyKeccak hashers.

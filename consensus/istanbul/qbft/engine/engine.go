@@ -52,7 +52,7 @@ func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.I
 
 // writeCommittedSeals writes the extra-data field of a block header with given committed seals.
 func writeCommittedSeals(committedSeals [][]byte) ApplyQBFTExtra {
-	return func(qbftExtra *types.QbftExtra) error {
+	return func(qbftExtra *types.QBFTExtra) error {
 		if len(committedSeals) == 0 {
 			return istanbulcommon.ErrInvalidCommittedSeals
 		}
@@ -72,7 +72,7 @@ func writeCommittedSeals(committedSeals [][]byte) ApplyQBFTExtra {
 
 // writeRoundNumber writes the extra-data field of a block header with given round.
 func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
-	return func(qbftExtra *types.QbftExtra) error {
+	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.Round = uint32(round.Uint64())
 		return nil
 	}
@@ -121,7 +121,7 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrFutureBlock
 	}
 
-	if _, err := types.ExtractQbftExtra(header); err != nil {
+	if _, err := types.ExtractQBFTExtra(header); err != nil {
 		return istanbulcommon.ErrInvalidExtraDataFormat
 	}
 
@@ -237,7 +237,7 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 		return nil
 	}
 
-	extra, err := types.ExtractQbftExtra(header)
+	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
-	return func(qbftExtra *types.QbftExtra) error {
+	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.Validators = validators
 		return nil
 	}
@@ -386,7 +386,7 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 }
 
 func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
-	extra, err := types.ExtractQbftExtra(header)
+	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
 }
 
 func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
-	extra, err := types.ExtractQbftExtra(header)
+	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return []common.Address{}, err
 	}
@@ -430,7 +430,7 @@ func (e *Engine) Address() common.Address {
 // or not), which could be abused to produce different hashes for the same header.
 func sigHash(header *types.Header) (hash common.Hash) {
 	hasher := sha3.NewLegacyKeccak256()
-	rlp.Encode(hasher, types.QbftFilteredHeader(header))
+	rlp.Encode(hasher, types.QBFTFilteredHeader(header))
 	hasher.Sum(hash[:0])
 	return hash
 }
@@ -438,7 +438,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 // PrepareCommittedSeal returns a committed seal for the given hash
 func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 	h := types.CopyHeader(header)
-	return h.QbftHashWithRoundNumber(round).Bytes()
+	return h.QBFTHashWithRoundNumber(round).Bytes()
 }
 
 func (e *Engine) WriteVote(header *types.Header, candidate common.Address, authorize bool) error {
@@ -449,10 +449,10 @@ func (e *Engine) WriteVote(header *types.Header, candidate common.Address, autho
 }
 
 func WriteVote(candidate common.Address, authorize bool) ApplyQBFTExtra {
-	return func(qbftExtra *types.QbftExtra) error {
-		voteType := types.QbftDropVote
+	return func(qbftExtra *types.QBFTExtra) error {
+		voteType := types.QBFTDropVote
 		if authorize {
-			voteType = types.QbftAuthVote
+			voteType = types.QBFTAuthVote
 		}
 
 		vote := &types.ValidatorVote{RecipientAddress: candidate, VoteType: voteType}
@@ -469,16 +469,16 @@ func (e *Engine) ReadVote(header *types.Header) (candidate common.Address, autho
 
 	var vote *types.ValidatorVote
 	if qbftExtra.Vote == nil {
-		vote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QbftDropVote}
+		vote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QBFTDropVote}
 	} else {
 		vote = qbftExtra.Vote
 	}
 
 	// Tally up the new vote from the validator
 	switch {
-	case vote.VoteType == types.QbftAuthVote:
+	case vote.VoteType == types.QBFTAuthVote:
 		authorize = true
-	case vote.VoteType == types.QbftDropVote:
+	case vote.VoteType == types.QBFTDropVote:
 		authorize = false
 	default:
 		return common.Address{}, false, istanbulcommon.ErrInvalidVote
@@ -487,11 +487,11 @@ func (e *Engine) ReadVote(header *types.Header) (candidate common.Address, autho
 	return vote.RecipientAddress, authorize, nil
 }
 
-func getExtra(header *types.Header) (*types.QbftExtra, error) {
+func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 	if len(header.Extra) < types.IstanbulExtraVanity {
 		// In this scenario, the header extradata only contains client specific information, hence create a new qbftExtra and set vanity
 		vanity := append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
-		return &types.QbftExtra{
+		return &types.QBFTExtra{
 			VanityData:    vanity,
 			Validators:    []common.Address{},
 			CommittedSeal: [][]byte{},
@@ -501,10 +501,10 @@ func getExtra(header *types.Header) (*types.QbftExtra, error) {
 	}
 
 	// This is the case when Extra has already been set
-	return types.ExtractQbftExtra(header)
+	return types.ExtractQBFTExtra(header)
 }
 
-func setExtra(h *types.Header, qbftExtra *types.QbftExtra) error {
+func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	payload, err := rlp.EncodeToBytes(qbftExtra)
 	if err != nil {
 		return err

@@ -197,7 +197,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				if _, ok := qbfttypes.MessageCodes()[code]; ok {
 					outboundCode = code
 				}
-				go p.SendQbftConsensus(outboundCode, payload)
+				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
 				go p.SendConsensus(istanbulMsg, payload)
 			}
