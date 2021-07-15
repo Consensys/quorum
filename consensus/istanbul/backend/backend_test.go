@@ -196,12 +196,6 @@ func TestIsQBFTConsensus(t *testing.T) {
 		t.Errorf("IsQBFTConsensus() should return false")
 	}
 
-	// Set the value of qbftBlock to 1
-	qbftConsensus = engine.IsQBFTConsensus()
-	if qbftConsensus {
-		t.Errorf("IsQBFTConsensus() should return false")
-	}
-
 	// Create an insert a new block into the chain.
 	block := makeBlock(chain, engine, chain.Genesis())
 	_, err := chain.InsertChain(types.Blocks{block})
