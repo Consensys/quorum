@@ -2205,7 +2205,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		}
 		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.Istanbul.ProposerPolicy))
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
-		istanbulConfig.QBFTBlock = config.Istanbul.QBFTBlock
+		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft

@@ -82,7 +82,7 @@ func newBlockChain(n int, qbftBlock *big.Int) (*core.BlockChain, *Backend) {
 
 	config := copyConfig(istanbul.DefaultConfig)
 
-	config.QBFTBlock = qbftBlock
+	config.TestQBFTBlock = qbftBlock
 
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
@@ -125,7 +125,7 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types
 func TestIBFTPrepare(t *testing.T) {
 	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
-	chain.Config().Istanbul.QBFTBlock = nil
+	chain.Config().Istanbul.TestQBFTBlock = nil
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
 	if err != nil {
