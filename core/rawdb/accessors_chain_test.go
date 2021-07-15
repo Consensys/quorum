@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -323,6 +324,99 @@ func TestBlockReceiptStorage(t *testing.T) {
 		if err := checkReceiptsRLP(rs, receipts); err != nil {
 			t.Fatalf(err.Error())
 		}
+	}
+	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
+	DeleteBody(db, hash, 0)
+	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); rs != nil {
+		t.Fatalf("receipts returned when body was deleted: %v", rs)
+	}
+	// Ensure that receipts without metadata can be returned without the block body too
+	if err := checkReceiptsRLP(ReadRawReceipts(db, hash, 0), receipts); err != nil {
+		t.Fatalf(err.Error())
+	}
+	// Sanity check that body alone without the receipt is a full purge
+	WriteBody(db, hash, 0, body)
+
+	DeleteReceipts(db, hash, 0)
+	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); len(rs) != 0 {
+		t.Fatalf("deleted receipts returned: %v", rs)
+	}
+}
+
+// Tests that receipts associated with a single block can be stored and retrieved.
+func TestBlockReceiptStorageWithQuorumExtraData(t *testing.T) {
+	db := NewMemoryDatabase()
+
+	// Create a live block since we need metadata to reconstruct the receipt
+	tx1 := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
+	tx2 := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
+	tx2.SetPrivate()
+
+	body := &types.Body{Transactions: types.Transactions{tx1, tx2}}
+
+	// Create the two receipts to manage afterwards
+	receipt1 := &types.Receipt{
+		Status:            types.ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*types.Log{
+			{Address: common.BytesToAddress([]byte{0x11})},
+			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
+		},
+		TxHash:          tx1.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:         111111,
+	}
+	receipt1.Bloom = types.CreateBloom(types.Receipts{receipt1})
+
+	psiReceipt2 := &types.Receipt{
+		PostState:         common.Hash{2}.Bytes(),
+		CumulativeGasUsed: 2,
+		Logs: []*types.Log{
+			{Address: common.BytesToAddress([]byte{0x22})},
+			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
+		},
+		TxHash:          tx2.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		GasUsed:         222222,
+		RevertReason:    []byte("asdf"),
+	}
+
+	receipt2 := &types.Receipt{
+		PostState:         common.Hash{2}.Bytes(),
+		CumulativeGasUsed: 2,
+		Logs: []*types.Log{
+			{Address: common.BytesToAddress([]byte{0x22})},
+			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
+		},
+		TxHash:          tx2.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		GasUsed:         222222,
+		RevertReason:    []byte("abracadabra"),
+		PSReceipts:      map[types.PrivateStateIdentifier]*types.Receipt{types.PrivateStateIdentifier("psi1"): psiReceipt2},
+	}
+	receipt2.Bloom = types.CreateBloom(types.Receipts{receipt2})
+	receipts := []*types.Receipt{receipt1, receipt2}
+
+	// Check that no receipt entries are in a pristine database
+	hash := common.BytesToHash([]byte{0x03, 0x14})
+	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); len(rs) != 0 {
+		t.Fatalf("non existent receipts returned: %v", rs)
+	}
+	// Insert the body that corresponds to the receipts
+	WriteBody(db, hash, 0, body)
+
+	// Insert the receipt slice into the database and check presence
+	WriteReceipts(db, hash, 0, receipts)
+	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); len(rs) == 0 {
+		t.Fatalf("no receipts returned")
+	} else {
+		if err := checkReceiptsRLP(rs, receipts); err != nil {
+			t.Fatalf(err.Error())
+		}
+		rec2 := rs[1]
+		assert.Len(t, rec2.PSReceipts, 1)
+		psRec2 := rec2.PSReceipts[types.PrivateStateIdentifier("psi1")]
+		assert.Equal(t, psRec2.RevertReason, []byte("asdf"))
 	}
 	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
 	DeleteBody(db, hash, 0)
