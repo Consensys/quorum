@@ -22,10 +22,10 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -35,13 +35,20 @@ func (c *core) broadcastNextRoundChange() {
 	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
-// sendRoundChange sends the ROUND CHANGE message with the given round
-func (c *core) broadcastRoundChange(round *big.Int) {
-	logger := c.logger.New("state", c.state)
+// broadcastRoundChange is called when either
+// - ROUND-CHANGE timeout expires (meaning either we have not received PRE-PREPARE message or we have not received a quorum of COMMIT messages)
+// -
 
+// It
+// - Creates and sign ROUND-CHANGE message
+// - broadcast the ROUND-CHANGE message with the given round
+func (c *core) broadcastRoundChange(round *big.Int) {
+	logger := c.currentLogger(true, nil)
+
+	// Validates new round corresponds to current view
 	cv := c.currentView()
 	if cv.Round.Cmp(round) > 0 {
-		logger.Error("Cannot send out the round change", "current round", cv.Round, "target round", round)
+		logger.Error("QBFT: invalid past target round", "target", round)
 		return
 	}
 
@@ -50,47 +57,56 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
-		logger.Error("QBFT: Failed to encode round-change message", "msg", roundChange, "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		logger.Error("QBFT: Failed to sign round-change message", "msg", roundChange, "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to sign ROUND-CHANGE message", "err", err)
 		return
 	}
 	roundChange.SetSignature(signature)
 
-	// Add justification
+	// Extend ROUND-CHANGE message with PREPARE justification
 	if c.QBFTPreparedPrepares != nil {
 		roundChange.Justification = c.QBFTPreparedPrepares
-		logger.Info("QBFT: On RoundChange", "justification", roundChange.Justification)
+		withMsg(logger, roundChange).Debug("QBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
 	}
 
 	// RLP-encode message
 	data, err := rlp.EncodeToBytes(roundChange)
 	if err != nil {
-		logger.Error("QBFT: Failed to encode round-change message", "msg", roundChange, "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return
 	}
 
-	logger.Info("QBFT: broadcast round-change message", "msg", roundChange)
+	withMsg(logger, roundChange).Info("QBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
+
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
-		logger.Error("QBFT: Failed to broadcast message", "msg", roundChange, "err", err)
+		withMsg(logger, roundChange).Error("QBFT: failed to broadcast ROUND-CHANGE message", "err", err)
 		return
 	}
 }
 
+// handleRoundChange is called when receiving a ROUND-CHANGE message from another validator
+// - accumulates ROUND-CHANGE messages until reaching quorum for a given round
+// - when quorum of ROUND-CHANGE messages is reached then
 func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
-	logger := c.logger.New("state", c.state)
-
-	logger.Info("QBFT: handleRoundChange", "m", roundChange)
+	logger := c.currentLogger(true, roundChange)
 
 	view := roundChange.View()
 	currentRound := c.currentView().Round
 
-	// Add the ROUND CHANGE message to its message set and return how many
-	// messages we've got with the same round number and sequence number.
+	// number of validators we received ROUND-CHANGE from for a round higher than the current one
+	num := c.roundChangeSet.higherRoundMessages(currentRound)
+
+	// number of validators we received ROUND-CHANGE from for the current round
+	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
+
+	logger.Info("QBFT: handle ROUND-CHANGE message", "higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
+
+	// Add ROUND-CHANGE message to message set
 	if view.Round.Cmp(currentRound) >= 0 {
 		var prepareMessages []*qbfttypes.Prepare = nil
 		var pr *big.Int = nil
@@ -102,47 +118,63 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 		}
 		err := c.roundChangeSet.Add(view.Round, roundChange, pr, pb, prepareMessages, c.QuorumSize())
 		if err != nil {
-			logger.Warn("Failed to add round change message", "msg", roundChange, "err", err)
+			logger.Warn("QBFT: failed to add ROUND-CHANGE message", "err", err)
 			return err
 		}
 	}
 
-	num := c.roundChangeSet.higherRoundMessages(currentRound)
-	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
-	log.Info("QBFT: handleRoundChange count", "higherRoundMsgs", num, "currentRoundMsgs", currentRoundMessages)
+	// number of validators we received ROUND-CHANGE from for a round higher than the current one
+	num = c.roundChangeSet.higherRoundMessages(currentRound)
+
+	// number of validators we received ROUND-CHANGE from for the current round
+	currentRoundMessages = c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
+
+	logger = logger.New("higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
+
 	if num == c.valSet.F()+1 {
+		// We received F+1 ROUND-CHANGE messages (this may happen before our timeout exprired)
+		// we start new round and broadcast ROUND-CHANGE message
 		newRound := c.roundChangeSet.getMinRoundChange(currentRound)
-		logger.Trace("Starting new Round", "round", newRound)
+
+		logger.Info("QBFT: received F+1 ROUND-CHANGE messages", "F", c.valSet.F())
+
 		c.startNewRound(newRound)
 		c.broadcastRoundChange(newRound)
 	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
+		logger.Info("QBFT: received quorum of ROUND-CHANGE messages")
+
+		// We received quorum of ROUND-CHANGE for current round and we are proposer
+
+		// If we have received a quorum of PREPARE message
+		// then we propose the same block proposal again if not we
+		// propose the block proposal that we generated
 		_, proposal := c.highestPrepared(currentRound)
 		if proposal == nil {
 			proposal = c.current.pendingRequest.Proposal
 		}
 
+		// Prepare justification for ROUND-CHANGE messages
 		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
-		prepareMessages := c.roundChangeSet.prepareMessages[currentRound.Uint64()]
-
-		// Justification
 		rcSignedPayloads := make([]*qbfttypes.SignedRoundChangePayload, 0)
 		for _, m := range roundChangeMessages.Values() {
 			rcMsg := m.(*qbfttypes.RoundChange)
 			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
 		}
 
+		prepareMessages := c.roundChangeSet.prepareMessages[currentRound.Uint64()]
 		if err := isJustified(proposal, rcSignedPayloads, prepareMessages, c.QuorumSize()); err != nil {
-			logger.Error("QBFT: Justification of ROUND-CHANGE messages failed", "err", err)
+			logger.Error("QBFT: invalid ROUND-CHANGE message justification", "err", err)
 			return nil
 		}
 
-		log.Info("QBFT: handleRoundChange - broadcasting pre-prepare")
 		r := &Request{
 			Proposal:        proposal,
 			RCMessages:      roundChangeMessages,
 			PrepareMessages: prepareMessages,
 		}
 		c.sendPreprepareMsg(r)
+	} else {
+		logger.Debug("QBFT: accepted ROUND-CHANGE messages")
 	}
 	return nil
 }
@@ -211,8 +243,8 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg qbfttypes.QBFTMessage, preparedRo
 	return nil
 }
 
-// higherRoundMessages returns the number of Round Change messages received for the round greater than the given round
-// and from different validators
+// higherRoundMessages returns the count of validators we received a ROUND-CHANGE message from
+// for any round greater than the given round
 func (rcs *roundChangeSet) higherRoundMessages(round *big.Int) int {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
@@ -228,6 +260,8 @@ func (rcs *roundChangeSet) higherRoundMessages(round *big.Int) int {
 	return len(addresses)
 }
 
+// getRCMessagesForGivenRound return the count ROUND-CHANGE messages
+// received for a given round
 func (rcs *roundChangeSet) getRCMessagesForGivenRound(round *big.Int) int {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()

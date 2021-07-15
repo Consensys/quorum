@@ -156,7 +156,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 
 		err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
 		if err != nil {
-			log.Error("Error writing validator vote", "err", err)
+			log.Error("BFT: error writing validator vote", "err", err)
 			return err
 		}
 	}
@@ -299,6 +299,35 @@ func (sb *Backend) Stop() error {
 	return nil
 }
 
+func addrsToString(addrs []common.Address) []string {
+	strs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		strs[i] = addr.String()
+	}
+	return strs
+}
+
+func (sb *Backend) snapLogger(snap *Snapshot) log.Logger {
+	return sb.logger.New(
+		"snap.number", snap.Number,
+		"snap.hash", snap.Hash.String(),
+		"snap.epoch", snap.Epoch,
+		"snap.validators", addrsToString(snap.validators()),
+		"snap.votes", snap.Votes,
+	)
+}
+
+func (sb *Backend) storeSnap(snap *Snapshot) error {
+	logger := sb.snapLogger(snap)
+	logger.Debug("BFT: store snapshot to database")
+	if err := snap.store(sb.db); err != nil {
+		logger.Error("BFT: failed to store snapshot to database", "err", err)
+		return err
+	}
+
+	return nil
+}
+
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
@@ -310,34 +339,37 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If an in-memory snapshot was found, use that
 		if s, ok := sb.recents.Get(hash); ok {
 			snap = s.(*Snapshot)
+			sb.snapLogger(snap).Trace("BFT: loaded voting snapshot from cache")
 			break
 		}
 		// If an on-disk checkpoint snapshot can be found, use that
 		if number%checkpointInterval == 0 {
 			if s, err := loadSnapshot(sb.config.Epoch, sb.db, hash); err == nil {
-				log.Trace("Loaded voting snapshot form disk", "number", number, "hash", hash)
 				snap = s
+				sb.snapLogger(snap).Trace("BFT: loaded voting snapshot from database")
 				break
 			}
 		}
+
 		// If we're at block zero, make a snapshot
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
 			if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
+				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}
 
 			// Get the validators from genesis to create a snapshot
 			validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
 			if err != nil {
+				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}
 
 			snap = newSnapshot(sb.config.Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
-			if err := snap.store(sb.db); err != nil {
+			if err := sb.storeSnap(snap); err != nil {
 				return nil, err
 			}
-			log.Trace("Stored genesis voting snapshot to disk")
 			break
 		}
 
@@ -357,9 +389,11 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, consensus.ErrUnknownAncestor
 			}
 		}
+
 		headers = append(headers, header)
 		number, hash = number-1, header.ParentHash
 	}
+
 	// Previous snapshot found, apply any pending headers on top of it
 	for i := 0; i < len(headers)/2; i++ {
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
@@ -373,11 +407,11 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 
 	// If we've generated a new checkpoint snapshot, save to disk
 	if snap.Number%checkpointInterval == 0 && len(headers) > 0 {
-		if err = snap.store(sb.db); err != nil {
+		if err = sb.storeSnap(snap); err != nil {
 			return nil, err
 		}
-		log.Trace("Stored voting snapshot to disk", "number", snap.Number, "hash", snap.Hash)
 	}
+
 	return snap, err
 }
 
@@ -416,6 +450,10 @@ func (sb *Backend) snapApply(snap *Snapshot, headers []*types.Header) (*Snapshot
 }
 
 func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
+	logger := sb.snapLogger(snap).New("header.number", header.Number.Uint64(), "header.hash", header.Hash().String())
+
+	logger.Trace("BFT: apply header to voting snapshot")
+
 	// Remove any votes on checkpoint blocks
 	number := header.Number.Uint64()
 	if number%snap.Epoch == 0 {
@@ -426,22 +464,29 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	// Resolve the authorization key and check against validators
 	validator, err := sb.EngineForBlockNumber(header.Number).Author(header)
 	if err != nil {
+		logger.Error("BFT: invalid header author", "err", err)
 		return err
 	}
 
+	logger = logger.New("header.author", validator)
+
 	if _, v := snap.ValSet.GetByAddress(validator); v == nil {
+		logger.Error("BFT: header author is not a validator")
 		return istanbulcommon.ErrUnauthorized
 	}
 
 	// Read vote from header
 	candidate, authorize, err := sb.EngineForBlockNumber(header.Number).ReadVote(header)
 	if err != nil {
+		logger.Error("BFT: invalid header vote", "err", err)
 		return err
 	}
 
+	logger = logger.New("candidate", candidate.String(), "authorize", authorize)
 	// Header authorized, discard any previous votes from the validator
 	for i, vote := range snap.Votes {
 		if vote.Validator == validator && vote.Address == candidate {
+			logger.Trace("BFT: discard previous vote from tally", "old.authorize", vote.Authorize)
 			// Uncast the vote from the cached tally
 			snap.uncast(vote.Address, vote.Authorize)
 
@@ -451,6 +496,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		}
 	}
 
+	logger.Debug("BFT: add vote to tally")
 	if snap.cast(candidate, authorize) {
 		snap.Votes = append(snap.Votes, &Vote{
 			Validator: validator,
@@ -462,9 +508,12 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 
 	// If the vote passed, update the list of validators
 	if tally := snap.Tally[candidate]; tally.Votes > snap.ValSet.Size()/2 {
+
 		if tally.Authorize {
+			logger.Info("BFT: reached majority to add validator")
 			snap.ValSet.AddValidator(candidate)
 		} else {
+			logger.Info("BFT: reached majority to remove validator")
 			snap.ValSet.RemoveValidator(candidate)
 
 			// Discard any previous votes the deauthorized validator cast

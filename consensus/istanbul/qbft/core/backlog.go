@@ -32,7 +32,13 @@ var (
 	}
 )
 
-// checkMessage checks the message state
+// checkMessage checks that a message matches our current QBFT state
+//
+// In particular it ensures that
+// - message has the expected round
+// - message has the expected sequence
+// - message type is expected given our current state
+
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
@@ -42,6 +48,10 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	}
 
 	if msgCode == qbfttypes.RoundChangeCode {
+		// if ROUND-CHANGE message
+		// check that
+		// - sequence matches our current sequence
+		// - round is in the future
 		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
 			return errFutureMessage
 		} else if view.Cmp(c.currentView()) < 0 {
@@ -50,6 +60,8 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 		return nil
 	}
 
+	// If not ROUND-CHANGE
+	// check that round and sequence equals our current round and sequence
 	if view.Cmp(c.currentView()) > 0 {
 		return errFutureMessage
 	}
@@ -89,21 +101,23 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	return nil
 }
 
-func (c *core) storeQBFTBacklog(msg qbfttypes.QBFTMessage) {
-	src := msg.Source()
-	logger := c.logger.New("from", src, "state", c.state)
+// addToBacklog allows to postpone the processing of future messages
 
+// it adds the message to backlog which is read on every state change
+func (c *core) addToBacklog(msg qbfttypes.QBFTMessage) {
+	logger := c.currentLogger(true, msg)
+
+	src := msg.Source()
 	if src == c.Address() {
-		logger.Warn("Backlog from self")
+		logger.Warn("QBFT: backlog from self")
 		return
 	}
 
-	logger.Trace("Store future message")
+	logger.Trace("QBFT: new backlog message", "backlogs_size", len(c.backlogs))
 
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
 
-	logger.Debug("Retrieving backlog queue", "for", src, "backlogs_size", len(c.backlogs))
 	backlog := c.backlogs[src]
 	if backlog == nil {
 		backlog = prque.New()
@@ -113,6 +127,10 @@ func (c *core) storeQBFTBacklog(msg qbfttypes.QBFTMessage) {
 	backlog.Push(msg, toPriority(msg.Code(), &view))
 }
 
+// processBacklog lookup for future messages that have been backlogged and post it on
+// the event channel so main handler loop can handle it
+
+// It is called on every state change
 func (c *core) processBacklog() {
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
@@ -129,6 +147,8 @@ func (c *core) processBacklog() {
 		}
 		logger := c.logger.New("from", src, "state", c.state)
 		isFuture := false
+
+		logger.Trace("QBFT: process backlog")
 
 		// We stop processing if
 		//   1. backlog is empty
@@ -149,15 +169,16 @@ func (c *core) processBacklog() {
 			err := c.checkMessage(code, &view)
 			if err != nil {
 				if err == errFutureMessage {
-					logger.Trace("Stop processing backlog", "msg", m)
+					// this is still a future message
+					logger.Trace("QBFT: stop processing backlog", "msg", m)
 					backlog.Push(m, prio)
 					isFuture = true
 					break
 				}
-				logger.Trace("Skip the backlog event", "msg", m, "err", err)
+				logger.Trace("QBFT: skip backlog message", "msg", m, "err", err)
 				continue
 			}
-			logger.Trace("Post backlog event", "msg", m)
+			logger.Trace("QBFT: post backlog event", "msg", m)
 
 			event.src = src
 			go c.sendEvent(event)
