@@ -141,21 +141,6 @@ func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
 	return r
 }
 
-func (r *Receipt) GetReceiptExtraData() *QuorumReceiptExtraData {
-	if r.PSReceipts == nil && r.RevertReason == nil {
-		return nil
-	}
-	return &QuorumReceiptExtraData{
-		PSReceipts:   r.PSReceipts,
-		RevertReason: r.RevertReason,
-	}
-}
-
-func (r *Receipt) SetReceiptExtraData(data *QuorumReceiptExtraData) {
-	r.PSReceipts = data.PSReceipts
-	r.RevertReason = data.RevertReason
-}
-
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
 // into an RLP stream. If no post state is present, byzantium fork is assumed.
 func (r *Receipt) EncodeRLP(w io.Writer) error {
@@ -216,6 +201,8 @@ func (r *Receipt) Size() common.StorageSize {
 // entire content of a receipt, as opposed to only the consensus fields originally.
 type ReceiptForStorage Receipt
 
+// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
+// into an RLP stream.
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	enc := &storedReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
@@ -448,6 +435,21 @@ func (r Receipts) deriveFieldsOrig(config *params.ChainConfig, hash common.Hash,
 }
 
 // Quorum
+
+func (r *Receipt) GetReceiptExtraData() *QuorumReceiptExtraData {
+	if r.PSReceipts == nil && r.RevertReason == nil {
+		return nil
+	}
+	return &QuorumReceiptExtraData{
+		PSReceipts:   r.PSReceipts,
+		RevertReason: r.RevertReason,
+	}
+}
+
+func (r *Receipt) SetReceiptExtraData(data *QuorumReceiptExtraData) {
+	r.PSReceipts = data.PSReceipts
+	r.RevertReason = data.RevertReason
+}
 
 // storedMPSReceiptRLPWithRevertReason is the storage encoding of a receipt which contains
 // receipts per PSI, including Revert Reason
