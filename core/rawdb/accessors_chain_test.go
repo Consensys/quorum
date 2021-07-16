@@ -378,7 +378,9 @@ func TestBlockReceiptStorageWithQuorumExtraData(t *testing.T) {
 		TxHash:          tx2.Hash(),
 		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
 		GasUsed:         222222,
-		RevertReason:    []byte("asdf"),
+		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
+			RevertReason: []byte("arbitraryvalue"),
+		},
 	}
 
 	receipt2 := &types.Receipt{
@@ -391,8 +393,10 @@ func TestBlockReceiptStorageWithQuorumExtraData(t *testing.T) {
 		TxHash:          tx2.Hash(),
 		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
 		GasUsed:         222222,
-		RevertReason:    []byte("abracadabra"),
-		PSReceipts:      map[types.PrivateStateIdentifier]*types.Receipt{types.PrivateStateIdentifier("psi1"): psiReceipt2},
+		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
+			RevertReason: []byte("arbitraryvalue"),
+			PSReceipts:   map[types.PrivateStateIdentifier]*types.Receipt{types.PrivateStateIdentifier("psi1"): psiReceipt2},
+		},
 	}
 	receipt2.Bloom = types.CreateBloom(types.Receipts{receipt2})
 	receipts := []*types.Receipt{receipt1, receipt2}
@@ -416,7 +420,7 @@ func TestBlockReceiptStorageWithQuorumExtraData(t *testing.T) {
 		rec2 := rs[1]
 		assert.Len(t, rec2.PSReceipts, 1)
 		psRec2 := rec2.PSReceipts[types.PrivateStateIdentifier("psi1")]
-		assert.Equal(t, psRec2.RevertReason, []byte("asdf"))
+		assert.Equal(t, psRec2.RevertReason, []byte("arbitraryvalue"))
 	}
 	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
 	DeleteBody(db, hash, 0)

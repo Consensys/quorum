@@ -625,7 +625,7 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 		}
 		for i, quorumExtraDataReceipt := range quorumExtraDataReceipts {
 			if quorumExtraDataReceipt != nil {
-				receipts[i].SetReceiptExtraData(quorumExtraDataReceipt)
+				receipts[i].SetReceiptExtraDataFromStorage(quorumExtraDataReceipt)
 			}
 		}
 	}
@@ -664,7 +664,7 @@ func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rec
 	quorumReceiptsExtraData := make([]*types.QuorumReceiptExtraData, len(receipts))
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
-		quorumReceiptsExtraData[i] = receipt.GetReceiptExtraData()
+		quorumReceiptsExtraData[i] = &receipt.QuorumReceiptExtraData
 	}
 	bytes, err := rlp.EncodeToBytes(storageReceipts)
 	if err != nil {
@@ -674,8 +674,7 @@ func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rec
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
-	// TODO should we write the extra data using a different key in the DB? May impact freezer logic.
-	// TODO !!! the concatenated byte array is not backward compatible !!!
+	// the vanilla receipts and the extra data receipts are concatenated and stored as a single value
 	bytes = append(bytes, bytesExtraData...)
 	// Store the flattened receipt slice
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {

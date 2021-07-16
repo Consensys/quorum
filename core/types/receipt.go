@@ -48,6 +48,7 @@ const (
 
 // Receipt represents the results of a transaction.
 type Receipt struct {
+	QuorumReceiptExtraData
 	// Consensus fields: These fields are defined by the Yellow Paper
 	PostState         []byte `json:"root"`
 	Status            uint64 `json:"status"`
@@ -66,9 +67,10 @@ type Receipt struct {
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
+}
 
-	// Quorum
-	//
+// Quorum
+type QuorumReceiptExtraData struct {
 	// this is to support execution of a private transaction on multiple private states
 	// in which receipts are produced per PSI.
 	//
@@ -76,14 +78,9 @@ type Receipt struct {
 	PSReceipts map[PrivateStateIdentifier]*Receipt `json:"-"`
 	// support saving the revert reason into the receipt itself for later consultation.
 	RevertReason []byte `json:"revertReason,omitempty"`
-	// End Quorum
 }
 
-type QuorumReceiptExtraData struct {
-	// TODO - see if Receipt can extend QuorumReceiptExtraData
-	PSReceipts   map[PrivateStateIdentifier]*Receipt `json:"-"`
-	RevertReason []byte                              `json:"revertReason,omitempty"`
-}
+// End Quorum
 
 type receiptMarshaling struct {
 	PostState         hexutil.Bytes
@@ -229,6 +226,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
+	// TODO remove once we know the early adopters of MPS have upgraded to the latest version by doing a full resync
 	// reverse order for MPS receipts as it is the less likely encoding
 	if err := decodeStoredMPSReceiptRLP(r, blob); err == nil {
 		return nil
@@ -436,19 +434,16 @@ func (r Receipts) deriveFieldsOrig(config *params.ChainConfig, hash common.Hash,
 
 // Quorum
 
-func (r *Receipt) GetReceiptExtraData() *QuorumReceiptExtraData {
-	if r.PSReceipts == nil && r.RevertReason == nil {
-		return nil
+func (r *Receipt) SetReceiptExtraDataFromStorage(data *QuorumReceiptExtraData) {
+	if data == nil {
+		return
 	}
-	return &QuorumReceiptExtraData{
-		PSReceipts:   r.PSReceipts,
-		RevertReason: r.RevertReason,
+	if data.PSReceipts != nil {
+		r.PSReceipts = data.PSReceipts
 	}
-}
-
-func (r *Receipt) SetReceiptExtraData(data *QuorumReceiptExtraData) {
-	r.PSReceipts = data.PSReceipts
-	r.RevertReason = data.RevertReason
+	if data.RevertReason != nil {
+		r.RevertReason = data.RevertReason
+	}
 }
 
 // storedMPSReceiptRLPWithRevertReason is the storage encoding of a receipt which contains
