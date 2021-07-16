@@ -859,6 +859,13 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
+	// Private state cache
+	PrivateCacheTrieJournalFlag = cli.StringFlag{
+		Name:  "private.cache.trie.journal",
+		Usage: "Disk journal directory for private trie cache to survive node restarts",
+		Value: eth.DefaultConfig.PrivateTrieCleanCacheJournal,
+	}
+
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
 		Name:  "privacymarker.enable",
 		Usage: "Enable use of privacy marker transactions (PMT) for this node.",
@@ -1712,7 +1719,12 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
-
+	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
+		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
+	}
+	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
+		return fmt.Errorf("configuration collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
+	}
 	return nil
 }
 
@@ -1791,8 +1803,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setLes(ctx, cfg)
 
 	// Quorum
-	if err := setQuorumConfig(ctx, cfg); err != nil {
-		Fatalf(err.Error())
+	err := setQuorumConfig(ctx, cfg)
+	if err != nil {
+		Fatalf("Quorum configuration has an error: %v", err)
 	}
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
