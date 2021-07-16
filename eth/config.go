@@ -205,3 +205,11 @@ type Config struct {
 	// Quorum
 	SaveRevertReason bool `toml:"-"`
 }
+
+func (c *Config) quorumConfig() []core.QuorumConfig {
+	return []core.QuorumConfig{{
+		EVMCallTimeOut:     c.EVMCallTimeOut,
+		EnableMultitenancy: c.EnableMultitenancy,
+		SaveRevertReason:   c.SaveRevertReason,
+	}}
+}
