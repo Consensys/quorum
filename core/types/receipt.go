@@ -557,6 +557,9 @@ func (r *QuorumReceiptExtraData) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	kind, content, _, err := rlp.Split(blob)
+	if err != nil {
+		return err
+	}
 	if kind != rlp.List {
 		return nil
 	}
@@ -571,7 +574,7 @@ func (r *QuorumReceiptExtraData) DecodeRLP(s *rlp.Stream) error {
 	case 1:
 		return decodeStoredQuorumReceiptExtraDataV1(r, blob)
 	default:
-		return fmt.Errorf("unkown version %d", version)
+		return fmt.Errorf("unknown version %d", version)
 	}
 }
 
