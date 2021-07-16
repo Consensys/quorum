@@ -72,7 +72,6 @@ func newSnapshot(epoch uint64, number uint64, hash common.Hash, valSet istanbul.
 }
 
 // loadSnapshot loads an existing snapshot from the database.
-
 func loadSnapshot(epoch uint64, db ethdb.Database, hash common.Hash) (*Snapshot, error) {
 	blob, err := db.Get(append([]byte(dbKeySnapshotPrefix), hash[:]...))
 	if err != nil {
