@@ -378,3 +378,61 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 	log.TxIndex = math.MaxUint32
 	log.Index = math.MaxUint32
 }
+
+func TestQuorumReceiptExtraDataDecodingSuccess(t *testing.T) {
+	tx := NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
+	receipt := &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		TxHash:          tx.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:         111111,
+	}
+	receipt.Bloom = CreateBloom(Receipts{receipt})
+
+	extraData := &QuorumReceiptExtraData{
+		RevertReason: []byte("arbitrary reason"),
+		PSReceipts:   map[PrivateStateIdentifier]*Receipt{PrivateStateIdentifier("psi1"): receipt},
+	}
+	rlpData, err := rlp.EncodeToBytes(extraData)
+	assert.Nil(t, err)
+	var decodedExtraData QuorumReceiptExtraData
+	err = rlp.DecodeBytes(rlpData, &decodedExtraData)
+	assert.Nil(t, err)
+	assert.Equal(t, decodedExtraData.RevertReason, []byte("arbitrary reason"))
+	assert.Contains(t, decodedExtraData.PSReceipts, PrivateStateIdentifier("psi1"))
+	decodedReceipt := decodedExtraData.PSReceipts[PrivateStateIdentifier("psi1")]
+	assert.NotNil(t, decodedReceipt)
+	testConsensusFields(t, ReceiptForStorage(*decodedReceipt), receipt)
+}
+
+func TestQuorumReceiptExtraDataDecodingFailDueToUnknownVersion(t *testing.T) {
+	rlpData, err := rlp.EncodeToBytes(&storedQuorumReceiptExtraDataV1RLP{
+		Version:      2,
+		RevertReason: []byte("arbitrary reason"),
+	})
+	assert.Nil(t, err)
+	var decodedExtraData QuorumReceiptExtraData
+	err = rlp.DecodeBytes(rlpData, &decodedExtraData)
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "unknown version 2")
+}
+
+func TestQuorumReceiptExtraDataDecodingFailDueToGarbageData(t *testing.T) {
+	var decodedExtraData QuorumReceiptExtraData
+	err := rlp.DecodeBytes([]byte("arbitrary data"), &decodedExtraData)
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "unexpected content type (expecting list) 0")
+}

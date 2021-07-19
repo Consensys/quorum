@@ -558,7 +558,7 @@ func (r *QuorumReceiptExtraData) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	if kind != rlp.List {
-		return nil
+		return fmt.Errorf("unexpected content type (expecting list) %d", kind)
 	}
 	if len(content) == 0 {
 		return nil
