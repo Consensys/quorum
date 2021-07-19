@@ -640,3 +640,43 @@ func decodeStoredMPSReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	}
 	return nil
 }
+
+type ReceiptForStorageMPSV1 Receipt
+
+// the original encoding for ReceiptForStorage at the time of the MPS release
+func (r *ReceiptForStorageMPSV1) EncodeRLP(w io.Writer) error {
+	if r.PSReceipts == nil {
+		enc := &storedReceiptRLP{
+			PostStateOrStatus: (*Receipt)(r).statusEncoding(),
+			CumulativeGasUsed: r.CumulativeGasUsed,
+			Logs:              make([]*LogForStorage, len(r.Logs)),
+		}
+		for i, log := range r.Logs {
+			enc.Logs[i] = (*LogForStorage)(log)
+		}
+		return rlp.Encode(w, enc)
+	}
+	enc := &storedMPSReceiptRLP{
+		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
+		CumulativeGasUsed: r.CumulativeGasUsed,
+		Logs:              make([]*LogForStorage, len(r.Logs)),
+		PSReceipts:        make([]storedPSIToReceiptMapEntry, len(r.PSReceipts)),
+	}
+	for i, log := range r.Logs {
+		enc.Logs[i] = (*LogForStorage)(log)
+	}
+	idx := 0
+	for key, val := range r.PSReceipts {
+		rec := storedReceiptRLP{
+			PostStateOrStatus: val.statusEncoding(),
+			CumulativeGasUsed: val.CumulativeGasUsed,
+			Logs:              make([]*LogForStorage, len(val.Logs)),
+		}
+		for i, log := range val.Logs {
+			rec.Logs[i] = (*LogForStorage)(log)
+		}
+		enc.PSReceipts[idx] = storedPSIToReceiptMapEntry{Key: key, Value: rec}
+		idx++
+	}
+	return rlp.Encode(w, enc)
+}
