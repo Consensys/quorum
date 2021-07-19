@@ -2,7 +2,7 @@ package core
 
 import "time"
 
-type QuorumConfig struct {
+type BlockchainQuorumConfig struct {
 	EVMCallTimeOut     time.Duration
 	EnableMultitenancy bool
 	SaveRevertReason   bool
@@ -14,11 +14,11 @@ func multitenancyEnabled(c []QuorumConfig) bool {
 }
 */
 
-func revertReasonSaved(c []QuorumConfig) bool {
-	return firstBoolean(c, true, func(c QuorumConfig) bool { return c.SaveRevertReason })
+func revertReasonSaved(c []BlockchainQuorumConfig) bool {
+	return firstBoolean(c, true, func(c BlockchainQuorumConfig) bool { return c.SaveRevertReason })
 }
 
-func firstBoolean(cfgs []QuorumConfig, v bool, getter func(c QuorumConfig) bool) bool {
+func firstBoolean(cfgs []BlockchainQuorumConfig, v bool, getter func(c BlockchainQuorumConfig) bool) bool {
 	for _, c := range cfgs {
 		if getter(c) == v {
 			return v
