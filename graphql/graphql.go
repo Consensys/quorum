@@ -368,11 +368,16 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 
 // Quorum
 
-// (Quorum) PrivateTransaction returns the internal private transaction when privacy precompile is enabled
+// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
 func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
 	tx, err := t.resolve(ctx)
 	if err != nil || tx == nil {
 		return nil, err
+	}
+
+	if !tx.IsPrivacyMarker() {
+		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
+		return nil, nil
 	}
 
 	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())

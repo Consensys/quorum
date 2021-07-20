@@ -232,18 +232,16 @@ func TestQuorumSchema_PrivateTransaction(t *testing.T) {
 	}
 }
 
-func TestQuorumSchema_PrivateMarkerTransaction(t *testing.T) {
+func TestQuorumSchema_PrivacyMarkerTransaction(t *testing.T) {
 	saved := private.P
 	defer func() {
 		private.P = saved
 	}()
 
-	from := common.HexToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
-
 	encryptedPayloadHashByt := sha3.Sum512([]byte("encrypted payload hash"))
 	encryptedPayloadHash := common.BytesToEncryptedPayloadHash(encryptedPayloadHashByt[:])
 
-	privateTx := types.NewTransaction(1, from, big.NewInt(0), 0, big.NewInt(0), encryptedPayloadHash.Bytes())
+	privateTx := types.NewTransaction(1, common.Address{}, big.NewInt(0), 0, big.NewInt(0), encryptedPayloadHash.Bytes())
 	privateTx.SetPrivate()
 	// json decoding later in the test requires the private tx to have signature values, so set to some arbitrary values here
 	_, r, s := privateTx.RawSignatureValues()
@@ -267,9 +265,9 @@ func TestQuorumSchema_PrivateMarkerTransaction(t *testing.T) {
 		},
 	}
 
-	privateMarkerTx := types.NewTransaction(0, from, big.NewInt(0), 0, big.NewInt(0), append(from.Bytes(), encryptedPrivateTxHash.Bytes()...))
+	privacyMarkerTx := types.NewTransaction(0, common.QuorumPrivacyPrecompileContractAddress(), big.NewInt(0), 0, big.NewInt(0), encryptedPrivateTxHash.Bytes())
 
-	pmtQuery := &Transaction{tx: privateMarkerTx, backend: &StubBackend{}}
+	pmtQuery := &Transaction{tx: privacyMarkerTx, backend: &StubBackend{}}
 	isPrivate, err := pmtQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -306,12 +304,12 @@ func TestQuorumSchema_PrivateMarkerTransaction(t *testing.T) {
 	if privateInputData.String() != "0x70726976617465207061796c6f6164" {
 		t.Fatalf("Expect privateInputData to be: \"0x70726976617465207061796c6f6164\" for internal private TX, actual: %v", privateInputData.String())
 	}
-	internalInternalPrivateTxQuery, err := internalPrivateTxQuery.PrivateTransaction(context.Background())
+	nestedInternalPrivateTxQuery, err := internalPrivateTxQuery.PrivateTransaction(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
 	}
-	if internalInternalPrivateTxQuery != nil {
-		t.Fatalf("Expect PrivateTransaction to be nil for internal private tx, actual: %v", *internalPrivateTxQuery)
+	if nestedInternalPrivateTxQuery != nil {
+		t.Fatalf("Expect PrivateTransaction to be nil for internal private tx, actual: %v", *nestedInternalPrivateTxQuery)
 	}
 	_, ok := internalPrivateTxQuery.receiptGetter.(*privateTransactionReceiptGetter)
 	if !ok {
