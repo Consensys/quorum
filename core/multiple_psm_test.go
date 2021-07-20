@@ -59,7 +59,7 @@ func buildTestChain(n int, config *params.ChainConfig) ([]*types.Block, map[comm
 		blockm[b.Hash()] = b
 	}
 
-	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil)
+	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil, nil)
 	return blocks, blockm, blockchain
 }
 

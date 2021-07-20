@@ -220,7 +220,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	if config.QuorumChainConfig.MultiTenantEnabled {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
-	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, config.QuorumChainConfig)
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, &config.QuorumChainConfig)
 
 	if err != nil {
 		return nil, err

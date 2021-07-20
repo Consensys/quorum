@@ -2270,7 +2270,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		limit = &l
 	}
 	// TODO should multiple private states work with import/export/inspect commands
-	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit)
+	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit, nil)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)
 	}
