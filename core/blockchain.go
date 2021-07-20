@@ -219,10 +219,9 @@ type BlockChain struct {
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
 	// Quorum
-	isMultitenant bool // if this blockchain supports multitenancy
+	quorumConfig BlockchainQuorumConfig // quorum config holds all the possible configuration fields for GoQuorum
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	saveRevertReason    bool // if we should save the revert reasons in the Tx Receipts
 	// End Quorum
 }
 
@@ -259,7 +258,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		badBlocks:      badBlocks,
 		// Quorum
-		saveRevertReason: revertReasonSaved(cfg),
+		quorumConfig: blockchainQuorumConfig(cfg...),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -427,11 +426,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 // Quorum
 // Decorates NewBlockChain with multitenancy flag
 func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, cfg ...BlockchainQuorumConfig) (*BlockChain, error) {
-	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, cfg...)
+	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, append(cfg, BlockchainQuorumConfig{MultiTenantEnabled: true})...)
 	if err != nil {
 		return nil, err
 	}
-	bc.isMultitenant = true
 	return bc, err
 }
 
@@ -2735,7 +2733,7 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 
 // Quorum
 func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	return nil, bc.isMultitenant
+	return nil, bc.quorumConfig.MultiTenantEnabled
 }
 
 // PopulateSetPrivateState function pointer for updating private state

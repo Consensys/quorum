@@ -208,6 +208,6 @@ type Config struct {
 
 func (c *Config) quorumConfig() []core.BlockchainQuorumConfig {
 	return []core.BlockchainQuorumConfig{{
-		SaveRevertReason: c.SaveRevertReason,
+		RevertReasonEnabled: c.SaveRevertReason,
 	}}
 }
