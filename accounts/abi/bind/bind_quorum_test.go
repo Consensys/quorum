@@ -84,11 +84,11 @@ func TestBoundContract_Transact_ContractCreation_PrivacyPrecompile(t *testing.T)
 	// verify the private marker transaction
 	wantPMTNonce := uint64(senderNonce)
 	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
-	wantPMTData := append(common.Address{}.Bytes(), tmPrivateTxHash.Bytes()...)
+	wantPMTData := tmPrivateTxHash.Bytes()
 
 	require.Equal(t, wantPMTNonce, pmt.Nonce())
 	require.Equal(t, &wantPMTTo, pmt.To())
-	require.Equal(t, wantPMTData, pmt.Data(), "sender addr should prefix hash of encrypted private tx")
+	require.Equal(t, wantPMTData, pmt.Data())
 	require.False(t, pmt.IsPrivate())
 
 	// verify the captured internal private transaction
@@ -167,11 +167,11 @@ func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
 	// verify the private marker transaction
 	wantPMTNonce := uint64(senderNonce)
 	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
-	wantPMTData := append(common.Address{}.Bytes(), tmPrivateTxHash.Bytes()...)
+	wantPMTData := tmPrivateTxHash.Bytes()
 
 	require.Equal(t, wantPMTNonce, pmt.Nonce())
 	require.Equal(t, &wantPMTTo, pmt.To())
-	require.Equal(t, wantPMTData, pmt.Data(), "sender addr should prefix hash of encrypted private tx")
+	require.Equal(t, wantPMTData, pmt.Data())
 	require.False(t, pmt.IsPrivate())
 
 	// verify the captured internal private transaction
