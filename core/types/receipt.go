@@ -70,6 +70,25 @@ type Receipt struct {
 }
 
 // Quorum
+/*
+The QuorumReceiptExtraData contains additional fields to be stored for receipts introduced by quourm.
+
+Procedure for adding new fields to QuorumReceiptExtraData:
+
+1. Add the relevant field to the QuorumReceiptExtraData structure
+
+2. Introduce a new  version for the structures: storedQuorumReceiptExtraDataVxyzRLP, storedPSIToReceiptMapEntryVxyz and storedReceiptExtraDataVxyz with the new field
+
+3. Update the QuorumReceiptExtraData.IsEmpty
+
+3. Update the QuorumReceiptExtraData.SetReceiptExtraDataFromStorage
+
+4. Update the QuorumReceiptExtraData.EncodeRLP - ensure that you increment the version and that you assign the version when you instantiate the new structure (you may also need to introduce a new version for any of the conversion helper methods)
+
+5. Create a new method decodeStoredQuorumReceiptExtraDataVxyz that handles the decoding of the new structure
+
+6. Update the QuorumReceiptExtraData.DecodeRLP - update the `switch version` statement and invoke the decode method for the newly added version
+*/
 type QuorumReceiptExtraData struct {
 	// this is to support execution of a private transaction on multiple private states
 	// in which receipts are produced per PSI.
@@ -446,8 +465,8 @@ func (r *Receipt) SetReceiptExtraDataFromStorage(data *QuorumReceiptExtraData) {
 	}
 }
 
-// storedMPSReceiptRLPWithRevertReason is the storage encoding of a receipt which contains
-// receipts per PSI, including Revert Reason
+// storedQuorumReceiptExtraDataV1RLP is the storage encoding of a receipt extra data which contains
+// receipts per PSI and Revert Reason
 type storedQuorumReceiptExtraDataV1RLP struct {
 	Version      uint
 	PSReceipts   []storedPSIToReceiptMapEntryV1
@@ -582,6 +601,10 @@ func (r *QuorumReceiptExtraData) EncodeRLP(w io.Writer) error {
 		RevertReason: r.RevertReason,
 	}
 	return rlp.Encode(w, enc)
+}
+
+func (r *QuorumReceiptExtraData) IsEmpty() bool {
+	return (r.PSReceipts == nil || len(r.PSReceipts) == 0) && r.RevertReason == nil
 }
 
 // LEGACY STRUCTURES TO COPE WITH MPS RECEIPT RLP ENCODING

@@ -662,20 +662,26 @@ func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rec
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	quorumReceiptsExtraData := make([]*types.QuorumReceiptExtraData, len(receipts))
+	extraDataEmpty := true
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
 		quorumReceiptsExtraData[i] = &receipt.QuorumReceiptExtraData
+		if !receipt.QuorumReceiptExtraData.IsEmpty() {
+			extraDataEmpty = false
+		}
 	}
 	bytes, err := rlp.EncodeToBytes(storageReceipts)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
-	bytesExtraData, err := rlp.EncodeToBytes(quorumReceiptsExtraData)
-	if err != nil {
-		log.Crit("Failed to encode block receipts", "err", err)
+	if !extraDataEmpty {
+		bytesExtraData, err := rlp.EncodeToBytes(quorumReceiptsExtraData)
+		if err != nil {
+			log.Crit("Failed to encode block receipts", "err", err)
+		}
+		// the vanilla receipts and the extra data receipts are concatenated and stored as a single value
+		bytes = append(bytes, bytesExtraData...)
 	}
-	// the vanilla receipts and the extra data receipts are concatenated and stored as a single value
-	bytes = append(bytes, bytesExtraData...)
 	// Store the flattened receipt slice
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)

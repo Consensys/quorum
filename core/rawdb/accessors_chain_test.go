@@ -326,6 +326,11 @@ func TestBlockReceiptStorage(t *testing.T) {
 		if err := checkReceiptsRLP(rs, receipts); err != nil {
 			t.Fatalf(err.Error())
 		}
+		// check that the raw data does not contain the quorumExtraData array (since the prepared receipts do not have any quorumExtraData)
+		receiptData := ReadReceiptsRLP(db, hash, 0)
+		_, extraData, err := rlp.SplitList(receiptData)
+		assert.NoError(t, err)
+		assert.Empty(t, extraData)
 	}
 	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
 	DeleteBody(db, hash, 0)
@@ -574,6 +579,7 @@ func TestBlockReceiptStorageWithQuorumExtraData(t *testing.T) {
 		}
 		rec2 := rs[1]
 		assert.Len(t, rec2.PSReceipts, 1)
+		assert.Equal(t, rec2.RevertReason, []byte("arbitraryvalue"))
 		psRec2 := rec2.PSReceipts[types.PrivateStateIdentifier("psi1")]
 		assert.Equal(t, psRec2.RevertReason, []byte("arbitraryvalue"))
 	}
