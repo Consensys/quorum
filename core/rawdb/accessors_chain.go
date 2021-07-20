@@ -625,7 +625,7 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 		}
 		for i, quorumExtraDataReceipt := range quorumExtraDataReceipts {
 			if quorumExtraDataReceipt != nil {
-				receipts[i].SetReceiptExtraDataFromStorage(quorumExtraDataReceipt)
+				receipts[i].FillReceiptExtraDataFromStorage(quorumExtraDataReceipt)
 			}
 		}
 	}
