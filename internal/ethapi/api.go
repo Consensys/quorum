@@ -454,25 +454,6 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
-	// If PMTs are enabled the PMT must have the current nonce and the internal private tx has the same nonce.
-	// This is fine as the internal private tx is never added to the tx_pool, or visible elsewhere in geth.
-	var err error
-	var pmtNonce uint64
-	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
-		if args.Nonce != nil {
-			pmtNonce = uint64(*args.Nonce)
-		} else {
-			pmtNonce, err = s.b.GetPoolNonce(ctx, args.From)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-
-		privateTxNonce := pmtNonce
-		args.Nonce = (*hexutil.Uint64)(&privateTxNonce)
-		log.Info("got nonces for PMT and internal private tx", "addr", args.From.Hex(), "pmtNonce", pmtNonce, "privateTxNonce", privateTxNonce)
-	}
-
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
@@ -504,7 +485,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 			return common.Hash{}, err
 		}
 
-		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -2104,24 +2085,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
-	// If PMTs are enabled the PMT must have the current nonce and the internal private tx has the same nonce.
-	// This is fine as the internal private tx is never added to the tx_pool, or visible elsewhere in geth.
-	var pmtNonce uint64
-	if args.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
-		if args.Nonce != nil {
-			pmtNonce = uint64(*args.Nonce)
-		} else {
-			pmtNonce, err = s.b.GetPoolNonce(ctx, args.From)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-
-		privateTxNonce := pmtNonce
-		args.Nonce = (*hexutil.Uint64)(&privateTxNonce)
-		log.Info("got nonces for PMT and internal private tx", "addr", args.From.Hex(), "pmtNonce", pmtNonce, "privateTxNonce", privateTxNonce)
-	}
-
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
@@ -2160,7 +2123,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
-		pmt, err := createPrivacyMarkerTransaction(pmtNonce, signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -2933,7 +2896,7 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 // (Quorum) createPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed privateTx.
 // The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
 // privacy manager hash for the private tx.
-func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
+func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
 	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
 
 	data := new(bytes.Buffer)
@@ -2947,7 +2910,7 @@ func createPrivacyMarkerTransaction(pmtNonce uint64, privateTx *types.Transactio
 		return nil, err
 	}
 
-	pmt := types.NewTransaction(pmtNonce, common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), ptmHash.Bytes())
+	pmt := types.NewTransaction(privateTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), ptmHash.Bytes())
 
 	return pmt, nil
 }
