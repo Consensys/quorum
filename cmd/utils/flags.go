@@ -859,6 +859,13 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
+	// Private state cache
+	PrivateCacheTrieJournalFlag = cli.StringFlag{
+		Name:  "private.cache.trie.journal",
+		Usage: "Disk journal directory for private trie cache to survive node restarts",
+		Value: eth.DefaultConfig.PrivateTrieCleanCacheJournal,
+	}
+
 	// Quorum Private Transaction Manager connection options
 	QuorumPTMUnixSocketFlag = DirectoryFlag{
 		Name:  "ptm.socket",
@@ -1699,7 +1706,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
 }
 
-func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.QuorumChainConfig = core.QuorumChainConfig{
 		MultiTenantEnabled:  ctx.GlobalBool(MultitenancyFlag.Name),
@@ -1707,6 +1714,13 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	}
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
+	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
+		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
+	}
+	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
+		return fmt.Errorf("configuration collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
+	}
+	return nil
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1784,7 +1798,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setLes(ctx, cfg)
 
 	// Quorum
-	setQuorumConfig(ctx, cfg)
+	err := setQuorumConfig(ctx, cfg)
+	if err != nil {
+		Fatalf("Quorum configuration has an error: %v", err)
+	}
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
