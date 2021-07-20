@@ -219,7 +219,7 @@ type BlockChain struct {
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
 	// Quorum
-	quorumConfig BlockchainQuorumConfig // quorum config holds all the possible configuration fields for GoQuorum
+	quorumConfig QuorumChainConfig // quorum chain config holds all the possible configuration fields for GoQuorum
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
 	// End Quorum
@@ -228,7 +228,7 @@ type BlockChain struct {
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator and
 // Processor.
-func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, cfg ...BlockchainQuorumConfig) (*BlockChain, error) {
+func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, cfg ...QuorumChainConfig) (*BlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig
 	}
@@ -258,7 +258,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		badBlocks:      badBlocks,
 		// Quorum
-		quorumConfig: blockchainQuorumConfig(cfg...),
+		quorumConfig: quorumChainConfig(cfg...),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -425,8 +425,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 // Quorum
 // Decorates NewBlockChain with multitenancy flag
-func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, cfg ...BlockchainQuorumConfig) (*BlockChain, error) {
-	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, append(cfg, BlockchainQuorumConfig{MultiTenantEnabled: true})...)
+func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, cfg ...QuorumChainConfig) (*BlockChain, error) {
+	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, append(cfg, QuorumChainConfig{MultiTenantEnabled: true})...)
 	if err != nil {
 		return nil, err
 	}

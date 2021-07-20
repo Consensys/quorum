@@ -1,26 +1,26 @@
 package core
 
-type BlockchainQuorumConfig struct {
+type QuorumChainConfig struct {
 	RevertReasonEnabled bool // if we should save the revert reasons in the Tx Receipts
 	MultiTenantEnabled  bool // if this blockchain supports multitenancy
 }
 
-func blockchainQuorumConfig(cfg ...BlockchainQuorumConfig) BlockchainQuorumConfig {
-	return BlockchainQuorumConfig{
+func quorumChainConfig(cfg ...QuorumChainConfig) QuorumChainConfig {
+	return QuorumChainConfig{
 		RevertReasonEnabled: revertReasonEnabled(cfg),
 		MultiTenantEnabled:  multiTenantEnabled(cfg),
 	}
 }
 
-func revertReasonEnabled(c []BlockchainQuorumConfig) bool {
-	return firstBoolean(c, true, func(c BlockchainQuorumConfig) bool { return c.RevertReasonEnabled })
+func revertReasonEnabled(c []QuorumChainConfig) bool {
+	return firstBoolean(c, true, func(c QuorumChainConfig) bool { return c.RevertReasonEnabled })
 }
 
-func multiTenantEnabled(c []BlockchainQuorumConfig) bool {
-	return firstBoolean(c, true, func(c BlockchainQuorumConfig) bool { return c.MultiTenantEnabled })
+func multiTenantEnabled(c []QuorumChainConfig) bool {
+	return firstBoolean(c, true, func(c QuorumChainConfig) bool { return c.MultiTenantEnabled })
 }
 
-func firstBoolean(cfgs []BlockchainQuorumConfig, v bool, getter func(c BlockchainQuorumConfig) bool) bool {
+func firstBoolean(cfgs []QuorumChainConfig, v bool, getter func(c QuorumChainConfig) bool) bool {
 	for _, c := range cfgs {
 		if getter(c) == v {
 			return v
