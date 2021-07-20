@@ -70,52 +70,55 @@ func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	if evm.currentTx == nil {
 		return nil, nil
 	}
+	logger := log.New("pmtHash", evm.currentTx.Hash())
 
 	if evm.depth != 0 || !evm.currentTx.IsPrivacyMarker() {
 		// only supporting direct precompile calls so far
+		logger.Warn("Invalid privacy marker precompile execution")
 		return nil, nil
 	}
 
 	if evm.currentTx.IsPrivate() {
 		//only public transactions can call the precompile
-		log.Warn("Private transaction called precompile", "tx hash", evm.currentTx.Hash())
+		logger.Warn("PMT is not a public transaction")
 		return nil, nil
 	}
 
 	tx, _, _, err := private.FetchPrivateTransaction(evm.currentTx.Data())
 	if err != nil {
-		log.Error("Failed to retrieve transaction from private transaction manager", "err", err)
+		logger.Error("Failed to retrieve inner transaction from private transaction manager", "err", err)
 		return nil, nil
 	}
 
 	if tx == nil {
-		log.Debug("not a participant, precompile performing no action")
+		logger.Debug("Not a participant, skipping execution")
 		return nil, nil
 	}
 
 	if !tx.IsPrivate() {
 		//should only allow private txns from inside precompile, as many assumptions
 		//about how a tx operates are based on its privacy (e.g. which dbs to use, PE checks etc)
-		log.Warn("Public transaction pulled from PTM during privacy precompile execution")
+		logger.Warn("Inner transaction retrieved from private transaction manager is not a private transaction, skipping execution")
 		return nil, nil
 	}
 	//validate the private tx is signed, and that it's the same signer as the PMT
 	signedBy := tx.From()
 	if signedBy.Hex() == (common.Address{}).Hex() || signedBy.Hex() != evm.currentTx.From().Hex() {
-		// the private tx is signed by someone else or is not properly signed, abort
+		logger.Warn("PMT and inner private transaction have different signers, skipping execution")
 		return nil, nil
 	}
 
 	// validate the private tx has the same nonce as the PMT
 	if tx.Nonce() != evm.currentTx.Nonce() {
+		logger.Warn("PMT and inner private transaction have different nonces, skipping execution")
 		return nil, nil
 	}
 
 	if err := applyTransactionWithoutIncrementingNonce(evm, tx); err != nil {
-		log.Warn("Unable to apply PMT's inner tx to EVM", "err", err)
+		logger.Warn("Unable to apply PMT's inner transaction to EVM, skipping execution", "err", err)
 		return nil, nil
 	}
-
+	logger.Debug("Inner private transaction applied")
 	return nil, nil
 }
 
