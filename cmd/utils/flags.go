@@ -1701,8 +1701,10 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
-	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
+	cfg.QuorumChainConfig = core.QuorumChainConfig{
+		MultiTenantEnabled:  ctx.GlobalBool(MultitenancyFlag.Name),
+		RevertReasonEnabled: ctx.GlobalBool(RevertReasonFlag.Name),
+	}
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 }

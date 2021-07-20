@@ -200,14 +200,5 @@ type Config struct {
 	EVMCallTimeOut time.Duration
 
 	// Quorum
-	EnableMultitenancy bool `toml:"-"`
-
-	// Quorum
-	SaveRevertReason bool `toml:"-"`
-}
-
-func (c *Config) quorumConfig() []core.QuorumChainConfig {
-	return []core.QuorumChainConfig{{
-		RevertReasonEnabled: c.SaveRevertReason,
-	}}
+	QuorumChainConfig core.QuorumChainConfig `toml:"-"`
 }
