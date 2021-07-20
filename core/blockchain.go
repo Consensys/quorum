@@ -2751,8 +2751,3 @@ func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState 
 		bc.setPrivateState(txLogs, privateState, psi)
 	}
 }
-
-// Quorum
-func (bc *BlockChain) SaveRevertReason() bool {
-	return bc.saveRevertReason
-}
