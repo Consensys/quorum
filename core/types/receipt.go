@@ -71,7 +71,7 @@ type Receipt struct {
 
 // Quorum
 /*
-The QuorumReceiptExtraData contains additional fields to be stored for receipts introduced by Quourm.
+The QuorumReceiptExtraData contains additional fields to be stored for receipts introduced by Quorum.
 
 Procedure for adding new fields to QuorumReceiptExtraData:
 
