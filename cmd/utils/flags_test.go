@@ -186,6 +186,8 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulBlockPeriodFlag.Name, "34"))
 	fs.Bool(RaftModeFlag.Name, false, "")
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
+	fs.String(PrivateCacheTrieJournalFlag.Name, "", "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "myprivatetriecache"))
 
 	require.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig))
 
@@ -199,4 +201,5 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
 	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
+	assert.Equal(t, "myprivatetriecache", arbitraryEthConfig.PrivateTrieCleanCacheJournal, "PrivateTrieCleanCacheJournal value is incorrect")
 }
