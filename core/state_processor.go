@@ -171,8 +171,10 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	// clone the gas pool (as we don't want to keep consuming intrinsic gas multiple times for each MPS execution)
 	gp := new(GasPool).AddGas(originalGP.Gas())
 	mpsReceipt := &types.Receipt{
-		PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
-		Logs:       make([]*types.Log, 0),
+		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
+			PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
+		},
+		Logs: make([]*types.Log, 0),
 	}
 	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if err != nil {
@@ -252,6 +254,17 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	tx.SetTxPrivacyMetadata(nil)
 	vmenv.SetCurrentTX(tx)
 
+	if config.IsYoloV2(header.Number) {
+		statedb.AddAddressToAccessList(msg.From())
+		if dst := msg.To(); dst != nil {
+			statedb.AddAddressToAccessList(*dst)
+			// If it's a create-tx, the destination will be added inside evm.create
+		}
+		for _, addr := range vmenv.ActivePrecompiles() {
+			statedb.AddAddressToAccessList(addr)
+		}
+	}
+
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
@@ -286,6 +299,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
+	// Quorum
 	var privateReceipt *types.Receipt
 	if config.IsQuorum && tx.IsPrivate() {
 		var privateRoot []byte
@@ -304,6 +318,19 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
+
+	// Save revert reason if feature enabled
+	if bc != nil && bc.saveRevertReason {
+		revertReason := result.Revert()
+		if revertReason != nil {
+			if config.IsQuorum && tx.IsPrivate() {
+				privateReceipt.RevertReason = revertReason
+			} else {
+				receipt.RevertReason = revertReason
+			}
+		}
+	}
+	// End Quorum
 
 	return receipt, privateReceipt, err
 }

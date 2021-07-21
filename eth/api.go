@@ -468,6 +468,8 @@ func (api *PublicDebugAPI) AccountRange(ctx context.Context, blockNrOrHash rpc.B
 		if err != nil {
 			return state.IteratorDump{}, err
 		}
+	} else {
+		return state.IteratorDump{}, errors.New("either block number or block hash must be specified")
 	}
 
 	if maxResults > AccountRangeMaxResults || maxResults <= 0 {

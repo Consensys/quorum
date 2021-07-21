@@ -11,6 +11,7 @@ import (
 	common "github.com/ethereum/go-ethereum/common"
 	state "github.com/ethereum/go-ethereum/core/state"
 	types "github.com/ethereum/go-ethereum/core/types"
+	trie "github.com/ethereum/go-ethereum/trie"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -35,6 +36,53 @@ func NewMockPrivateStateManager(ctrl *gomock.Controller) *MockPrivateStateManage
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPrivateStateManager) EXPECT() *MockPrivateStateManagerMockRecorder {
 	return m.recorder
+}
+
+// CheckAt mocks base method.
+func (m *MockPrivateStateManager) CheckAt(blockHash common.Hash) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckAt", blockHash)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckAt indicates an expected call of CheckAt.
+func (mr *MockPrivateStateManagerMockRecorder) CheckAt(blockHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAt", reflect.TypeOf((*MockPrivateStateManager)(nil).CheckAt), blockHash)
+}
+
+// NotIncludeAny mocks base method.
+func (m *MockPrivateStateManager) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{psm}
+	for _, a := range managedParties {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "NotIncludeAny", varargs...)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// NotIncludeAny indicates an expected call of NotIncludeAny.
+func (mr *MockPrivateStateManagerMockRecorder) NotIncludeAny(psm interface{}, managedParties ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{psm}, managedParties...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateManager)(nil).NotIncludeAny), varargs...)
+}
+
+// PSIs mocks base method.
+func (m *MockPrivateStateManager) PSIs() []types.PrivateStateIdentifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PSIs")
+	ret0, _ := ret[0].([]types.PrivateStateIdentifier)
+	return ret0
+}
+
+// PSIs indicates an expected call of PSIs.
+func (mr *MockPrivateStateManagerMockRecorder) PSIs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PSIs", reflect.TypeOf((*MockPrivateStateManager)(nil).PSIs))
 }
 
 // ResolveForManagedParty mocks base method.
@@ -67,39 +115,6 @@ func (mr *MockPrivateStateManagerMockRecorder) ResolveForUserContext(ctx interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveForUserContext", reflect.TypeOf((*MockPrivateStateManager)(nil).ResolveForUserContext), ctx)
 }
 
-// PSIs mocks base method.
-func (m *MockPrivateStateManager) PSIs() []types.PrivateStateIdentifier {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PSIs")
-	ret0, _ := ret[0].([]types.PrivateStateIdentifier)
-	return ret0
-}
-
-// PSIs indicates an expected call of PSIs.
-func (mr *MockPrivateStateManagerMockRecorder) PSIs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PSIs", reflect.TypeOf((*MockPrivateStateManager)(nil).PSIs))
-}
-
-// NotIncludeAny mocks base method.
-func (m *MockPrivateStateManager) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{psm}
-	for _, a := range managedParties {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "NotIncludeAny", varargs...)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// NotIncludeAny indicates an expected call of NotIncludeAny.
-func (mr *MockPrivateStateManagerMockRecorder) NotIncludeAny(psm interface{}, managedParties ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{psm}, managedParties...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateManager)(nil).NotIncludeAny), varargs...)
-}
-
 // StateRepository mocks base method.
 func (m *MockPrivateStateManager) StateRepository(blockHash common.Hash) (PrivateStateRepository, error) {
 	m.ctrl.T.Helper()
@@ -115,18 +130,18 @@ func (mr *MockPrivateStateManagerMockRecorder) StateRepository(blockHash interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateRepository", reflect.TypeOf((*MockPrivateStateManager)(nil).StateRepository), blockHash)
 }
 
-// CheckAt mocks base method.
-func (m *MockPrivateStateManager) CheckAt(blockHash common.Hash) error {
+// TrieDB mocks base method.
+func (m *MockPrivateStateManager) TrieDB() *trie.Database {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckAt", blockHash)
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "TrieDB")
+	ret0, _ := ret[0].(*trie.Database)
 	return ret0
 }
 
-// CheckAt indicates an expected call of CheckAt.
-func (mr *MockPrivateStateManagerMockRecorder) CheckAt(blockHash interface{}) *gomock.Call {
+// TrieDB indicates an expected call of TrieDB.
+func (mr *MockPrivateStateManagerMockRecorder) TrieDB() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAt", reflect.TypeOf((*MockPrivateStateManager)(nil).CheckAt), blockHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrieDB", reflect.TypeOf((*MockPrivateStateManager)(nil).TrieDB))
 }
 
 // MockPrivateStateMetadataResolver is a mock of PrivateStateMetadataResolver interface.
@@ -150,6 +165,39 @@ func NewMockPrivateStateMetadataResolver(ctrl *gomock.Controller) *MockPrivateSt
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPrivateStateMetadataResolver) EXPECT() *MockPrivateStateMetadataResolverMockRecorder {
 	return m.recorder
+}
+
+// NotIncludeAny mocks base method.
+func (m *MockPrivateStateMetadataResolver) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{psm}
+	for _, a := range managedParties {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "NotIncludeAny", varargs...)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// NotIncludeAny indicates an expected call of NotIncludeAny.
+func (mr *MockPrivateStateMetadataResolverMockRecorder) NotIncludeAny(psm interface{}, managedParties ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{psm}, managedParties...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).NotIncludeAny), varargs...)
+}
+
+// PSIs mocks base method.
+func (m *MockPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PSIs")
+	ret0, _ := ret[0].([]types.PrivateStateIdentifier)
+	return ret0
+}
+
+// PSIs indicates an expected call of PSIs.
+func (mr *MockPrivateStateMetadataResolverMockRecorder) PSIs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PSIs", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).PSIs))
 }
 
 // ResolveForManagedParty mocks base method.
@@ -182,39 +230,6 @@ func (mr *MockPrivateStateMetadataResolverMockRecorder) ResolveForUserContext(ct
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveForUserContext", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).ResolveForUserContext), ctx)
 }
 
-// PSIs mocks base method.
-func (m *MockPrivateStateMetadataResolver) PSIs() []types.PrivateStateIdentifier {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PSIs")
-	ret0, _ := ret[0].([]types.PrivateStateIdentifier)
-	return ret0
-}
-
-// PSIs indicates an expected call of PSIs.
-func (mr *MockPrivateStateMetadataResolverMockRecorder) PSIs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PSIs", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).PSIs))
-}
-
-// NotIncludeAny mocks base method.
-func (m *MockPrivateStateMetadataResolver) NotIncludeAny(psm *PrivateStateMetadata, managedParties ...string) bool {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{psm}
-	for _, a := range managedParties {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "NotIncludeAny", varargs...)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// NotIncludeAny indicates an expected call of NotIncludeAny.
-func (mr *MockPrivateStateMetadataResolverMockRecorder) NotIncludeAny(psm interface{}, managedParties ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{psm}, managedParties...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotIncludeAny", reflect.TypeOf((*MockPrivateStateMetadataResolver)(nil).NotIncludeAny), varargs...)
-}
-
 // MockPrivateStateRepository is a mock of PrivateStateRepository interface.
 type MockPrivateStateRepository struct {
 	ctrl     *gomock.Controller
@@ -238,47 +253,32 @@ func (m *MockPrivateStateRepository) EXPECT() *MockPrivateStateRepositoryMockRec
 	return m.recorder
 }
 
-// StatePSI mocks base method.
-func (m *MockPrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StatePSI", psi)
-	ret0, _ := ret[0].(*state.StateDB)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StatePSI indicates an expected call of StatePSI.
-func (mr *MockPrivateStateRepositoryMockRecorder) StatePSI(psi interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StatePSI", reflect.TypeOf((*MockPrivateStateRepository)(nil).StatePSI), psi)
-}
-
-// CommitAndWrite mocks base method.
-func (m *MockPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommitAndWrite", block)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CommitAndWrite indicates an expected call of CommitAndWrite.
-func (mr *MockPrivateStateRepositoryMockRecorder) CommitAndWrite(block interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitAndWrite", reflect.TypeOf((*MockPrivateStateRepository)(nil).CommitAndWrite), block)
-}
-
 // Commit mocks base method.
 func (m *MockPrivateStateRepository) Commit(isEIP158 bool, block *types.Block) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit", block)
+	ret := m.ctrl.Call(m, "Commit", isEIP158, block)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit.
-func (mr *MockPrivateStateRepositoryMockRecorder) Commit(block interface{}) *gomock.Call {
+func (mr *MockPrivateStateRepositoryMockRecorder) Commit(isEIP158, block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockPrivateStateRepository)(nil).Commit), block)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockPrivateStateRepository)(nil).Commit), isEIP158, block)
+}
+
+// CommitAndWrite mocks base method.
+func (m *MockPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommitAndWrite", isEIP158, block)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CommitAndWrite indicates an expected call of CommitAndWrite.
+func (mr *MockPrivateStateRepositoryMockRecorder) CommitAndWrite(isEIP158, block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitAndWrite", reflect.TypeOf((*MockPrivateStateRepository)(nil).CommitAndWrite), isEIP158, block)
 }
 
 // Copy mocks base method.
@@ -293,20 +293,6 @@ func (m *MockPrivateStateRepository) Copy() PrivateStateRepository {
 func (mr *MockPrivateStateRepositoryMockRecorder) Copy() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockPrivateStateRepository)(nil).Copy))
-}
-
-// Reset mocks base method.
-func (m *MockPrivateStateRepository) Reset() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reset")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Reset indicates an expected call of Reset.
-func (mr *MockPrivateStateRepositoryMockRecorder) Reset() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockPrivateStateRepository)(nil).Reset))
 }
 
 // DefaultState mocks base method.
@@ -364,4 +350,33 @@ func (m *MockPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) typ
 func (mr *MockPrivateStateRepositoryMockRecorder) MergeReceipts(pub, priv interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergeReceipts", reflect.TypeOf((*MockPrivateStateRepository)(nil).MergeReceipts), pub, priv)
+}
+
+// Reset mocks base method.
+func (m *MockPrivateStateRepository) Reset() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reset")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reset indicates an expected call of Reset.
+func (mr *MockPrivateStateRepositoryMockRecorder) Reset() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockPrivateStateRepository)(nil).Reset))
+}
+
+// StatePSI mocks base method.
+func (m *MockPrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StatePSI", psi)
+	ret0, _ := ret[0].(*state.StateDB)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StatePSI indicates an expected call of StatePSI.
+func (mr *MockPrivateStateRepositoryMockRecorder) StatePSI(psi interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StatePSI", reflect.TypeOf((*MockPrivateStateRepository)(nil).StatePSI), psi)
 }
