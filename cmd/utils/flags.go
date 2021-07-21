@@ -1708,10 +1708,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.QuorumChainConfig = core.QuorumChainConfig{
-		MultiTenantEnabled:  ctx.GlobalBool(MultitenancyFlag.Name),
-		RevertReasonEnabled: ctx.GlobalBool(RevertReasonFlag.Name),
-	}
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name))
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {

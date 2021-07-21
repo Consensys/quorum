@@ -310,7 +310,7 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 // Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
-	if authToken != nil && b.eth.config.QuorumChainConfig.MultiTenantEnabled {
+	if authToken != nil && b.eth.config.QuorumChainConfig.MultiTenantEnabled() {
 		return authToken, true
 	}
 	return nil, false

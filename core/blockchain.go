@@ -48,7 +48,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 var (
@@ -437,9 +436,9 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 // Decorates NewBlockChain with multitenancy flag
 func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, quorumChainConfig *QuorumChainConfig) (*BlockChain, error) {
 	if quorumChainConfig == nil {
-		quorumChainConfig = &QuorumChainConfig{MultiTenantEnabled: true}
+		quorumChainConfig = &QuorumChainConfig{multiTenantEnabled: true}
 	} else {
-		quorumChainConfig.MultiTenantEnabled = true
+		quorumChainConfig.multiTenantEnabled = true
 	}
 	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, quorumChainConfig)
 	if err != nil {
@@ -2751,8 +2750,8 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 }
 
 // Quorum
-func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	return nil, bc.quorumConfig.MultiTenantEnabled
+func (bc *BlockChain) SupportsMultitenancy(context.Context) bool {
+	return bc.quorumConfig.MultiTenantEnabled()
 }
 
 // PopulateSetPrivateState function pointer for updating private state

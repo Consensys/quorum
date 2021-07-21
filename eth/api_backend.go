@@ -422,7 +422,7 @@ func (b *EthAPIBackend) StartMining(threads int) error {
 // is being created. So it's safe to use the config value here.
 func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
-	if authToken != nil && b.eth.config.QuorumChainConfig.MultiTenantEnabled {
+	if authToken != nil && b.eth.config.QuorumChainConfig.MultiTenantEnabled() {
 		return authToken, true
 	}
 	return nil, false
