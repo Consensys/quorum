@@ -744,7 +744,6 @@ func encodeAsV3StoredReceiptRLP(want *Receipt) ([]byte, error) {
 //	return fullReceipt
 //}
 
-
 // Tests that receipt data can be correctly derived from the contextual infos
 func TestDeriveFields(t *testing.T) {
 	// Create a few transactions to have receipts for
@@ -1026,4 +1025,10 @@ func TestQuorumReceiptExtraDataDecodingFailDueToGarbageData(t *testing.T) {
 	err := rlp.DecodeBytes([]byte("arbitrary data"), &decodedExtraData)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, "unexpected content type (expecting list) 0")
+}
+
+func TestQuorumReceiptExtraData_IsEmpty(t *testing.T) {
+	// assign a value to each field in turn using reflection and check if isEmpty returns false
+
+	assert.FailNow(t, "implement me")
 }
