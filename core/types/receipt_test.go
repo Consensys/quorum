@@ -303,18 +303,18 @@ func testConsensusFields(t *testing.T, dec ReceiptForStorage, receipt *Receipt) 
 	}
 }
 
-func encodeAsStoredReceiptRLPWithRevertReason(want *Receipt) ([]byte, error) {
-	stored := &storedReceiptRLPWithRevertReason{
-		PostStateOrStatus: want.statusEncoding(),
-		CumulativeGasUsed: want.CumulativeGasUsed,
-		Logs:              make([]*LogForStorage, len(want.Logs)),
-		RevertReason:      want.RevertReason,
-	}
-	for i, log := range want.Logs {
-		stored.Logs[i] = (*LogForStorage)(log)
-	}
-	return rlp.EncodeToBytes(stored)
-}
+//func encodeAsStoredReceiptRLPWithRevertReason(want *Receipt) ([]byte, error) {
+//	stored := &storedReceiptRLPWithRevertReason{
+//		PostStateOrStatus: want.statusEncoding(),
+//		CumulativeGasUsed: want.CumulativeGasUsed,
+//		Logs:              make([]*LogForStorage, len(want.Logs)),
+//		RevertReason:      want.RevertReason,
+//	}
+//	for i, log := range want.Logs {
+//		stored.Logs[i] = (*LogForStorage)(log)
+//	}
+//	return rlp.EncodeToBytes(stored)
+//}
 
 func encodeAsStoredReceiptRLP(want *Receipt) ([]byte, error) {
 	receiptForStorage := (*ReceiptForStorage)(want)

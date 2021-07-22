@@ -69,15 +69,15 @@ type Receipt struct {
 	TransactionIndex uint        `json:"transactionIndex"`
 }
 
-// Quorum
+// (Quorum)
 /*
-The QuorumReceiptExtraData contains additional fields to be stored for receipts introduced by Quorum.
+QuorumReceiptExtraData contains additional fields to be stored for receipts introduced by Quorum.
 
 Procedure for adding new fields to QuorumReceiptExtraData:
 
 1. Add the relevant field to the QuorumReceiptExtraData structure
 
-2. Introduce a new  version for the structures: storedQuorumReceiptExtraDataVxyzRLP, storedPSIToReceiptMapEntryVxyz and storedReceiptExtraDataVxyz with the new field
+2. Introduce a new version for the structures: storedQuorumReceiptExtraDataVxyzRLP, storedPSIToReceiptMapEntryVxyz and storedReceiptExtraDataVxyz with the new field
 
 3. Update the QuorumReceiptExtraData.IsEmpty
 
@@ -780,6 +780,8 @@ type storedReceiptExtraDataV1 struct {
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
 	RevertReason      []byte
+	TxHash            common.Hash
+	ContractAddress   common.Address
 }
 
 // Flatten takes a list of private receipts, which will be the "private" PSI receipt,
@@ -849,6 +851,8 @@ func convertPrivateReceiptsForEncoding(psReceipts map[PrivateStateIdentifier]*Re
 			CumulativeGasUsed: val.CumulativeGasUsed,
 			Logs:              convertLogsForEncoding(val.Logs),
 			RevertReason:      val.RevertReason,
+			TxHash:            val.TxHash,
+			ContractAddress:   val.ContractAddress,
 		}
 		for i, log := range val.Logs {
 			rec.Logs[i] = (*LogForStorage)(log)
@@ -878,6 +882,8 @@ func convertPrivateReceiptsForDecoding(storedPSReceipts []storedPSIToReceiptMapE
 		}
 		rec.Bloom = CreateBloom(Receipts{rec})
 		rec.RevertReason = entry.Value.RevertReason
+		rec.TxHash = entry.Value.TxHash
+		rec.ContractAddress = entry.Value.ContractAddress
 		result[entry.Key] = rec
 	}
 	return result, nil
