@@ -1,12 +1,13 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/mps"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/private"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -18,7 +19,7 @@ import (
 
 // MPSPrefetcher is an interface for pre-caching transaction signatures and state for MPS
 type MPSPrefetcher interface {
-	
+
 	// Prefetch analogous to Prefetcher.Prefetch but applied to MPS
 	Prefetch(block *types.Block, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config, interrupt *uint32)
 }
@@ -96,6 +97,10 @@ func (p *stateMPSPrefetcher) Prefetch(block *types.Block, statedb *state.StateDB
 			}
 
 			privateStateDb, err := privateStateRepo.StatePSI(psMetadata.ID)
+			if err != nil {
+				// TODO ricardolyn: skip this PSI as it doesn't exist locally?
+				continue
+			}
 			p.pend.Add(1)
 			go func(start time.Time, followup *types.Block, statedb *state.StateDB, privateStateDb *state.StateDB) {
 				privateStateDb.Prepare(tx.Hash(), block.Hash(), i)
