@@ -224,7 +224,8 @@ type BlockChain struct {
 	isMultitenant bool // if this blockchain supports multitenancy
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	saveRevertReason    bool // if we should save the revert reasons in the Tx Receipts
+	saveRevertReason    bool          // if we should save the revert reasons in the Tx Receipts
+	mpsPrefetcher       MPSPrefetcher // Block state private prefetcher interface
 	// End Quorum
 }
 
@@ -265,6 +266,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
+
+	bc.mpsPrefetcher = newStateMPSPrefetcher(chainConfig, bc, engine) // Quorum
 
 	var err error
 	// Quorum: attempt to initialize PSM
@@ -2037,7 +2040,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if err != nil {
 			return it.index, err
 		}
-		// /Quorum
+		// End Quorum
 
 		// If we have a followup block, run that against the current state to pre-cache
 		// transactions and probabilistically some of the account/storage trie nodes.
@@ -2045,17 +2048,28 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
-				//due to privateStateRepo changes, for now only do prefetch on the public state
-				//we do have an option to also do it on overall privateState but need a function in privateStateRepo to return the overall private stateCache
-				//this reverts the prefetch definition to the original go-ethereum definition (only takes in publicState)
-				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, interrupt *uint32) {
-					bc.prefetcher.Prefetch(followup, throwaway, bc.vmConfig, &followupInterrupt)
+
+				// Quorum
+				privateStateRepo, _ := bc.privateStateManager.StateRepository(parent.Root)
+				privateStateThrowaway, _ := privateStateRepo.DefaultState()
+				// End Quorum
+
+				// Quorum: add privateStateThrowaway argument
+				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, privateStateThrowaway *state.StateDB, interrupt *uint32) {
+					bc.prefetcher.Prefetch(followup, throwaway, privateStateThrowaway, bc.vmConfig, &followupInterrupt)
 
 					blockPrefetchExecuteTimer.Update(time.Since(start))
 					if atomic.LoadUint32(interrupt) == 1 {
 						blockPrefetchInterruptMeter.Mark(1)
 					}
-				}(time.Now(), followup, throwaway, &followupInterrupt)
+				}(time.Now(), followup, throwaway, privateStateThrowaway, &followupInterrupt)
+
+				// Quorum
+				if privateStateRepo.IsMPS() {
+					throwawayPrivateStateRepo := privateStateRepo.Copy()
+					runMPSPrefetch(bc.mpsPrefetcher, followup, throwaway, throwawayPrivateStateRepo, bc.vmConfig, &followupInterrupt)
+				}
+				// End Quorum
 			}
 		}
 		// Process block using the parent state as reference point
