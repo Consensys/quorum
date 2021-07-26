@@ -418,12 +418,8 @@ func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, 
 		return nil
 	}
 
-	defer func() {
-		stateDB.Prepare(outerTx.Hash(), stateDB.BlockHash(), txIndex)
-		privateStateDB.Prepare(outerTx.Hash(), privateStateDB.BlockHash(), txIndex)
-	}()
-	stateDB.Prepare(innerTx.Hash(), stateDB.BlockHash(), txIndex)
-	privateStateDB.Prepare(innerTx.Hash(), privateStateDB.BlockHash(), txIndex)
+	defer prepareStates(outerTx, stateDB, privateStateDB, txIndex)
+	prepareStates(innerTx, stateDB, privateStateDB, txIndex)
 
 	singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 	used := uint64(0)
@@ -444,4 +440,10 @@ func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, 
 	}
 
 	return nil
+}
+
+// Quorum
+func prepareStates(tx *types.Transaction, stateDB *state.StateDB, privateStateDB *state.StateDB, txIndex int) {
+	stateDB.Prepare(tx.Hash(), stateDB.BlockHash(), txIndex)
+	privateStateDB.Prepare(tx.Hash(), privateStateDB.BlockHash(), txIndex)
 }

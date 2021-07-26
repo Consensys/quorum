@@ -1597,6 +1597,13 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
+	// Quorum: note that upstream code has been refactored into this method
+	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
+}
+
+// Quorum
+// Common code extracted from GetTransactionReceipt() to enable reuse
+func getTransactionReceiptCommonCode(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, hash common.Hash, index uint64, receipt *types.Receipt) (map[string]interface{}, error) {
 	var signer types.Signer = types.HomesteadSigner{}
 	if tx.Protected() && !tx.IsPrivate() {
 		signer = types.NewEIP155Signer(tx.ChainId())
@@ -1716,46 +1723,7 @@ func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Cont
 		return nil, errors.New("could not find receipt for private transaction")
 	}
 
-	var signer types.Signer = types.HomesteadSigner{}
-	if tx.Protected() && !tx.IsPrivate() {
-		signer = types.NewEIP155Signer(tx.ChainId())
-	}
-	from, _ := types.Sender(signer, tx)
-
-	fields := map[string]interface{}{
-		"blockHash":         blockHash,
-		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
-		"from":              from,
-		"to":                tx.To(),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"contractAddress":   nil,
-		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
-	}
-
-	// Quorum
-	if len(receipt.RevertReason) > 0 {
-		fields["revertReason"] = hexutil.Encode(receipt.RevertReason)
-	}
-	// End Quorum
-
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		fields["root"] = hexutil.Bytes(receipt.PostState)
-	} else {
-		fields["status"] = hexutil.Uint(receipt.Status)
-	}
-	if receipt.Logs == nil {
-		fields["logs"] = [][]*types.Log{}
-	}
-	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
-	if receipt.ContractAddress != (common.Address{}) {
-		fields["contractAddress"] = receipt.ContractAddress
-	}
-	return fields, nil
+	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
 }
 
 // Quorum: if signing a private TX, set with tx.SetPrivate() before calling this method.
