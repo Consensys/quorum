@@ -7,7 +7,6 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
-	"go.uber.org/zap"
 )
 
 func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
@@ -16,9 +15,7 @@ func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL 
 			fatalf("cannot create waldir: %s", err)
 		}
 
-		// TODO: @achraf
-		lg, _ := zap.NewProduction()
-		wal, err := wal.Create(lg, pm.waldir, nil)
+		wal, err := wal.Create(pm.logger, pm.waldir, nil)
 		if err != nil {
 			fatalf("failed to create waldir: %s", err)
 		}
@@ -33,9 +30,7 @@ func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL 
 		walsnap.Index, walsnap.Term = maybeRaftSnapshot.Metadata.Index, maybeRaftSnapshot.Metadata.Term
 	}
 
-	// TODO: @achraf
-	lg, _ := zap.NewProduction()
-	wal, err := wal.Open(lg, pm.waldir, walsnap)
+	wal, err := wal.Open(pm.logger, pm.waldir, walsnap)
 	if err != nil {
 		fatalf("error loading WAL: %s", err)
 	}

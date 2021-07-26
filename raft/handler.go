@@ -47,9 +47,9 @@ type ProtocolManager struct {
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
-	role          int    // Role: minter or verifier
-	appliedIndex  uint64 // The index of the last-applied raft entry
-	snapshotIndex uint64 // The index of the latest snapshot.
+	role          etcdRaft.StateType // Role: minter or verifier
+	appliedIndex  uint64             // The index of the last-applied raft entry
+	snapshotIndex uint64             // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
 	leader       uint16
@@ -87,6 +87,7 @@ type ProtocolManager struct {
 	// Raft write-ahead log
 	waldir string
 	wal    *wal.WAL
+	logger *zap.Logger
 
 	// Storage
 	quorumRaftDb *leveldb.DB             // Persistent storage for last-applied raft index
@@ -104,8 +105,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	snapdir := fmt.Sprintf("%s/raft-snap", raftLogDir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", raftLogDir)
 
-	// TODO: @achraf
-	lg, _ := zap.NewProduction()
+	logger, _ := zap.NewProduction()
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
@@ -119,8 +119,9 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		httpstopc:           make(chan struct{}),
 		httpdonec:           make(chan struct{}),
 		waldir:              waldir,
+		logger:              logger,
 		snapdir:             snapdir,
-		snapshotter:         snap.New(lg, snapdir),
+		snapshotter:         snap.New(logger, snapdir),
 		raftId:              raftId,
 		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
@@ -194,7 +195,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	defer pm.mu.RUnlock()
 
 	roleDescription := ""
-	if pm.role == int(etcdRaft.StateLeader) {
+	if pm.role == etcdRaft.StateLeader {
 		roleDescription = "minter"
 	} else if pm.isVerifierNode() {
 		roleDescription = "verifier"
@@ -456,14 +457,12 @@ func (pm *ProtocolManager) startRaft() {
 	id := raftTypes.ID(pm.raftId).String()
 	ss := stats.NewServerStats(id, id)
 
-	// TODO: @achraf
-	lg, _ := zap.NewProduction()
 	pm.transport = &rafthttp.Transport{
 		ID:          raftTypes.ID(pm.raftId),
 		ClusterID:   0x1000,
 		Raft:        pm,
 		ServerStats: ss,
-		LeaderStats: stats.NewLeaderStats(lg, strconv.Itoa(int(pm.raftId))),
+		LeaderStats: stats.NewLeaderStats(pm.logger, strconv.Itoa(int(pm.raftId))),
 		ErrorC:      make(chan error),
 	}
 	pm.transport.Start()
@@ -609,6 +608,8 @@ func (pm *ProtocolManager) startRaft() {
 
 	// TODO: @achraf
 	//go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
+	//rd := <-pm.rawNode().Ready()
+	go pm.handleRoleChange(pm.rawNode().Ready())
 }
 
 func (pm *ProtocolManager) setLocalAddress(addr *Address) {
@@ -675,16 +676,11 @@ func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 	return false
 }
 
-func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
+func (pm *ProtocolManager) handleRoleChange(ready <-chan etcdRaft.Ready) {
 	for {
 		select {
-		case role := <-roleC:
-			intRole, ok := role.(int)
-
-			if !ok {
-				panic("Couldn't cast role to int")
-			}
-			if intRole == int(etcdRaft.StateLeader) {
+		case rd := <-ready:
+			if rd.RaftState == etcdRaft.StateLeader {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
 			} else { // verifier
@@ -697,7 +693,7 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			}
 
 			pm.mu.Lock()
-			pm.role = intRole
+			pm.role = rd.RaftState
 			pm.mu.Unlock()
 		case <-pm.quitSync:
 			return
@@ -1080,7 +1076,7 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	if int(etcdRaft.StateLeader) == pm.role {
+	if etcdRaft.StateLeader == pm.role {
 		return pm.address, nil
 	} else if l, ok := pm.peers[pm.leader]; ok {
 		return l.address, nil

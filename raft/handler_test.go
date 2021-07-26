@@ -58,7 +58,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			for i := 0; i < count; i++ {
-				if raftNodes[i].raftProtocolManager.role == int(etcdRaft.StateLeader) {
+				if raftNodes[i].raftProtocolManager.role == etcdRaft.StateLeader {
 					return
 				}
 			}
@@ -97,9 +97,8 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 
 func isWalDirStillLocked(walDir string) bool {
 	var snap walpb.Snapshot
-	// TODO: @achraf
-	lg, _ := zap.NewProduction()
-	w, err := wal.Open(lg, walDir, snap)
+	var logger *zap.Logger
+	w, err := wal.Open(logger, walDir, snap)
 	if err != nil {
 		return true
 	}

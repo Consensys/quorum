@@ -296,8 +296,9 @@ func (pm *ProtocolManager) saveRaftSnapshot(snap raftpb.Snapshot) error {
 	}
 
 	walSnap := walpb.Snapshot{
-		Index: snap.Metadata.Index,
-		Term:  snap.Metadata.Term,
+		Index:     snap.Metadata.Index,
+		Term:      snap.Metadata.Term,
+		ConfState: &snap.Metadata.ConfState,
 	}
 
 	if err := pm.wal.SaveSnapshot(walSnap); err != nil {
