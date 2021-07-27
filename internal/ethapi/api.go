@@ -1611,17 +1611,18 @@ func getTransactionReceiptCommonCode(tx *types.Transaction, blockHash common.Has
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
-		"blockHash":         blockHash,
-		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
-		"from":              from,
-		"to":                tx.To(),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"contractAddress":   nil,
-		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
+		"blockHash":                  blockHash,
+		"blockNumber":                hexutil.Uint64(blockNumber),
+		"transactionHash":            hash,
+		"transactionIndex":           hexutil.Uint64(index),
+		"from":                       from,
+		"to":                         tx.To(),
+		"gasUsed":                    hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed":          hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":            nil,
+		"logs":                       receipt.Logs,
+		"logsBloom":                  receipt.Bloom,
+		"isPrivacyMarkerTransaction": tx.IsPrivacyMarker(),
 	}
 
 	// Quorum

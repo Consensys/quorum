@@ -264,10 +264,6 @@ type TxPool struct {
 	reorgDoneCh     chan chan struct{}
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
-
-	// (Quorum) isPrivacyMarkerTransactionCreationEnabled returns true if the node is configured to use privacy marker
-	// transactions and the fork block to make the necessary precompile available has been passed
-	isPrivacyMarkerTransactionCreationEnabled func() bool
 }
 
 type txpoolResetRequest struct {
@@ -1494,10 +1490,6 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.pending, addr)
 		}
 	}
-}
-
-func (pool *TxPool) SetIsPrivacyMarkerTransactionCreationEnabled(fn func() bool) {
-	pool.isPrivacyMarkerTransactionCreationEnabled = fn
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
