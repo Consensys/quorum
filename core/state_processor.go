@@ -128,7 +128,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 		txContext := NewEVMTxContext(msg)
 		vmenv := vm.NewEVM(blockContext, txContext, statedb, privateStateDBToUse, p.config, cfg)
 		vmenv.SetCurrentTX(tx)
-		receipt, privateReceipt, err := applyTransaction(msg, p.config, p.bc, nil, gp, statedb, privateStateDB, header, tx, usedGas, vmenv, privateStateRepo.IsMPS())
+		receipt, privateReceipt, err := applyTransaction(msg, p.config, p.bc, gp, statedb, privateStateDB, header, tx, usedGas, vmenv)
 		if err != nil {
 			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
@@ -249,7 +249,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 
 // /Quorum
 
-func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, evm *vm.EVM, forceNonParty bool) (*types.Receipt, *types.Receipt, error) {
+func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockChain, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, evm *vm.EVM) (*types.Receipt, *types.Receipt, error) {
 	// Add addresses to access list if applicable
 	if config.IsYoloV2(header.Number) {
 		statedb.AddAddressToAccessList(msg.From())
@@ -369,5 +369,5 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	tx.SetTxPrivacyMetadata(nil)
 	vmenv.SetCurrentTX(tx)
 
-	return applyTransaction(msg, config, bc, author, gp, statedb, privateStateDB, header, tx, usedGas, vmenv, forceNonParty)
+	return applyTransaction(msg, config, bc, gp, statedb, privateStateDB, header, tx, usedGas, vmenv)
 }
