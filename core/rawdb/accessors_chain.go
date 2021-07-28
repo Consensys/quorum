@@ -599,15 +599,36 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 	if len(data) == 0 {
 		return nil
 	}
+	// split the data into the standard receipt rlp list and the quorum extraData bytes
+	_, extraData, err := rlp.SplitList(data)
+	if err != nil {
+		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+		return nil
+	}
+	// reslice data to remove extraData and get the receipt rlp list as the result from rlp.SplitList does not include the list header bytes
+	vanillaDataWithListHeader := data[0 : len(data)-len(extraData)]
+
 	// Convert the receipts from their storage form to their internal representation
 	storageReceipts := []*types.ReceiptForStorage{}
-	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+	if err := rlp.DecodeBytes(vanillaDataWithListHeader, &storageReceipts); err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
 	receipts := make(types.Receipts, len(storageReceipts))
 	for i, storageReceipt := range storageReceipts {
 		receipts[i] = (*types.Receipt)(storageReceipt)
+	}
+	if len(extraData) > 0 {
+		quorumExtraDataReceipts := []*types.QuorumReceiptExtraData{}
+		if err := rlp.DecodeBytes(extraData, &quorumExtraDataReceipts); err != nil {
+			log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+			return nil
+		}
+		for i, quorumExtraDataReceipt := range quorumExtraDataReceipts {
+			if quorumExtraDataReceipt != nil {
+				receipts[i].FillReceiptExtraDataFromStorage(quorumExtraDataReceipt)
+			}
+		}
 	}
 	return receipts
 }
@@ -641,12 +662,26 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *para
 func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
+	quorumReceiptsExtraData := make([]*types.QuorumReceiptExtraData, len(receipts))
+	extraDataEmpty := true
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
+		quorumReceiptsExtraData[i] = &receipt.QuorumReceiptExtraData
+		if !receipt.QuorumReceiptExtraData.IsEmpty() {
+			extraDataEmpty = false
+		}
 	}
 	bytes, err := rlp.EncodeToBytes(storageReceipts)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
+	}
+	if !extraDataEmpty {
+		bytesExtraData, err := rlp.EncodeToBytes(quorumReceiptsExtraData)
+		if err != nil {
+			log.Crit("Failed to encode block receipts", "err", err)
+		}
+		// the vanilla receipts and the extra data receipts are concatenated and stored as a single value
+		bytes = append(bytes, bytesExtraData...)
 	}
 	// Store the flattened receipt slice
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
