@@ -71,7 +71,13 @@ func TestStateProcessorErrors(t *testing.T) {
 		},
 		{
 			txs: []*types.Transaction{
-				makeTx(0, common.Address{}, big.NewInt(0), 21000000, nil, nil),
+				makeTx(0, common.Address{}, big.NewInt(0), 2100000000, nil, nil),
+			},
+			want: "could not apply tx 0 [0xa6111e2753b0495c90a4e5b709db7fadc4c3c7dc83ca5e80c2c8aedc53e6fa2c]: gas limit reached",
+		},
+		{
+			txs: []*types.Transaction{
+				makeTx(0, common.Address{}, big.NewInt(0), 21001, nil, nil),
 			},
 			want: "invalid gas used (remote: 0 local: 21000)", // "could not apply tx 0 [0x54c58b530824b0bb84b7a98183f08913b5d74e1cebc368515ef3c65edf8eb56a]: gas limit reached",
 		},
