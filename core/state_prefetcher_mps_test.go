@@ -22,11 +22,19 @@ import (
 )
 
 var (
+	contractDeployed = &contract{
+		name:     "contractDeployed",
+		abi:      mustParse(contractDeployedDefinition),
+		bytecode: common.Hex2Bytes("608060405234801561001057600080fd5b506040516020806105a88339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610550806100586000396000f3fe608060405260043610610051576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b1146100565780636d4ce63c146100a5578063d7139463146100d0575b600080fd5b34801561006257600080fd5b5061008f6004803603602081101561007957600080fd5b810190808035906020019092919050505061010b565b6040518082815260200191505060405180910390f35b3480156100b157600080fd5b506100ba61011e565b6040518082815260200191505060405180910390f35b3480156100dc57600080fd5b50610109600480360360208110156100f357600080fd5b8101908080359060200190929190505050610127565b005b6000816000819055506000549050919050565b60008054905090565b600030610132610212565b808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001915050604051809103906000f080158015610184573d6000803e3d6000fd5b5090508073ffffffffffffffffffffffffffffffffffffffff166360fe47b1836040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050600060405180830381600087803b1580156101f657600080fd5b505af115801561020a573d6000803e3d6000fd5b505050505050565b604051610302806102238339019056fe608060405234801561001057600080fd5b506040516020806103028339810180604052602081101561003057600080fd5b8101908080519060200190929190505050806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050610271806100916000396000f3fe608060405260043610610046576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11461004b5780636d4ce63c14610086575b600080fd5b34801561005757600080fd5b506100846004803603602081101561006e57600080fd5b81019080803590602001909291905050506100b1565b005b34801561009257600080fd5b5061009b610180565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014157600080fd5b505af1158015610155573d6000803e3d6000fd5b505050506040513d602081101561016b57600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020557600080fd5b505afa158015610219573d6000803e3d6000fd5b505050506040513d602081101561022f57600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820a537f4c360ce5c6f55523298e314e6456e5c3e02c170563751dfda37d3aeddb30029a165627a7a7230582060396bfff29d2dfc5a9f4216bfba5e24d031d54fd4b26ebebde1a26c59df0c1e0029"),
+	}
+
+	contractDeploymentCount = 1
+
 	contractArgumentInitValue = int64(10)
 	contractArgumentSetValue  = int64(15)
 
-	contractCreateABIPayloadBytes = c1.create(big.NewInt(contractArgumentInitValue))
-	contractSetABIPayloadBytes    = c1.set(contractArgumentSetValue)
+	contractCreateABIPayloadBytes = contractDeployed.create(big.NewInt(contractArgumentInitValue))
+	contractSetABIPayloadBytes    = contractDeployed.set(contractArgumentSetValue)
 
 	encryptedPayloadHashForContractDeployment = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("41a982be5d1f3d92d57487d7d9a905c1d92d3353570730464639affc964bcc83ea24e5b449140a2216ecc3f1d11d3dfd3663c6a9a4f18a7c837a9e4d8bfc81ce"))
 	encryptedPayloadHashForSetFunction        = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("93f769208aa744b6d65310ab191f1fe22f8508ad069810f06889381b89d8c03ade785c7b14230439673f76e08ec84bad611d95d1cbb66dbcf548acbf93db0296"))
@@ -36,12 +44,11 @@ var (
 
 func TestPrefetch_PublicTransaction(t *testing.T) {
 	var (
-		engine        = ethash.NewFaker()
-		interrupt     = uint32(0)
-		privateTx     = false
-		contractCount = 100
+		engine    = ethash.NewFaker()
+		interrupt = uint32(0)
+		privateTx = false
 	)
-	mockTxDataArr := createMockTxData(contractCount, privateTx)
+	mockTxDataArr := createMockTxData(contractDeploymentCount, privateTx)
 	chain, gspec := createBlockchain(params.QuorumTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -66,11 +73,10 @@ func TestPrefetch_PublicTransaction(t *testing.T) {
 
 func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	var (
-		engine        = ethash.NewFaker()
-		interrupt     = uint32(0)
-		isPrivate     = true
-		contractCount = 100
-		mockCtrl      = gomock.NewController(t)
+		engine    = ethash.NewFaker()
+		interrupt = uint32(0)
+		isPrivate = true
+		mockCtrl  = gomock.NewController(t)
 	)
 	defer mockCtrl.Finish()
 
@@ -84,7 +90,7 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	mockptm.EXPECT().Receive(encryptedPayloadHashForContractDeployment).Return("", []string{}, contractCreateABIPayloadBytes, nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(encryptedPayloadHashForSetFunction).Return("", []string{}, contractSetABIPayloadBytes, nil, nil).AnyTimes()
 
-	mockTxDataArr := createMockTxData(contractCount, isPrivate)
+	mockTxDataArr := createMockTxData(contractDeploymentCount, isPrivate)
 	chain, gspec := createBlockchain(params.QuorumTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -112,11 +118,10 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 
 func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	var (
-		engine        = ethash.NewFaker()
-		interrupt     = uint32(0)
-		isPrivate     = true
-		contractCount = 1
-		mockCtrl      = gomock.NewController(t)
+		engine    = ethash.NewFaker()
+		interrupt = uint32(0)
+		isPrivate = true
+		mockCtrl  = gomock.NewController(t)
 	)
 	defer mockCtrl.Finish()
 
@@ -150,7 +155,7 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 		},
 	}, nil)
 
-	mockTxDataArr := createMockTxData(contractCount, isPrivate)
+	mockTxDataArr := createMockTxData(contractDeploymentCount, isPrivate)
 	chain, gspec := createBlockchain(params.QuorumMPSTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -285,3 +290,68 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 
 	return genesisBlock, minedBlocks[0], futureBlocks[0]
 }
+
+const (
+	contractDeployedDefinition = `
+[
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "newValue",
+				"type": "uint256"
+			}
+		],
+		"name": "set",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "get",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "newValue",
+				"type": "uint256"
+			}
+		],
+		"name": "newContractC2",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"name": "initVal",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	}
+]
+`
+)

@@ -71,7 +71,7 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, p
 
 		// Quorum
 		if tx.IsPrivate() && privateStateRepo.IsMPS() {
-			p.prefetchMpsTransaction(block, tx, i, statedb, privateStateRepo, cfg, interrupt)
+			p.prefetchMpsTransaction(block, tx, i, statedb.Copy(), privateStateRepo, cfg, interrupt)
 		}
 		privateStateDb, _ := privateStateRepo.DefaultState()
 		privateStateDb.Prepare(tx.Hash(), block.Hash(), i)
@@ -105,9 +105,6 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	if err != nil {
 		return err
 	}
-	if isMPS {
-		msg = msg.WithEmptyPrivateData(tx.IsPrivate())
-	}
 	// Create the EVM and execute the transaction
 	context := NewEVMContext(msg, header, bc, author)
 	// Quorum: Add privateStaterDb argument
@@ -128,7 +125,6 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 
 func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.Transaction, txIndex int, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config, interrupt *uint32) {
 	var (
-		header  = block.Header()
 		gaspool = new(GasPool).AddGas(block.GasLimit())
 	)
 	byzantium := p.config.IsByzantium(block.Number())
@@ -151,9 +147,9 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 			continue
 		}
 		p.pend.Add(1)
-		go func(start time.Time, followup *types.Block, statedb *state.StateDB, privateStateDb *state.StateDB) {
+		go func(start time.Time, followup *types.Block, statedb *state.StateDB, privateStateDb *state.StateDB, tx *types.Transaction, gaspool *GasPool) {
 			privateStateDb.Prepare(tx.Hash(), block.Hash(), txIndex)
-			if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, tx, cfg, true); err != nil {
+			if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, followup.Header(), tx, cfg, true); err != nil {
 				return
 			}
 			// If we're pre-byzantium, pre-load trie nodes for the intermediate root
@@ -161,7 +157,7 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 				privateStateDb.IntermediateRoot(true)
 			}
 			p.pend.Done()
-		}(time.Now(), block, statedb, privateStateDb)
+		}(time.Now(), block, statedb, privateStateDb, tx, gaspool)
 	}
 	p.pend.Wait()
 }
