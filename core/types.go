@@ -41,7 +41,7 @@ type Prefetcher interface {
 	// the transaction messages using the statedb, but any changes are discarded. The
 	// only goal is to pre-cache transaction signatures and state trie nodes.
 	// Quorum: added defaultPrivateStateDb to do prefetching in the private state
-	Prefetch(block *types.Block, statedb *state.StateDB, defaultPrivateStateDb *state.StateDB, cfg vm.Config, interrupt *uint32)
+	Prefetch(block *types.Block, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config, interrupt *uint32)
 }
 
 // Processor is an interface for processing blocks using a given initial state.

@@ -220,11 +220,10 @@ type BlockChain struct {
 
 	// Quorum
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
-	isMultitenant bool // if this blockchain supports multitenancy
+	isMultitenant   bool                                                             // if this blockchain supports multitenancy
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	saveRevertReason    bool          // if we should save the revert reasons in the Tx Receipts
-	mpsPrefetcher       MPSPrefetcher // Block state private prefetcher interface
+	saveRevertReason    bool // if we should save the revert reasons in the Tx Receipts
 	// End Quorum
 }
 
@@ -265,8 +264,6 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
-
-	bc.mpsPrefetcher = newStateMPSPrefetcher(chainConfig, bc, engine) // Quorum
 
 	var err error
 	// Quorum: attempt to initialize PSM
@@ -2049,24 +2046,18 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
 
 				// Quorum
-				privateStateRepo, _ := bc.privateStateManager.StateRepository(parent.Root)
-				privateStateThrowaway, _ := privateStateRepo.DefaultState()
-				// End Quorum
-
-				// Quorum: add privateStateThrowaway argument
-				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, privateStateThrowaway *state.StateDB, interrupt *uint32) {
-					bc.prefetcher.Prefetch(followup, throwaway, privateStateThrowaway, bc.vmConfig, &followupInterrupt)
-
-					blockPrefetchExecuteTimer.Update(time.Since(start))
-					if atomic.LoadUint32(interrupt) == 1 {
-						blockPrefetchInterruptMeter.Mark(1)
-					}
-				}(time.Now(), followup, throwaway, privateStateThrowaway, &followupInterrupt)
-
-				// Quorum
-				if privateStateRepo.IsMPS() {
+				if privateStateRepo, _ := bc.privateStateManager.StateRepository(parent.Root); privateStateRepo != nil {
 					throwawayPrivateStateRepo := privateStateRepo.Copy()
-					runMPSPrefetch(bc.mpsPrefetcher, followup, throwaway, throwawayPrivateStateRepo, bc.vmConfig, &followupInterrupt)
+
+					// Quorum: add privateStateThrowaway argument
+					go func(start time.Time, followup *types.Block, throwaway *state.StateDB, privateStateThrowaway mps.PrivateStateRepository, interrupt *uint32) {
+						bc.prefetcher.Prefetch(followup, throwaway, throwawayPrivateStateRepo, bc.vmConfig, &followupInterrupt)
+
+						blockPrefetchExecuteTimer.Update(time.Since(start))
+						if atomic.LoadUint32(interrupt) == 1 {
+							blockPrefetchInterruptMeter.Mark(1)
+						}
+					}(time.Now(), followup, throwaway, throwawayPrivateStateRepo, &followupInterrupt)
 				}
 				// End Quorum
 			}
