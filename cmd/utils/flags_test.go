@@ -26,10 +26,30 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/urfave/cli.v1"
 )
+
+func TestPrivateTrieCache(t *testing.T) {
+	arbitraryNodeConfig := &eth.Config{}
+	fs := &flag.FlagSet{}
+	fs.String(PrivateCacheTrieJournalFlag.Name, "test", "")
+	fs.String(CacheTrieJournalFlag.Name, "test", "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "test")
+	arbitraryCLIContext.GlobalSet(CacheTrieJournalFlag.Name, "test")
+	assert.Error(t, setQuorumConfig(arbitraryCLIContext, arbitraryNodeConfig), arbitraryCLIContext)
+
+	fs = &flag.FlagSet{}
+	fs.String(PrivateCacheTrieJournalFlag.Name, "test1", "")
+	fs.String(CacheTrieJournalFlag.Name, "test2", "")
+	arbitraryCLIContext = cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "test1")
+	arbitraryCLIContext.GlobalSet(CacheTrieJournalFlag.Name, "test2")
+	assert.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryNodeConfig))
+}
 
 func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}

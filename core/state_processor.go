@@ -202,8 +202,10 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 	// clone the gas pool (as we don't want to keep consuming intrinsic gas multiple times for each MPS execution)
 	gp := new(GasPool).AddGas(originalGP.Gas())
 	mpsReceipt := &types.Receipt{
-		PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
-		Logs:       make([]*types.Log, 0),
+		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
+			PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
+		},
+		Logs: make([]*types.Log, 0),
 	}
 	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if err != nil {

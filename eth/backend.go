@@ -213,6 +213,8 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 			SnapshotLimit:       config.SnapshotCache,
 			Preimages:           config.Preimages,
+			// Quorum
+			PrivateTrieCleanJournal: stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
 		}
 	)
 	newBlockChainFunc := core.NewBlockChain
@@ -304,9 +306,10 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		if chainConfig.Istanbul.Epoch != 0 {
 			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
 		}
-		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
+		config.Istanbul.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(chainConfig.Istanbul.ProposerPolicy))
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
+		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
 
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}

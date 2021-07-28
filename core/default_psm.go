@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 type DefaultPrivateStateManager struct {
@@ -18,10 +19,10 @@ type DefaultPrivateStateManager struct {
 	repoCache state.Database
 }
 
-func newDefaultPrivateStateManager(db ethdb.Database) *DefaultPrivateStateManager {
+func newDefaultPrivateStateManager(db ethdb.Database, cacheConfig *CacheConfig) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:        db,
-		repoCache: state.NewDatabase(db),
+		repoCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.PrivateTrieCleanJournal),
 	}
 }
 
@@ -55,4 +56,8 @@ func (d *DefaultPrivateStateManager) NotIncludeAny(_ *mps.PrivateStateMetadata, 
 func (d *DefaultPrivateStateManager) CheckAt(root common.Hash) error {
 	_, err := state.New(rawdb.GetPrivateStateRoot(d.db, root), d.repoCache, nil)
 	return err
+}
+
+func (d *DefaultPrivateStateManager) TrieDB() *trie.Database {
+	return d.repoCache.TrieDB()
 }
