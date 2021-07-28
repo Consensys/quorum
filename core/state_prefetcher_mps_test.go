@@ -22,25 +22,26 @@ import (
 )
 
 var (
-	contractInitValue = int64(10)
-	contractSetValue  = int64(15)
+	contractArgumentInitValue = int64(10)
+	contractArgumentSetValue  = int64(15)
 
-	contractCreateBytes = c1.create(big.NewInt(contractInitValue))
-	contractSetBytes    = c1.set(contractSetValue)
+	contractCreateABIPayloadBytes = c1.create(big.NewInt(contractArgumentInitValue))
+	contractSetABIPayloadBytes    = c1.set(contractArgumentSetValue)
 
-	privateCreatePayload = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("41a982be5d1f3d92d57487d7d9a905c1d92d3353570730464639affc964bcc83ea24e5b449140a2216ecc3f1d11d3dfd3663c6a9a4f18a7c837a9e4d8bfc81ce"))
-	privateSetPayload    = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("93f769208aa744b6d65310ab191f1fe22f8508ad069810f06889381b89d8c03ade785c7b14230439673f76e08ec84bad611d95d1cbb66dbcf548acbf93db0296"))
+	encryptedPayloadHashForContractDeployment = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("41a982be5d1f3d92d57487d7d9a905c1d92d3353570730464639affc964bcc83ea24e5b449140a2216ecc3f1d11d3dfd3663c6a9a4f18a7c837a9e4d8bfc81ce"))
+	encryptedPayloadHashForSetFunction        = common.BytesToEncryptedPayloadHash(common.Hex2Bytes("93f769208aa744b6d65310ab191f1fe22f8508ad069810f06889381b89d8c03ade785c7b14230439673f76e08ec84bad611d95d1cbb66dbcf548acbf93db0296"))
+
+	slot0OnAccountStorage = common.HexToHash("00")
 )
 
 func TestPrefetch_PublicTransaction(t *testing.T) {
 	var (
-		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
-		privateTx = false
-		txCount   = 1
+		engine        = ethash.NewFaker()
+		interrupt     = uint32(0)
+		privateTx     = false
+		contractCount = 100
 	)
-
-	mockTxDataArr := createMockTxData(txCount, privateTx)
+	mockTxDataArr := createMockTxData(contractCount, privateTx)
 	chain, gspec := createBlockchain(params.QuorumTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -53,21 +54,23 @@ func TestPrefetch_PublicTransaction(t *testing.T) {
 	privateRepo, _ := chain.PrivateStateManager().StateRepository(minedBlock.Root())
 	throwawayRepo := privateRepo.Copy()
 
+	// When
 	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, &interrupt)
 
+	// Then
 	for _, data := range mockTxDataArr {
 		assert.Equal(t, uint64(2), throwaway.GetNonce(data.fromAddress))
-		assert.Equal(t, common.BigToHash(big.NewInt(15)), throwaway.GetState(data.toAddress, common.HexToHash("00")))
+		assert.Equal(t, common.BigToHash(big.NewInt(contractArgumentSetValue)), throwaway.GetState(data.toAddress, slot0OnAccountStorage))
 	}
 }
 
 func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	var (
-		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
-		isPrivate = true
-		txCount   = 1
-		mockCtrl  = gomock.NewController(t)
+		engine        = ethash.NewFaker()
+		interrupt     = uint32(0)
+		isPrivate     = true
+		contractCount = 100
+		mockCtrl      = gomock.NewController(t)
 	)
 	defer mockCtrl.Finish()
 
@@ -78,10 +81,10 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	}()
 	private.P = mockptm
 
-	mockptm.EXPECT().Receive(privateCreatePayload).Return("", []string{}, contractCreateBytes, nil, nil).AnyTimes()
-	mockptm.EXPECT().Receive(privateSetPayload).Return("", []string{}, contractSetBytes, nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(encryptedPayloadHashForContractDeployment).Return("", []string{}, contractCreateABIPayloadBytes, nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(encryptedPayloadHashForSetFunction).Return("", []string{}, contractSetABIPayloadBytes, nil, nil).AnyTimes()
 
-	mockTxDataArr := createMockTxData(txCount, isPrivate)
+	mockTxDataArr := createMockTxData(contractCount, isPrivate)
 	chain, gspec := createBlockchain(params.QuorumTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -102,18 +105,18 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	throwawayPrivateState, _ := throwawayRepo.DefaultState()
 	for _, data := range mockTxDataArr {
 		assert.Equal(t, uint64(2), throwaway.GetNonce(data.fromAddress))
-		assert.Equal(t, common.Hash{}, throwaway.GetState(data.toAddress, common.HexToHash("00")))
-		assert.Equal(t, common.BigToHash(big.NewInt(15)), throwawayPrivateState.GetState(data.toAddress, common.HexToHash("00")))
+		assert.Equal(t, common.Hash{}, throwaway.GetState(data.toAddress, slot0OnAccountStorage))
+		assert.Equal(t, common.BigToHash(big.NewInt(contractArgumentSetValue)), throwawayPrivateState.GetState(data.toAddress, slot0OnAccountStorage))
 	}
 }
 
 func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	var (
-		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
-		isPrivate = true
-		txCount   = 1
-		mockCtrl  = gomock.NewController(t)
+		engine        = ethash.NewFaker()
+		interrupt     = uint32(0)
+		isPrivate     = true
+		contractCount = 1
+		mockCtrl      = gomock.NewController(t)
 	)
 	defer mockCtrl.Finish()
 
@@ -125,8 +128,8 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	private.P = mockptm
 
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, nil, nil, nil).AnyTimes()
-	mockptm.EXPECT().Receive(privateCreatePayload).Return("", []string{"psi2"}, contractCreateBytes, nil, nil).AnyTimes()
-	mockptm.EXPECT().Receive(privateSetPayload).Return("", []string{"psi2"}, contractSetBytes, nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(encryptedPayloadHashForContractDeployment).Return("", []string{"BBB"}, contractCreateABIPayloadBytes, nil, nil).AnyTimes()
+	mockptm.EXPECT().Receive(encryptedPayloadHashForSetFunction).Return("", []string{"BBB"}, contractSetABIPayloadBytes, nil, nil).AnyTimes()
 	mockptm.EXPECT().HasFeature(privateEngine.MultiplePrivateStates).Return(true).AnyTimes()
 	mockptm.EXPECT().Groups().Return([]privateEngine.PrivacyGroup{
 		{
@@ -135,7 +138,7 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 			PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte(PSI1PSM.ID)),
 			Description:    "Resident Group 1",
 			From:           "",
-			Members:        []string{"psi1"},
+			Members:        []string{"AAA"},
 		},
 		{
 			Type:           privateEngine.PrivacyGroupResident,
@@ -143,11 +146,11 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 			PrivacyGroupId: base64.StdEncoding.EncodeToString([]byte(PSI2PSM.ID)),
 			Description:    "Resident Group 2",
 			From:           "",
-			Members:        []string{"psi2"},
+			Members:        []string{"BBB"},
 		},
 	}, nil)
 
-	mockTxDataArr := createMockTxData(txCount, isPrivate)
+	mockTxDataArr := createMockTxData(contractCount, isPrivate)
 	chain, gspec := createBlockchain(params.QuorumMPSTestChainConfig, mockTxDataArr)
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
@@ -170,10 +173,10 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	throwawayPS2PrivateState, _ := throwawayRepo.StatePSI(PSI2PSM.ID)
 	for _, data := range mockTxDataArr {
 		assert.Equal(t, uint64(2), throwaway.GetNonce(data.fromAddress))
-		assert.Equal(t, common.Hash{}, throwaway.GetState(data.toAddress, common.HexToHash("00")))
-		assert.Equal(t, common.Hash{}, throwawayDefaultPrivateState.GetState(data.toAddress, common.HexToHash("00")))
-		assert.Equal(t, common.Hash{}, throwawayPS1PrivateState.GetState(data.toAddress, common.HexToHash("00")))
-		assert.Equal(t, common.BigToHash(big.NewInt(15)), throwawayPS2PrivateState.GetState(data.toAddress, common.HexToHash("00")))
+		assert.Equal(t, common.Hash{}, throwaway.GetState(data.toAddress, slot0OnAccountStorage))
+		assert.Equal(t, common.Hash{}, throwawayDefaultPrivateState.GetState(data.toAddress, slot0OnAccountStorage))
+		assert.Equal(t, common.Hash{}, throwawayPS1PrivateState.GetState(data.toAddress, slot0OnAccountStorage))
+		assert.Equal(t, common.BigToHash(big.NewInt(contractArgumentSetValue)), throwawayPS2PrivateState.GetState(data.toAddress, slot0OnAccountStorage))
 	}
 }
 
@@ -208,11 +211,10 @@ func createMockTxData(n int, private bool) []*mockTxData {
 
 func createBlockchain(chainConfig *params.ChainConfig, mockTxDataArr []*mockTxData) (*BlockChain, *Genesis) {
 	var (
-		// Generate a canonical chain to act as the main dataset
 		engine      = ethash.NewFaker()
 		cacheConfig = *defaultCacheConfig
 	)
-	// We are going to manually run prefetch
+	// Disable prefetching. We are going to manually run prefetch
 	cacheConfig.TrieCleanNoPrefetch = true
 
 	allocation := GenesisAlloc{}
@@ -239,7 +241,6 @@ func createBlockchain(chainConfig *params.ChainConfig, mockTxDataArr []*mockTxDa
 
 func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *types.Block, *types.Block) {
 	var (
-		// Generate a canonical chain to act as the main dataset
 		engine      = ethash.NewFaker()
 		temporaryDb = rawdb.NewMemoryDatabase()
 	)
@@ -248,9 +249,9 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 		b.SetCoinbase(common.Address{1})
 		var signer types.Signer = types.HomesteadSigner{}
 		for _, mockTxData := range mockTxDataArr {
-			data := contractCreateBytes
+			data := contractCreateABIPayloadBytes
 			if mockTxData.isPrivate {
-				data = privateCreatePayload.Bytes()
+				data = encryptedPayloadHashForContractDeployment.Bytes()
 			}
 			createTransaction := types.NewContractCreation(0, common.Big0, uint64(3000000), common.Big0, data)
 			if mockTxData.isPrivate {
@@ -268,9 +269,9 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 		b.SetCoinbase(common.Address{1})
 		var signer types.Signer = types.HomesteadSigner{}
 		for _, mockTxData := range mockTxDataArr {
-			data := contractSetBytes
+			data := contractSetABIPayloadBytes
 			if mockTxData.isPrivate {
-				data = privateSetPayload.Bytes()
+				data = encryptedPayloadHashForSetFunction.Bytes()
 			}
 			setTransaction := types.NewTransaction(1, mockTxData.toAddress, common.Big0, uint64(3000000), common.Big0, data)
 			if mockTxData.isPrivate {
@@ -284,18 +285,3 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 
 	return genesisBlock, minedBlocks[0], futureBlocks[0]
 }
-
-//
-//func insertBlocks(chain *BlockChain, blocks []*types.Block, diskDb ethdb.Database) (readCount int) {
-//	const propertyName = "readCount"
-//
-//	startReadCountStr, _ := diskDb.Stat(propertyName)
-//	chain.InsertChain(blocks)
-//	time.Sleep(1 * time.Second)
-//
-//	endReadCountStr, _ := diskDb.Stat(propertyName)
-//	startReadCount, _ := strconv.Atoi(startReadCountStr)
-//	endReadCount, _ := strconv.Atoi(endReadCountStr)
-//
-//	return endReadCount - startReadCount
-//}
