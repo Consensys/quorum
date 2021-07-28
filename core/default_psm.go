@@ -19,10 +19,10 @@ type DefaultPrivateStateManager struct {
 	repoCache state.Database
 }
 
-func newDefaultPrivateStateManager(db ethdb.Database, cacheConfig *CacheConfig) *DefaultPrivateStateManager {
+func newDefaultPrivateStateManager(db ethdb.Database, config *trie.Config) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:        db,
-		repoCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.PrivateTrieCleanJournal),
+		repoCache: state.NewDatabaseWithConfig(db, config),
 	}
 }
 
