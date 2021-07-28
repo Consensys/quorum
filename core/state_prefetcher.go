@@ -17,11 +17,12 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/mps"
-	"github.com/ethereum/go-ethereum/private"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/private"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"

@@ -3,6 +3,10 @@ package core
 import (
 	"crypto/ecdsa"
 	"encoding/base64"
+	"math/big"
+	"os"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -15,9 +19,6 @@ import (
 	privateEngine "github.com/ethereum/go-ethereum/private/engine"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"os"
-	"testing"
 )
 
 var (
