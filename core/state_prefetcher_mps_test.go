@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/golang/mock/gomock"
@@ -63,7 +62,7 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	var (
 		engine    = ethash.NewFaker()
 		interrupt = uint32(0)
-		privateTx = true
+		isPrivate = true
 		txCount   = 1
 	)
 
@@ -80,15 +79,15 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	mockptm.EXPECT().Receive(privateCreatePayload).Return("", []string{}, contractCreateBytes, nil, nil).AnyTimes()
 	mockptm.EXPECT().Receive(privateSetPayload).Return("", []string{}, contractSetBytes, nil, nil).AnyTimes()
 
-	mockTxDataArr := createMockTxData(txCount, privateTx)
+	mockTxDataArr := createMockTxData(txCount, isPrivate)
 	chain, gspec := createBlockchain(mockTxDataArr)
 	genesisBlock, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
 	assert.Equal(t, genesisBlock.ParentHash(), common.Hash{})
 	assert.Equal(t, minedBlock.ParentHash(), genesisBlock.Hash())
 	assert.Equal(t, futureBlock.ParentHash(), minedBlock.Hash())
-	// Import the canonical chain
 
+	// Import the canonical chain
 	if n, err := chain.InsertChain(types.Blocks{minedBlock, futureBlock}); n == 0 || err != nil {
 		t.Fatal("Failure when inserting blocks", "n", n, "err", err)
 	}
@@ -100,10 +99,12 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	throwawayRepo := privateRepo.Copy()
 
 	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, &interrupt)
+	throwawayPrivateState, _ := throwawayRepo.DefaultState()
 
 	for _, data := range mockTxDataArr {
 		assert.Equal(t, uint64(2), throwaway.GetNonce(data.fromAddress))
-		assert.Equal(t, common.BigToHash(big.NewInt(15)), throwaway.GetState(data.toAddress, common.HexToHash("00")))
+		assert.Equal(t, common.Hash{}, throwaway.GetState(data.toAddress, common.HexToHash("00")))
+		assert.Equal(t, common.BigToHash(big.NewInt(15)), throwawayPrivateState.GetState(data.toAddress, common.HexToHash("00")))
 	}
 
 }
@@ -157,7 +158,7 @@ func createBlockchain(mockTxDataArr []*mockTxData) (*BlockChain, *Genesis) {
 		Config: params.QuorumTestChainConfig,
 		Alloc:  allocation,
 	}
-	diskdb := rawdb.NewDatabase(memorydb.NewMetered())
+	diskdb := rawdb.NewMemoryDatabase()
 	gspec.MustCommit(diskdb)
 	vmConfig := vm.Config{
 		Debug:  true,
@@ -171,11 +172,11 @@ func createBlockchain(mockTxDataArr []*mockTxData) (*BlockChain, *Genesis) {
 func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *types.Block, *types.Block) {
 	var (
 		// Generate a canonical chain to act as the main dataset
-		engine = ethash.NewFaker()
-		db     = rawdb.NewMemoryDatabase()
+		engine      = ethash.NewFaker()
+		temporaryDb = rawdb.NewMemoryDatabase()
 	)
-	genesisBlock := gspec.MustCommit(db)
-	minedBlocks, _ := GenerateChain(gspec.Config, genesisBlock, engine, db, 1, func(i int, b *BlockGen) {
+	genesisBlock := gspec.MustCommit(temporaryDb)
+	minedBlocks, _ := GenerateChain(gspec.Config, genesisBlock, engine, temporaryDb, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		var signer types.Signer = types.HomesteadSigner{}
 		for _, mockTxData := range mockTxDataArr {
@@ -188,12 +189,14 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 				createTransaction.SetPrivate()
 				signer = types.QuorumPrivateTxSigner{}
 			}
-			tx1, _ := types.SignTx(createTransaction, signer, mockTxData.fromPrivateKey)
-			b.AddTx(tx1)
+			signedTx, _ := types.SignTx(createTransaction, signer, mockTxData.fromPrivateKey)
+			b.AddTx(signedTx)
+
+			// save the contract address to use when calling `set()`
 			mockTxData.toAddress = b.receipts[0].ContractAddress
 		}
 	})
-	futureBlocks, _ := GenerateChain(gspec.Config, minedBlocks[0], engine, db, 1, func(i int, b *BlockGen) {
+	futureBlocks, _ := GenerateChain(gspec.Config, minedBlocks[0], engine, temporaryDb, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		var signer types.Signer = types.HomesteadSigner{}
 		for _, mockTxData := range mockTxDataArr {
@@ -206,8 +209,8 @@ func createBlocks(gspec *Genesis, mockTxDataArr []*mockTxData) (*types.Block, *t
 				setTransaction.SetPrivate()
 				signer = types.QuorumPrivateTxSigner{}
 			}
-			tx2, _ := types.SignTx(setTransaction, signer, mockTxData.fromPrivateKey)
-			b.AddTx(tx2)
+			signedTx, _ := types.SignTx(setTransaction, signer, mockTxData.fromPrivateKey)
+			b.AddTx(signedTx)
 		}
 	})
 

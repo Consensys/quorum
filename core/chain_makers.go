@@ -46,6 +46,8 @@ type BlockGen struct {
 
 	config *params.ChainConfig
 	engine consensus.Engine
+
+	privateStatedb *state.StateDB // Quorum
 }
 
 // SetCoinbase sets the coinbase of the generated block.
@@ -103,7 +105,14 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 		b.SetCoinbase(common.Address{})
 	}
 	b.statedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
-	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{}, false)
+	// Quorum
+	privateDb := b.privateStatedb
+	if privateDb == nil {
+		privateDb = b.statedb
+	}
+	// End Quorum
+
+	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, privateDb, b.header, tx, &b.header.GasUsed, vm.Config{}, false)
 	if err != nil {
 		panic(err)
 	}
@@ -191,8 +200,9 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
 	chainreader := &fakeChainReader{config: config}
-	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
-		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
+	// Quorum: add `privateStatedb` argument
+	genblock := func(i int, parent *types.Block, statedb *state.StateDB, privateStatedb *state.StateDB) (*types.Block, types.Receipts) {
+		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, privateStatedb: privateStatedb, config: config, engine: engine}
 		b.header = makeHeader(chainreader, parent, statedb, b.engine)
 
 		// Mutate the state and block according to any hard-fork specs
@@ -229,10 +239,12 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	for i := 0; i < n; i++ {
 		statedb, err := state.New(parent.Root(), state.NewDatabase(db), nil)
+		privateStatedb, err := state.New(parent.Root(), state.NewDatabase(db), nil) // Quorum
 		if err != nil {
 			panic(err)
 		}
-		block, receipt := genblock(i, parent, statedb)
+		// Quorum: add `privateStatedb` argument
+		block, receipt := genblock(i, parent, statedb, privateStatedb)
 		blocks[i] = block
 		receipts[i] = receipt
 		parent = block
