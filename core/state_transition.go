@@ -268,7 +268,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		pmh.snapshot = snapshot
 		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
 		_, _, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
-		// Increment the public account nonce if:x
+		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
 		if err != nil || !contractCreation {
