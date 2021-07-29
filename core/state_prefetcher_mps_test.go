@@ -53,7 +53,7 @@ func TestPrefetch_PublicTransaction(t *testing.T) {
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
 	// Import the canonical chain
-	chain.InsertChain(types.Blocks{minedBlock, futureBlock})
+	chain.InsertChain(types.Blocks{minedBlock})
 
 	prefetcher := newStatePrefetcher(gspec.Config, chain, engine)
 
@@ -95,7 +95,7 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
 	// Import the canonical chain
-	if n, err := chain.InsertChain(types.Blocks{minedBlock, futureBlock}); n == 0 || err != nil {
+	if n, err := chain.InsertChain(types.Blocks{minedBlock}); n == 0 || err != nil {
 		t.Fatal("Failure when inserting blocks", "n", n, "err", err)
 	}
 	prefetcher := newStatePrefetcher(gspec.Config, chain, engine)
@@ -160,7 +160,7 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	_, minedBlock, futureBlock := createBlocks(gspec, mockTxDataArr)
 
 	// Import the canonical chain
-	if n, err := chain.InsertChain(types.Blocks{minedBlock, futureBlock}); n == 0 || err != nil {
+	if n, err := chain.InsertChain(types.Blocks{minedBlock}); n == 0 || err != nil {
 		t.Fatal("Failure when inserting blocks", "n", n, "err", err)
 	}
 	prefetcher := newStatePrefetcher(gspec.Config, chain, engine)
