@@ -47,7 +47,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
-
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/sha3"
 )

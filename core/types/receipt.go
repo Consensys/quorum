@@ -90,8 +90,9 @@ Procedure for adding new fields to QuorumReceiptExtraData:
 7. Update the QuorumReceiptExtraData.DecodeRLP - update the `switch version` statement and invoke the decode method for the newly added version
 */
 type QuorumReceiptExtraData struct {
-	// this is to support execution of a private transaction on multiple private states
-	// in which receipts are produced per PSI. It is also used by privacy marker transactions.
+	// PSReceipts supports the execution of a private transaction on multiple private states
+	// in which receipts are produced per PSI. It is also used by privacy marker transactions, where PSReceipts contains
+	// only the receipt for the internal private transaction.
 	// PSReceipts will hold a receipt for each PSI that is managed by this node.
 	// Note that for MPS, the parent receipt will be an auxiliary receipt, whereas for PMT the parent
 	// will be the privacy marker transaction receipt.
@@ -603,7 +604,7 @@ func decodeStoredQuorumReceiptExtraDataV1(r *QuorumReceiptExtraData, blob []byte
 	return nil
 }
 
-func (r *QuorumReceiptExtraData) DecodeRLP(s *rlp.Stream) (errr error) {
+func (r *QuorumReceiptExtraData) DecodeRLP(s *rlp.Stream) error {
 	blob, err := s.Raw()
 	if err != nil {
 		return err
