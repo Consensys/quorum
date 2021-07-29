@@ -3,7 +3,12 @@ module github.com/ethereum/go-ethereum
 go 1.15
 
 // Quorum - Replace Go modules that use modifications done by us
-replace github.com/ethereum/go-ethereum/crypto/secp256k1 => ./crypto/secp256k1
+replace (
+	github.com/ethereum/go-ethereum/crypto/secp256k1 => ./crypto/secp256k1
+	go.etcd.io/etcd/client/pkg/v3 => github.com/Consensys/etcd/client/pkg/v3 v3.5.0-quorum
+	go.etcd.io/etcd/raft/v3 => github.com/Consensys/etcd/raft/v3 v3.5.0-quorum
+	go.etcd.io/etcd/server/v3 => github.com/Consensys/etcd/server/v3 v3.5.0-quorum
+)
 
 // End Quorum
 
@@ -25,7 +30,6 @@ require (
 	github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/eapache/channels v1.1.0
-	github.com/eapache/queue v1.1.0 // indirect
 	github.com/edsrzf/mmap-go v0.0.0-20160512033002-935e0e8a636c
 	github.com/ethereum/go-ethereum/crypto/secp256k1 v0.0.0
 	github.com/fatih/color v1.7.0

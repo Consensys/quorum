@@ -58,7 +58,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			for i := 0; i < count; i++ {
-				if raftNodes[i].raftProtocolManager.role == etcdRaft.StateLeader {
+				if raftNodes[i].raftProtocolManager.role == int(etcdRaft.StateLeader) {
 					return
 				}
 			}
