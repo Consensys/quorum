@@ -109,7 +109,7 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	context := NewEVMContext(msg, header, bc, author)
 	// Quorum: Add privateStaterDb argument
 	var evm *vm.EVM
-	// TODO (ricardolyn): this is confusing passing the private state or not
+
 	if tx.IsPrivate() {
 		evm = vm.NewEVM(context, statedb, privateStateDb, config, cfg)
 	} else {

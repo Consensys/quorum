@@ -45,7 +45,6 @@ var (
 func TestPrefetch_PublicTransaction(t *testing.T) {
 	var (
 		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
 		privateTx = false
 	)
 	mockTxDataArr := createMockTxData(contractDeploymentCount, privateTx)
@@ -62,7 +61,7 @@ func TestPrefetch_PublicTransaction(t *testing.T) {
 	throwawayRepo := privateRepo.Copy()
 
 	// When
-	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, &interrupt)
+	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, nil)
 
 	// Then
 	for _, data := range mockTxDataArr {
@@ -74,7 +73,6 @@ func TestPrefetch_PublicTransaction(t *testing.T) {
 func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	var (
 		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
 		isPrivate = true
 		mockCtrl  = gomock.NewController(t)
 	)
@@ -105,7 +103,7 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 	throwawayRepo := privateRepo.Copy()
 
 	// When
-	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, &interrupt)
+	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, nil)
 
 	// Then
 	throwawayPrivateState, _ := throwawayRepo.DefaultState()
@@ -119,7 +117,6 @@ func TestPrefetch_PrivateDualStateTransaction(t *testing.T) {
 func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	var (
 		engine    = ethash.NewFaker()
-		interrupt = uint32(0)
 		isPrivate = true
 		mockCtrl  = gomock.NewController(t)
 	)
@@ -170,7 +167,7 @@ func TestPrefetch_PrivateMPSTransaction(t *testing.T) {
 	throwawayRepo := privateRepo.Copy()
 
 	// When
-	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, &interrupt)
+	prefetcher.Prefetch(futureBlock, throwaway, throwawayRepo, vm.Config{}, nil)
 
 	// Then
 	throwawayDefaultPrivateState, _ := throwawayRepo.DefaultState()
