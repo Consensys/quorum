@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	etcdRaft "go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 	"go.uber.org/zap"
@@ -58,7 +57,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			for i := 0; i < count; i++ {
-				if raftNodes[i].raftProtocolManager.role == int(etcdRaft.StateLeader) {
+				if raftNodes[i].raftProtocolManager.role == minterRole {
 					return
 				}
 			}

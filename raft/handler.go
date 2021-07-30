@@ -195,7 +195,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	defer pm.mu.RUnlock()
 
 	roleDescription := ""
-	if pm.role == int(etcdRaft.StateLeader) {
+	if pm.role == minterRole {
 		roleDescription = "minter"
 	} else if pm.isVerifierNode() {
 		roleDescription = "verifier"
@@ -681,7 +681,7 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 				if !ok {
 					panic("Couldn't cast role to int")
 				}
-				if intRole == int(etcdRaft.StateLeader) {
+				if intRole == minterRole {
 					log.EmitCheckpoint(log.BecameMinter)
 					pm.minter.start()
 				} else { // verifier
@@ -1078,7 +1078,7 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	if int(etcdRaft.StateLeader) == pm.role {
+	if minterRole == pm.role {
 		return pm.address, nil
 	} else if l, ok := pm.peers[pm.leader]; ok {
 		return l.address, nil
