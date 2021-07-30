@@ -242,9 +242,9 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if err != nil {
 			panic(err)
 		}
-		privateStatedb, privErr := state.New(parent.Root(), state.NewDatabase(db), nil) // Quorum
-		if privErr != nil {
-			panic(privErr)
+		privateStatedb, err := state.New(parent.Root(), state.NewDatabase(db), nil) // Quorum
+		if err != nil {
+			panic(err)
 		}
 		// Quorum: add `privateStatedb` argument
 		block, receipt := genblock(i, parent, statedb, privateStatedb)
