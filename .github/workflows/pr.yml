@@ -1,13 +1,5 @@
 name: Pull Request Check
 on:
-  push:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'mkdocs.yml'
-      - '.gitignore'
-    branches:
-      - master
   pull_request:
     paths-ignore:
       - 'docs/**'
