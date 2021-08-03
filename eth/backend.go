@@ -137,8 +137,8 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			return nil, errors.New("Cannot have chain id or network id as 1.")
 		}
 
-		if config.QuorumPrivacyMarkerTransactionsEnabled && chainConfig.QuorumPrecompilesV1Block == nil {
-			return nil, errors.New("Privacy marker transactions require quorumPrecompilesV1Block to be set in genesis.json")
+		if config.QuorumPrivacyMarkerTransactionsEnabled && chainConfig.PrivacyPrecompileBlock == nil {
+			return nil, errors.New("Privacy marker transactions require privacyPrecompileBlock to be set in genesis.json")
 		}
 	}
 

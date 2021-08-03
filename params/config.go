@@ -350,8 +350,8 @@ type ChainConfig struct {
 	// to track multiple changes to maxCodeSize
 	MaxCodeSizeConfig        []MaxCodeConfigStruct `json:"maxCodeSizeConfig,omitempty"`
 	PrivacyEnhancementsBlock *big.Int              `json:"privacyEnhancementsBlock,omitempty"`
-	IsMPS                    bool                  `json:"isMPS"` // multiple private states flag
-	QuorumPrecompilesV1Block *big.Int              `json:"quorumPrecompilesV1Block,omitempty"`
+	IsMPS                    bool                  `json:"isMPS"`                            // multiple private states flag
+	PrivacyPrecompileBlock   *big.Int              `json:"privacyPrecompileBlock,omitempty"` // Switch block to enable privacy precompiled contract to process privacy marker transactions
 
 	// End of Quorum specific configs
 }
@@ -402,7 +402,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v YOLO v2: %v PrivacyEnhancements: %v QuorumPrecompilesV1 %v Engine: %v}",
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v YOLO v2: %v PrivacyEnhancements: %v PrivacyPrecompile: %v Engine: %v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -420,7 +420,7 @@ func (c *ChainConfig) String() string {
 		c.MuirGlacierBlock,
 		c.YoloV2Block,
 		c.PrivacyEnhancementsBlock,
-		c.QuorumPrecompilesV1Block,
+		c.PrivacyPrecompileBlock,
 		engine,
 	)
 }
@@ -630,9 +630,9 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 
 // Quorum
 //
-// Check whether num represents a block number after the QuorumPrecompilesV1 enabled fork
-func (c *ChainConfig) IsQuorumPrecompilesV1Enabled(num *big.Int) bool {
-	return isForked(c.QuorumPrecompilesV1Block, num)
+// Check whether num represents a block number after the PrivacyPrecompileBlock
+func (c *ChainConfig) IsPrivacyPrecompile(num *big.Int) bool {
+	return isForked(c.PrivacyPrecompileBlock, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -772,8 +772,8 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 	if isForkIncompatible(c.PrivacyEnhancementsBlock, newcfg.PrivacyEnhancementsBlock, head) {
 		return newCompatError("Privacy Enhancements fork block", c.PrivacyEnhancementsBlock, newcfg.PrivacyEnhancementsBlock)
 	}
-	if isForkIncompatible(c.QuorumPrecompilesV1Block, newcfg.QuorumPrecompilesV1Block, head) {
-		return newCompatError("PMT Processing fork block", c.QuorumPrecompilesV1Block, newcfg.QuorumPrecompilesV1Block)
+	if isForkIncompatible(c.PrivacyPrecompileBlock, newcfg.PrivacyPrecompileBlock, head) {
+		return newCompatError("Privacy Precompile fork block", c.PrivacyPrecompileBlock, newcfg.PrivacyPrecompileBlock)
 	}
 	return nil
 }
@@ -844,7 +844,7 @@ type Rules struct {
 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
 	IsYoloV2                                                bool
 	IsPrivacyEnhancementsEnabled                            bool // Quorum
-	IsQuorumPrecompilesV1                                   bool // Quorum
+	IsPrivacyPrecompile                                     bool // Quorum
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -865,6 +865,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		IsIstanbul:                   c.IsIstanbul(num),
 		IsYoloV2:                     c.IsYoloV2(num),
 		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num), // Quorum
-		IsQuorumPrecompilesV1:        c.IsQuorumPrecompilesV1Enabled(num), // Quorum
+		IsPrivacyPrecompile:          c.IsPrivacyPrecompile(num),          // Quorum
 	}
 }

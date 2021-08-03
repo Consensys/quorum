@@ -565,8 +565,8 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 
 	keystore, fromAcct, toAcct := createKeystore(t)
 
-	params.QuorumTestChainConfig.QuorumPrecompilesV1Block = big.NewInt(0)
-	defer func() { params.QuorumTestChainConfig.QuorumPrecompilesV1Block = nil }()
+	params.QuorumTestChainConfig.PrivacyPrecompileBlock = big.NewInt(0)
+	defer func() { params.QuorumTestChainConfig.PrivacyPrecompileBlock = nil }()
 
 	stbBackend := &StubBackend{}
 	stbBackend.multitenancySupported = false

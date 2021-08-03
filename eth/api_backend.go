@@ -447,7 +447,7 @@ func (b *EthAPIBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 }
 
 func (b *EthAPIBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
-	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsQuorumPrecompilesV1Enabled(b.eth.blockchain.CurrentBlock().Number())
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled && b.ChainConfig().IsPrivacyPrecompile(b.eth.blockchain.CurrentBlock().Number())
 }
 
 // used by Quorum

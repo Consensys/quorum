@@ -92,7 +92,7 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 func (evm *EVM) quorumPrecompile(addr common.Address) (QuorumPrecompiledContract, bool) {
 	var quorumPrecompiles map[common.Address]QuorumPrecompiledContract
 	switch {
-	case evm.chainRules.IsQuorumPrecompilesV1:
+	case evm.chainRules.IsPrivacyPrecompile:
 		quorumPrecompiles = QuorumPrecompiledContracts
 	}
 
