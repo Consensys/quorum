@@ -643,6 +643,25 @@ func (w *worker) resultLoop() {
 					log.BlockHash = hash
 				}
 				logs = append(logs, receipt.Logs...)
+
+				// If this was a public privacy marker transaction then there will be an associated private receipt to handle.
+				if receipt.PSReceipts != nil {
+					tx := block.Transaction(receipt.TxHash)
+					if tx.IsPrivacyMarker() {
+						for _, markerReceipt := range receipt.PSReceipts {
+							markerReceipt.BlockHash = hash
+							markerReceipt.BlockNumber = block.Number()
+							markerReceipt.TransactionIndex = uint(i)
+
+							// Update the block hash in all logs since it is now available and not when the
+							// receipt/log of individual transactions were created.
+							for _, log := range markerReceipt.Logs {
+								log.BlockHash = hash
+							}
+							// Note that we don't append logs here, else will get duplicates.
+						}
+					}
+				}
 			}
 
 			for i, receipt := range task.privateReceipts {
@@ -661,6 +680,11 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 
 				for _, psReceipt := range receipt.PSReceipts {
+					// if block location fields are already populated then this is a privacy marker receipt and it is
+					// already handled - skip processing it again
+					if psReceipt.BlockNumber != nil {
+						continue
+					}
 					// add block location fields
 					psReceipt.BlockHash = hash
 					psReceipt.BlockNumber = block.Number()
@@ -683,7 +707,7 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), prvReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
@@ -793,7 +817,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateRepo := workerEnv.privateStateRepo
 	txnStart := time.Now()
 
-	mpsReceipt, privateStateSnaphots, err := w.handleMPS(tx, coinbase)
+	mpsReceipt, privateStateSnaphots, err := w.handleMPS(tx, coinbase, false)
 	if err != nil {
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
 		return nil, err
@@ -806,7 +830,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS())
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo)
 	if err != nil {
 		publicStateDB.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
@@ -818,16 +842,14 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 	logs := receipt.Logs
 
+	// Quorum
 	if privateReceipt != nil {
-		logs = append(logs, privateReceipt.Logs...)
-		workerEnv.privateReceipts = append(workerEnv.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(privateReceipt.Logs, privateStateDB, privateStateRepo.DefaultStateMetadata().ID)
-		// handling the auxiliary receipt from MPS execution
-		if mpsReceipt != nil {
-			privateReceipt.PSReceipts = mpsReceipt.PSReceipts
-			logs = append(logs, mpsReceipt.Logs...)
-		}
+		newPrivateReceipt, privateLogs := core.HandlePrivateReceipt(receipt, privateReceipt, mpsReceipt, tx, privateStateDB, privateStateRepo, w.chain)
+		workerEnv.privateReceipts = append(workerEnv.privateReceipts, newPrivateReceipt)
+		logs = append(logs, privateLogs...)
 	}
+	// End Quorum
+
 	return logs, nil
 }
 
@@ -1160,7 +1182,7 @@ func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateI
 // handleMPS returns the auxiliary receipt and the non-nil snapshots.
 //
 // Caller must check for error and reverts private states.
-func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
+func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address, applyOnPartyOnly bool) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
 	workerEnv := w.current
 	privateStateRepo := workerEnv.privateStateRepo
 	// make sure we don't return NIL map
@@ -1180,7 +1202,7 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address) (mpsR
 			privateStateSnaphots[psi] = db.Snapshot()
 			return db, nil
 		}
-		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig())
+		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo, applyOnPartyOnly)
 	}
 	return
 }

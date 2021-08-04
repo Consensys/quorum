@@ -313,6 +313,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", err
 	}
 
+	//TODO(peter): revisit this, give back private tx hash or marker hash?
 	//Return the transaction hash for later lookup
 	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil

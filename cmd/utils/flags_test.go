@@ -25,10 +25,12 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -74,7 +76,7 @@ func TestSetPlugins_whenInvalidFlagsCombination(t *testing.T) {
 
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSkipVerifyFlag.Name, "false"))
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginLocalVerifyFlag.Name, "false"))
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitry value"))
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitrary value"))
 
 	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "--plugins.localverify is required for setting --plugins.publickey")
 }
@@ -96,15 +98,6 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumImmutabilityThreshold.Name, strconv.Itoa(100000)))
 	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name), "immutability threshold flag not set")
 	assert.Equal(t, 100000, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name), "immutability threshold value not set")
-}
-
-func TestSetTimeOutForCall(t *testing.T) {
-	fs := &flag.FlagSet{}
-	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
-	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(10)))
-	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "timeoutforcall flag not set")
-	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(EVMCallTimeOutFlag.Name), "timeoutforcall value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {
@@ -174,4 +167,39 @@ func Test_SplitTagsFlag(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuorumConfigFlags(t *testing.T) {
+	fs := &flag.FlagSet{}
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryEthConfig := &eth.Config{}
+
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(12)))
+	fs.Bool(MultitenancyFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(MultitenancyFlag.Name, "true"))
+	fs.Bool(QuorumEnablePrivacyMarker.Name, true, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumEnablePrivacyMarker.Name, "true"))
+	fs.Uint64(IstanbulRequestTimeoutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulRequestTimeoutFlag.Name, "23"))
+	fs.Uint64(IstanbulBlockPeriodFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulBlockPeriodFlag.Name, "34"))
+	fs.Bool(RaftModeFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
+	fs.String(PrivateCacheTrieJournalFlag.Name, "", "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "myprivatetriecache"))
+
+	require.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig))
+
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "EVMCallTimeOutFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(MultitenancyFlag.Name), "MultitenancyFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(RaftModeFlag.Name), "RaftModeFlag not set")
+
+	assert.Equal(t, 12*time.Second, arbitraryEthConfig.EVMCallTimeOut, "EVMCallTimeOut value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.EnableMultitenancy, "MultitenancyFlag value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.QuorumPrivacyMarkerTransactionsEnabled, "QuorumEnablePrivacyMarker value is incorrect")
+	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
+	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
+	assert.Equal(t, "myprivatetriecache", arbitraryEthConfig.PrivateTrieCleanCacheJournal, "PrivateTrieCleanCacheJournal value is incorrect")
 }
