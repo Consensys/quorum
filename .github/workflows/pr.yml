@@ -87,12 +87,15 @@ jobs:
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::qbft'
           - 'validator-management && networks/template::istanbul-3plus1'
+          - 'validator-management && networks/template::qbft-3plus1'
           - 'multitenancy && networks/plugins::raft-multitenancy'
           - 'migration && networks/template::istanbul-4nodes'
           - 'migration && networks/template::raft-4nodes'
           - 'basic || networks/typical::raftmps'
           - 'basic || networks/typical::istanbulmps'
+          - 'basic || networks/typical::qbftmps'
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
