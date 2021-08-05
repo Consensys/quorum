@@ -599,13 +599,12 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 	if len(data) == 0 {
 		return nil
 	}
-	// split the data into the standard receipt rlp list and the quorum extraData bytes
 	_, extraData, err := rlp.SplitList(data)
 	if err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
-	// reslice data to remove extraData and get the receipt rlp list as the result from rlp.SplitList does not include the list header bytes
+	// vanillaData does not include the header bytes so go back and get the slice from pos 0
 	vanillaDataWithListHeader := data[0 : len(data)-len(extraData)]
 
 	// Convert the receipts from their storage form to their internal representation

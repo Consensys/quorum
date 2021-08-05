@@ -170,10 +170,7 @@ func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.Enc
 	}
 
 	cacheKey := eph.Hex()
-	var extra = engine.ExtraMetadata{
-		ManagedParties: []string{from},
-		Sender:         from,
-	}
+	var extra engine.ExtraMetadata
 	cacheKeyTemp := fmt.Sprintf("%s-incomplete", cacheKey)
 	t.cache.Set(cacheKeyTemp, cache.PrivateCacheItem{
 		Payload: data,
@@ -321,11 +318,6 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 			ACHashes:       acHashes,
 			ACMerkleRoot:   acMerkleRoot,
 			PrivacyFlag:    response.PrivacyFlag,
-			ManagedParties: response.ManagedParties,
-			Sender:         response.SenderKey,
-		}
-	} else {
-		extra = engine.ExtraMetadata{
 			ManagedParties: response.ManagedParties,
 			Sender:         response.SenderKey,
 		}

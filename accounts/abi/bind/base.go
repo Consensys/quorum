@@ -63,9 +63,8 @@ type TransactOpts struct {
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 
 	// Quorum
-	PrivateFrom              string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor               []string // The public keys of the Tessera/Constellation identities this tx is intended for.
-	IsUsingPrivacyPrecompile bool
+	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
 }
 
 // FilterOpts is the collection of options to fine tune filtering for events
@@ -277,11 +276,6 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		}
 		payload = hash.Bytes()
 		rawTx = c.createPrivateTransaction(rawTx, payload)
-
-		if opts.IsUsingPrivacyPrecompile {
-			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
-			opts.PrivateFor = nil
-		}
 	}
 
 	// Choose signer to sign transaction
@@ -428,25 +422,6 @@ func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload 
 	}
 	privateTx.SetPrivate()
 	return privateTx
-}
-
-// (Quorum) createMarkerTx creates a new public privacy marker transaction for the given private tx, distributing tx to the specified privateFor recipients
-func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction, args PrivateTxArgs) (*types.Transaction, error) {
-	// Choose signer to sign transaction
-	if opts.Signer == nil {
-		return nil, errors.New("no signer to authorize the transaction with")
-	}
-	signedTx, err := opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, tx)
-	if err != nil {
-		return nil, err
-	}
-
-	hash, err := c.transactor.DistributeTransaction(ensureContext(opts.Context), signedTx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), common.FromHex(hash)), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

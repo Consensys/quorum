@@ -866,11 +866,6 @@ var (
 		Value: eth.DefaultConfig.PrivateTrieCleanCacheJournal,
 	}
 
-	QuorumEnablePrivacyMarker = cli.BoolFlag{
-		Name:  "privacymarker.enable",
-		Usage: "Enable use of privacy marker transactions (PMT) for this node.",
-	}
-
 	// Quorum Private Transaction Manager connection options
 	QuorumPTMUnixSocketFlag = DirectoryFlag{
 		Name:  "ptm.socket",
@@ -1715,8 +1710,6 @@ func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
 	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
-	cfg.QuorumPrivacyMarkerTransactionsEnabled = ctx.GlobalBool(QuorumEnablePrivacyMarker.Name)
-
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {

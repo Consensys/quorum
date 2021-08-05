@@ -509,17 +509,6 @@ web3._extend({
 			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
-			name: 'distributePrivateTransaction',
-			call: 'eth_distributePrivateTransaction',
-			params: 2,
-			inputFormatter: [null, null]
-		}),
-		new web3._extend.Method({
-			name: 'getPrivacyPrecompileAddress',
-			call: 'eth_getPrivacyPrecompileAddress',
-			params: 0,
-		}),
-		new web3._extend.Method({
 			name: 'getContractPrivacyMetadata',
 			call: 'eth_getContractPrivacyMetadata',
 			params: 1
@@ -632,18 +621,6 @@ web3._extend({
 			call: 'eth_getPSI',
 			params: 0
 		}),
-		new web3._extend.Method({
-            name: 'getPrivateTransaction',
-            call: 'eth_getPrivateTransactionByHash',
-            params: 1,
-            outputFormatter: web3._extend.formatters.outputTransactionFormatter
-        }),
-		new web3._extend.Method({
-            name: 'getPrivateTransactionReceipt',
-            call: 'eth_getPrivateTransactionReceipt',
-            params: 1,
-            outputFormatter: web3._extend.formatters.outputTransactionReceiptFormatter
-        }),
 		// END-QUORUM
 	],
 	properties: [
