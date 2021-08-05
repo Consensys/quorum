@@ -260,7 +260,6 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.MultitenancyFlag,
 			utils.RevertReasonFlag,
 			utils.PrivateCacheTrieJournalFlag,
-			utils.QuorumEnablePrivacyMarker,
 		},
 	},
 	{

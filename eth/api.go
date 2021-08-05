@@ -498,7 +498,7 @@ func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common
 	if block == nil {
 		return StorageRangeResult{}, fmt.Errorf("block %#x not found", blockHash)
 	}
-	_, _, statedb, _, _, err := api.computeTxEnv(ctx, block, txIndex, 0)
+	_, _, statedb, _, err := api.computeTxEnv(ctx, block, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}

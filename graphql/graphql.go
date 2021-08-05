@@ -121,12 +121,11 @@ func (l *Log) Data(ctx context.Context) hexutil.Bytes {
 // Transaction represents an Ethereum transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	backend       ethapi.Backend
-	hash          common.Hash
-	tx            *types.Transaction
-	block         *Block
-	index         uint64
-	receiptGetter receiptGetter
+	backend ethapi.Backend
+	hash    common.Hash
+	tx      *types.Transaction
+	block   *Block
+	index   uint64
 }
 
 // resolve returns the internal transaction object, fetching it if needed.
@@ -244,71 +243,19 @@ func (t *Transaction) Index(ctx context.Context) (*int32, error) {
 	return &index, nil
 }
 
-// (Quorum) receiptGetter allows Transaction to have different behaviours for getting transaction receipts
-// (e.g. getting standard receipts or privacy precompile receipts from the db)
-type receiptGetter interface {
-	get(ctx context.Context) (*types.Receipt, error)
-}
-
-// (Quorum) transactionReceiptGetter implements receiptGetter and provides the standard behaviour for getting transaction
-// receipts from the db
-type transactionReceiptGetter struct {
-	tx *Transaction
-}
-
-func (g *transactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
-	if _, err := g.tx.resolve(ctx); err != nil {
-		return nil, err
-	}
-	if g.tx.block == nil {
-		return nil, nil
-	}
-	receipts, err := g.tx.block.resolveReceipts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return receipts[g.tx.index], nil
-}
-
-// (Quorum) privateTransactionReceiptGetter implements receiptGetter and gets privacy precompile transaction receipts
-// from the the db
-type privateTransactionReceiptGetter struct {
-	pmt *Transaction
-}
-
-func (g *privateTransactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
-	if _, err := g.pmt.resolve(ctx); err != nil {
-		return nil, err
-	}
-	if g.pmt.block == nil {
-		return nil, nil
-	}
-	receipts, err := g.pmt.block.resolveReceipts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	receipt := receipts[g.pmt.index]
-
-	psm, err := g.pmt.backend.PSMR().ResolveForUserContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	privateReceipt := receipt.PSReceipts[psm.ID]
-	if privateReceipt == nil {
-		return nil, errors.New("could not find receipt for private transaction")
-	}
-
-	return privateReceipt, nil
-}
-
 // getReceipt returns the receipt associated with this transaction, if any.
 func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
-	// default to standard receipt getter if one is not set
-	if t.receiptGetter == nil {
-		t.receiptGetter = &transactionReceiptGetter{tx: t}
+	if _, err := t.resolve(ctx); err != nil {
+		return nil, err
 	}
-	return t.receiptGetter.get(ctx)
+	if t.block == nil {
+		return nil, nil
+	}
+	receipts, err := t.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return receipts[t.index], nil
 }
 
 func (t *Transaction) Status(ctx context.Context) (*hexutil.Uint64, error) {
@@ -367,38 +314,6 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 }
 
 // Quorum
-
-// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
-func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return nil, err
-	}
-
-	if !tx.IsPrivacyMarker() {
-		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
-		return nil, nil
-	}
-
-	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
-	if err != nil {
-		return nil, err
-	}
-
-	if pvtTx == nil {
-		return nil, nil
-	}
-
-	return &Transaction{
-		backend:       t.backend,
-		hash:          t.hash,
-		tx:            pvtTx,
-		block:         t.block,
-		index:         t.index,
-		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
-	}, nil
-}
-
 func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
 	ret := false
 	tx, err := t.resolve(ctx)

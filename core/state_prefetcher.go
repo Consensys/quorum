@@ -91,10 +91,6 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	//only precaching public txs
 	vm := vm.NewEVM(context, statedb, statedb, config, cfg)
 	vm.SetCurrentTX(tx)
-	vm.InnerApply = func(_ *types.Transaction) error {
-		// do nothing as only precaching public txs
-		return nil
-	}
 	// /Quorum
 
 	_, err = ApplyMessage(vm, msg, gaspool)
