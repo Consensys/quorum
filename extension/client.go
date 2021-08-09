@@ -48,7 +48,7 @@ func (client *InProcessClient) TransactionInBlock(blockHash common.Hash, txIndex
 		return nil, err
 	}
 
-	// Fetch the underlying private tx if we got a Private Marker Transaction
+	// Fetch the underlying private tx if we got a Privacy Marker Transaction
 	if tx.IsPrivacyMarker() {
 		return client.client.GetPrivateTransaction(context.Background(), tx.Hash())
 	}

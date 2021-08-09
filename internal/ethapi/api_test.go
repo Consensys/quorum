@@ -587,9 +587,10 @@ func TestSubmitPrivateTransactionWithPrivacyMarkerEnabled(t *testing.T) {
 	assert.NoError(err)
 	assert.True(stbBackend.sendTxCalled, "transaction was not sent")
 	assert.False(stbBackend.txThatWasSent.IsPrivate(), "transaction was private, instead of privacy marker transaction (public)")
-	assert.Equal(fromAcct.Address, stbBackend.txThatWasSent.From(), "expected private marker transaction to have same 'from' address as internal private tx")
+	assert.Equal(fromAcct.Address, stbBackend.txThatWasSent.From(), "expected privacy marker transaction to have same 'from' address as internal private tx")
 	assert.Equal(common.QuorumPrivacyPrecompileContractAddress(), *stbBackend.txThatWasSent.To(), "transaction 'To' address should be privacy marker precompile")
 	assert.Equal(uint64(nonce), stbBackend.txThatWasSent.Nonce(), "incorrect nonce on transaction")
+	assert.NotEqual(hexutil.Uint64(stbBackend.txThatWasSent.Gas()), gas, "privacy marker transaction should not have same gas value as internal private tx")
 }
 
 func createKeystore(t *testing.T) (*keystore.KeyStore, accounts.Account, accounts.Account) {

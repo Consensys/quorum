@@ -85,7 +85,7 @@ type ContractTransactor interface {
 	// PreparePrivateTransaction send the private transaction to Tessera/Constellation's /storeraw API using HTTP
 	PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error)
 	// DistributeTransaction distributes the private transaction payload to its private recipients, and sends the
-	// private transaction to the nodes PTM, returning a PTM hash for the Private Marker Transaction
+	// private transaction to the nodes PTM, returning a PTM hash for the Privacy Marker Transaction
 	DistributeTransaction(ctx context.Context, tx *types.Transaction, args PrivateTxArgs) (string, error)
 }
 

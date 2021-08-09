@@ -81,7 +81,7 @@ func TestBoundContract_Transact_ContractCreation_PrivacyPrecompile(t *testing.T)
 	require.NoError(t, err)
 	require.NotNil(t, pmt)
 
-	// verify the private marker transaction
+	// verify the privacy marker transaction
 	wantPMTNonce := uint64(senderNonce)
 	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
 	wantPMTData := tmPrivateTxHash.Bytes()
@@ -164,7 +164,7 @@ func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, pmt)
 
-	// verify the private marker transaction
+	// verify the privacy marker transaction
 	wantPMTNonce := uint64(senderNonce)
 	wantPMTTo := common.QuorumPrivacyPrecompileContractAddress()
 	wantPMTData := tmPrivateTxHash.Bytes()

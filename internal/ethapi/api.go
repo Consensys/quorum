@@ -485,7 +485,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 			return common.Hash{}, err
 		}
 
-		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(s.b, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -2092,7 +2092,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
-		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		pmt, err := createPrivacyMarkerTransaction(s.b, signed, &args.PrivateTxArgs)
 		if err != nil {
 			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 			return common.Hash{}, err
@@ -2187,7 +2187,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 // DistributePrivateTransaction will perform the simulation checks and send the private transactions data to the other
 // private participants
 // It then submits the entire private transaction to the attached PTM and sends it to other private participants,
-// return the PTM generated hash, intended to be used in the Input field of a Private Marker Transaction
+// return the PTM generated hash, intended to be used in the Input field of a Privacy Marker Transaction
 func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (string, error) {
 	log.Info("distributing raw private tx")
 
@@ -2865,7 +2865,7 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 // (Quorum) createPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed privateTx.
 // The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
 // privacy manager hash for the private tx.
-func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
+func createPrivacyMarkerTransaction(b Backend, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
 	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
 
 	data := new(bytes.Buffer)
@@ -2879,7 +2879,10 @@ func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs 
 		return nil, err
 	}
 
-	pmt := types.NewTransaction(privateTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), ptmHash.Bytes())
+	currentBlockHeight := b.CurrentHeader().Number
+	istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
+	intrinsicGas, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), false, true, istanbul)
+	pmt := types.NewTransaction(privateTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), intrinsicGas, privateTx.GasPrice(), ptmHash.Bytes())
 
 	return pmt, nil
 }
