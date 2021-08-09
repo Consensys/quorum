@@ -116,6 +116,10 @@ func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	}, nil
 }
 
+func (s *PublicEthereumAPI) GetPrivacyPrecompileAddress() common.Address {
+	return common.QuorumPrivacyPrecompileContractAddress()
+}
+
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
 type PublicTxPoolAPI struct {
 	b Backend
@@ -456,11 +460,11 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
-	if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
+	if replaceDataWithHash {
 		// replace the original payload with encrypted payload hash
 		args.Data = data.BytesTypeRef()
 	}
@@ -471,6 +475,35 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
 	}
+
+	// Quorum
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
+		// Look up the wallet containing the requested signer
+		account := accounts.Account{Address: args.From}
+		wallet, err := s.am.Find(account)
+		if err != nil {
+			return common.Hash{}, err
+		}
+
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		if err != nil {
+			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+
+		var pmtChainID *big.Int // PMT is public so will have different chainID used in signing compared to the internal tx
+		if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+			pmtChainID = config.ChainID
+		}
+
+		signed, err = wallet.SignTxWithPassphrase(account, passwd, pmt, pmtChainID)
+		if err != nil {
+			log.Warn("Failed to sign privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+	}
+	// /Quorum
+
 	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
@@ -1511,7 +1544,7 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	return state.GetPrivacyMetadata(address)
 }
 
-// /Quorum
+// End Quorum
 
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
@@ -1564,6 +1597,13 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
+	// Quorum: note that upstream code has been refactored into this method
+	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
+}
+
+// Quorum
+// Common code extracted from GetTransactionReceipt() to enable reuse
+func getTransactionReceiptCommonCode(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, hash common.Hash, index uint64, receipt *types.Receipt) (map[string]interface{}, error) {
 	var signer types.Signer = types.HomesteadSigner{}
 	if tx.Protected() && !tx.IsPrivate() {
 		signer = types.NewEIP155Signer(tx.ChainId())
@@ -1571,17 +1611,18 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
-		"blockHash":         blockHash,
-		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
-		"from":              from,
-		"to":                tx.To(),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"contractAddress":   nil,
-		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
+		"blockHash":                  blockHash,
+		"blockNumber":                hexutil.Uint64(blockNumber),
+		"transactionHash":            hash,
+		"transactionIndex":           hexutil.Uint64(index),
+		"from":                       from,
+		"to":                         tx.To(),
+		"gasUsed":                    hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed":          hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":            nil,
+		"logs":                       receipt.Logs,
+		"logsBloom":                  receipt.Bloom,
+		"isPrivacyMarkerTransaction": tx.IsPrivacyMarker(),
 	}
 
 	// Quorum
@@ -1604,6 +1645,86 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		fields["contractAddress"] = receipt.ContractAddress
 	}
 	return fields, nil
+}
+
+// Quorum
+// GetPrivateTransactionByHash accepts the hash for a privacy marker transaction,
+// but returns the associated private transaction
+func (s *PublicTransactionPoolAPI) GetPrivateTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+	if !private.IsQuorumPrivacyEnabled() {
+		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// first need the privacy marker transaction
+	pmt, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// now retrieve the private transaction
+	if pmt != nil {
+		tx, managedParties, _, err := private.FetchPrivateTransaction(pmt.Data())
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil && !s.b.PSMR().NotIncludeAny(psm, managedParties...) {
+			return newRPCTransaction(tx, blockHash, blockNumber, index), nil
+		}
+	}
+
+	// Transaction unknown or not a participant in the private transaction, return as such
+	return nil, nil
+}
+
+// Quorum
+// GetPrivateTransactionReceipt accepts the hash for a privacy marker transaction,
+// but returns the receipt of the associated private transaction
+func (s *PublicTransactionPoolAPI) GetPrivateTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	// first need the privacy marker transaction
+	pmt, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if pmt == nil {
+		// Transaction unknown, return as such
+		return nil, errors.New("privacy marker transaction not found")
+	}
+
+	// now retrieve the private transaction
+	tx, _, _, err := private.FetchPrivateTransaction(pmt.Data())
+	if err != nil {
+		return nil, err
+	}
+	// Transaction not found, or not a participant in the private transaction, return as such
+	if tx == nil {
+		return nil, errors.New("private transaction not found for this participant")
+	}
+
+	// get receipt for the privacy marker transaction
+	receipts, err := s.b.GetReceipts(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+	if len(receipts) <= int(index) {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+	pmtReceipt := receipts[index]
+
+	// now extract the receipt for the private transaction
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := pmtReceipt.PSReceipts[psm.ID]
+	if receipt == nil {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+
+	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
 }
 
 // Quorum: if signing a private TX, set with tx.SetPrivate() before calling this method.
@@ -1676,6 +1797,29 @@ func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend)
 			return err
 		}
 		args.PrivateFrom = psm.Addresses[0]
+	}
+	return nil
+}
+
+func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b Backend, tx *types.Transaction) error {
+	if args.PrivateFor != nil && b.ChainConfig().IsMPS {
+		retrievedPrivateFrom, err := getRawTransactionPrivateFrom(tx)
+		if err != nil {
+			return err
+		}
+		if len(args.PrivateFrom) == 0 {
+			args.PrivateFrom = retrievedPrivateFrom
+		}
+		if args.PrivateFrom != retrievedPrivateFrom {
+			return fmt.Errorf("The PrivateFrom address retrieved from the privacy manager does not match private PrivateFrom (%s) specified in transaction arguments.", args.PrivateFrom)
+		}
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return err
+		}
+		if psm.NotIncludeAny(args.PrivateFrom) {
+			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s) ", psm.ID)
+		}
 	}
 	return nil
 }
@@ -1783,20 +1927,35 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	}
 	// Quorum
 	// Need to do authorization check for Ethereum Account being used in signing.
-	// We only care about private transactions
-	if token, ok := b.SupportsMultitenancy(ctx); ok && tx.IsPrivate() {
-		psm, err := b.PSMR().ResolveForUserContext(ctx)
+	// We only care about private transactions (or the private transaction relating to a privacy marker)
+	if token, ok := b.SupportsMultitenancy(ctx); ok {
+		tx := tx
+		// If we are sending a Privacy Marker Transaction, then get the private txn details
+		if tx.IsPrivacyMarker() {
+			tx, _, _, err = private.FetchPrivateTransaction(tx.Data())
+			if err != nil {
+				return common.Hash{}, err
+			}
+		}
+		innerFrom, err := types.Sender(signer, tx)
 		if err != nil {
 			return common.Hash{}, err
 		}
-		eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, from)
-		psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, from)
-		if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
-			return common.Hash{}, multitenancy.ErrNotAuthorized
+
+		if tx.IsPrivate() {
+			psm, err := b.PSMR().ResolveForUserContext(ctx)
+			if err != nil {
+				return common.Hash{}, err
+			}
+			eoaSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+			psm, err = b.PSMR().ResolveForManagedParty(privateFrom)
+			if err != nil {
+				return common.Hash{}, err
+			}
+			privateFromSecAttr := (&multitenancy.PrivateStateSecurityAttribute{}).WithPSI(psm.ID).WithSelfEOAIf(isRaw, innerFrom)
+			if isAuthorized, _ := multitenancy.IsAuthorized(token, eoaSecAttr, privateFromSecAttr); !isAuthorized {
+				return common.Hash{}, multitenancy.ErrNotAuthorized
+			}
 		}
 	}
 	if err := b.SendTx(ctx, tx); err != nil {
@@ -1860,6 +2019,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	}()
 
 	var contractAddr common.Address
+
 	// even the creation of a contract (init code) can invoke other contracts
 	if tx.To() != nil {
 		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
@@ -1899,13 +2059,11 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 
-	// Quorum
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
-	if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
+	if replaceDataWithHash {
 		// replace the original payload with encrypted payload hash
 		args.Data = data.BytesTypeRef()
 	}
@@ -1920,6 +2078,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 	// /Quorum
 
+	// Quorum
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
@@ -1930,6 +2089,28 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
+
+	// Quorum
+	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
+		pmt, err := createPrivacyMarkerTransaction(signed, &args.PrivateTxArgs)
+		if err != nil {
+			log.Warn("Failed to create privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+
+		var pmtChainID *big.Int // PMT is public so will have different chainID used in signing compared to the internal tx
+		if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+			pmtChainID = config.ChainID
+		}
+
+		signed, err = wallet.SignTx(account, pmt, pmtChainID)
+		if err != nil {
+			log.Warn("Failed to sign privacy marker transaction for private transaction", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+			return common.Hash{}, err
+		}
+	}
+	// /Quorum
+
 	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
 
@@ -1942,11 +2123,11 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	}
 	// Assemble the transaction and obtain rlp
 	// Quorum
-	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, FillTransaction)
+	isPrivate, replaceDataWithHash, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, FillTransaction)
 	if err != nil {
 		return nil, err
 	}
-	if isPrivate && !common.EmptyEncryptedPayloadHash(hash) {
+	if replaceDataWithHash {
 		// replace the original payload with encrypted payload hash
 		args.Data = hash.BytesTypeRef()
 	}
@@ -1989,20 +2170,60 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	}
 
 	// Quorum
-	if err := args.SetDefaultPrivateFrom(ctx, s.b); err != nil {
+	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
-
 	if !isPrivate {
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
-	// /Quorum
+
 	return SubmitTransaction(ctx, s.b, tx, args.PrivateFrom, true)
 }
+
+// DistributePrivateTransaction will perform the simulation checks and send the private transactions data to the other
+// private participants
+// It then submits the entire private transaction to the attached PTM and sends it to other private participants,
+// return the PTM generated hash, intended to be used in the Input field of a Private Marker Transaction
+func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (string, error) {
+	log.Info("distributing raw private tx")
+
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return "", err
+	}
+
+	log.Debug("deserialised raw private tx", "hash", tx.Hash())
+
+	// Quorum
+	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
+		return "", err
+	}
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	if err != nil {
+		return "", err
+	}
+	if !isPrivate {
+		return "", fmt.Errorf("transaction is not private")
+	}
+
+	serialisedTx, err := json.Marshal(tx)
+	if err != nil {
+		return "", err
+	}
+
+	_, _, txnHash, err := private.P.Send(serialisedTx, args.PrivateFrom, args.PrivateFor, &engine.ExtraMetadata{})
+	if err != nil {
+		return "", err
+	}
+	log.Debug("private transaction sent to PTM", "generated ptm-hash", txnHash)
+	return txnHash.Hex(), nil
+}
+
+// /Quorum
 
 // Sign calculates an ECDSA signature for:
 // keccack256("\x19Ethereum Signed Message:\n" + len(message) + message).
@@ -2462,6 +2683,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	if err != nil {
 		return "", err
 	}
+
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
@@ -2475,8 +2697,10 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 	return fmt.Sprintf("0x%x", data), nil
 }
 
+// Quorum
 // for raw private transaction, privateTxArgs.privateFrom will be updated with value from Tessera when payload is retrieved
-func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, replaceDataWithHash bool, hash common.EncryptedPayloadHash, err error) {
+	replaceDataWithHash = false
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if !isPrivate {
 		return
@@ -2518,14 +2742,14 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 			}
 		}
 
+		replaceDataWithHash = true
 		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
-
-		return
 	}
 
 	return
 }
 
+// Quorum
 // If transaction is raw, the tx payload is indeed the hash of the encrypted payload.
 // Then the sender key will set to privateTxArgs.privateFrom.
 //
@@ -2541,58 +2765,90 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 	data := tx.Data()
 
-	var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
-	var merkleRoot common.Hash
 	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
 
 	switch txnType {
 	case FillTransaction:
 		hash, err = private.P.StoreRaw(data, privateTxArgs.PrivateFrom)
-		return
 	case RawTransaction:
-		hash = common.BytesToEncryptedPayloadHash(data)
-		privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
-		if revErr != nil {
-			return common.EncryptedPayloadHash{}, revErr
-		}
-		log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload), "privateFrom", privateFrom)
-		privateTxArgs.PrivateFrom = privateFrom
-		var privateTx *types.Transaction
-		if tx.To() == nil {
-			privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-		} else {
-			privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-		}
-		affectedCATxHashes, merkleRoot, err = simulateExecutionForPE(ctx, b, from, privateTx, privateTxArgs)
-		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
-		if err != nil {
-			return
-		}
-
-		_, _, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-			ACHashes:     affectedCATxHashes,
-			ACMerkleRoot: merkleRoot,
-			PrivacyFlag:  privateTxArgs.PrivacyFlag,
-		})
-		if err != nil {
-			return
-		}
-
+		hash, err = handleRawPrivateTransaction(ctx, b, tx, privateTxArgs, from)
 	case NormalTransaction:
-		affectedCATxHashes, merkleRoot, err = simulateExecutionForPE(ctx, b, from, tx, privateTxArgs)
-		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
-		if err != nil {
-			return
-		}
+		hash, err = handleNormalPrivateTransaction(ctx, b, tx, data, privateTxArgs, from)
+	}
+	return
+}
 
-		_, _, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-			ACHashes:     affectedCATxHashes,
-			ACMerkleRoot: merkleRoot,
-			PrivacyFlag:  privateTxArgs.PrivacyFlag,
-		})
-		if err != nil {
-			return
-		}
+func getRawTransactionPrivateFrom(tx *types.Transaction) (string, error) {
+	data := tx.Data()
+	hash := common.BytesToEncryptedPayloadHash(data)
+	_, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
+	if revErr != nil {
+		return "", revErr
+	}
+	return privateFrom, revErr
+}
+
+// Quorum
+func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address) (hash common.EncryptedPayloadHash, err error) {
+	data := tx.Data()
+	hash = common.BytesToEncryptedPayloadHash(data)
+	privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
+	if revErr != nil {
+		return common.EncryptedPayloadHash{}, revErr
+	}
+	log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload), "privateFrom", privateFrom)
+
+	privateTxArgs.PrivateFrom = privateFrom
+	var privateTx *types.Transaction
+	if tx.To() == nil {
+		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+	} else {
+		privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+	}
+
+	affectedCATxHashes, merkleRoot, err := simulateExecutionForPE(ctx, b, from, privateTx, privateTxArgs)
+	log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
+	if err != nil {
+		return
+	}
+
+	metadata := engine.ExtraMetadata{
+		ACHashes:     affectedCATxHashes,
+		ACMerkleRoot: merkleRoot,
+		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+	}
+	_, _, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &metadata)
+	if err != nil {
+		return
+	}
+
+	log.Info("sent raw private signed tx",
+		"data", common.FormatTerminalString(data),
+		"hash", hash,
+		"privatefrom", privateTxArgs.PrivateFrom,
+		"privatefor", privateTxArgs.PrivateFor,
+		"affectedCATxHashes", metadata.ACHashes,
+		"merkleroot", metadata.ACHashes,
+		"privacyflag", metadata.PrivacyFlag)
+	return
+}
+
+// Quorum
+func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, data []byte, privateTxArgs *PrivateTxArgs, from common.Address) (hash common.EncryptedPayloadHash, err error) {
+	affectedCATxHashes, merkleRoot, err := simulateExecutionForPE(ctx, b, from, tx, privateTxArgs)
+	log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
+	if err != nil {
+		return
+	}
+
+	metadata := engine.ExtraMetadata{
+		ACHashes:     affectedCATxHashes,
+		ACMerkleRoot: merkleRoot,
+		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+	}
+	_, _, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &metadata)
+	if err != nil {
+		return
 	}
 
 	log.Info("sent private signed tx",
@@ -2600,13 +2856,35 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		"hash", hash,
 		"privatefrom", privateTxArgs.PrivateFrom,
 		"privatefor", privateTxArgs.PrivateFor,
-		"affectedCATxHashes", affectedCATxHashes,
-		"merkleroot", merkleRoot,
-		"privacyflag", privateTxArgs.PrivacyFlag)
-
+		"affectedCATxHashes", metadata.ACHashes,
+		"merkleroot", metadata.ACHashes,
+		"privacyflag", metadata.PrivacyFlag)
 	return
 }
 
+// (Quorum) createPrivacyMarkerTransaction creates a new privacy marker transaction (PMT) with the given signed privateTx.
+// The private tx is sent only to the privateFor recipients. The resulting PMT's 'to' is the privacy precompile address and its 'data' is the
+// privacy manager hash for the private tx.
+func createPrivacyMarkerTransaction(privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (*types.Transaction, error) {
+	log.Trace("creating privacy marker transaction", "from", privateTx.From(), "to", privateTx.To())
+
+	data := new(bytes.Buffer)
+	err := json.NewEncoder(data).Encode(privateTx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, _, ptmHash, err := private.P.Send(data.Bytes(), privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{})
+	if err != nil {
+		return nil, err
+	}
+
+	pmt := types.NewTransaction(privateTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), ptmHash.Bytes())
+
+	return pmt, nil
+}
+
+// Quorum
 // simulateExecutionForPE simulates execution of a private transaction for enhanced privacy
 //
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts

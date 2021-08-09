@@ -205,6 +205,9 @@ type Config struct {
 	EnableMultitenancy bool `toml:"-"`
 
 	// Quorum
+	QuorumPrivacyMarkerTransactionsEnabled bool
+
+	// Quorum
 	SaveRevertReason bool `toml:"-"`
 
 	// Quorum
