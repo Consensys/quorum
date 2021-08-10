@@ -220,7 +220,7 @@ type BlockChain struct {
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
 	// Quorum
-	quorumConfig QuorumChainConfig // quorum chain config holds all the possible configuration fields for GoQuorum
+	quorumConfig *QuorumChainConfig // quorum chain config holds all the possible configuration fields for GoQuorum
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
 	// End Quorum
@@ -262,7 +262,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		badBlocks:      badBlocks,
 		// Quorum
-		quorumConfig: *quorumChainConfig,
+		quorumConfig: quorumChainConfig,
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)

@@ -202,7 +202,7 @@ type Config struct {
 	EVMCallTimeOut time.Duration
 
 	// Quorum
-	QuorumChainConfig core.QuorumChainConfig `toml:"-"`
+	core.QuorumChainConfig `toml:"-"`
 
 	// Quorum
 	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
