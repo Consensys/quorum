@@ -158,8 +158,6 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 	if err != nil {
 		return err
 	}
-	privateTriedb := mpsr.repoCache.TrieDB()
-	err = privateTriedb.Commit(mtRoot, false, nil)
 	return err
 }
 

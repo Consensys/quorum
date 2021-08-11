@@ -224,7 +224,8 @@ type BlockChain struct {
 	isMultitenant bool // if this blockchain supports multitenancy
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	saveRevertReason    bool // if we should save the revert reasons in the Tx Receipts
+	privateTrieGC       *prque.Prque // Priority queue mapping block numbers to tries to gc
+	saveRevertReason    bool         // if we should save the revert reasons in the Tx Receipts
 	// End Quorum
 }
 
@@ -248,6 +249,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		cacheConfig:      cacheConfig,
 		db:               db,
 		triegc:           prque.New(nil),
+		privateTrieGC:    prque.New(nil),
 		stateCache:       state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
 		quit:             make(chan struct{}),
 		shouldPreserve:   shouldPreserve,
@@ -1130,7 +1132,7 @@ func (bc *BlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !bc.cacheConfig.TrieDirtyDisabled {
 		triedb := bc.stateCache.TrieDB()
-
+		privateTrieDb := bc.PrivateStateManager().TrieDB()
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := bc.CurrentBlock().NumberU64(); number > offset {
 				recent := bc.GetBlockByNumber(number - offset)
@@ -1138,6 +1140,12 @@ func (bc *BlockChain) Stop() {
 				log.Info("Writing cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "root", recent.Root())
 				if err := triedb.Commit(recent.Root(), true, nil); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
+				}
+				// Quorum
+				privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
+				log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
+				if err := privateTrieDb.Commit(privateRoot, true, nil); err != nil {
+					log.Error("Failed to commit recent private state trie", "err", err)
 				}
 			}
 		}
@@ -1149,6 +1157,9 @@ func (bc *BlockChain) Stop() {
 		}
 		for !bc.triegc.Empty() {
 			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
+		}
+		for !bc.privateTrieGC.Empty() {
+			privateTrieDb.Dereference(bc.privateTrieGC.PopItem().(common.Hash))
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
@@ -1684,17 +1695,27 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 	triedb := bc.stateCache.TrieDB()
+	// Quorum
+	privateRoot := rawdb.GetPrivateStateRoot(bc.db, root)
+	privateTrieDB := bc.PrivateStateManager().TrieDB()
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.TrieDirtyDisabled {
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
-
+		// Quorum commit private root
+		if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
+			return NonStatTy, err
+		}
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		bc.triegc.Push(root, -int64(block.NumberU64()))
+
+		// Quorum
+		privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+		bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -1735,6 +1756,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					break
 				}
 				triedb.Dereference(root.(common.Hash))
+			}
+			for !bc.privateTrieGC.Empty() {
+				root, number := bc.privateTrieGC.Pop()
+				if uint64(-number) > chosen {
+					bc.privateTrieGC.Push(root, number)
+					break
+				}
+				privateTrieDB.Dereference(root.(common.Hash))
 			}
 		}
 	}
