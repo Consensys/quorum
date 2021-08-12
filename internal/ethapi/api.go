@@ -57,11 +57,6 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
-const (
-	//Hex-encoded 64 byte array of "17" values
-	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
-)
-
 type TransactionType uint8
 
 const (
@@ -1204,7 +1199,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 			data = []byte(*args.Data)
 		}
 		intrinsicGasPublic, _ := core.IntrinsicGas(data, args.To == nil, homestead, istanbul)
-		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, homestead, istanbul)
+		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), args.To == nil, homestead, istanbul)
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
 			if math.MaxUint64-hi < intrinsicGasPrivate-intrinsicGasPublic {
@@ -2881,7 +2876,11 @@ func createPrivacyMarkerTransaction(b Backend, privateTx *types.Transaction, pri
 
 	currentBlockHeight := b.CurrentHeader().Number
 	istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
-	intrinsicGas, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), false, true, istanbul)
+	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, istanbul)
+	if err != nil {
+		return nil, err
+	}
+
 	pmt := types.NewTransaction(privateTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), privateTx.Value(), intrinsicGas, privateTx.GasPrice(), ptmHash.Bytes())
 
 	return pmt, nil

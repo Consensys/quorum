@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -446,7 +447,13 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 		return nil, err
 	}
 
-	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), tx.Gas(), tx.GasPrice(), common.FromHex(hash)), nil
+	// Note: using isHomestead and isEIP2028 set to true, which may give a slightly higher gas value (but avoids making an API call to get the block number)
+	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), intrinsicGas, tx.GasPrice(), common.FromHex(hash)), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the
