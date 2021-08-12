@@ -210,8 +210,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *common.Address, originalGP *GasPool,
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
 	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository, applyOnPartiesOnly bool) (*types.Receipt, error) {
-	// clone the gas pool (as we don't want to keep consuming intrinsic gas multiple times for each MPS execution)
-	gp := new(GasPool).AddGas(originalGP.Gas())
+
 	mpsReceipt := &types.Receipt{
 		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
 			PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),
@@ -245,6 +244,10 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 			return nil, err
 		}
 		publicStateDB := publicStateDBFactory()
+
+		// use a clone of the gas pool (as we don't want to consume gas multiple times for each MPS execution, which might blow the block gasLimit on MPS node)
+		gp := new(GasPool).AddGas(originalGP.Gas())
+
 		_, privateReceipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo)
 		if err != nil {
 			return nil, err
@@ -409,8 +412,11 @@ func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, 
 		return errors.New("attempt to process non-private transaction from within ApplyInnerTransaction()")
 	}
 
+	// create a single use gas pool (as we don't want the gas consumed by the inner tx to blow the block gasLimit on a participant node)
+	singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
+
 	if privateStateRepo != nil && privateStateRepo.IsMPS() {
-		mpsReceipt, err := handleMPS(txIndex, innerTx, gp, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true)
+		mpsReceipt, err := handleMPS(txIndex, innerTx, singleUseGasPool, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true)
 		if err != nil {
 			return err
 		}
@@ -423,9 +429,7 @@ func ApplyInnerTransaction(bc *BlockChain, author *common.Address, gp *GasPool, 
 	defer prepareStates(outerTx, stateDB, privateStateDB, txIndex)
 	prepareStates(innerTx, stateDB, privateStateDB, txIndex)
 
-	singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 	used := uint64(0)
-
 	_, innerPrivateReceipt, err := ApplyTransaction(bc.Config(), bc, author, singleUseGasPool, stateDB, privateStateDB, header, innerTx, &used, evmConf, forceNonParty, privateStateRepo)
 	if err != nil {
 		return err
