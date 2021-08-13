@@ -43,7 +43,17 @@ func (client *InProcessClient) TransactionByHash(hash common.Hash) (*types.Trans
 }
 
 func (client *InProcessClient) TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error) {
-	return client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
+	tx, err := client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the underlying private tx if we got a Privacy Marker Transaction
+	if tx.IsPrivacyMarker() {
+		return client.client.GetPrivateTransaction(context.Background(), tx.Hash())
+	}
+
+	return tx, nil
 }
 
 func (client *InProcessClient) Close() {

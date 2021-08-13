@@ -119,6 +119,9 @@ const schema string = `
 		isPrivate: Boolean
 		# PrivateInputData is the actual payload of Quorum private transaction
 		privateInputData: Bytes
+		# PrivateTransaction is the internal private transaction of a public 
+        # marker transaction when privacy precompile is enabled
+		privateTransaction: Transaction
         r: BigInt!
         s: BigInt!
         v: BigInt!
