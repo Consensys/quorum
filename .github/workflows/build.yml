@@ -49,10 +49,120 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           make test all
+  docker-build:
+    name: 'Build Docker image'
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Check out project files'
+        uses: actions/checkout@v2
+      - name: 'Build docker image'
+        id: build
+        run: |
+          output_dir=${{ runner.temp }}/docker
+          mkdir -p $output_dir
+          docker build -t quorumengineering/quorum:pr .
+          docker save quorumengineering/quorum:pr > quorum-pr.tar
+          tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
+          echo "::set-output name=output_dir::$output_dir"
+      - name: 'Upload workflow artifact - Docker image'
+        uses: actions/upload-artifact@v1
+        with:
+          name: docker-image
+          path: ${{ steps.build.outputs.output_dir }}
+  acceptance-tests:
+    name: Acceptance tests (${{ matrix.tag }})
+    needs:
+      - docker-build
+    if: success()
+    strategy:
+      fail-fast: false
+      matrix:
+        # list of tag expression being executed in parallel
+        # for PR, only selective tests are run.
+        # More comprehensive suites are scheduled to run in master
+        tag:
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+          - 'gcmode && block-sync && networks/template::raft-3plus1'
+          - 'gcmode && block-sync && networks/template::istanbul-3plus1'
+          - 'gcmode && block-sync && networks/template::qbft-3plus1'
+          - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
+          - 'validator-management && networks/template::qbft-3plus1'
+          - 'validator-management && networks/template::istanbul-3plus1'
+          - 'qbft-transition-network && networks/template::qbft-4nodes-transition'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::qbft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::qbft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+          - 'basic-rpc-security || networks/plugins::raft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::qbft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
+          - 'migration && networks/template::raft-4nodes'
+          - 'migration && networks/template::istanbul-4nodes'
+          - 'migration && networks/template::raft-4nodes-ancientdb'
+          - 'migration && networks/template::istanbul-4nodes-ancientdb'
+          - 'permissions-v1 && networks/template::raft-3plus1'
+          - 'permissions-v2 && networks/template::raft-3plus1'
+          - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          - 'multitenancy && networks/plugins::raft-multitenancy'
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft-simple-mps'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+          - 'basic || networks/typical::raftmps'
+          - 'basic || networks/typical::qbftmps'
+          - 'basic || networks/typical::istanbulmps'
+          - 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
+          - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
+          - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
+          - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
+        privacy-enhancements:
+          - 'false'
+        include:
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
+            privacy-enhancements: 'true'
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+            privacy-enhancements: 'true'
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
+          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      - name: 'Run acceptance tests'
+        run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
+            quorumengineering/acctests:latest test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
   publish-docker:
     name: Publish Docker Image
     needs:
       - build
+      - acceptance-tests
     runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
