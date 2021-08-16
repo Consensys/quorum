@@ -602,6 +602,10 @@ func (b *SimulatedBackend) PreparePrivateTransaction(data []byte, privateFrom st
 	return common.EncryptedPayloadHash{}, nil
 }
 
+func (b *SimulatedBackend) DistributeTransaction(ctx context.Context, tx *types.Transaction, args bind.PrivateTxArgs) (string, error) {
+	return tx.Hash().String(), nil
+}
+
 // FilterLogs executes a log filter operation, blocking during execution and
 // returning all the results in one batch.
 //

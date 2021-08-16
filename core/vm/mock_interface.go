@@ -5,39 +5,38 @@
 package vm
 
 import (
-	big "math/big"
-	reflect "reflect"
-
 	common "github.com/ethereum/go-ethereum/common"
 	state "github.com/ethereum/go-ethereum/core/state"
 	types "github.com/ethereum/go-ethereum/core/types"
 	gomock "github.com/golang/mock/gomock"
+	big "math/big"
+	reflect "reflect"
 )
 
-// MockAccountExtraDataStateGetter is a mock of AccountExtraDataStateGetter interface.
+// MockAccountExtraDataStateGetter is a mock of AccountExtraDataStateGetter interface
 type MockAccountExtraDataStateGetter struct {
 	ctrl     *gomock.Controller
 	recorder *MockAccountExtraDataStateGetterMockRecorder
 }
 
-// MockAccountExtraDataStateGetterMockRecorder is the mock recorder for MockAccountExtraDataStateGetter.
+// MockAccountExtraDataStateGetterMockRecorder is the mock recorder for MockAccountExtraDataStateGetter
 type MockAccountExtraDataStateGetterMockRecorder struct {
 	mock *MockAccountExtraDataStateGetter
 }
 
-// NewMockAccountExtraDataStateGetter creates a new mock instance.
+// NewMockAccountExtraDataStateGetter creates a new mock instance
 func NewMockAccountExtraDataStateGetter(ctrl *gomock.Controller) *MockAccountExtraDataStateGetter {
 	mock := &MockAccountExtraDataStateGetter{ctrl: ctrl}
 	mock.recorder = &MockAccountExtraDataStateGetterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockAccountExtraDataStateGetter) EXPECT() *MockAccountExtraDataStateGetterMockRecorder {
 	return m.recorder
 }
 
-// GetPrivacyMetadata mocks base method.
+// GetPrivacyMetadata mocks base method
 func (m *MockAccountExtraDataStateGetter) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
@@ -46,13 +45,13 @@ func (m *MockAccountExtraDataStateGetter) GetPrivacyMetadata(addr common.Address
 	return ret0, ret1
 }
 
-// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata
 func (mr *MockAccountExtraDataStateGetterMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateGetter)(nil).GetPrivacyMetadata), addr)
 }
 
-// GetManagedParties mocks base method.
+// GetManagedParties mocks base method
 func (m *MockAccountExtraDataStateGetter) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetManagedParties", addr)
@@ -61,83 +60,83 @@ func (m *MockAccountExtraDataStateGetter) GetManagedParties(addr common.Address)
 	return ret0, ret1
 }
 
-// GetManagedParties indicates an expected call of GetManagedParties.
+// GetManagedParties indicates an expected call of GetManagedParties
 func (mr *MockAccountExtraDataStateGetterMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockAccountExtraDataStateGetter)(nil).GetManagedParties), addr)
 }
 
-// MockAccountExtraDataStateSetter is a mock of AccountExtraDataStateSetter interface.
+// MockAccountExtraDataStateSetter is a mock of AccountExtraDataStateSetter interface
 type MockAccountExtraDataStateSetter struct {
 	ctrl     *gomock.Controller
 	recorder *MockAccountExtraDataStateSetterMockRecorder
 }
 
-// MockAccountExtraDataStateSetterMockRecorder is the mock recorder for MockAccountExtraDataStateSetter.
+// MockAccountExtraDataStateSetterMockRecorder is the mock recorder for MockAccountExtraDataStateSetter
 type MockAccountExtraDataStateSetterMockRecorder struct {
 	mock *MockAccountExtraDataStateSetter
 }
 
-// NewMockAccountExtraDataStateSetter creates a new mock instance.
+// NewMockAccountExtraDataStateSetter creates a new mock instance
 func NewMockAccountExtraDataStateSetter(ctrl *gomock.Controller) *MockAccountExtraDataStateSetter {
 	mock := &MockAccountExtraDataStateSetter{ctrl: ctrl}
 	mock.recorder = &MockAccountExtraDataStateSetterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockAccountExtraDataStateSetter) EXPECT() *MockAccountExtraDataStateSetterMockRecorder {
 	return m.recorder
 }
 
-// SetPrivacyMetadata mocks base method.
+// SetPrivacyMetadata mocks base method
 func (m *MockAccountExtraDataStateSetter) SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetPrivacyMetadata", addr, pm)
 }
 
-// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata.
+// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata
 func (mr *MockAccountExtraDataStateSetterMockRecorder) SetPrivacyMetadata(addr, pm interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPrivacyMetadata", reflect.TypeOf((*MockAccountExtraDataStateSetter)(nil).SetPrivacyMetadata), addr, pm)
 }
 
-// SetManagedParties mocks base method.
+// SetManagedParties mocks base method
 func (m *MockAccountExtraDataStateSetter) SetManagedParties(addr common.Address, managedParties []string) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetManagedParties", addr, managedParties)
 }
 
-// SetManagedParties indicates an expected call of SetManagedParties.
+// SetManagedParties indicates an expected call of SetManagedParties
 func (mr *MockAccountExtraDataStateSetterMockRecorder) SetManagedParties(addr, managedParties interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedParties", reflect.TypeOf((*MockAccountExtraDataStateSetter)(nil).SetManagedParties), addr, managedParties)
 }
 
-// MockMinimalApiState is a mock of MinimalApiState interface.
+// MockMinimalApiState is a mock of MinimalApiState interface
 type MockMinimalApiState struct {
 	ctrl     *gomock.Controller
 	recorder *MockMinimalApiStateMockRecorder
 }
 
-// MockMinimalApiStateMockRecorder is the mock recorder for MockMinimalApiState.
+// MockMinimalApiStateMockRecorder is the mock recorder for MockMinimalApiState
 type MockMinimalApiStateMockRecorder struct {
 	mock *MockMinimalApiState
 }
 
-// NewMockMinimalApiState creates a new mock instance.
+// NewMockMinimalApiState creates a new mock instance
 func NewMockMinimalApiState(ctrl *gomock.Controller) *MockMinimalApiState {
 	mock := &MockMinimalApiState{ctrl: ctrl}
 	mock.recorder = &MockMinimalApiStateMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockMinimalApiState) EXPECT() *MockMinimalApiStateMockRecorder {
 	return m.recorder
 }
 
-// GetPrivacyMetadata mocks base method.
+// GetPrivacyMetadata mocks base method
 func (m *MockMinimalApiState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
@@ -146,13 +145,13 @@ func (m *MockMinimalApiState) GetPrivacyMetadata(addr common.Address) (*state.Pr
 	return ret0, ret1
 }
 
-// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata
 func (mr *MockMinimalApiStateMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockMinimalApiState)(nil).GetPrivacyMetadata), addr)
 }
 
-// GetManagedParties mocks base method.
+// GetManagedParties mocks base method
 func (m *MockMinimalApiState) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetManagedParties", addr)
@@ -161,13 +160,13 @@ func (m *MockMinimalApiState) GetManagedParties(addr common.Address) ([]string, 
 	return ret0, ret1
 }
 
-// GetManagedParties indicates an expected call of GetManagedParties.
+// GetManagedParties indicates an expected call of GetManagedParties
 func (mr *MockMinimalApiStateMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockMinimalApiState)(nil).GetManagedParties), addr)
 }
 
-// GetBalance mocks base method.
+// GetBalance mocks base method
 func (m *MockMinimalApiState) GetBalance(addr common.Address) *big.Int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBalance", addr)
@@ -175,25 +174,25 @@ func (m *MockMinimalApiState) GetBalance(addr common.Address) *big.Int {
 	return ret0
 }
 
-// GetBalance indicates an expected call of GetBalance.
+// GetBalance indicates an expected call of GetBalance
 func (mr *MockMinimalApiStateMockRecorder) GetBalance(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockMinimalApiState)(nil).GetBalance), addr)
 }
 
-// SetBalance mocks base method.
+// SetBalance mocks base method
 func (m *MockMinimalApiState) SetBalance(addr common.Address, balance *big.Int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetBalance", addr, balance)
 }
 
-// SetBalance indicates an expected call of SetBalance.
+// SetBalance indicates an expected call of SetBalance
 func (mr *MockMinimalApiStateMockRecorder) SetBalance(addr, balance interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockMinimalApiState)(nil).SetBalance), addr, balance)
 }
 
-// GetCode mocks base method.
+// GetCode mocks base method
 func (m *MockMinimalApiState) GetCode(addr common.Address) []byte {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCode", addr)
@@ -201,13 +200,13 @@ func (m *MockMinimalApiState) GetCode(addr common.Address) []byte {
 	return ret0
 }
 
-// GetCode indicates an expected call of GetCode.
+// GetCode indicates an expected call of GetCode
 func (mr *MockMinimalApiStateMockRecorder) GetCode(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCode", reflect.TypeOf((*MockMinimalApiState)(nil).GetCode), addr)
 }
 
-// GetState mocks base method.
+// GetState mocks base method
 func (m *MockMinimalApiState) GetState(a common.Address, b common.Hash) common.Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetState", a, b)
@@ -215,13 +214,13 @@ func (m *MockMinimalApiState) GetState(a common.Address, b common.Hash) common.H
 	return ret0
 }
 
-// GetState indicates an expected call of GetState.
+// GetState indicates an expected call of GetState
 func (mr *MockMinimalApiStateMockRecorder) GetState(a, b interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetState", reflect.TypeOf((*MockMinimalApiState)(nil).GetState), a, b)
 }
 
-// GetNonce mocks base method.
+// GetNonce mocks base method
 func (m *MockMinimalApiState) GetNonce(addr common.Address) uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNonce", addr)
@@ -229,37 +228,37 @@ func (m *MockMinimalApiState) GetNonce(addr common.Address) uint64 {
 	return ret0
 }
 
-// GetNonce indicates an expected call of GetNonce.
+// GetNonce indicates an expected call of GetNonce
 func (mr *MockMinimalApiStateMockRecorder) GetNonce(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNonce", reflect.TypeOf((*MockMinimalApiState)(nil).GetNonce), addr)
 }
 
-// SetNonce mocks base method.
+// SetNonce mocks base method
 func (m *MockMinimalApiState) SetNonce(addr common.Address, nonce uint64) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetNonce", addr, nonce)
 }
 
-// SetNonce indicates an expected call of SetNonce.
+// SetNonce indicates an expected call of SetNonce
 func (mr *MockMinimalApiStateMockRecorder) SetNonce(addr, nonce interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNonce", reflect.TypeOf((*MockMinimalApiState)(nil).SetNonce), addr, nonce)
 }
 
-// SetCode mocks base method.
+// SetCode mocks base method
 func (m *MockMinimalApiState) SetCode(arg0 common.Address, arg1 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetCode", arg0, arg1)
 }
 
-// SetCode indicates an expected call of SetCode.
+// SetCode indicates an expected call of SetCode
 func (mr *MockMinimalApiStateMockRecorder) SetCode(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockMinimalApiState)(nil).SetCode), arg0, arg1)
 }
 
-// GetRLPEncodedStateObject mocks base method.
+// GetRLPEncodedStateObject mocks base method
 func (m *MockMinimalApiState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRLPEncodedStateObject", addr)
@@ -268,13 +267,13 @@ func (m *MockMinimalApiState) GetRLPEncodedStateObject(addr common.Address) ([]b
 	return ret0, ret1
 }
 
-// GetRLPEncodedStateObject indicates an expected call of GetRLPEncodedStateObject.
+// GetRLPEncodedStateObject indicates an expected call of GetRLPEncodedStateObject
 func (mr *MockMinimalApiStateMockRecorder) GetRLPEncodedStateObject(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRLPEncodedStateObject", reflect.TypeOf((*MockMinimalApiState)(nil).GetRLPEncodedStateObject), addr)
 }
 
-// GetProof mocks base method.
+// GetProof mocks base method
 func (m *MockMinimalApiState) GetProof(arg0 common.Address) ([][]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProof", arg0)
@@ -283,13 +282,13 @@ func (m *MockMinimalApiState) GetProof(arg0 common.Address) ([][]byte, error) {
 	return ret0, ret1
 }
 
-// GetProof indicates an expected call of GetProof.
+// GetProof indicates an expected call of GetProof
 func (mr *MockMinimalApiStateMockRecorder) GetProof(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProof", reflect.TypeOf((*MockMinimalApiState)(nil).GetProof), arg0)
 }
 
-// GetStorageProof mocks base method.
+// GetStorageProof mocks base method
 func (m *MockMinimalApiState) GetStorageProof(arg0 common.Address, arg1 common.Hash) ([][]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStorageProof", arg0, arg1)
@@ -298,13 +297,13 @@ func (m *MockMinimalApiState) GetStorageProof(arg0 common.Address, arg1 common.H
 	return ret0, ret1
 }
 
-// GetStorageProof indicates an expected call of GetStorageProof.
+// GetStorageProof indicates an expected call of GetStorageProof
 func (mr *MockMinimalApiStateMockRecorder) GetStorageProof(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageProof", reflect.TypeOf((*MockMinimalApiState)(nil).GetStorageProof), arg0, arg1)
 }
 
-// StorageTrie mocks base method.
+// StorageTrie mocks base method
 func (m *MockMinimalApiState) StorageTrie(addr common.Address) state.Trie {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StorageTrie", addr)
@@ -312,13 +311,13 @@ func (m *MockMinimalApiState) StorageTrie(addr common.Address) state.Trie {
 	return ret0
 }
 
-// StorageTrie indicates an expected call of StorageTrie.
+// StorageTrie indicates an expected call of StorageTrie
 func (mr *MockMinimalApiStateMockRecorder) StorageTrie(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorageTrie", reflect.TypeOf((*MockMinimalApiState)(nil).StorageTrie), addr)
 }
 
-// Error mocks base method.
+// Error mocks base method
 func (m *MockMinimalApiState) Error() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Error")
@@ -326,13 +325,13 @@ func (m *MockMinimalApiState) Error() error {
 	return ret0
 }
 
-// Error indicates an expected call of Error.
+// Error indicates an expected call of Error
 func (mr *MockMinimalApiStateMockRecorder) Error() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockMinimalApiState)(nil).Error))
 }
 
-// GetCodeHash mocks base method.
+// GetCodeHash mocks base method
 func (m *MockMinimalApiState) GetCodeHash(arg0 common.Address) common.Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeHash", arg0)
@@ -340,60 +339,60 @@ func (m *MockMinimalApiState) GetCodeHash(arg0 common.Address) common.Hash {
 	return ret0
 }
 
-// GetCodeHash indicates an expected call of GetCodeHash.
+// GetCodeHash indicates an expected call of GetCodeHash
 func (mr *MockMinimalApiStateMockRecorder) GetCodeHash(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeHash", reflect.TypeOf((*MockMinimalApiState)(nil).GetCodeHash), arg0)
 }
 
-// SetState mocks base method.
+// SetState mocks base method
 func (m *MockMinimalApiState) SetState(arg0 common.Address, arg1, arg2 common.Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetState", arg0, arg1, arg2)
 }
 
-// SetState indicates an expected call of SetState.
+// SetState indicates an expected call of SetState
 func (mr *MockMinimalApiStateMockRecorder) SetState(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetState", reflect.TypeOf((*MockMinimalApiState)(nil).SetState), arg0, arg1, arg2)
 }
 
-// SetStorage mocks base method.
+// SetStorage mocks base method
 func (m *MockMinimalApiState) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetStorage", addr, storage)
 }
 
-// SetStorage indicates an expected call of SetStorage.
+// SetStorage indicates an expected call of SetStorage
 func (mr *MockMinimalApiStateMockRecorder) SetStorage(addr, storage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockMinimalApiState)(nil).SetStorage), addr, storage)
 }
 
-// MockStateDB is a mock of StateDB interface.
+// MockStateDB is a mock of StateDB interface
 type MockStateDB struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateDBMockRecorder
 }
 
-// MockStateDBMockRecorder is the mock recorder for MockStateDB.
+// MockStateDBMockRecorder is the mock recorder for MockStateDB
 type MockStateDBMockRecorder struct {
 	mock *MockStateDB
 }
 
-// NewMockStateDB creates a new mock instance.
+// NewMockStateDB creates a new mock instance
 func NewMockStateDB(ctrl *gomock.Controller) *MockStateDB {
 	mock := &MockStateDB{ctrl: ctrl}
 	mock.recorder = &MockStateDBMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockStateDB) EXPECT() *MockStateDBMockRecorder {
 	return m.recorder
 }
 
-// GetPrivacyMetadata mocks base method.
+// GetPrivacyMetadata mocks base method
 func (m *MockStateDB) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrivacyMetadata", addr)
@@ -402,13 +401,13 @@ func (m *MockStateDB) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMet
 	return ret0, ret1
 }
 
-// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata.
+// GetPrivacyMetadata indicates an expected call of GetPrivacyMetadata
 func (mr *MockStateDBMockRecorder) GetPrivacyMetadata(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).GetPrivacyMetadata), addr)
 }
 
-// GetManagedParties mocks base method.
+// GetManagedParties mocks base method
 func (m *MockStateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetManagedParties", addr)
@@ -417,13 +416,13 @@ func (m *MockStateDB) GetManagedParties(addr common.Address) ([]string, error) {
 	return ret0, ret1
 }
 
-// GetManagedParties indicates an expected call of GetManagedParties.
+// GetManagedParties indicates an expected call of GetManagedParties
 func (mr *MockStateDBMockRecorder) GetManagedParties(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManagedParties", reflect.TypeOf((*MockStateDB)(nil).GetManagedParties), addr)
 }
 
-// GetBalance mocks base method.
+// GetBalance mocks base method
 func (m *MockStateDB) GetBalance(addr common.Address) *big.Int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBalance", addr)
@@ -431,25 +430,25 @@ func (m *MockStateDB) GetBalance(addr common.Address) *big.Int {
 	return ret0
 }
 
-// GetBalance indicates an expected call of GetBalance.
+// GetBalance indicates an expected call of GetBalance
 func (mr *MockStateDBMockRecorder) GetBalance(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockStateDB)(nil).GetBalance), addr)
 }
 
-// SetBalance mocks base method.
+// SetBalance mocks base method
 func (m *MockStateDB) SetBalance(addr common.Address, balance *big.Int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetBalance", addr, balance)
 }
 
-// SetBalance indicates an expected call of SetBalance.
+// SetBalance indicates an expected call of SetBalance
 func (mr *MockStateDBMockRecorder) SetBalance(addr, balance interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockStateDB)(nil).SetBalance), addr, balance)
 }
 
-// GetCode mocks base method.
+// GetCode mocks base method
 func (m *MockStateDB) GetCode(addr common.Address) []byte {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCode", addr)
@@ -457,13 +456,13 @@ func (m *MockStateDB) GetCode(addr common.Address) []byte {
 	return ret0
 }
 
-// GetCode indicates an expected call of GetCode.
+// GetCode indicates an expected call of GetCode
 func (mr *MockStateDBMockRecorder) GetCode(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCode", reflect.TypeOf((*MockStateDB)(nil).GetCode), addr)
 }
 
-// GetState mocks base method.
+// GetState mocks base method
 func (m *MockStateDB) GetState(a common.Address, b common.Hash) common.Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetState", a, b)
@@ -471,13 +470,13 @@ func (m *MockStateDB) GetState(a common.Address, b common.Hash) common.Hash {
 	return ret0
 }
 
-// GetState indicates an expected call of GetState.
+// GetState indicates an expected call of GetState
 func (mr *MockStateDBMockRecorder) GetState(a, b interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetState", reflect.TypeOf((*MockStateDB)(nil).GetState), a, b)
 }
 
-// GetNonce mocks base method.
+// GetNonce mocks base method
 func (m *MockStateDB) GetNonce(addr common.Address) uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNonce", addr)
@@ -485,37 +484,37 @@ func (m *MockStateDB) GetNonce(addr common.Address) uint64 {
 	return ret0
 }
 
-// GetNonce indicates an expected call of GetNonce.
+// GetNonce indicates an expected call of GetNonce
 func (mr *MockStateDBMockRecorder) GetNonce(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNonce", reflect.TypeOf((*MockStateDB)(nil).GetNonce), addr)
 }
 
-// SetNonce mocks base method.
+// SetNonce mocks base method
 func (m *MockStateDB) SetNonce(addr common.Address, nonce uint64) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetNonce", addr, nonce)
 }
 
-// SetNonce indicates an expected call of SetNonce.
+// SetNonce indicates an expected call of SetNonce
 func (mr *MockStateDBMockRecorder) SetNonce(addr, nonce interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNonce", reflect.TypeOf((*MockStateDB)(nil).SetNonce), addr, nonce)
 }
 
-// SetCode mocks base method.
+// SetCode mocks base method
 func (m *MockStateDB) SetCode(arg0 common.Address, arg1 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetCode", arg0, arg1)
 }
 
-// SetCode indicates an expected call of SetCode.
+// SetCode indicates an expected call of SetCode
 func (mr *MockStateDBMockRecorder) SetCode(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockStateDB)(nil).SetCode), arg0, arg1)
 }
 
-// GetRLPEncodedStateObject mocks base method.
+// GetRLPEncodedStateObject mocks base method
 func (m *MockStateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRLPEncodedStateObject", addr)
@@ -524,13 +523,13 @@ func (m *MockStateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, err
 	return ret0, ret1
 }
 
-// GetRLPEncodedStateObject indicates an expected call of GetRLPEncodedStateObject.
+// GetRLPEncodedStateObject indicates an expected call of GetRLPEncodedStateObject
 func (mr *MockStateDBMockRecorder) GetRLPEncodedStateObject(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRLPEncodedStateObject", reflect.TypeOf((*MockStateDB)(nil).GetRLPEncodedStateObject), addr)
 }
 
-// GetProof mocks base method.
+// GetProof mocks base method
 func (m *MockStateDB) GetProof(arg0 common.Address) ([][]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProof", arg0)
@@ -539,13 +538,13 @@ func (m *MockStateDB) GetProof(arg0 common.Address) ([][]byte, error) {
 	return ret0, ret1
 }
 
-// GetProof indicates an expected call of GetProof.
+// GetProof indicates an expected call of GetProof
 func (mr *MockStateDBMockRecorder) GetProof(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProof", reflect.TypeOf((*MockStateDB)(nil).GetProof), arg0)
 }
 
-// GetStorageProof mocks base method.
+// GetStorageProof mocks base method
 func (m *MockStateDB) GetStorageProof(arg0 common.Address, arg1 common.Hash) ([][]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStorageProof", arg0, arg1)
@@ -554,13 +553,13 @@ func (m *MockStateDB) GetStorageProof(arg0 common.Address, arg1 common.Hash) ([]
 	return ret0, ret1
 }
 
-// GetStorageProof indicates an expected call of GetStorageProof.
+// GetStorageProof indicates an expected call of GetStorageProof
 func (mr *MockStateDBMockRecorder) GetStorageProof(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageProof", reflect.TypeOf((*MockStateDB)(nil).GetStorageProof), arg0, arg1)
 }
 
-// StorageTrie mocks base method.
+// StorageTrie mocks base method
 func (m *MockStateDB) StorageTrie(addr common.Address) state.Trie {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StorageTrie", addr)
@@ -568,13 +567,13 @@ func (m *MockStateDB) StorageTrie(addr common.Address) state.Trie {
 	return ret0
 }
 
-// StorageTrie indicates an expected call of StorageTrie.
+// StorageTrie indicates an expected call of StorageTrie
 func (mr *MockStateDBMockRecorder) StorageTrie(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorageTrie", reflect.TypeOf((*MockStateDB)(nil).StorageTrie), addr)
 }
 
-// Error mocks base method.
+// Error mocks base method
 func (m *MockStateDB) Error() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Error")
@@ -582,13 +581,13 @@ func (m *MockStateDB) Error() error {
 	return ret0
 }
 
-// Error indicates an expected call of Error.
+// Error indicates an expected call of Error
 func (mr *MockStateDBMockRecorder) Error() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockStateDB)(nil).Error))
 }
 
-// GetCodeHash mocks base method.
+// GetCodeHash mocks base method
 func (m *MockStateDB) GetCodeHash(arg0 common.Address) common.Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeHash", arg0)
@@ -596,97 +595,97 @@ func (m *MockStateDB) GetCodeHash(arg0 common.Address) common.Hash {
 	return ret0
 }
 
-// GetCodeHash indicates an expected call of GetCodeHash.
+// GetCodeHash indicates an expected call of GetCodeHash
 func (mr *MockStateDBMockRecorder) GetCodeHash(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeHash", reflect.TypeOf((*MockStateDB)(nil).GetCodeHash), arg0)
 }
 
-// SetState mocks base method.
+// SetState mocks base method
 func (m *MockStateDB) SetState(arg0 common.Address, arg1, arg2 common.Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetState", arg0, arg1, arg2)
 }
 
-// SetState indicates an expected call of SetState.
+// SetState indicates an expected call of SetState
 func (mr *MockStateDBMockRecorder) SetState(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetState", reflect.TypeOf((*MockStateDB)(nil).SetState), arg0, arg1, arg2)
 }
 
-// SetStorage mocks base method.
+// SetStorage mocks base method
 func (m *MockStateDB) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetStorage", addr, storage)
 }
 
-// SetStorage indicates an expected call of SetStorage.
+// SetStorage indicates an expected call of SetStorage
 func (mr *MockStateDBMockRecorder) SetStorage(addr, storage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockStateDB)(nil).SetStorage), addr, storage)
 }
 
-// SetPrivacyMetadata mocks base method.
+// SetPrivacyMetadata mocks base method
 func (m *MockStateDB) SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetPrivacyMetadata", addr, pm)
 }
 
-// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata.
+// SetPrivacyMetadata indicates an expected call of SetPrivacyMetadata
 func (mr *MockStateDBMockRecorder) SetPrivacyMetadata(addr, pm interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPrivacyMetadata", reflect.TypeOf((*MockStateDB)(nil).SetPrivacyMetadata), addr, pm)
 }
 
-// SetManagedParties mocks base method.
+// SetManagedParties mocks base method
 func (m *MockStateDB) SetManagedParties(addr common.Address, managedParties []string) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetManagedParties", addr, managedParties)
 }
 
-// SetManagedParties indicates an expected call of SetManagedParties.
+// SetManagedParties indicates an expected call of SetManagedParties
 func (mr *MockStateDBMockRecorder) SetManagedParties(addr, managedParties interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedParties", reflect.TypeOf((*MockStateDB)(nil).SetManagedParties), addr, managedParties)
 }
 
-// CreateAccount mocks base method.
+// CreateAccount mocks base method
 func (m *MockStateDB) CreateAccount(arg0 common.Address) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "CreateAccount", arg0)
 }
 
-// CreateAccount indicates an expected call of CreateAccount.
+// CreateAccount indicates an expected call of CreateAccount
 func (mr *MockStateDBMockRecorder) CreateAccount(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockStateDB)(nil).CreateAccount), arg0)
 }
 
-// SubBalance mocks base method.
+// SubBalance mocks base method
 func (m *MockStateDB) SubBalance(arg0 common.Address, arg1 *big.Int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SubBalance", arg0, arg1)
 }
 
-// SubBalance indicates an expected call of SubBalance.
+// SubBalance indicates an expected call of SubBalance
 func (mr *MockStateDBMockRecorder) SubBalance(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubBalance", reflect.TypeOf((*MockStateDB)(nil).SubBalance), arg0, arg1)
 }
 
-// AddBalance mocks base method.
+// AddBalance mocks base method
 func (m *MockStateDB) AddBalance(arg0 common.Address, arg1 *big.Int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddBalance", arg0, arg1)
 }
 
-// AddBalance indicates an expected call of AddBalance.
+// AddBalance indicates an expected call of AddBalance
 func (mr *MockStateDBMockRecorder) AddBalance(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBalance", reflect.TypeOf((*MockStateDB)(nil).AddBalance), arg0, arg1)
 }
 
-// GetCodeSize mocks base method.
+// GetCodeSize mocks base method
 func (m *MockStateDB) GetCodeSize(arg0 common.Address) int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeSize", arg0)
@@ -694,37 +693,37 @@ func (m *MockStateDB) GetCodeSize(arg0 common.Address) int {
 	return ret0
 }
 
-// GetCodeSize indicates an expected call of GetCodeSize.
+// GetCodeSize indicates an expected call of GetCodeSize
 func (mr *MockStateDBMockRecorder) GetCodeSize(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeSize", reflect.TypeOf((*MockStateDB)(nil).GetCodeSize), arg0)
 }
 
-// AddRefund mocks base method.
+// AddRefund mocks base method
 func (m *MockStateDB) AddRefund(arg0 uint64) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddRefund", arg0)
 }
 
-// AddRefund indicates an expected call of AddRefund.
+// AddRefund indicates an expected call of AddRefund
 func (mr *MockStateDBMockRecorder) AddRefund(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRefund", reflect.TypeOf((*MockStateDB)(nil).AddRefund), arg0)
 }
 
-// SubRefund mocks base method.
+// SubRefund mocks base method
 func (m *MockStateDB) SubRefund(arg0 uint64) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SubRefund", arg0)
 }
 
-// SubRefund indicates an expected call of SubRefund.
+// SubRefund indicates an expected call of SubRefund
 func (mr *MockStateDBMockRecorder) SubRefund(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubRefund", reflect.TypeOf((*MockStateDB)(nil).SubRefund), arg0)
 }
 
-// GetRefund mocks base method.
+// GetRefund mocks base method
 func (m *MockStateDB) GetRefund() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRefund")
@@ -732,13 +731,13 @@ func (m *MockStateDB) GetRefund() uint64 {
 	return ret0
 }
 
-// GetRefund indicates an expected call of GetRefund.
+// GetRefund indicates an expected call of GetRefund
 func (mr *MockStateDBMockRecorder) GetRefund() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRefund", reflect.TypeOf((*MockStateDB)(nil).GetRefund))
 }
 
-// GetCommittedState mocks base method.
+// GetCommittedState mocks base method
 func (m *MockStateDB) GetCommittedState(arg0 common.Address, arg1 common.Hash) common.Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCommittedState", arg0, arg1)
@@ -746,13 +745,13 @@ func (m *MockStateDB) GetCommittedState(arg0 common.Address, arg1 common.Hash) c
 	return ret0
 }
 
-// GetCommittedState indicates an expected call of GetCommittedState.
+// GetCommittedState indicates an expected call of GetCommittedState
 func (mr *MockStateDBMockRecorder) GetCommittedState(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommittedState", reflect.TypeOf((*MockStateDB)(nil).GetCommittedState), arg0, arg1)
 }
 
-// Suicide mocks base method.
+// Suicide mocks base method
 func (m *MockStateDB) Suicide(arg0 common.Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Suicide", arg0)
@@ -760,13 +759,13 @@ func (m *MockStateDB) Suicide(arg0 common.Address) bool {
 	return ret0
 }
 
-// Suicide indicates an expected call of Suicide.
+// Suicide indicates an expected call of Suicide
 func (mr *MockStateDBMockRecorder) Suicide(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suicide", reflect.TypeOf((*MockStateDB)(nil).Suicide), arg0)
 }
 
-// HasSuicided mocks base method.
+// HasSuicided mocks base method
 func (m *MockStateDB) HasSuicided(arg0 common.Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasSuicided", arg0)
@@ -774,13 +773,13 @@ func (m *MockStateDB) HasSuicided(arg0 common.Address) bool {
 	return ret0
 }
 
-// HasSuicided indicates an expected call of HasSuicided.
+// HasSuicided indicates an expected call of HasSuicided
 func (mr *MockStateDBMockRecorder) HasSuicided(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasSuicided", reflect.TypeOf((*MockStateDB)(nil).HasSuicided), arg0)
 }
 
-// Exist mocks base method.
+// Exist mocks base method
 func (m *MockStateDB) Exist(arg0 common.Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exist", arg0)
@@ -788,13 +787,13 @@ func (m *MockStateDB) Exist(arg0 common.Address) bool {
 	return ret0
 }
 
-// Exist indicates an expected call of Exist.
+// Exist indicates an expected call of Exist
 func (mr *MockStateDBMockRecorder) Exist(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exist", reflect.TypeOf((*MockStateDB)(nil).Exist), arg0)
 }
 
-// Empty mocks base method.
+// Empty mocks base method
 func (m *MockStateDB) Empty(arg0 common.Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Empty", arg0)
@@ -802,25 +801,78 @@ func (m *MockStateDB) Empty(arg0 common.Address) bool {
 	return ret0
 }
 
-// Empty indicates an expected call of Empty.
+// Empty indicates an expected call of Empty
 func (mr *MockStateDBMockRecorder) Empty(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Empty", reflect.TypeOf((*MockStateDB)(nil).Empty), arg0)
 }
 
-// RevertToSnapshot mocks base method.
+// AddressInAccessList mocks base method
+func (m *MockStateDB) AddressInAccessList(addr common.Address) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddressInAccessList", addr)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// AddressInAccessList indicates an expected call of AddressInAccessList
+func (mr *MockStateDBMockRecorder) AddressInAccessList(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddressInAccessList", reflect.TypeOf((*MockStateDB)(nil).AddressInAccessList), addr)
+}
+
+// SlotInAccessList mocks base method
+func (m *MockStateDB) SlotInAccessList(addr common.Address, slot common.Hash) (bool, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SlotInAccessList", addr, slot)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// SlotInAccessList indicates an expected call of SlotInAccessList
+func (mr *MockStateDBMockRecorder) SlotInAccessList(addr, slot interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SlotInAccessList", reflect.TypeOf((*MockStateDB)(nil).SlotInAccessList), addr, slot)
+}
+
+// AddAddressToAccessList mocks base method
+func (m *MockStateDB) AddAddressToAccessList(addr common.Address) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddAddressToAccessList", addr)
+}
+
+// AddAddressToAccessList indicates an expected call of AddAddressToAccessList
+func (mr *MockStateDBMockRecorder) AddAddressToAccessList(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAddressToAccessList", reflect.TypeOf((*MockStateDB)(nil).AddAddressToAccessList), addr)
+}
+
+// AddSlotToAccessList mocks base method
+func (m *MockStateDB) AddSlotToAccessList(addr common.Address, slot common.Hash) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddSlotToAccessList", addr, slot)
+}
+
+// AddSlotToAccessList indicates an expected call of AddSlotToAccessList
+func (mr *MockStateDBMockRecorder) AddSlotToAccessList(addr, slot interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSlotToAccessList", reflect.TypeOf((*MockStateDB)(nil).AddSlotToAccessList), addr, slot)
+}
+
+// RevertToSnapshot mocks base method
 func (m *MockStateDB) RevertToSnapshot(arg0 int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RevertToSnapshot", arg0)
 }
 
-// RevertToSnapshot indicates an expected call of RevertToSnapshot.
+// RevertToSnapshot indicates an expected call of RevertToSnapshot
 func (mr *MockStateDBMockRecorder) RevertToSnapshot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevertToSnapshot", reflect.TypeOf((*MockStateDB)(nil).RevertToSnapshot), arg0)
 }
 
-// Snapshot mocks base method.
+// Snapshot mocks base method
 func (m *MockStateDB) Snapshot() int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshot")
@@ -828,37 +880,37 @@ func (m *MockStateDB) Snapshot() int {
 	return ret0
 }
 
-// Snapshot indicates an expected call of Snapshot.
+// Snapshot indicates an expected call of Snapshot
 func (mr *MockStateDBMockRecorder) Snapshot() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockStateDB)(nil).Snapshot))
 }
 
-// AddLog mocks base method.
+// AddLog mocks base method
 func (m *MockStateDB) AddLog(arg0 *types.Log) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddLog", arg0)
 }
 
-// AddLog indicates an expected call of AddLog.
+// AddLog indicates an expected call of AddLog
 func (mr *MockStateDBMockRecorder) AddLog(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddLog", reflect.TypeOf((*MockStateDB)(nil).AddLog), arg0)
 }
 
-// AddPreimage mocks base method.
+// AddPreimage mocks base method
 func (m *MockStateDB) AddPreimage(arg0 common.Hash, arg1 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddPreimage", arg0, arg1)
 }
 
-// AddPreimage indicates an expected call of AddPreimage.
+// AddPreimage indicates an expected call of AddPreimage
 func (mr *MockStateDBMockRecorder) AddPreimage(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPreimage", reflect.TypeOf((*MockStateDB)(nil).AddPreimage), arg0, arg1)
 }
 
-// ForEachStorage mocks base method.
+// ForEachStorage mocks base method
 func (m *MockStateDB) ForEachStorage(arg0 common.Address, arg1 func(common.Hash, common.Hash) bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ForEachStorage", arg0, arg1)
@@ -866,36 +918,36 @@ func (m *MockStateDB) ForEachStorage(arg0 common.Address, arg1 func(common.Hash,
 	return ret0
 }
 
-// ForEachStorage indicates an expected call of ForEachStorage.
+// ForEachStorage indicates an expected call of ForEachStorage
 func (mr *MockStateDBMockRecorder) ForEachStorage(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForEachStorage", reflect.TypeOf((*MockStateDB)(nil).ForEachStorage), arg0, arg1)
 }
 
-// MockCallContext is a mock of CallContext interface.
+// MockCallContext is a mock of CallContext interface
 type MockCallContext struct {
 	ctrl     *gomock.Controller
 	recorder *MockCallContextMockRecorder
 }
 
-// MockCallContextMockRecorder is the mock recorder for MockCallContext.
+// MockCallContextMockRecorder is the mock recorder for MockCallContext
 type MockCallContextMockRecorder struct {
 	mock *MockCallContext
 }
 
-// NewMockCallContext creates a new mock instance.
+// NewMockCallContext creates a new mock instance
 func NewMockCallContext(ctrl *gomock.Controller) *MockCallContext {
 	mock := &MockCallContext{ctrl: ctrl}
 	mock.recorder = &MockCallContextMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockCallContext) EXPECT() *MockCallContextMockRecorder {
 	return m.recorder
 }
 
-// Call mocks base method.
+// Call mocks base method
 func (m *MockCallContext) Call(env *EVM, me ContractRef, addr common.Address, data []byte, gas, value *big.Int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Call", env, me, addr, data, gas, value)
@@ -904,13 +956,13 @@ func (m *MockCallContext) Call(env *EVM, me ContractRef, addr common.Address, da
 	return ret0, ret1
 }
 
-// Call indicates an expected call of Call.
+// Call indicates an expected call of Call
 func (mr *MockCallContextMockRecorder) Call(env, me, addr, data, gas, value interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockCallContext)(nil).Call), env, me, addr, data, gas, value)
 }
 
-// CallCode mocks base method.
+// CallCode mocks base method
 func (m *MockCallContext) CallCode(env *EVM, me ContractRef, addr common.Address, data []byte, gas, value *big.Int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CallCode", env, me, addr, data, gas, value)
@@ -919,13 +971,13 @@ func (m *MockCallContext) CallCode(env *EVM, me ContractRef, addr common.Address
 	return ret0, ret1
 }
 
-// CallCode indicates an expected call of CallCode.
+// CallCode indicates an expected call of CallCode
 func (mr *MockCallContextMockRecorder) CallCode(env, me, addr, data, gas, value interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CallCode", reflect.TypeOf((*MockCallContext)(nil).CallCode), env, me, addr, data, gas, value)
 }
 
-// DelegateCall mocks base method.
+// DelegateCall mocks base method
 func (m *MockCallContext) DelegateCall(env *EVM, me ContractRef, addr common.Address, data []byte, gas *big.Int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelegateCall", env, me, addr, data, gas)
@@ -934,13 +986,13 @@ func (m *MockCallContext) DelegateCall(env *EVM, me ContractRef, addr common.Add
 	return ret0, ret1
 }
 
-// DelegateCall indicates an expected call of DelegateCall.
+// DelegateCall indicates an expected call of DelegateCall
 func (mr *MockCallContextMockRecorder) DelegateCall(env, me, addr, data, gas interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelegateCall", reflect.TypeOf((*MockCallContext)(nil).DelegateCall), env, me, addr, data, gas)
 }
 
-// Create mocks base method.
+// Create mocks base method
 func (m *MockCallContext) Create(env *EVM, me ContractRef, data []byte, gas, value *big.Int) ([]byte, common.Address, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", env, me, data, gas, value)
@@ -950,7 +1002,7 @@ func (m *MockCallContext) Create(env *EVM, me ContractRef, data []byte, gas, val
 	return ret0, ret1, ret2
 }
 
-// Create indicates an expected call of Create.
+// Create indicates an expected call of Create
 func (mr *MockCallContextMockRecorder) Create(env, me, data, gas, value interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockCallContext)(nil).Create), env, me, data, gas, value)
