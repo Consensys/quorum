@@ -150,7 +150,7 @@ func TestApplyMessage_Private_whenTypicalCreate_Success(t *testing.T) {
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -176,7 +176,7 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1_Success(t *testing.T) 
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -242,7 +242,7 @@ func TestApplyMessage_Private_whenInteractWithPartyProtectionC1_Success(t *testi
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -280,7 +280,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -390,7 +390,7 @@ func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -552,7 +552,7 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPartyProtectionC
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -647,7 +647,7 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InState
 
 	assert.NoError(err, "EVM execution")
 	// after ACOTH check updates this is a successful scenario
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -698,7 +698,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -846,7 +846,7 @@ func TestApplyMessage_Private_whenTxManagerReturnsError_Success(t *testing.T) {
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -870,7 +870,7 @@ func TestApplyMessage_Private_whenTxManagerReturnsEmptyResult_Success(t *testing
 	result, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
 
 	assert.NoError(err, "EVM execution")
-	assert.False(result.Failed(), "Transaction receipt status")
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 	mockPM.Verify(assert)
 }
 
@@ -891,7 +891,7 @@ func createContract(cfg *config, mockPM *mockPrivateTransactionManager, assert *
 	result, err := ApplyMessage(evm, privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "%s: EVM execution", c.name)
-	assert.False(result.Failed(), "%s: Transaction receipt status", c.name)
+	assert.False(result.Failed(), fmt.Sprintf("%s: Transaction receipt status is 'failed', error == [%v]", c.name, result.Err))
 	mockPM.Verify(assert)
 	createdContracts := evm.CreatedContracts()
 	log.Trace("priv statedb", "evmstatedb", evm.StateDB)
@@ -908,7 +908,7 @@ func createPublicContract(cfg *config, assert *testifyassert.Assertions, c *cont
 	evm := newEVM(pubcfg)
 	result, err := ApplyMessage(evm, msg, new(GasPool).AddGas(math.MaxUint64))
 	assert.NoError(err, "%s: EVM execution", c.name)
-	assert.False(result.Failed(), "%s: Transaction receipt status", c.name)
+	assert.False(result.Failed(), fmt.Sprintf("%s: Transaction receipt status is 'failed', error == [%v]", c.name, result.Err))
 	createdContracts := evm.CreatedContracts()
 	log.Trace("pub statedb", "evmstatedb", evm.StateDB)
 	assert.Len(createdContracts, 1, "%s: Number of created contracts", c.name)
@@ -1301,7 +1301,7 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	result, err := testObject.TransitionDb()
 
 	assert.NoError(err)
-	assert.False(result.Failed())
+	assert.False(result.Failed(), fmt.Sprintf("Transaction receipt status is 'failed', error == [%v]", result.Err))
 
 	assert.Equal(new(big.Int).SetUint64(expectedGasPool.Gas()), new(big.Int).SetUint64(gasPool.Gas()), "gas pool must be calculated correctly")
 	assert.Equal(arbitraryBalance, publicState.GetBalance(evm.Context.Coinbase), "balance must not be changed")

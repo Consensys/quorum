@@ -232,10 +232,12 @@ func (st *StateTransition) preCheck() error {
 //
 // Quorum:
 // 1. Intrinsic gas is calculated based on the encrypted payload hash
-//    and NOT the actual private payload
+//    and NOT the actual private payload.
 // 2. For private transactions, we only deduct intrinsic gas from the gas pool
-//    regardless the current node is party to the transaction or not
-// 3. With multitenancy support, we enforce the party set in the contract index must contain all
+//    regardless the current node is party to the transaction or not.
+// 3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
+//    for the internal private transaction, regardless of whether the current node is a party.
+// 4. With multitenancy support, we enforce the party set in the contract index must contain all
 //    parties from the transaction. This is to detect unauthorized access from a legit proxy contract
 //    to an unauthorized contract.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {

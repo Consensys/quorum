@@ -536,7 +536,7 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 		result SignTxResponse
 		msgs   *ValidationMessages
 	)
-	if args.IsPrivate {
+	if args.IsPrivate || args.isPrivacyMarker() {
 		msgs = new(ValidationMessages)
 	} else {
 		msgs, err = api.validator.ValidateTransaction(methodSelector, &args)

@@ -321,3 +321,9 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
 }
+
+func (b *LesApiBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+}
+
+// End Quorum

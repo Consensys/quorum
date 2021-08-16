@@ -1052,6 +1052,35 @@ func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
+// (Quorum) GetPMTPrivateReceiptsByHash retrieves the receipts for all internal private transactions (i.e. the private
+// transaction for a privacy marker transaction) in a given block.
+func (bc *BlockChain) GetPMTPrivateReceiptsByHash(ctx context.Context, hash common.Hash) (types.Receipts, error) {
+	psm, err := bc.privateStateManager.ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	allReceipts := bc.GetReceiptsByHash(hash)
+
+	block := bc.GetBlockByHash(hash)
+	if block == nil {
+		return types.Receipts{}, nil
+	}
+
+	privateReceipts := make([]*types.Receipt, 0)
+	for i, tx := range block.Transactions() {
+		if tx.IsPrivacyMarker() {
+			receipt := allReceipts[i]
+			if receipt.PSReceipts != nil && receipt.PSReceipts[psm.ID] != nil {
+				privateReceipts = append(privateReceipts, receipt.PSReceipts[psm.ID])
+			} else {
+				return nil, errors.New("could not find receipt for private transaction")
+			}
+		}
+	}
+	return privateReceipts, nil
+}
+
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
 // [deprecated by eth/62]
 func (bc *BlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []*types.Block) {
@@ -1677,7 +1706,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Irrelevant of the canonical status, write the block itself to the database.
 	//
 	// Note all the components of block(td, hash->number map, header, body, receipts)
-	// should be written aeth/downloader/downloader.gotomically. BlockBatch is used for containing all components.
+	// should be written atomically. BlockBatch is used for containing all components.
 	blockBatch := bc.db.NewBatch()
 	rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
 	rawdb.WriteBlock(blockBatch, block)
@@ -2113,9 +2142,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if err != nil {
 			return it.index, err
 		}
+
+		// Quorum
 		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
 			return it.index, err
 		}
+		// End Quorum
+
 		// Update the metrics touched during block commit
 		accountCommitTimer.Update(statedb.AccountCommits)   // Account commits are complete, we can mark them
 		storageCommitTimer.Update(statedb.StorageCommits)   // Storage commits are complete, we can mark them

@@ -31,6 +31,7 @@ type APIBackendHelper interface {
 	PSMR() mps.PrivateStateMetadataResolver
 	CurrentBlock() *types.Block
 	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
+	IsPrivacyMarkerTransactionCreationEnabled() bool
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
