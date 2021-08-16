@@ -432,7 +432,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
-	signedTx, err := opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, tx)
+	signedTx, err := opts.Signer(opts.From, tx)
 	if err != nil {
 		return nil, err
 	}

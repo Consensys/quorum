@@ -1029,3 +1029,12 @@ func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, block *types.Block
 	}
 	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }
+
+func applyInnerTransaction(bc *core.BlockChain, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
+	var (
+		author  *common.Address = nil // ApplyTransaction will determine the author from the header so we won't do it here
+		gp      *core.GasPool   = new(core.GasPool).AddGas(outerTx.Gas())
+		usedGas uint64          = 0
+	)
+	return core.ApplyInnerTransaction(bc, author, gp, stateDB, privateStateDB, header, outerTx, &usedGas, evmConf, forceNonParty, privateStateRepo, vmenv, innerTx, txIndex)
+}
