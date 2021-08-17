@@ -2876,7 +2876,7 @@ func createPrivacyMarkerTransaction(b Backend, privateTx *types.Transaction, pri
 
 	currentBlockHeight := b.CurrentHeader().Number
 	istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
-	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, istanbul)
+	intrinsicGas, err := core.IntrinsicGas(ptmHash.Bytes(), false, true, istanbul)
 	if err != nil {
 		return nil, err
 	}
