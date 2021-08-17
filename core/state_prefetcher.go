@@ -80,16 +80,7 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, p
 		// Block precaching permitted to continue, execute the transaction
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 
-		innerApply := func(innerTx *types.Transaction) error {
-			if !tx.IsPrivacyMarker() {
-				return nil
-			} else if innerTx.IsPrivate() && privateStateRepo.IsMPS() {
-				p.prefetchMpsTransaction(block, innerTx, i, statedb.Copy(), privateStateRepo, cfg, interrupt)
-				return nil
-			} else {
-				return precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, innerTx, cfg, nil)
-			}
-		}
+		innerApply := createInnerApply(block, tx, i, statedb, privateStateRepo, cfg, interrupt, p, privateStateDb)
 
 		// Quorum: Add privateStateDb argument
 		if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, tx, cfg, innerApply); err != nil {
@@ -157,16 +148,7 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 		}
 		p.pend.Add(1)
 
-		innerApply := func(innerTx *types.Transaction) error {
-			if !tx.IsPrivacyMarker() {
-				return nil
-			} else if innerTx.IsPrivate() && privateStateRepo.IsMPS() {
-				p.prefetchMpsTransaction(block, innerTx, txIndex, statedb.Copy(), privateStateRepo, cfg, interrupt)
-				return nil
-			} else {
-				return precacheTransaction(p.config, p.bc, nil, new(GasPool).AddGas(innerTx.Gas()), statedb, privateStateDb, block.Header(), innerTx, cfg, nil)
-			}
-		}
+		innerApply := createInnerApply(block, tx, txIndex, statedb, privateStateRepo, cfg, interrupt, p, privateStateDb)
 
 		go func(start time.Time, followup *types.Block, statedb *state.StateDB, privateStateDb *state.StateDB, tx *types.Transaction, gaspool *GasPool) {
 			privateStateDb.Prepare(tx.Hash(), block.Hash(), txIndex)
@@ -181,4 +163,17 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 		}(time.Now(), block, statedb, privateStateDb, tx, new(GasPool).AddGas(tx.Gas())) // TODO ricardolyn: which gas: block or Tx?
 	}
 	p.pend.Wait()
+}
+
+func createInnerApply(block *types.Block, tx *types.Transaction, txIndex int, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config, interrupt *uint32, p *statePrefetcher, privateStateDb *state.StateDB) func(innerTx *types.Transaction) error {
+	return func(innerTx *types.Transaction) error {
+		if !tx.IsPrivacyMarker() {
+			return nil
+		} else if innerTx.IsPrivate() && privateStateRepo.IsMPS() {
+			p.prefetchMpsTransaction(block, innerTx, txIndex, statedb.Copy(), privateStateRepo, cfg, interrupt)
+			return nil
+		} else {
+			return precacheTransaction(p.config, p.bc, nil, new(GasPool).AddGas(innerTx.Gas()), statedb, privateStateDb, block.Header(), innerTx, cfg, nil)
+		}
+	}
 }
