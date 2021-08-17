@@ -80,8 +80,19 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, p
 		// Block precaching permitted to continue, execute the transaction
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 
+		innerApply := func(innerTx *types.Transaction) error {
+			if !tx.IsPrivacyMarker() {
+				return nil
+			} else if innerTx.IsPrivate() && privateStateRepo.IsMPS() {
+				p.prefetchMpsTransaction(block, innerTx, i, statedb.Copy(), privateStateRepo, cfg, interrupt)
+				return nil
+			} else {
+				return precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, innerTx, cfg, nil)
+			}
+		}
+
 		// Quorum: Add privateStateDb argument
-		if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, tx, cfg, false); err != nil {
+		if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, header, tx, cfg, innerApply); err != nil {
 			return // Ugh, something went horribly wrong, bail out
 		}
 		// If we're pre-byzantium, pre-load trie nodes for the intermediate root
@@ -99,7 +110,7 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, p
 // and uses the input parameters for its environment. The goal is not to execute
 // the transaction successfully, rather to warm up touched data slots.
 // Quorum: Add privateStateDb and isMPS arguments
-func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gaspool *GasPool, statedb *state.StateDB, privateStateDb *state.StateDB, header *types.Header, tx *types.Transaction, cfg vm.Config, isMPS bool) error {
+func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gaspool *GasPool, statedb *state.StateDB, privateStateDb *state.StateDB, header *types.Header, tx *types.Transaction, cfg vm.Config, innerApply func(*types.Transaction) error) error {
 	// Convert the transaction into an executable message and pre-cache its sender
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
@@ -107,20 +118,16 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	}
 	// Create the EVM and execute the transaction
 	context := NewEVMContext(msg, header, bc, author)
-	// Quorum: Add privateStaterDb argument
-	var evm *vm.EVM
 
+	var evm *vm.EVM
+	// Quorum: Add privateStateDb argument
 	if tx.IsPrivate() {
 		evm = vm.NewEVM(context, statedb, privateStateDb, config, cfg)
 	} else {
 		evm = vm.NewEVM(context, statedb, statedb, config, cfg)
 	}
 	evm.SetCurrentTX(tx) // Quorum
-	evm.InnerApply = func(_ *types.Transaction) error {
-		// do nothing as only precaching public txs
-		return nil
-	}
-
+	evm.InnerApply = innerApply
 
 	_, err = ApplyMessage(evm, msg, gaspool)
 	return err
@@ -129,9 +136,6 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 // Quorum
 
 func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.Transaction, txIndex int, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config, interrupt *uint32) {
-	var (
-		gaspool = new(GasPool).AddGas(block.GasLimit())
-	)
 	byzantium := p.config.IsByzantium(block.Number())
 	// Block precaching permitted to continue, execute the transaction
 	_, managedParties, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
@@ -152,9 +156,21 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 			continue
 		}
 		p.pend.Add(1)
+
+		innerApply := func(innerTx *types.Transaction) error {
+			if !tx.IsPrivacyMarker() {
+				return nil
+			} else if innerTx.IsPrivate() && privateStateRepo.IsMPS() {
+				p.prefetchMpsTransaction(block, innerTx, txIndex, statedb.Copy(), privateStateRepo, cfg, interrupt)
+				return nil
+			} else {
+				return precacheTransaction(p.config, p.bc, nil, new(GasPool).AddGas(innerTx.Gas()), statedb, privateStateDb, block.Header(), innerTx, cfg, nil)
+			}
+		}
+
 		go func(start time.Time, followup *types.Block, statedb *state.StateDB, privateStateDb *state.StateDB, tx *types.Transaction, gaspool *GasPool) {
 			privateStateDb.Prepare(tx.Hash(), block.Hash(), txIndex)
-			if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, followup.Header(), tx, cfg, true); err != nil {
+			if err := precacheTransaction(p.config, p.bc, nil, gaspool, statedb, privateStateDb, followup.Header(), tx, cfg, innerApply); err != nil {
 				return
 			}
 			// If we're pre-byzantium, pre-load trie nodes for the intermediate root
@@ -162,7 +178,7 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 				privateStateDb.IntermediateRoot(true)
 			}
 			p.pend.Done()
-		}(time.Now(), block, statedb, privateStateDb, tx, gaspool)
+		}(time.Now(), block, statedb, privateStateDb, tx, new(GasPool).AddGas(tx.Gas())) // TODO ricardolyn: which gas: block or Tx?
 	}
 	p.pend.Wait()
 }
