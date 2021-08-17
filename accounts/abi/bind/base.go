@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -63,8 +64,9 @@ type TransactOpts struct {
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 
 	// Quorum
-	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	PrivateFrom              string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor               []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	IsUsingPrivacyPrecompile bool
 }
 
 // FilterOpts is the collection of options to fine tune filtering for events
@@ -276,6 +278,11 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		}
 		payload = hash.Bytes()
 		rawTx = c.createPrivateTransaction(rawTx, payload)
+
+		if opts.IsUsingPrivacyPrecompile {
+			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
+			opts.PrivateFor = nil
+		}
 	}
 
 	// Choose signer to sign transaction
@@ -422,6 +429,31 @@ func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload 
 	}
 	privateTx.SetPrivate()
 	return privateTx
+}
+
+// (Quorum) createMarkerTx creates a new public privacy marker transaction for the given private tx, distributing tx to the specified privateFor recipients
+func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction, args PrivateTxArgs) (*types.Transaction, error) {
+	// Choose signer to sign transaction
+	if opts.Signer == nil {
+		return nil, errors.New("no signer to authorize the transaction with")
+	}
+	signedTx, err := opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := c.transactor.DistributeTransaction(ensureContext(opts.Context), signedTx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: using isHomestead and isEIP2028 set to true, which may give a slightly higher gas value (but avoids making an API call to get the block number)
+	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return types.NewTransaction(signedTx.Nonce(), common.QuorumPrivacyPrecompileContractAddress(), tx.Value(), intrinsicGas, tx.GasPrice(), common.FromHex(hash)), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

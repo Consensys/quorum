@@ -116,6 +116,11 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 		evm = vm.NewEVM(context, statedb, statedb, config, cfg)
 	}
 	evm.SetCurrentTX(tx) // Quorum
+	evm.InnerApply = func(_ *types.Transaction) error {
+		// do nothing as only precaching public txs
+		return nil
+	}
+
 
 	_, err = ApplyMessage(evm, msg, gaspool)
 	return err
