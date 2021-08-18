@@ -2075,7 +2075,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
 
 				// Quorum
-				if privateStateRepo, _ := bc.privateStateManager.StateRepository(parent.Root); privateStateRepo != nil {
+				privateStateRepo, stateRepoErr := bc.privateStateManager.StateRepository(parent.Root)
+				if privateStateRepo != nil {
 					throwawayPrivateStateRepo := privateStateRepo.Copy()
 
 					// Quorum: add privateStateThrowaway argument
@@ -2087,6 +2088,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 							blockPrefetchInterruptMeter.Mark(1)
 						}
 					}(time.Now(), followup, throwaway, throwawayPrivateStateRepo, &followupInterrupt)
+				} else if stateRepoErr != nil {
+					log.Warn("Unable to load the private state repository for pre-fetching", "stateRepoErr", stateRepoErr)
 				}
 				// End Quorum
 			}
