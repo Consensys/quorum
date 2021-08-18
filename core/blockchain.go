@@ -250,7 +250,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		db:               db,
 		triegc:           prque.New(nil),
 		privateTrieGC:    prque.New(nil),
-		stateCache:       state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		stateCache:       state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal, false),
 		quit:             make(chan struct{}),
 		shouldPreserve:   shouldPreserve,
 		bodyCache:        bodyCache,

@@ -26,7 +26,7 @@ type MultiplePrivateStateManager struct {
 func newMultiplePrivateStateManager(db ethdb.Database, cacheConfig *CacheConfig, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
 	return &MultiplePrivateStateManager{
 		db:                     db,
-		privateStatesTrieCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		privateStatesTrieCache: state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal, true),
 		residentGroupByKey:     residentGroupByKey,
 		privacyGroupById:       privacyGroupById,
 	}, nil
