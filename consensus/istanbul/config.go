@@ -18,6 +18,7 @@ package istanbul
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/naoina/toml"
 )
@@ -34,6 +35,7 @@ type ProposerPolicy struct {
 	Id       ProposerPolicyId    // Could be RoundRobin or Sticky
 	Registry []ValidatorSet      // Holds the ValidatorSet for a given block height
 	By       ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
+	policyMU *sync.Mutex         // Mutex to lock access to changes to Registry
 }
 
 // NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByString as default sort function
@@ -47,7 +49,11 @@ func NewStickyProposerPolicy() *ProposerPolicy {
 }
 
 func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
-	return &ProposerPolicy{Id: id, By: ValidatorSortByString()}
+	return NewProposerPolicyByIdAndSortFunc(id, ValidatorSortByString())
+}
+
+func NewProposerPolicyByIdAndSortFunc(id ProposerPolicyId, by ValidatorSortByFunc) *ProposerPolicy {
+	return &ProposerPolicy{Id: id, By: by, policyMU: new(sync.Mutex)}
 }
 
 type proposerPolicyToml struct {
@@ -81,6 +87,9 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 
 // RegisterValidatorSet stores the given ValidatorSet in the policy registry
 func (p *ProposerPolicy) RegisterValidatorSet(valSet ValidatorSet) {
+	p.policyMU.Lock()
+	defer p.policyMU.Unlock()
+
 	if len(p.Registry) == 0 {
 		p.Registry = []ValidatorSet{valSet}
 	} else {
@@ -90,6 +99,9 @@ func (p *ProposerPolicy) RegisterValidatorSet(valSet ValidatorSet) {
 
 // ClearRegistry removes any ValidatorSet from the ProposerPolicy registry
 func (p *ProposerPolicy) ClearRegistry() {
+	p.policyMU.Lock()
+	defer p.policyMU.Unlock()
+
 	p.Registry = nil
 }
 
