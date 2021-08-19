@@ -225,13 +225,13 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
 	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	if err != nil {
+		return nil, err
+	}
 
 	// Quorum
 	eth.blockchain.SetSaveRevertReason(config.SaveRevertReason)
 
-	if err != nil {
-		return nil, err
-	}
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
