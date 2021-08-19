@@ -203,13 +203,7 @@ type Config struct {
 	EVMCallTimeOut time.Duration
 
 	// Quorum
-	EnableMultitenancy bool `toml:"-"`
-
-	// Quorum
-	QuorumPrivacyMarkerTransactionsEnabled bool
-
-	// Quorum
-	SaveRevertReason bool `toml:"-"`
+	core.QuorumChainConfig `toml:"-"`
 
 	// Quorum
 	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts

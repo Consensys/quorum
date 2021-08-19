@@ -311,7 +311,7 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 // Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
-	if authToken != nil && b.eth.config.EnableMultitenancy {
+	if authToken != nil && b.eth.config.MultiTenantEnabled() {
 		return authToken, true
 	}
 	return nil, false
@@ -323,7 +323,7 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 }
 
 func (b *LesApiBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
-	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+	return b.eth.config.QuorumChainConfig.PrivacyMarkerEnabled()
 }
 
 // End Quorum

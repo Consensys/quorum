@@ -343,7 +343,7 @@ func createBlockchain(chainConfig *params.ChainConfig, mockTxDataArr []*mockTxDa
 		Debug:  true,
 		Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}
-	chain, _ := NewBlockChain(diskdb, &cacheConfig, gspec.Config, engine, vmConfig, nil, nil)
+	chain, _ := NewBlockChain(diskdb, &cacheConfig, gspec.Config, engine, vmConfig, nil, nil, nil)
 
 	return chain, gspec
 }

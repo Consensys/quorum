@@ -422,7 +422,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockCh
 	}
 
 	// Save revert reason if feature enabled
-	if bc != nil && bc.saveRevertReason {
+	if bc != nil && bc.quorumConfig.RevertReasonEnabled() {
 		revertReason := result.Revert()
 		if revertReason != nil {
 			if config.IsQuorum && tx.IsPrivate() {

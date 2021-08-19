@@ -1717,10 +1717,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
-	cfg.SaveRevertReason = ctx.GlobalBool(RevertReasonFlag.Name)
-	cfg.QuorumPrivacyMarkerTransactionsEnabled = ctx.GlobalBool(QuorumEnablePrivacyMarker.Name)
-
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name))
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
@@ -2292,7 +2289,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		limit = &l
 	}
 	// TODO should multiple private states work with import/export/inspect commands
-	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit)
+	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit, nil)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)
 	}

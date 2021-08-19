@@ -133,7 +133,7 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 	newChainFunc := light.NewLightChain
-	if config.EnableMultitenancy {
+	if config.QuorumChainConfig.MultiTenantEnabled() {
 		newChainFunc = light.NewMultitenantLightChain
 	}
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with
