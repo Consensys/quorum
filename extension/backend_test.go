@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 )
@@ -73,6 +74,14 @@ func (wallet *MockWallet) SignTextWithPassphrase(account accounts.Account, passp
 	panic("not implemented")
 }
 
+type MockEthAPIBackend struct {
+	eth.EthAPIBackend
+}
+
+func (b *MockEthAPIBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	return false
+}
+
 func TestGenerateTransactionOptionsErrorsWhenNoPrivateParticipants(t *testing.T) {
 	sendTxArgs := ethapi.SendTxArgs{
 		From: common.Address{},
@@ -135,9 +144,11 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
+	mockAPIBackendHelper := MockEthAPIBackend{}
 	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
 	service := &PrivacyService{
-		accountManager: accountManager,
+		accountManager:   accountManager,
+		apiBackendHelper: &mockAPIBackendHelper,
 	}
 
 	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
@@ -188,9 +199,11 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
+	mockAPIBackendHelper := MockEthAPIBackend{}
 	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
 	service := &PrivacyService{
-		accountManager: accountManager,
+		accountManager:   accountManager,
+		apiBackendHelper: &mockAPIBackendHelper,
 	}
 
 	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
