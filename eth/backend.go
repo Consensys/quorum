@@ -137,7 +137,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			return nil, errors.New("Cannot have chain id or network id as 1.")
 		}
 
-		if config.QuorumPrivacyMarkerTransactionsEnabled && chainConfig.PrivacyPrecompileBlock == nil {
+		if config.QuorumChainConfig.PrivacyMarkerEnabled() && chainConfig.PrivacyPrecompileBlock == nil {
 			return nil, errors.New("Privacy marker transactions require privacyPrecompileBlock to be set in genesis.json")
 		}
 	}
@@ -228,9 +228,6 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Quorum
-	eth.blockchain.SetSaveRevertReason(config.SaveRevertReason)
 
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
