@@ -443,7 +443,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 	}
 
 	// Note: using isHomestead and isEIP2028 set to true, which may give a slightly higher gas value (but avoids making an API call to get the block number)
-	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, true)
+	intrinsicGas, err := core.IntrinsicGas(common.FromHex(hash), false, true, true)
 	if err != nil {
 		return nil, err
 	}
