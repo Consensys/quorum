@@ -117,7 +117,7 @@ func TestMultiplePSMRDBUpgrade(t *testing.T) {
 	blockchain.Stop()
 
 	// reinstantiate the blockchain with isMPS enabled
-	blockchain, err = NewBlockChain(db, nil, DBUpgradeQuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
+	blockchain, err = NewBlockChain(db, nil, DBUpgradeQuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil, nil)
 	assert.Nil(t, err)
 
 	count, err = blockchain.InsertChain(blocks[3:])
