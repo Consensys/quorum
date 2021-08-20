@@ -36,7 +36,7 @@ func NewServicesFactory(stack *node.Node, ptm private.PrivateTransactionManager,
 	}
 	factory.backendService = backendService
 
-	_, isMultitenant := ethService.BlockChain().SupportsMultitenancy(context.Background())
+	isMultitenant := ethService.BlockChain().SupportsMultitenancy(context.Background())
 	privacyExtension.DefaultExtensionHandler.SupportMultitenancy(isMultitenant)
 	privacyExtension.DefaultExtensionHandler.SetPSMR(ethService.BlockChain().PrivateStateManager())
 

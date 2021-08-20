@@ -48,7 +48,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 var (
@@ -219,21 +218,25 @@ type BlockChain struct {
 	writeLegacyJournal bool                           // Testing flag used to flush the snapshot journal in legacy format.
 
 	// Quorum
+	quorumConfig    *QuorumChainConfig                                               // quorum chain config holds all the possible configuration fields for GoQuorum
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
-	isMultitenant   bool                                                             // if this blockchain supports multitenancy
+
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
 	privateTrieGC       *prque.Prque // Priority queue mapping block numbers to tries to gc
-	saveRevertReason    bool         // if we should save the revert reasons in the Tx Receipts
+
 	// End Quorum
 }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator and
 // Processor.
-func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
+func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, quorumChainConfig *QuorumChainConfig) (*BlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig
+	}
+	if quorumChainConfig == nil {
+		quorumChainConfig = &QuorumChainConfig{}
 	}
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
@@ -244,24 +247,25 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:      chainConfig,
-		cacheConfig:      cacheConfig,
-		db:               db,
-		triegc:           prque.New(nil),
-		privateTrieGC:    prque.New(nil),
-		stateCache:       state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
-		quit:             make(chan struct{}),
-		shouldPreserve:   shouldPreserve,
-		bodyCache:        bodyCache,
-		bodyRLPCache:     bodyRLPCache,
-		receiptsCache:    receiptsCache,
-		blockCache:       blockCache,
-		txLookupCache:    txLookupCache,
-		futureBlocks:     futureBlocks,
-		engine:           engine,
-		vmConfig:         vmConfig,
-		badBlocks:        badBlocks,
-		saveRevertReason: false,
+		chainConfig:    chainConfig,
+		cacheConfig:    cacheConfig,
+		db:             db,
+		triegc:         prque.New(nil),
+		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		quit:           make(chan struct{}),
+		shouldPreserve: shouldPreserve,
+		bodyCache:      bodyCache,
+		bodyRLPCache:   bodyRLPCache,
+		receiptsCache:  receiptsCache,
+		blockCache:     blockCache,
+		txLookupCache:  txLookupCache,
+		futureBlocks:   futureBlocks,
+		engine:         engine,
+		vmConfig:       vmConfig,
+		badBlocks:      badBlocks,
+		// Quorum
+		quorumConfig:  quorumChainConfig,
+		privateTrieGC: prque.New(nil),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -433,12 +437,16 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 // Quorum
 // Decorates NewBlockChain with multitenancy flag
-func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64) (*BlockChain, error) {
-	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit)
+func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, quorumChainConfig *QuorumChainConfig) (*BlockChain, error) {
+	if quorumChainConfig == nil {
+		quorumChainConfig = &QuorumChainConfig{multiTenantEnabled: true}
+	} else {
+		quorumChainConfig.multiTenantEnabled = true
+	}
+	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, txLookupLimit, quorumChainConfig)
 	if err != nil {
 		return nil, err
 	}
-	bc.isMultitenant = true
 	return bc, err
 }
 
@@ -2814,8 +2822,8 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 }
 
 // Quorum
-func (bc *BlockChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
-	return nil, bc.isMultitenant
+func (bc *BlockChain) SupportsMultitenancy(context.Context) bool {
+	return bc.quorumConfig.MultiTenantEnabled()
 }
 
 // PopulateSetPrivateState function pointer for updating private state
@@ -2830,14 +2838,4 @@ func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState 
 	if bc.setPrivateState != nil {
 		bc.setPrivateState(txLogs, privateState, psi)
 	}
-}
-
-// Quorum
-func (bc *BlockChain) SetSaveRevertReason(enabled bool) {
-	bc.saveRevertReason = enabled
-}
-
-// Quorum
-func (bc *BlockChain) SaveRevertReason() bool {
-	return bc.saveRevertReason
 }
