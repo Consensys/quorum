@@ -1780,6 +1780,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					}
 					// Flush an entire trie and restart the counters
 					triedb.Commit(header.Root, true, nil)
+					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
+					privateTrieDB.Commit(privateroot, true, nil)
 					lastWrite = chosen
 					bc.gcproc = 0
 				}
