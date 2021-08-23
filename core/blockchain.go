@@ -1702,7 +1702,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
-	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1732,7 +1732,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 	// Quorum
-	privateRoot := rawdb.GetPrivateStateRoot(bc.db, root)
 	privateTrieDB := bc.PrivateStateManager().TrieDB()
 
 	// If we're running an archive node, always flush
@@ -1740,9 +1739,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
-		// Quorum commit private root
-		if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
-			return NonStatTy, err
+		if len(privateRoot.Bytes()) != 0 {
+			// Quorum commit private root
+			if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
+				return NonStatTy, err
+			}
 		}
 	} else {
 		// Full but not archive node, do proper garbage collection
@@ -1756,11 +1757,15 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
-				nodes, imgs = triedb.Size()
-				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
+				nodes, imgs               = triedb.Size()
+				privateNodes, privateImgs = privateTrieDB.Size()
+				limit                     = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
 				triedb.Cap(limit - ethdb.IdealBatchSize)
+			}
+			if privateNodes > limit || privateImgs > 4*1024*1024 {
+				privateTrieDB.Cap(limit - ethdb.IdealBatchSize)
 			}
 			// Find the next state trie we need to commit
 			chosen := current - TriesInMemory
