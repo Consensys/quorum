@@ -137,7 +137,7 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 			return nil, errors.New("Cannot have chain id or network id as 1.")
 		}
 
-		if config.QuorumPrivacyMarkerTransactionsEnabled && chainConfig.PrivacyPrecompileBlock == nil {
+		if config.QuorumChainConfig.PrivacyMarkerEnabled() && chainConfig.PrivacyPrecompileBlock == nil {
 			return nil, errors.New("Privacy marker transactions require privacyPrecompileBlock to be set in genesis.json")
 		}
 	}
@@ -221,17 +221,14 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		}
 	)
 	newBlockChainFunc := core.NewBlockChain
-	if config.EnableMultitenancy {
+	if config.QuorumChainConfig.MultiTenantEnabled() {
 		newBlockChainFunc = core.NewMultitenantBlockChain
 	}
-	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
-
-	// Quorum
-	eth.blockchain.SetSaveRevertReason(config.SaveRevertReason)
-
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, &config.QuorumChainConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
