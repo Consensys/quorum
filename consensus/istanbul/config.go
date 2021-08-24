@@ -32,10 +32,10 @@ const (
 
 // ProposerPolicy represents the Validator Proposer Policy
 type ProposerPolicy struct {
-	Id       ProposerPolicyId    // Could be RoundRobin or Sticky
-	Registry []ValidatorSet      // Holds the ValidatorSet for a given block height
-	By       ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
-	policyMU *sync.Mutex         // Mutex to lock access to changes to Registry
+	Id         ProposerPolicyId    // Could be RoundRobin or Sticky
+	By         ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
+	registry   []ValidatorSet      // Holds the ValidatorSet for a given block height
+	registryMU *sync.Mutex         // Mutex to lock access to changes to Registry
 }
 
 // NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByString as default sort function
@@ -53,7 +53,7 @@ func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
 }
 
 func NewProposerPolicyByIdAndSortFunc(id ProposerPolicyId, by ValidatorSortByFunc) *ProposerPolicy {
-	return &ProposerPolicy{Id: id, By: by, policyMU: new(sync.Mutex)}
+	return &ProposerPolicy{Id: id, By: by, registryMU: new(sync.Mutex)}
 }
 
 type proposerPolicyToml struct {
@@ -80,29 +80,29 @@ func (p *ProposerPolicy) UnmarshalTOML(input []byte) error {
 func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 
-	for _, validatorSet := range p.Registry {
+	for _, validatorSet := range p.registry {
 		validatorSet.SortValidators()
 	}
 }
 
 // RegisterValidatorSet stores the given ValidatorSet in the policy registry
 func (p *ProposerPolicy) RegisterValidatorSet(valSet ValidatorSet) {
-	p.policyMU.Lock()
-	defer p.policyMU.Unlock()
+	p.registryMU.Lock()
+	defer p.registryMU.Unlock()
 
-	if len(p.Registry) == 0 {
-		p.Registry = []ValidatorSet{valSet}
+	if len(p.registry) == 0 {
+		p.registry = []ValidatorSet{valSet}
 	} else {
-		p.Registry = append(p.Registry, valSet)
+		p.registry = append(p.registry, valSet)
 	}
 }
 
 // ClearRegistry removes any ValidatorSet from the ProposerPolicy registry
 func (p *ProposerPolicy) ClearRegistry() {
-	p.policyMU.Lock()
-	defer p.policyMU.Unlock()
+	p.registryMU.Lock()
+	defer p.registryMU.Unlock()
 
-	p.Registry = nil
+	p.registry = nil
 }
 
 type Config struct {
