@@ -635,7 +635,7 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 		// will happen during the block insertion.
 		cacheConfig = defaultCacheConfig
 	)
-	chain, err := NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+	chain, err := NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to create chain: %v", err)
 	}
@@ -694,13 +694,13 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 		// the crash, we do restart twice here: one after the crash and one
 		// after the normal stop. It's used to ensure the broken snapshot
 		// can be detected all the time.
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
 		chain.Stop()
 
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
@@ -717,14 +717,14 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 			TrieTimeLimit:  5 * time.Minute,
 			SnapshotLimit:  0,
 		}
-		chain, err = NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
 		chain.InsertChain(gappedBlocks)
 		chain.Stop()
 
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
@@ -734,7 +734,7 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 		chain.SetHead(tt.setHead)
 		chain.Stop()
 
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
@@ -746,7 +746,7 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 
 		// Restart chain, forcibly flush the disk layer journal with new format
 		newBlocks, _ := GenerateChain(params.TestChainConfig, blocks[len(blocks)-1], engine, gendb, tt.restartCrash, func(i int, b *BlockGen) {})
-		chain, err = NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
@@ -758,7 +758,7 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 		// journal and latest state will be committed
 
 		// Restart the chain after the crash
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
@@ -767,7 +767,7 @@ func testSnapshot(t *testing.T, tt *snapshotTest) {
 		chain.Stop()
 
 		// Restart the chain normally
-		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
+		chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to recreate chain: %v", err)
 		}
