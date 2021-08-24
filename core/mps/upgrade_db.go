@@ -24,7 +24,7 @@ type chainReader interface {
 // 3. Update new mapping: block header root -> trie of private states root
 // 4. Once upgrade is complete update the ChainConfig.isMPS to true
 func UpgradeDB(db ethdb.Database, chain chainReader) error {
-	currentBlockNumber := chain.CurrentBlock().Number().Int64()
+	currentBlockNumber := uint64(chain.CurrentBlock().Number().Int64())
 	genesisHeader := chain.GetHeaderByNumber(0)
 
 	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, genesisHeader.Root)
@@ -39,8 +39,8 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 	// pre-populate with dummy one as the state root is derived from block root hash
 	privateState := &managedState{}
 	mpsRepo.managedStates[types.DefaultPrivateStateIdentifier] = privateState
-	for idx := 1; idx <= int(currentBlockNumber); idx++ {
-		header := chain.GetHeaderByNumber(uint64(idx))
+	for idx := uint64(1); idx <= currentBlockNumber; idx++ {
+		header := chain.GetHeaderByNumber(idx)
 		// TODO consider periodic reports instead of logging about each block
 		fmt.Printf("Processing block %v with hash %v\n", idx, header.Hash().Hex())
 		block := chain.GetBlock(header.Hash(), header.Number.Uint64())
