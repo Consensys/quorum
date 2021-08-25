@@ -102,7 +102,7 @@ func (b *testBackend) GetBlockByNumber(number uint64) *types.Block {
 	return b.chain.GetBlockByNumber(number)
 }
 
-/*func TestSuggestPrice(t *testing.T) {
+func TestSuggestPrice(t *testing.T) {
 	config := Config{
 		Blocks:     3,
 		Percentile: 60,
@@ -120,4 +120,4 @@ func (b *testBackend) GetBlockByNumber(number uint64) *types.Block {
 	if got.Cmp(expect) != 0 {
 		t.Fatalf("Gas price mismatch, want %d, got %d", expect, got)
 	}
-}*/
+}
