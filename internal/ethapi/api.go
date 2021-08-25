@@ -1780,9 +1780,10 @@ type PrivateTxArgs struct {
 	PrivateFrom string `json:"privateFrom"`
 	// PrivateFor is the list of public keys which are available in the Private Transaction Managers in the network.
 	// The transaction payload is only visible to those party to the transaction.
-	PrivateFor    []string               `json:"privateFor"`
-	PrivateTxType string                 `json:"restriction"`
-	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
+	PrivateFor          []string               `json:"privateFor"`
+	PrivateTxType       string                 `json:"restriction"`
+	PrivacyFlag         engine.PrivacyFlagType `json:"privacyFlag"`
+	MandatoryRecipients []string               `json:"mandatoryFor"`
 }
 
 func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend) error {
@@ -2710,6 +2711,16 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 		return
 	}
 
+	if engine.PrivacyFlagMandatoryRecipients == privateTxArgs.PrivacyFlag && len(privateTxArgs.MandatoryRecipients) == 0 {
+		err = fmt.Errorf("missing mandatory recipients data. if no mandatory recipients required consider using PrivacyFlag=1(PartyProtection)")
+		return
+	}
+
+	if engine.PrivacyFlagMandatoryRecipients != privateTxArgs.PrivacyFlag && len(privateTxArgs.MandatoryRecipients) > 0 {
+		err = fmt.Errorf("privacy metadata invalid. mandatory recipients are only applicable for PrivacyFlag=2(MandatoryRecipients)")
+		return
+	}
+
 	// validate that PrivateFrom is one of the addresses of the private state resolved from the user context
 	if b.ChainConfig().IsMPS {
 		var psm *mps.PrivateStateMetadata
@@ -2760,7 +2771,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 	data := tx.Data()
 
-	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
+	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag, "mandatoryfor", privateTxArgs.MandatoryRecipients)
 
 	switch txnType {
 	case FillTransaction:
@@ -2808,9 +2819,10 @@ func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Trans
 	}
 
 	metadata := engine.ExtraMetadata{
-		ACHashes:     affectedCATxHashes,
-		ACMerkleRoot: merkleRoot,
-		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		ACHashes:            affectedCATxHashes,
+		ACMerkleRoot:        merkleRoot,
+		PrivacyFlag:         privateTxArgs.PrivacyFlag,
+		MandatoryRecipients: privateTxArgs.MandatoryRecipients,
 	}
 	_, _, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &metadata)
 	if err != nil {
@@ -2824,7 +2836,8 @@ func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Trans
 		"privatefor", privateTxArgs.PrivateFor,
 		"affectedCATxHashes", metadata.ACHashes,
 		"merkleroot", metadata.ACHashes,
-		"privacyflag", metadata.PrivacyFlag)
+		"privacyflag", metadata.PrivacyFlag,
+		"mandatoryrecipients", metadata.MandatoryRecipients)
 	return
 }
 
@@ -2837,9 +2850,10 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 	}
 
 	metadata := engine.ExtraMetadata{
-		ACHashes:     affectedCATxHashes,
-		ACMerkleRoot: merkleRoot,
-		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		ACHashes:            affectedCATxHashes,
+		ACMerkleRoot:        merkleRoot,
+		PrivacyFlag:         privateTxArgs.PrivacyFlag,
+		MandatoryRecipients: privateTxArgs.MandatoryRecipients,
 	}
 	_, _, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &metadata)
 	if err != nil {
@@ -2853,7 +2867,8 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 		"privatefor", privateTxArgs.PrivateFor,
 		"affectedCATxHashes", metadata.ACHashes,
 		"merkleroot", metadata.ACHashes,
-		"privacyflag", metadata.PrivacyFlag)
+		"privacyflag", metadata.PrivacyFlag,
+		"mandatoryrecipients", metadata.MandatoryRecipients)
 	return
 }
 
