@@ -169,7 +169,6 @@ func TestSealStopChannel(t *testing.T) {
 		stop <- struct{}{}
 		eventSub.Unsubscribe()
 	}
-	go eventLoop()
 	resultCh := make(chan *types.Block, 10)
 	go func() {
 		err := engine.Seal(chain, block, resultCh, stop)
@@ -177,6 +176,7 @@ func TestSealStopChannel(t *testing.T) {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}()
+	go eventLoop()
 
 	finalBlock := <-resultCh
 	if finalBlock != nil {
