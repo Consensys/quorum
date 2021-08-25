@@ -80,7 +80,7 @@ var DefaultConfig = Config{
 	},
 	TxPool:      core.DefaultTxPoolConfig,
 	RPCGasCap:   25000000,
-	GPO:         DefaultFullGPOConfig,
+	GPO:         FullNodeGPO,
 	RPCTxFeeCap: 1, // 1 ether
 
 	// Quorum
