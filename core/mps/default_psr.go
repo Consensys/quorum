@@ -22,7 +22,7 @@ type DefaultPrivateStateRepository struct {
 	root    common.Hash
 }
 
-var _ PrivateStateRepository = &DefaultPrivateStateRepository{}
+var _ PrivateStateRepository = (*DefaultPrivateStateRepository)(nil) // DefaultPrivateStateRepository must implement PrivateStateRepository
 
 func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
