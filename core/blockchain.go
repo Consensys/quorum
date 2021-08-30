@@ -1200,6 +1200,9 @@ func (bc *BlockChain) Stop() {
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
 		}
+		if size, _ := privateTrieDb.Size(); size != 0 {
+			log.Error("Dangling private trie nodes after full cleanup")
+		}
 	}
 	// Ensure all live cached entries be saved into disk, so that we can skip
 	// cache warmup when node restarts.
@@ -1751,8 +1754,10 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		bc.triegc.Push(root, -int64(block.NumberU64()))
 
 		// Quorum
-		privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
-		bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
+		if len(privateRoot.Bytes()) != 0 {
+			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+			bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
+		}
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
