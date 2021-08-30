@@ -260,6 +260,7 @@ func init() {
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,
+		mpsdbUpgradeCommand,
 		importCommand,
 		exportCommand,
 		importPreimagesCommand,
