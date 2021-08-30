@@ -1183,6 +1183,7 @@ func (bc *BlockChain) Stop() {
 				if err := privateTrieDb.Commit(privateRoot, true, nil); err != nil {
 					log.Error("Failed to commit recent private state trie", "err", err)
 				}
+				// End Quorum
 			}
 		}
 		if snapBase != (common.Hash{}) {
@@ -1758,6 +1759,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
 			bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
 		}
+		// End Quorum
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -1769,9 +1771,13 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			if nodes > limit || imgs > 4*1024*1024 {
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
+
+			// Quorum
 			if privateNodes > limit || privateImgs > 4*1024*1024 {
 				privateTrieDB.Cap(limit - ethdb.IdealBatchSize)
 			}
+			// End Quorum
+
 			// Find the next state trie we need to commit
 			chosen := current - TriesInMemory
 
@@ -1790,8 +1796,12 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					}
 					// Flush an entire trie and restart the counters
 					triedb.Commit(header.Root, true, nil)
+
+					// Quorum
 					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
 					privateTrieDB.Commit(privateroot, true, nil)
+					// End Quorum
+
 					lastWrite = chosen
 					bc.gcproc = 0
 				}
