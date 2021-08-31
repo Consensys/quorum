@@ -255,10 +255,10 @@ func (d *dummyChain) SupportsMultitenancy(context.Context) (*proto.PreAuthentica
 }
 
 // Config retrieves the chain's fork configuration
-func (d *dummyChain) Config() *params.ChainConfig { return nil }
+func (d *dummyChain) Config() *params.ChainConfig { return &params.ChainConfig{} }
 
 // QuorumConfig retrieves the Quorum chain's configuration
-func (d *dummyChain) QuorumConfig() *core.QuorumChainConfig { return nil }
+func (d *dummyChain) QuorumConfig() *core.QuorumChainConfig { return &core.QuorumChainConfig{} }
 
 // PrivateStateManager returns the private state manager
 func (d *dummyChain) PrivateStateManager() mps.PrivateStateManager { return nil }

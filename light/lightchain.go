@@ -603,7 +603,7 @@ func (lc *LightChain) SupportsMultitenancy(context.Context) (*proto.PreAuthentic
 }
 
 // QuorumConfig retrieves the Quorum chain's configuration
-func (lc *LightChain) QuorumConfig() *core.QuorumChainConfig { return nil }
+func (lc *LightChain) QuorumConfig() *core.QuorumChainConfig { return &core.QuorumChainConfig{} }
 
 // PrivateStateManager returns the private state manager
 func (lc *LightChain) PrivateStateManager() mps.PrivateStateManager { return nil }

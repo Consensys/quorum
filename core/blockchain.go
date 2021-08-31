@@ -2817,7 +2817,12 @@ func (bc *BlockChain) GetTransactionLookup(hash common.Hash) *rawdb.LegacyTxLook
 func (bc *BlockChain) Config() *params.ChainConfig { return bc.chainConfig }
 
 // QuorumConfig retrieves the Quorum chain's configuration
-func (bc *BlockChain) QuorumConfig() *QuorumChainConfig { return bc.quorumConfig }
+func (bc *BlockChain) QuorumConfig() *QuorumChainConfig {
+	if bc == nil || bc.quorumConfig == nil {
+		return &QuorumChainConfig{}
+	}
+	return bc.quorumConfig
+}
 
 // Engine retrieves the blockchain's consensus engine.
 func (bc *BlockChain) Engine() consensus.Engine { return bc.engine }
