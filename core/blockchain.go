@@ -1195,13 +1195,13 @@ func (bc *BlockChain) Stop() {
 		for !bc.triegc.Empty() {
 			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
 		}
-		for !bc.privateTrieGC.Empty() {
+		for !bc.privateTrieGC.Empty() { // Quorum
 			privateTrieDb.Dereference(bc.privateTrieGC.PopItem().(common.Hash))
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
 		}
-		if size, _ := privateTrieDb.Size(); size != 0 {
+		if size, _ := privateTrieDb.Size(); size != 0 { // Quorum
 			log.Error("Dangling private trie nodes after full cleanup")
 		}
 	}
@@ -1765,7 +1765,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs               = triedb.Size()
-				privateNodes, privateImgs = privateTrieDB.Size()
+				privateNodes, privateImgs = privateTrieDB.Size() // Quorum
 				limit                     = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
@@ -1815,6 +1815,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 				triedb.Dereference(root.(common.Hash))
 			}
+			// Quorum
 			for !bc.privateTrieGC.Empty() {
 				root, number := bc.privateTrieGC.Pop()
 				if uint64(-number) > chosen {
@@ -1823,6 +1824,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 				privateTrieDB.Dereference(root.(common.Hash))
 			}
+			// End Quorum
 		}
 	}
 	// If the total difficulty is higher than our known, add it to the canonical chain
