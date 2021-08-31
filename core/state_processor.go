@@ -303,44 +303,6 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc *BlockChain, author *c
 
 func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, evm *vm.EVM, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
 	// Add addresses to access list if applicable
-	// ApplyTransaction attempts to apply a transaction to the given state database
-	// and uses the input parameters for its environment. It returns the receipt
-	// for the transaction, gas used and an error if the transaction failed,
-	// indicating the block was invalid.
-	//func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
-	/*
-		// Quorum - decide the privateStateDB to use
-		privateStateDBToUse := PrivateStateDBForTxn(config.IsQuorum, tx, statedb, privateStateDB)
-		// /Quorum
-
-		// Quorum - check for account permissions to execute the transaction
-		if core.IsV2Permission() {
-			if err := core.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
-				return nil, nil, err
-			}
-		}
-
-		if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-			return nil, nil, ErrInvalidGasPrice
-		}
-
-		msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Quorum: this tx needs to be applied as if we were not a party
-		msg = msg.WithEmptyPrivateData(forceNonParty && tx.IsPrivate())
-		// Create a new context to be used in the EVM environment
-		context := NewEVMContext(msg, header, bc, author)
-		// Create a new environment which holds all relevant information
-		// about the transaction and calling mechanisms.
-		vmenv := vm.NewEVM(context, statedb, privateStateDBToUse, config, cfg)
-		// the same transaction object is used for multiple executions (clear the privacy metadata - it should be updated after privacyManager.receive)
-		// when running in parallel for multiple private states is implemented - a copy of the tx may be used
-		tx.SetTxPrivacyMetadata(nil)
-		vmenv.SetCurrentTX(tx)*/
-
 	if config.IsYoloV2(header.Number) {
 		statedb.AddAddressToAccessList(msg.From())
 		if dst := msg.To(); dst != nil {
@@ -444,7 +406,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc *BlockCh
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
 	// Quorum - decide the privateStateDB to use
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx, statedb, privateStateDB)
-	// /Quorum
+	// End Quorum
 
 	// Quorum - check for account permissions to execute the transaction
 	if core.IsV2Permission() {
