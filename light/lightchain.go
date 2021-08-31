@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -599,4 +600,14 @@ func (lc *LightChain) EnableCheckFreq() {
 
 func (lc *LightChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	return nil, lc.isMultitenant
+}
+
+// QuorumConfig retrieves the Quorum chain's configuration
+func (lc *LightChain) QuorumConfig() *core.QuorumChainConfig { return nil }
+
+// PrivateStateManager returns the private state manager
+func (lc *LightChain) PrivateStateManager() mps.PrivateStateManager { return nil }
+
+// CheckAndSetPrivateState updates the private state as a part contract state extension
+func (lc *LightChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
 }

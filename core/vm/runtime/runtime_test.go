@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/asm"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -251,6 +252,19 @@ func (d *dummyChain) GetHeader(h common.Hash, n uint64) *types.Header {
 
 func (d *dummyChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	return nil, false
+}
+
+// Config retrieves the chain's fork configuration
+func (d *dummyChain) Config() *params.ChainConfig { return nil }
+
+// QuorumConfig retrieves the Quorum chain's configuration
+func (d *dummyChain) QuorumConfig() *core.QuorumChainConfig { return nil }
+
+// PrivateStateManager returns the private state manager
+func (d *dummyChain) PrivateStateManager() mps.PrivateStateManager { return nil }
+
+// CheckAndSetPrivateState updates the private state as a part contract state extension
+func (d *dummyChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
 }
 
 // TestBlockhash tests the blockhash operation. It's a bit special, since it internally
