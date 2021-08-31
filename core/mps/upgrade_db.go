@@ -88,7 +88,11 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 		privateState.stateRootProviderFunc = func(_ bool) (common.Hash, error) {
 			return rawdb.GetPrivateStateRoot(db, header.Root), nil
 		}
-		err = mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
+		privateRoot, err := mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
+		if err != nil {
+			return err
+		}
+		err = mpsRepo.repoCache.TrieDB().Commit(privateRoot, false, nil)
 		if err != nil {
 			return err
 		}
