@@ -61,7 +61,7 @@ func NewTransactor(keyin io.Reader, passphrase string) (*TransactOpts, error) {
 // Deprecated: Use NewKeyStoreTransactorWithChainID instead.
 func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account) (*TransactOpts, error) {
 	log.Warn("WARNING: NewKeyStoreTransactor has been deprecated in favour of NewTransactorWithChainID")
-	var Signer types.Signer = types.HomesteadSigner{}
+	var homesteadSigner types.Signer = types.HomesteadSigner{}
 	return &TransactOpts{
 		From: account.Address,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -69,7 +69,7 @@ func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := Signer
+			signer := homesteadSigner
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
@@ -90,7 +90,7 @@ func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account
 func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 	log.Warn("WARNING: NewKeyedTransactor has been deprecated in favour of NewKeyedTransactorWithChainID")
 	keyAddr := crypto.PubkeyToAddress(key.PublicKey)
-	var Signer types.Signer = types.HomesteadSigner{}
+	var homesteadSigner types.Signer = types.HomesteadSigner{}
 	return &TransactOpts{
 		From: keyAddr,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -98,7 +98,7 @@ func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := Signer
+			signer := homesteadSigner
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
@@ -132,7 +132,7 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 	if chainID == nil {
 		return nil, ErrNoChainID
 	}
-	var Signer types.Signer = types.NewEIP155Signer(chainID)
+	var eipo155Signer types.Signer = types.NewEIP155Signer(chainID)
 	return &TransactOpts{
 		From: account.Address,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -140,7 +140,7 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := Signer
+			signer := eipo155Signer
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
@@ -161,7 +161,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 	if chainID == nil {
 		return nil, ErrNoChainID
 	}
-	var Signer types.Signer = types.NewEIP155Signer(chainID)
+	var eipo155Signer types.Signer = types.NewEIP155Signer(chainID)
 	return &TransactOpts{
 		From: keyAddr,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -169,7 +169,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := Signer
+			signer := eipo155Signer
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
