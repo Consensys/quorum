@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -84,8 +85,15 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, arbitraryBlock, t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	var handled bool
+	var err error
+	for i := 0; i < 5; i++ { // make 5 tries if a little wait
+		handled, err = backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+		if handled && err == nil {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
@@ -109,8 +117,15 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil, new(trie.Trie)), t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	var handled bool
+	var err error
+	for i := 0; i < 5; i++ { // make 5 tries if a little wait
+		handled, err = backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+		if handled && err == nil {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
@@ -133,8 +148,15 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil, new(trie.Trie)), t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	var handled bool
+	var err error
+	for i := 0; i < 5; i++ { // make 5 tries if a little wait
+		handled, err = backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+		if handled && err == nil {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
