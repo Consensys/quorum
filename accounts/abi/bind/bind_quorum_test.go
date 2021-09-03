@@ -191,7 +191,7 @@ func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
 	require.Equal(t, []string{"tm1"}, pvtTxArgs.PrivateFor)
 }
 
-func passthroughSigner(_ types.Signer, _ common.Address, tx *types.Transaction) (*types.Transaction, error) {
+func passthroughSigner(_ common.Address, tx *types.Transaction) (*types.Transaction, error) {
 	return tx, nil
 }
 

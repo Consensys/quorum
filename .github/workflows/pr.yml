@@ -6,7 +6,7 @@ on:
       - '**.md'
       - .gitignore
 env:
-  GO_VERSION: 1.15.5
+  GO_VERSION: 1.15.6
 jobs:
   lint:
     name: 'Code linters'

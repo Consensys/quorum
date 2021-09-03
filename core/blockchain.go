@@ -132,6 +132,7 @@ type CacheConfig struct {
 	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
 	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
 	SnapshotLimit       int           // Memory allowance (MB) to use for caching snapshot entries in memory
+	Preimages           bool          // Whether to store preimage of trie key to the disk
 
 	SnapshotWait bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
 
@@ -247,11 +248,15 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit, cacheConfig.TrieCleanJournal),
+		chainConfig: chainConfig,
+		cacheConfig: cacheConfig,
+		db:          db,
+		triegc:      prque.New(nil),
+		stateCache: state.NewDatabaseWithConfig(db, &trie.Config{
+			Cache:     cacheConfig.TrieCleanLimit,
+			Journal:   cacheConfig.TrieCleanJournal,
+			Preimages: cacheConfig.Preimages,
+		}),
 		quit:           make(chan struct{}),
 		shouldPreserve: shouldPreserve,
 		bodyCache:      bodyCache,
@@ -273,7 +278,11 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	var err error
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, cacheConfig, chainConfig.IsMPS); err != nil {
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, &trie.Config{
+		Cache:     cacheConfig.TrieCleanLimit,
+		Journal:   cacheConfig.PrivateTrieCleanJournal,
+		Preimages: cacheConfig.Preimages,
+	}, chainConfig.IsMPS); err != nil {
 		return nil, err
 	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
@@ -2722,12 +2731,8 @@ func (bc *BlockChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 
 	bc.wg.Add(1)
 	defer bc.wg.Done()
-
-	whFunc := func(header *types.Header) error {
-		_, err := bc.hc.WriteHeader(header)
-		return err
-	}
-	return bc.hc.InsertHeaderChain(chain, whFunc, start)
+	_, err := bc.hc.InsertHeaderChain(chain, start)
+	return 0, err
 }
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
@@ -2810,6 +2815,9 @@ func (bc *BlockChain) GetTransactionLookup(hash common.Hash) *rawdb.LegacyTxLook
 
 // Config retrieves the chain's fork configuration.
 func (bc *BlockChain) Config() *params.ChainConfig { return bc.chainConfig }
+
+// QuorumConfig retrieves the Quorum chain's configuration
+func (bc *BlockChain) QuorumConfig() *QuorumChainConfig { return bc.quorumConfig }
 
 // Engine retrieves the blockchain's consensus engine.
 func (bc *BlockChain) Engine() consensus.Engine { return bc.engine }
