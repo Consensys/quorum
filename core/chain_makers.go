@@ -89,7 +89,7 @@ func (b *BlockGen) SetDifficulty(diff *big.Int) {
 // added. Notably, contract code relying on the BLOCKHASH instruction
 // will panic during execution.
 func (b *BlockGen) AddTx(tx *types.Transaction) {
-	b.AddTxWithChain(nil, tx)
+	b.AddTxWithChain(&BlockChain{quorumConfig: &QuorumChainConfig{}}, tx)
 }
 
 // AddTxWithChain adds a transaction to the generated block. If no coinbase has
