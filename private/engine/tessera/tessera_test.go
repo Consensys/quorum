@@ -25,11 +25,17 @@ var (
 	arbitraryPrivatePayload        = []byte("arbitrary private payload")
 	arbitraryFrom                  = "arbitraryFrom"
 	arbitraryTo                    = []string{"arbitraryTo1", "arbitraryTo2"}
+	arbitraryMandatory             = []string{"arbitraryTo2"}
 	arbitraryPrivacyFlag           = engine.PrivacyFlagPartyProtection
 	arbitraryExtra                 = &engine.ExtraMetadata{
 		ACHashes:     Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
 		ACMerkleRoot: common.StringToHash("arbitrary root hash"),
 		PrivacyFlag:  arbitraryPrivacyFlag,
+	}
+	arbitraryExtraWithMandatoryFor = &engine.ExtraMetadata{
+		ACHashes:            Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
+		PrivacyFlag:         engine.PrivacyFlagMandatoryRecipients,
+		MandatoryRecipients: arbitraryMandatory,
 	}
 
 	testServer *httptest.Server
@@ -204,6 +210,16 @@ func verifyRequestHeaderMultiTenancy(h http.Header, t *testing.T) {
 	}
 }
 
+func verifyRequestHeaderMandatoryRecipients(h http.Header, t *testing.T) {
+	if h.Get("Content-type") != "application/vnd.tessera-4.0+json" {
+		t.Errorf("expected Content-type header is application/vnd.tessera-4.0+json")
+	}
+
+	if h.Get("Accept") != "application/vnd.tessera-4.0+json" {
+		t.Errorf("expected Accept header is application/vnd.tessera-4.0+json")
+	}
+}
+
 func TestSend_groups(t *testing.T) {
 	assert := testifyassert.New(t)
 
@@ -302,6 +318,56 @@ func TestSend_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.T) 
 	_, _, _, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
 		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
+	}
+}
+
+func TestSend_whenTypical_MandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("4.0"))
+
+	_, _, actualHash, err := testObjectWithMR.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-sendRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMandatoryRecipients(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(*sendRequest)
+
+	assert.Equal(arbitraryPrivatePayload, actualRequest.Payload, "request.payload")
+	assert.Equal(arbitraryFrom, actualRequest.From, "request.from")
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtraWithMandatoryFor.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(arbitraryHash, actualHash, "returned hash")
+	assert.Equal(arbitraryMandatory, actualRequest.MandatoryRecipients, "request.mandatoryRecipients")
+}
+
+func TestSend_whenTesseraSupportEnhancedPrivacyButNotMandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectNoMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("3.0"))
+
+	assert.True(testObjectNoMR.HasFeature(engine.MultiTenancy))
+	assert.True(testObjectNoMR.HasFeature(engine.MultiplePrivateStates))
+	assert.False(testObjectNoMR.HasFeature(engine.MandatoryRecipients), "the supplied version does not support mandatory recipients")
+
+	// trying to send a mandatory recipients transaction
+	_, _, _, err := testObjectNoMR.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != engine.ErrPrivateTxManagerDoesNotSupportMandatoryRecipients {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportMandatoryRecipients")
 	}
 }
 
@@ -480,6 +546,53 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
 	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
 	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
+}
+
+func TestSendSignedTx_whenTypical_MandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("4.0"))
+
+	_, _, _, err := testObjectWithMR.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-sendSignedTxRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMandatoryRecipients(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(*sendSignedTxRequest)
+
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(arbitraryExtraWithMandatoryFor.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtraWithMandatoryFor.MandatoryRecipients, actualRequest.MandatoryRecipients, "request.mandatoryRecipients")
+}
+
+func TestSendSignedTx_whenTesseraDoesNotSupportMandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectNoMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("3.0"))
+
+	assert.True(testObjectNoMR.HasFeature(engine.MultiTenancy))
+	assert.True(testObjectNoMR.HasFeature(engine.MultiplePrivateStates))
+	assert.False(testObjectNoMR.HasFeature(engine.MandatoryRecipients), "the supplied version does not support mandatory recipients")
+
+	// trying to send a mandatory recipients transaction
+	_, _, _, err := testObjectNoMR.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != engine.ErrPrivateTxManagerDoesNotSupportMandatoryRecipients {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportMandatoryRecipients")
+	}
 }
 
 func TestReceive_whenCachingRawPayload(t *testing.T) {

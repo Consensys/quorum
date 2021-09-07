@@ -17,11 +17,13 @@ var (
 	privacyEnhancementsVersion   = Version{2, 0, 0}
 	multitenancyVersion          = Version{2, 1, 0}
 	multiplePrivateStatesVersion = Version{3, 0, 0}
+	mandatoryRecipientsVersion   = Version{4, 0, 0}
 
 	featureVersions = map[engine.PrivateTransactionManagerFeature]Version{
 		engine.PrivacyEnhancements:   privacyEnhancementsVersion,
 		engine.MultiTenancy:          multitenancyVersion,
 		engine.MultiplePrivateStates: multiplePrivateStatesVersion,
+		engine.MandatoryRecipients:   mandatoryRecipientsVersion,
 	}
 )
 
