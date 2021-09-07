@@ -28,6 +28,7 @@ func (c *core) Start() error {
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
 	c.subscribeEvents()
+	c.handlerWg.Add(1)
 	go c.handleEvents()
 
 	// Start a new round from last sequence + 1
@@ -78,7 +79,6 @@ func (c *core) handleEvents() {
 		c.handlerWg.Done()
 	}()
 
-	c.handlerWg.Add(1)
 	for {
 		select {
 		case event, ok := <-c.events.Chan():

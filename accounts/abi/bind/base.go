@@ -33,7 +33,7 @@ import (
 
 // SignerFn is a signer function callback when a contract requires a method to
 // sign the transaction before submission.
-type SignerFn func(types.Signer, common.Address, *types.Transaction) (*types.Transaction, error)
+type SignerFn func(common.Address, *types.Transaction) (*types.Transaction, error)
 
 // Quorum
 //
@@ -289,12 +289,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
-	var signedTx *types.Transaction
-	if rawTx.IsPrivate() {
-		signedTx, err = opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, rawTx)
-	} else {
-		signedTx, err = opts.Signer(types.HomesteadSigner{}, opts.From, rawTx)
-	}
+	signedTx, err := opts.Signer(opts.From, rawTx)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +432,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
-	signedTx, err := opts.Signer(types.QuorumPrivateTxSigner{}, opts.From, tx)
+	signedTx, err := opts.Signer(opts.From, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +443,7 @@ func (c *BoundContract) createMarkerTx(opts *TransactOpts, tx *types.Transaction
 	}
 
 	// Note: using isHomestead and isEIP2028 set to true, which may give a slightly higher gas value (but avoids making an API call to get the block number)
-	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, true)
+	intrinsicGas, err := core.IntrinsicGas(common.FromHex(hash), false, true, true)
 	if err != nil {
 		return nil, err
 	}

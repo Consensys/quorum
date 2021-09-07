@@ -179,8 +179,9 @@ func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 
 func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	statedb := apiState.(*state.StateDB)
-	context := core.NewEVMContext(msg, header, b.eth.blockchain, nil)
-	return vm.NewEVM(context, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
+	context := core.NewEVMBlockContext(header, b.eth.blockchain, nil)
+	txContext := core.NewEVMTxContext(msg)
+	return vm.NewEVM(context, txContext, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
 }
 
 func (b *LesApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -310,7 +311,7 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 // Quorum
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
-	if authToken != nil && b.eth.config.EnableMultitenancy {
+	if authToken != nil && b.eth.config.MultiTenantEnabled() {
 		return authToken, true
 	}
 	return nil, false
@@ -322,7 +323,7 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 }
 
 func (b *LesApiBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
-	return b.eth.config.QuorumPrivacyMarkerTransactionsEnabled
+	return b.eth.config.QuorumChainConfig.PrivacyMarkerEnabled()
 }
 
 // End Quorum

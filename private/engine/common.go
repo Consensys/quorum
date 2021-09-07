@@ -19,6 +19,7 @@ var (
 	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")
 	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not support this operation")
 	ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements = errors.New("private transaction manager does not support privacy enhancements")
+	ErrPrivateTxManagerDoesNotSupportMandatoryRecipients = errors.New("private transaction manager does not support mandatory recipients")
 )
 
 type PrivacyGroup struct {
@@ -41,8 +42,10 @@ type ExtraMetadata struct {
 	// Contract participants that are managed by the corresponding Tessera.
 	// Being used in Multi Tenancy
 	ManagedParties []string
-	// the sender of the transaction
+	// The sender of the transaction
 	Sender string
+	// Recipients that are mandated to be included
+	MandatoryRecipients []string
 }
 
 type Client struct {
@@ -65,9 +68,10 @@ func (c *Client) Get(path string) (*http.Response, error) {
 type PrivacyFlagType uint64
 
 const (
-	PrivacyFlagStandardPrivate PrivacyFlagType = iota                              // 0
-	PrivacyFlagPartyProtection PrivacyFlagType = 1 << PrivacyFlagType(iota-1)      // 1
-	PrivacyFlagStateValidation                 = iota | PrivacyFlagPartyProtection // 3 which includes PrivacyFlagPartyProtection
+	PrivacyFlagStandardPrivate PrivacyFlagType = iota
+	PrivacyFlagPartyProtection
+	PrivacyFlagMandatoryRecipients
+	PrivacyFlagStateValidation
 )
 
 func (f PrivacyFlagType) IsNotStandardPrivate() bool {
@@ -91,7 +95,7 @@ func (f PrivacyFlagType) HasAll(others ...PrivacyFlagType) bool {
 }
 
 func (f PrivacyFlagType) Validate() error {
-	if f == PrivacyFlagStandardPrivate || f == PrivacyFlagPartyProtection || f == PrivacyFlagStateValidation {
+	if f == PrivacyFlagStandardPrivate || f == PrivacyFlagPartyProtection || f == PrivacyFlagMandatoryRecipients || f == PrivacyFlagStateValidation {
 		return nil
 	}
 	return fmt.Errorf("invalid privacy flag")
@@ -104,6 +108,7 @@ const (
 	PrivacyEnhancements   PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
 	MultiTenancy          PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 2
 	MultiplePrivateStates PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 4
+	MandatoryRecipients   PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 8
 )
 
 type FeatureSet struct {

@@ -112,7 +112,7 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 	}
 	peers.subscribe((*vtSubscription)(leth.valueTracker))
 
-	dnsdisc, err := leth.setupDiscovery(&stack.Config().P2P)
+	dnsdisc, err := leth.setupDiscovery()
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 	newChainFunc := light.NewLightChain
-	if config.EnableMultitenancy {
+	if config.QuorumChainConfig.MultiTenantEnabled() {
 		newChainFunc = light.NewMultitenantLightChain
 	}
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with

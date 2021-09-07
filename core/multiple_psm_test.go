@@ -39,7 +39,7 @@ var (
 func buildTestChain(n int, config *params.ChainConfig) ([]*types.Block, map[common.Hash]*types.Block, *BlockChain) {
 	testdb := rawdb.NewMemoryDatabase()
 	genesis := GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
-	blocks, _ := GenerateChain(params.QuorumMPSTestChainConfig, genesis, ethash.NewFaker(), testdb, n, func(i int, block *BlockGen) {
+	blocks, _ := GenerateChain(config, genesis, ethash.NewFaker(), testdb, n, func(i int, block *BlockGen) {
 		block.SetCoinbase(common.Address{0})
 
 		signer := types.QuorumPrivateTxSigner{}
@@ -59,7 +59,7 @@ func buildTestChain(n int, config *params.ChainConfig) ([]*types.Block, map[comm
 		blockm[b.Hash()] = b
 	}
 
-	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil)
+	blockchain, _ := NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil, nil)
 	return blocks, blockm, blockchain
 }
 

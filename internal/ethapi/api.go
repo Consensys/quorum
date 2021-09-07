@@ -914,7 +914,7 @@ func (args *CallArgs) ToMessage(globalGasCap uint64) types.Message {
 
 	var data []byte
 	if args.Data != nil {
-		data = []byte(*args.Data)
+		data = *args.Data
 	}
 
 	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
@@ -1780,9 +1780,10 @@ type PrivateTxArgs struct {
 	PrivateFrom string `json:"privateFrom"`
 	// PrivateFor is the list of public keys which are available in the Private Transaction Managers in the network.
 	// The transaction payload is only visible to those party to the transaction.
-	PrivateFor    []string               `json:"privateFor"`
-	PrivateTxType string                 `json:"restriction"`
-	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
+	PrivateFor          []string               `json:"privateFor"`
+	PrivateTxType       string                 `json:"restriction"`
+	PrivacyFlag         engine.PrivacyFlagType `json:"privacyFlag"`
+	MandatoryRecipients []string               `json:"mandatoryFor"`
 }
 
 func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend) error {
@@ -1798,7 +1799,8 @@ func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend)
 
 func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b Backend, tx *types.Transaction) error {
 	if args.PrivateFor != nil && b.ChainConfig().IsMPS {
-		retrievedPrivateFrom, err := getRawTransactionPrivateFrom(tx)
+		hash := common.BytesToEncryptedPayloadHash(tx.Data())
+		_, retrievedPrivateFrom, _, err := private.P.ReceiveRaw(hash)
 		if err != nil {
 			return err
 		}
@@ -1813,7 +1815,7 @@ func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b B
 			return err
 		}
 		if psm.NotIncludeAny(args.PrivateFrom) {
-			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s) ", psm.ID)
+			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s)", psm.ID)
 		}
 	}
 	return nil
@@ -2024,7 +2026,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 		//make sure that nonce is same in simulation as in actual block processing
 		//simulation blockNumber will be behind block processing blockNumber by at least 1
 		//only guaranteed to work for default config where EIP158=1
-		if evm.ChainConfig().IsEIP158(big.NewInt(evm.BlockNumber.Int64() + 1)) {
+		if evm.ChainConfig().IsEIP158(big.NewInt(evm.Context.BlockNumber.Int64() + 1)) {
 			evm.StateDB.SetNonce(contractAddr, 1)
 		}
 	}
@@ -2710,6 +2712,16 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 		return
 	}
 
+	if engine.PrivacyFlagMandatoryRecipients == privateTxArgs.PrivacyFlag && len(privateTxArgs.MandatoryRecipients) == 0 {
+		err = fmt.Errorf("missing mandatory recipients data. if no mandatory recipients required consider using PrivacyFlag=1(PartyProtection)")
+		return
+	}
+
+	if engine.PrivacyFlagMandatoryRecipients != privateTxArgs.PrivacyFlag && len(privateTxArgs.MandatoryRecipients) > 0 {
+		err = fmt.Errorf("privacy metadata invalid. mandatory recipients are only applicable for PrivacyFlag=2(MandatoryRecipients)")
+		return
+	}
+
 	// validate that PrivateFrom is one of the addresses of the private state resolved from the user context
 	if b.ChainConfig().IsMPS {
 		var psm *mps.PrivateStateMetadata
@@ -2760,7 +2772,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 	data := tx.Data()
 
-	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
+	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag, "mandatoryfor", privateTxArgs.MandatoryRecipients)
 
 	switch txnType {
 	case FillTransaction:
@@ -2771,16 +2783,6 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		hash, err = handleNormalPrivateTransaction(ctx, b, tx, data, privateTxArgs, from)
 	}
 	return
-}
-
-func getRawTransactionPrivateFrom(tx *types.Transaction) (string, error) {
-	data := tx.Data()
-	hash := common.BytesToEncryptedPayloadHash(data)
-	_, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
-	if revErr != nil {
-		return "", revErr
-	}
-	return privateFrom, revErr
 }
 
 // Quorum
@@ -2808,9 +2810,10 @@ func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Trans
 	}
 
 	metadata := engine.ExtraMetadata{
-		ACHashes:     affectedCATxHashes,
-		ACMerkleRoot: merkleRoot,
-		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		ACHashes:            affectedCATxHashes,
+		ACMerkleRoot:        merkleRoot,
+		PrivacyFlag:         privateTxArgs.PrivacyFlag,
+		MandatoryRecipients: privateTxArgs.MandatoryRecipients,
 	}
 	_, _, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &metadata)
 	if err != nil {
@@ -2824,7 +2827,8 @@ func handleRawPrivateTransaction(ctx context.Context, b Backend, tx *types.Trans
 		"privatefor", privateTxArgs.PrivateFor,
 		"affectedCATxHashes", metadata.ACHashes,
 		"merkleroot", metadata.ACHashes,
-		"privacyflag", metadata.PrivacyFlag)
+		"privacyflag", metadata.PrivacyFlag,
+		"mandatoryrecipients", metadata.MandatoryRecipients)
 	return
 }
 
@@ -2837,9 +2841,10 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 	}
 
 	metadata := engine.ExtraMetadata{
-		ACHashes:     affectedCATxHashes,
-		ACMerkleRoot: merkleRoot,
-		PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		ACHashes:            affectedCATxHashes,
+		ACMerkleRoot:        merkleRoot,
+		PrivacyFlag:         privateTxArgs.PrivacyFlag,
+		MandatoryRecipients: privateTxArgs.MandatoryRecipients,
 	}
 	_, _, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &metadata)
 	if err != nil {
@@ -2853,7 +2858,8 @@ func handleNormalPrivateTransaction(ctx context.Context, b Backend, tx *types.Tr
 		"privatefor", privateTxArgs.PrivateFor,
 		"affectedCATxHashes", metadata.ACHashes,
 		"merkleroot", metadata.ACHashes,
-		"privacyflag", metadata.PrivacyFlag)
+		"privacyflag", metadata.PrivacyFlag,
+		"mandatoryrecipients", metadata.MandatoryRecipients)
 	return
 }
 
@@ -2876,7 +2882,7 @@ func createPrivacyMarkerTransaction(b Backend, privateTx *types.Transaction, pri
 
 	currentBlockHeight := b.CurrentHeader().Number
 	istanbul := b.ChainConfig().IsIstanbul(currentBlockHeight)
-	intrinsicGas, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), false, true, istanbul)
+	intrinsicGas, err := core.IntrinsicGas(ptmHash.Bytes(), false, true, istanbul)
 	if err != nil {
 		return nil, err
 	}

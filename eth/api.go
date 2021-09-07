@@ -331,6 +331,39 @@ func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.Blo
 	return privateState.IntermediateRoot(true), nil
 }
 
+func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
+	psm, err := api.eth.blockchain.PrivateStateManager().StateRepository(api.eth.blockchain.CurrentBlock().Hash())
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defaultPSM := psm.DefaultStateMetadata()
+
+	var privateState *state.StateDB
+	if blockNr == rpc.PendingBlockNumber {
+		// If we're dumping the pending state, we need to request
+		// both the pending block as well as the pending state from
+		// the miner and operate on those
+		_, _, privateState = api.eth.miner.Pending(defaultPSM.ID)
+		// this is a copy of the private state so it is OK to do IntermediateRoot
+		return privateState.IntermediateRoot(true), nil
+	}
+
+	var block *types.Block
+	if blockNr == rpc.LatestBlockNumber {
+		block = api.eth.blockchain.CurrentBlock()
+	} else {
+		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+	}
+	if block == nil {
+		return common.Hash{}, fmt.Errorf("block #%d not found", blockNr)
+	}
+	_, privateState, err = api.eth.BlockChain().StateAtPSI(block.Root(), defaultPSM.ID)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return privateState.IntermediateRoot(true), nil
+}
+
 // Quorum
 // DumpAddress retrieves the state of an address at a given block.
 // Quorum adds an additional parameter to support private state dump
