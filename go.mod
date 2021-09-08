@@ -5,9 +5,9 @@ go 1.15
 // Quorum - Replace Go modules that use modifications done by us
 replace (
 	github.com/ethereum/go-ethereum/crypto/secp256k1 => ./crypto/secp256k1
-	go.etcd.io/etcd/client/pkg/v3 => github.com/Consensys/etcd/client/pkg/v3 v3.5.0-quorum
-	go.etcd.io/etcd/raft/v3 => github.com/Consensys/etcd/raft/v3 v3.5.0-quorum
-	go.etcd.io/etcd/server/v3 => github.com/Consensys/etcd/server/v3 v3.5.0-quorum
+	go.etcd.io/etcd/client/pkg/v3 => github.com/Consensys/etcd/client/pkg/v3 v3.5.0-quorum2
+	go.etcd.io/etcd/raft/v3 => github.com/Consensys/etcd/raft/v3 v3.5.0-quorum2
+	go.etcd.io/etcd/server/v3 => github.com/Consensys/etcd/server/v3 v3.5.0-quorum2
 )
 
 // End Quorum
