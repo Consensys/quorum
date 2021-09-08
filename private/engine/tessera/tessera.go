@@ -444,6 +444,38 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 	return split, nil
 }
 
+func (t *tesseraPrivateTxManager) GetMandatory(txHash common.EncryptedPayloadHash) ([]string, error) {
+	requestUrl := "/transaction/" + url.PathEscape(txHash.ToBase64()) + "/mandatory"
+	req, err := http.NewRequest("GET", t.client.FullPath(requestUrl), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := t.client.HttpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+
+	if err != nil {
+		log.Error("Failed to get mandatory recipients from tessera", "err", err)
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+
+	out, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	split := strings.Split(string(out), ",")
+
+	return split, nil
+}
+
 func (t *tesseraPrivateTxManager) Groups() ([]engine.PrivacyGroup, error) {
 	response := make([]engine.PrivacyGroup, 0)
 	if _, err := t.submitJSON("GET", "/groups/resident", nil, &response); err != nil {
