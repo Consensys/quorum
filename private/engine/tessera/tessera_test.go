@@ -45,6 +45,7 @@ var (
 	receiveRequestCaptor                 = make(chan *capturedRequest)
 	sendSignedTxRequestCaptor            = make(chan *capturedRequest)
 	sendSignedTxOctetStreamRequestCaptor = make(chan *capturedRequest)
+	getMandatoryRequestCaptor            = make(chan *capturedRequest)
 )
 
 type capturedRequest struct {
@@ -70,7 +71,7 @@ func Must(o interface{}, err error) interface{} {
 func setup() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/send", MockSendAPIHandlerFunc)
-	mux.HandleFunc("/transaction/", MockReceiveAPIHandlerFunc)
+	mux.HandleFunc("/transaction/", MockTransactionAPIHandlerFunc)
 	mux.HandleFunc("/sendsignedtx", MockSendSignedTxAPIHandlerFunc)
 	mux.HandleFunc("/groups/resident", MockGroupsAPIHandlerFunc)
 
@@ -124,6 +125,30 @@ func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request)
 			ManagedParties: []string{"ArbitraryPublicKey"},
 		})
 		response.Write(data)
+	}
+}
+
+func MockTransactionAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	if strings.HasSuffix(request.RequestURI, "/mandatory") {
+		MockGetMandatoryAPIHandlerFunc(response, request)
+	} else {
+		MockReceiveAPIHandlerFunc(response, request)
+	}
+}
+
+func MockGetMandatoryAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	actualRequest, err := url.PathUnescape(strings.TrimSuffix(strings.TrimPrefix(request.RequestURI, "/transaction/"), "/mandatory"))
+	if err != nil {
+		go func(o *capturedRequest) { getMandatoryRequestCaptor <- o }(&capturedRequest{err: err})
+	} else {
+		go func(o *capturedRequest) {
+			getMandatoryRequestCaptor <- o
+		}(&capturedRequest{request: actualRequest, header: request.Header})
+		if actualRequest == arbitraryNotFoundHash.ToBase64() {
+			response.WriteHeader(http.StatusNotFound)
+		} else {
+			response.Write([]byte(strings.Join(arbitraryMandatory, ",")))
+		}
 	}
 }
 
@@ -620,4 +645,20 @@ func TestReceive_whenCachingRawPayload(t *testing.T) {
 	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "cached affected contract transaction hashes")
 	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "cached merkle root")
 	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "cached privacy flag")
+}
+
+func TestGetMandatory_valid(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	mandatoryRecipients, _ := testObject.GetMandatory(arbitraryHash)
+
+	assert.Equal(arbitraryMandatory, mandatoryRecipients)
+}
+
+func TestGetMandatory_notFound(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	_, err := testObject.GetMandatory(arbitraryNotFoundHash)
+
+	assert.Error(err, "Non-200 status code")
 }
