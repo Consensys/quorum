@@ -914,7 +914,7 @@ func (args *CallArgs) ToMessage(globalGasCap uint64) types.Message {
 
 	var data []byte
 	if args.Data != nil {
-		data = []byte(*args.Data)
+		data = *args.Data
 	}
 
 	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
@@ -1819,7 +1819,8 @@ func (args *PrivateTxArgs) SetDefaultPrivateFrom(ctx context.Context, b Backend)
 
 func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b Backend, tx *types.Transaction) error {
 	if args.PrivateFor != nil && b.ChainConfig().IsMPS {
-		retrievedPrivateFrom, err := getRawTransactionPrivateFrom(tx)
+		hash := common.BytesToEncryptedPayloadHash(tx.Data())
+		_, retrievedPrivateFrom, _, err := private.P.ReceiveRaw(hash)
 		if err != nil {
 			return err
 		}
@@ -1834,7 +1835,7 @@ func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b B
 			return err
 		}
 		if psm.NotIncludeAny(args.PrivateFrom) {
-			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s) ", psm.ID)
+			return fmt.Errorf("The PrivateFrom address does not match the specified private state (%s)", psm.ID)
 		}
 	}
 	return nil
@@ -2045,7 +2046,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 		//make sure that nonce is same in simulation as in actual block processing
 		//simulation blockNumber will be behind block processing blockNumber by at least 1
 		//only guaranteed to work for default config where EIP158=1
-		if evm.ChainConfig().IsEIP158(big.NewInt(evm.BlockNumber.Int64() + 1)) {
+		if evm.ChainConfig().IsEIP158(big.NewInt(evm.Context.BlockNumber.Int64() + 1)) {
 			evm.StateDB.SetNonce(contractAddr, 1)
 		}
 	}
@@ -2802,16 +2803,6 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		hash, err = handleNormalPrivateTransaction(ctx, b, tx, data, privateTxArgs, from)
 	}
 	return
-}
-
-func getRawTransactionPrivateFrom(tx *types.Transaction) (string, error) {
-	data := tx.Data()
-	hash := common.BytesToEncryptedPayloadHash(data)
-	_, privateFrom, _, revErr := private.P.ReceiveRaw(hash)
-	if revErr != nil {
-		return "", revErr
-	}
-	return privateFrom, revErr
 }
 
 // Quorum
