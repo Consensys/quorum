@@ -18,6 +18,8 @@ type sendRequest struct {
 	ExecHash string `json:"execHash,omitempty"`
 
 	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
+
+	MandatoryRecipients []string `json:"mandatoryRecipients"`
 }
 
 // request object for /send API
@@ -64,6 +66,8 @@ type sendSignedTxRequest struct {
 	ExecHash string `json:"execHash,omitempty"`
 
 	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
+
+	MandatoryRecipients []string `json:"mandatoryRecipients"`
 }
 
 type sendSignedTxResponse struct {

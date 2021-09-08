@@ -41,10 +41,11 @@ import (
 )
 
 var (
-	arbitraryCtx         = context.Background()
-	arbitraryPrivateFrom = "arbitrary private from"
-	arbitraryPrivateFor  = []string{"arbitrary party 1", "arbitrary party 2"}
-	privateTxArgs        = &PrivateTxArgs{
+	arbitraryCtx          = context.Background()
+	arbitraryPrivateFrom  = "arbitrary private from"
+	arbitraryPrivateFor   = []string{"arbitrary party 1", "arbitrary party 2"}
+	arbitraryMandatoryFor = []string{"arbitrary party 2"}
+	privateTxArgs         = &PrivateTxArgs{
 		PrivateFrom: arbitraryPrivateFrom,
 		PrivateFor:  arbitraryPrivateFor,
 	}
@@ -528,6 +529,97 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 	_, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawStandardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, RawTransaction)
 
 	assert.NoError(err, "raw standard private msg call succeeded")
+
+}
+
+func TestHandlePrivateTransaction_whenMandatoryRecipients(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockTM := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+		privateTxArgs.MandatoryRecipients = nil
+	}()
+	private.P = mockTM
+	privateTxArgs.MandatoryRecipients = arbitraryMandatoryFor
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagMandatoryRecipients
+
+	var capturedMetadata engine.ExtraMetadata
+
+	mockTM.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Do(func(arg1 interface{}, arg2 string, arg3 interface{}, arg4 *engine.ExtraMetadata) {
+			capturedMetadata = *arg4
+		}).Times(1)
+
+	_, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.NoError(err)
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, capturedMetadata.PrivacyFlag)
+	assert.Equal(arbitraryMandatoryFor, capturedMetadata.MandatoryRecipients)
+
+}
+
+func TestHandlePrivateTransaction_whenRawPrivateWithMandatoryRecipients(t *testing.T) {
+	assert := assert.New(t)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockTM := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+		privateTxArgs.MandatoryRecipients = nil
+	}()
+	private.P = mockTM
+	privateTxArgs.MandatoryRecipients = arbitraryMandatoryFor
+
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagMandatoryRecipients
+
+	var capturedMetadata engine.ExtraMetadata
+
+	mockTM.EXPECT().ReceiveRaw(gomock.Any()).Times(1)
+
+	mockTM.EXPECT().SendSignedTx(gomock.Any(), gomock.Any(), gomock.Any()).
+		Do(func(arg1 interface{}, arg2 []string, arg3 *engine.ExtraMetadata) {
+			capturedMetadata = *arg3
+		}).Times(1)
+
+	_, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, RawTransaction)
+
+	assert.NoError(err)
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, capturedMetadata.PrivacyFlag)
+	assert.Equal(arbitraryMandatoryFor, capturedMetadata.MandatoryRecipients)
+
+}
+
+func TestHandlePrivateTransaction_whenMandatoryRecipientsDataInvalid(t *testing.T) {
+	assert := assert.New(t)
+
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagMandatoryRecipients
+
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Error(err, "missing mandatory recipients data. if no mandatory recipients required consider using PrivacyFlag=1(PartyProtection)")
+
+}
+
+func TestHandlePrivateTransaction_whenNoMandatoryRecipientsData(t *testing.T) {
+	assert := assert.New(t)
+
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
+	defer func() {
+		privateTxArgs.MandatoryRecipients = nil
+	}()
+	privateTxArgs.MandatoryRecipients = arbitraryMandatoryFor
+
+	_, _, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Error(err, "privacy metadata invalid. mandatory recipients are only applicable for PrivacyFlag=2(MandatoryRecipients)")
 
 }
 
