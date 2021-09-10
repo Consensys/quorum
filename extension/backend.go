@@ -294,17 +294,16 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 				}
 				extraMetaData.ACMerkleRoot = storageRoot
 			}
-		}
-
-		// Fetch mandatory recipients data from Tessera - only when privacy flag is 2
-		if privacyMetaData.PrivacyFlag == engine.PrivacyFlagMandatoryRecipients {
-			fetchedMandatoryRecipients, err := service.ptm.GetMandatory(privacyMetaData.CreationTxHash)
-			if err != nil || len(fetchedMandatoryRecipients) == 0 {
-				log.Error("Extension: Unable to fetch mandatory parties for extension management contract", "error", err)
-				return
+			// Fetch mandatory recipients data from Tessera - only when privacy flag is 2
+			if privacyMetaData.PrivacyFlag == engine.PrivacyFlagMandatoryRecipients {
+				fetchedMandatoryRecipients, err := service.ptm.GetMandatory(privacyMetaData.CreationTxHash)
+				if err != nil || len(fetchedMandatoryRecipients) == 0 {
+					log.Error("Extension: Unable to fetch mandatory parties for extension management contract", "error", err)
+					return
+				}
+				log.Debug("Extension: able to fetch mandatory recipients", "mandatory", fetchedMandatoryRecipients)
+				extraMetaData.MandatoryRecipients = fetchedMandatoryRecipients
 			}
-			log.Debug("Extension: able to fetch mandatory recipients", "mandatory", fetchedMandatoryRecipients)
-			extraMetaData.MandatoryRecipients = fetchedMandatoryRecipients
 		}
 
 		_, _, hashOfStateData, err := service.ptm.Send(entireStateData, privateFrom, fetchedParties, &extraMetaData)
