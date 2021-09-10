@@ -1174,8 +1174,8 @@ func (StubMinimalApiState) SetCode(common.Address, []byte) {
 func (StubMinimalApiState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if addr == arbitraryMandatoryRecipientsSimpleStorageContractAddress {
 		return &state.PrivacyMetadata{
-			arbitraryMandatoryRecipientsContractEncryptedPayloadHash,
-			2,
+			CreationTxHash: arbitraryMandatoryRecipientsContractEncryptedPayloadHash,
+			PrivacyFlag:    2,
 		}, nil
 	}
 	return &state.PrivacyMetadata{
