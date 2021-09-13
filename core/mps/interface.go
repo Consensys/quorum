@@ -36,7 +36,7 @@ type PrivateStateMetadataResolver interface {
 // retrieving from and peristing private states to the underlying database
 type PrivateStateRepository interface {
 	StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error)
-	CommitAndWrite(isEIP158 bool, block *types.Block) error
+	CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error)
 	Commit(isEIP158 bool, block *types.Block) error
 	Copy() PrivateStateRepository
 	Reset() error
