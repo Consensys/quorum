@@ -5,36 +5,37 @@
 package mock_private
 
 import (
+	reflect "reflect"
+
 	common "github.com/ethereum/go-ethereum/common"
 	engine "github.com/ethereum/go-ethereum/private/engine"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
-// MockIdentifiable is a mock of Identifiable interface
+// MockIdentifiable is a mock of Identifiable interface.
 type MockIdentifiable struct {
 	ctrl     *gomock.Controller
 	recorder *MockIdentifiableMockRecorder
 }
 
-// MockIdentifiableMockRecorder is the mock recorder for MockIdentifiable
+// MockIdentifiableMockRecorder is the mock recorder for MockIdentifiable.
 type MockIdentifiableMockRecorder struct {
 	mock *MockIdentifiable
 }
 
-// NewMockIdentifiable creates a new mock instance
+// NewMockIdentifiable creates a new mock instance.
 func NewMockIdentifiable(ctrl *gomock.Controller) *MockIdentifiable {
 	mock := &MockIdentifiable{ctrl: ctrl}
 	mock.recorder = &MockIdentifiableMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockIdentifiable) EXPECT() *MockIdentifiableMockRecorder {
 	return m.recorder
 }
 
-// HasFeature mocks base method
+// HasFeature mocks base method.
 func (m *MockIdentifiable) HasFeature(arg0 engine.PrivateTransactionManagerFeature) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFeature", arg0)
@@ -42,13 +43,13 @@ func (m *MockIdentifiable) HasFeature(arg0 engine.PrivateTransactionManagerFeatu
 	return ret0
 }
 
-// HasFeature indicates an expected call of HasFeature
+// HasFeature indicates an expected call of HasFeature.
 func (mr *MockIdentifiableMockRecorder) HasFeature(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFeature", reflect.TypeOf((*MockIdentifiable)(nil).HasFeature), arg0)
 }
 
-// Name mocks base method
+// Name mocks base method.
 func (m *MockIdentifiable) Name() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
@@ -56,36 +57,36 @@ func (m *MockIdentifiable) Name() string {
 	return ret0
 }
 
-// Name indicates an expected call of Name
+// Name indicates an expected call of Name.
 func (mr *MockIdentifiableMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockIdentifiable)(nil).Name))
 }
 
-// MockPrivateTransactionManager is a mock of PrivateTransactionManager interface
+// MockPrivateTransactionManager is a mock of PrivateTransactionManager interface.
 type MockPrivateTransactionManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockPrivateTransactionManagerMockRecorder
 }
 
-// MockPrivateTransactionManagerMockRecorder is the mock recorder for MockPrivateTransactionManager
+// MockPrivateTransactionManagerMockRecorder is the mock recorder for MockPrivateTransactionManager.
 type MockPrivateTransactionManagerMockRecorder struct {
 	mock *MockPrivateTransactionManager
 }
 
-// NewMockPrivateTransactionManager creates a new mock instance
+// NewMockPrivateTransactionManager creates a new mock instance.
 func NewMockPrivateTransactionManager(ctrl *gomock.Controller) *MockPrivateTransactionManager {
 	mock := &MockPrivateTransactionManager{ctrl: ctrl}
 	mock.recorder = &MockPrivateTransactionManagerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPrivateTransactionManager) EXPECT() *MockPrivateTransactionManagerMockRecorder {
 	return m.recorder
 }
 
-// DecryptPayload mocks base method
+// DecryptPayload mocks base method.
 func (m *MockPrivateTransactionManager) DecryptPayload(arg0 common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DecryptPayload", arg0)
@@ -95,13 +96,13 @@ func (m *MockPrivateTransactionManager) DecryptPayload(arg0 common.DecryptReques
 	return ret0, ret1, ret2
 }
 
-// DecryptPayload indicates an expected call of DecryptPayload
+// DecryptPayload indicates an expected call of DecryptPayload.
 func (mr *MockPrivateTransactionManagerMockRecorder) DecryptPayload(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptPayload", reflect.TypeOf((*MockPrivateTransactionManager)(nil).DecryptPayload), arg0)
 }
 
-// EncryptPayload mocks base method
+// EncryptPayload mocks base method.
 func (m *MockPrivateTransactionManager) EncryptPayload(arg0 []byte, arg1 string, arg2 []string, arg3 *engine.ExtraMetadata) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EncryptPayload", arg0, arg1, arg2, arg3)
@@ -110,13 +111,28 @@ func (m *MockPrivateTransactionManager) EncryptPayload(arg0 []byte, arg1 string,
 	return ret0, ret1
 }
 
-// EncryptPayload indicates an expected call of EncryptPayload
+// EncryptPayload indicates an expected call of EncryptPayload.
 func (mr *MockPrivateTransactionManagerMockRecorder) EncryptPayload(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptPayload", reflect.TypeOf((*MockPrivateTransactionManager)(nil).EncryptPayload), arg0, arg1, arg2, arg3)
 }
 
-// GetParticipants mocks base method
+// GetMandatory mocks base method.
+func (m *MockPrivateTransactionManager) GetMandatory(arg0 common.EncryptedPayloadHash) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMandatory", arg0)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMandatory indicates an expected call of GetMandatory.
+func (mr *MockPrivateTransactionManagerMockRecorder) GetMandatory(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMandatory", reflect.TypeOf((*MockPrivateTransactionManager)(nil).GetMandatory), arg0)
+}
+
+// GetParticipants mocks base method.
 func (m *MockPrivateTransactionManager) GetParticipants(arg0 common.EncryptedPayloadHash) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetParticipants", arg0)
@@ -125,13 +141,13 @@ func (m *MockPrivateTransactionManager) GetParticipants(arg0 common.EncryptedPay
 	return ret0, ret1
 }
 
-// GetParticipants indicates an expected call of GetParticipants
+// GetParticipants indicates an expected call of GetParticipants.
 func (mr *MockPrivateTransactionManagerMockRecorder) GetParticipants(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetParticipants", reflect.TypeOf((*MockPrivateTransactionManager)(nil).GetParticipants), arg0)
 }
 
-// Groups mocks base method
+// Groups mocks base method.
 func (m *MockPrivateTransactionManager) Groups() ([]engine.PrivacyGroup, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Groups")
@@ -140,13 +156,13 @@ func (m *MockPrivateTransactionManager) Groups() ([]engine.PrivacyGroup, error) 
 	return ret0, ret1
 }
 
-// Groups indicates an expected call of Groups
+// Groups indicates an expected call of Groups.
 func (mr *MockPrivateTransactionManagerMockRecorder) Groups() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Groups", reflect.TypeOf((*MockPrivateTransactionManager)(nil).Groups))
 }
 
-// HasFeature mocks base method
+// HasFeature mocks base method.
 func (m *MockPrivateTransactionManager) HasFeature(arg0 engine.PrivateTransactionManagerFeature) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFeature", arg0)
@@ -154,13 +170,13 @@ func (m *MockPrivateTransactionManager) HasFeature(arg0 engine.PrivateTransactio
 	return ret0
 }
 
-// HasFeature indicates an expected call of HasFeature
+// HasFeature indicates an expected call of HasFeature.
 func (mr *MockPrivateTransactionManagerMockRecorder) HasFeature(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFeature", reflect.TypeOf((*MockPrivateTransactionManager)(nil).HasFeature), arg0)
 }
 
-// IsSender mocks base method
+// IsSender mocks base method.
 func (m *MockPrivateTransactionManager) IsSender(arg0 common.EncryptedPayloadHash) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsSender", arg0)
@@ -169,13 +185,13 @@ func (m *MockPrivateTransactionManager) IsSender(arg0 common.EncryptedPayloadHas
 	return ret0, ret1
 }
 
-// IsSender indicates an expected call of IsSender
+// IsSender indicates an expected call of IsSender.
 func (mr *MockPrivateTransactionManagerMockRecorder) IsSender(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSender", reflect.TypeOf((*MockPrivateTransactionManager)(nil).IsSender), arg0)
 }
 
-// Name mocks base method
+// Name mocks base method.
 func (m *MockPrivateTransactionManager) Name() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
@@ -183,13 +199,13 @@ func (m *MockPrivateTransactionManager) Name() string {
 	return ret0
 }
 
-// Name indicates an expected call of Name
+// Name indicates an expected call of Name.
 func (mr *MockPrivateTransactionManagerMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockPrivateTransactionManager)(nil).Name))
 }
 
-// Receive mocks base method
+// Receive mocks base method.
 func (m *MockPrivateTransactionManager) Receive(arg0 common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Receive", arg0)
@@ -201,13 +217,13 @@ func (m *MockPrivateTransactionManager) Receive(arg0 common.EncryptedPayloadHash
 	return ret0, ret1, ret2, ret3, ret4
 }
 
-// Receive indicates an expected call of Receive
+// Receive indicates an expected call of Receive.
 func (mr *MockPrivateTransactionManagerMockRecorder) Receive(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockPrivateTransactionManager)(nil).Receive), arg0)
 }
 
-// ReceiveRaw mocks base method
+// ReceiveRaw mocks base method.
 func (m *MockPrivateTransactionManager) ReceiveRaw(arg0 common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReceiveRaw", arg0)
@@ -218,13 +234,13 @@ func (m *MockPrivateTransactionManager) ReceiveRaw(arg0 common.EncryptedPayloadH
 	return ret0, ret1, ret2, ret3
 }
 
-// ReceiveRaw indicates an expected call of ReceiveRaw
+// ReceiveRaw indicates an expected call of ReceiveRaw.
 func (mr *MockPrivateTransactionManagerMockRecorder) ReceiveRaw(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveRaw", reflect.TypeOf((*MockPrivateTransactionManager)(nil).ReceiveRaw), arg0)
 }
 
-// Send mocks base method
+// Send mocks base method.
 func (m *MockPrivateTransactionManager) Send(arg0 []byte, arg1 string, arg2 []string, arg3 *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", arg0, arg1, arg2, arg3)
@@ -235,13 +251,13 @@ func (m *MockPrivateTransactionManager) Send(arg0 []byte, arg1 string, arg2 []st
 	return ret0, ret1, ret2, ret3
 }
 
-// Send indicates an expected call of Send
+// Send indicates an expected call of Send.
 func (mr *MockPrivateTransactionManagerMockRecorder) Send(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockPrivateTransactionManager)(nil).Send), arg0, arg1, arg2, arg3)
 }
 
-// SendSignedTx mocks base method
+// SendSignedTx mocks base method.
 func (m *MockPrivateTransactionManager) SendSignedTx(arg0 common.EncryptedPayloadHash, arg1 []string, arg2 *engine.ExtraMetadata) (string, []string, []byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendSignedTx", arg0, arg1, arg2)
@@ -252,13 +268,13 @@ func (m *MockPrivateTransactionManager) SendSignedTx(arg0 common.EncryptedPayloa
 	return ret0, ret1, ret2, ret3
 }
 
-// SendSignedTx indicates an expected call of SendSignedTx
+// SendSignedTx indicates an expected call of SendSignedTx.
 func (mr *MockPrivateTransactionManagerMockRecorder) SendSignedTx(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSignedTx", reflect.TypeOf((*MockPrivateTransactionManager)(nil).SendSignedTx), arg0, arg1, arg2)
 }
 
-// StoreRaw mocks base method
+// StoreRaw mocks base method.
 func (m *MockPrivateTransactionManager) StoreRaw(arg0 []byte, arg1 string) (common.EncryptedPayloadHash, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreRaw", arg0, arg1)
@@ -267,7 +283,7 @@ func (m *MockPrivateTransactionManager) StoreRaw(arg0 []byte, arg1 string) (comm
 	return ret0, ret1
 }
 
-// StoreRaw indicates an expected call of StoreRaw
+// StoreRaw indicates an expected call of StoreRaw.
 func (mr *MockPrivateTransactionManagerMockRecorder) StoreRaw(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRaw", reflect.TypeOf((*MockPrivateTransactionManager)(nil).StoreRaw), arg0, arg1)

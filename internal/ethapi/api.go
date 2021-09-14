@@ -1531,12 +1531,32 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 }
 
 // Quorum
-func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Context, address common.Address) (*state.PrivacyMetadata, error) {
+
+type PrivacyMetadataWithMandatoryRecipients struct {
+	*state.PrivacyMetadata
+	MandatoryRecipients []string `json:"mandatoryFor,omitempty"`
+}
+
+func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Context, address common.Address) (*PrivacyMetadataWithMandatoryRecipients, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if state == nil || err != nil {
 		return nil, err
 	}
-	return state.GetPrivacyMetadata(address)
+	var mandatoryRecipients []string
+
+	privacyMetadata, err := state.GetPrivacyMetadata(address)
+	if privacyMetadata == nil || err != nil {
+		return nil, err
+	}
+
+	if privacyMetadata.PrivacyFlag == engine.PrivacyFlagMandatoryRecipients {
+		mandatoryRecipients, err = private.P.GetMandatory(privacyMetadata.CreationTxHash)
+		if len(mandatoryRecipients) == 0 || err != nil {
+			return nil, err
+		}
+	}
+
+	return &PrivacyMetadataWithMandatoryRecipients{privacyMetadata, mandatoryRecipients}, nil
 }
 
 // End Quorum

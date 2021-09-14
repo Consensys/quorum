@@ -66,6 +66,21 @@ func (mr *MockPrivateTransactionManagerMockRecorder) EncryptPayload(arg0, arg1, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptPayload", reflect.TypeOf((*MockPrivateTransactionManager)(nil).EncryptPayload), arg0, arg1, arg2, arg3)
 }
 
+// GetMandatory mocks base method.
+func (m *MockPrivateTransactionManager) GetMandatory(arg0 common.EncryptedPayloadHash) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMandatory", arg0)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMandatory indicates an expected call of GetMandatory.
+func (mr *MockPrivateTransactionManagerMockRecorder) GetMandatory(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMandatory", reflect.TypeOf((*MockPrivateTransactionManager)(nil).GetMandatory), arg0)
+}
+
 // GetParticipants mocks base method.
 func (m *MockPrivateTransactionManager) GetParticipants(arg0 common.EncryptedPayloadHash) ([]string, error) {
 	m.ctrl.T.Helper()

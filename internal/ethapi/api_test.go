@@ -64,7 +64,8 @@ var (
 		Data:     (*hexutil.Bytes)(arbitraryEmptyData),
 	}
 
-	arbitrarySimpleStorageContractEncryptedPayloadHash = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash"))
+	arbitrarySimpleStorageContractEncryptedPayloadHash       = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash"))
+	arbitraryMandatoryRecipientsContractEncryptedPayloadHash = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash of tx with mr"))
 
 	simpleStorageContractCreationTx = types.NewContractCreation(
 		0,
@@ -80,8 +81,9 @@ var (
 		big.NewInt(0),
 		arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes())
 
-	arbitrarySimpleStorageContractAddress                common.Address
-	arbitraryStandardPrivateSimpleStorageContractAddress common.Address
+	arbitrarySimpleStorageContractAddress                    common.Address
+	arbitraryStandardPrivateSimpleStorageContractAddress     common.Address
+	arbitraryMandatoryRecipientsSimpleStorageContractAddress common.Address
 
 	simpleStorageContractMessageCallTx                   *types.Transaction
 	standardPrivateSimpleStorageContractMessageCallTx    *types.Transaction
@@ -623,6 +625,69 @@ func TestHandlePrivateTransaction_whenNoMandatoryRecipientsData(t *testing.T) {
 
 }
 
+func TestGetContractPrivacyMetadata(t *testing.T) {
+	assert := assert.New(t)
+
+	keystore, _, _ := createKeystore(t)
+
+	stbBackend := &StubBackend{}
+	stbBackend.multitenancySupported = false
+	stbBackend.isPrivacyMarkerTransactionCreationEnabled = false
+	stbBackend.ks = keystore
+	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
+	stbBackend.poolNonce = 999
+
+	public := NewPublicTransactionPoolAPI(stbBackend, nil)
+
+	privacyMetadata, _ := public.GetContractPrivacyMetadata(arbitraryCtx, arbitrarySimpleStorageContractAddress)
+
+	assert.Equal(engine.PrivacyFlagPartyProtection, privacyMetadata.PrivacyFlag)
+	assert.Equal(arbitrarySimpleStorageContractEncryptedPayloadHash, privacyMetadata.CreationTxHash)
+	assert.Equal(0, len(privacyMetadata.MandatoryRecipients))
+}
+
+func TestGetContractPrivacyMetadataWhenMandatoryRecipients(t *testing.T) {
+	assert := assert.New(t)
+
+	keystore, _, _ := createKeystore(t)
+
+	stbBackend := &StubBackend{}
+	stbBackend.multitenancySupported = false
+	stbBackend.isPrivacyMarkerTransactionCreationEnabled = false
+	stbBackend.ks = keystore
+	stbBackend.accountManager = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, stbBackend)
+	stbBackend.poolNonce = 999
+
+	public := NewPublicTransactionPoolAPI(stbBackend, nil)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockTM := private.NewMockPrivateTransactionManager(mockCtrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = mockTM
+
+	var capturedTxHash common.EncryptedPayloadHash
+
+	mockTM.EXPECT().GetMandatory(gomock.Any()).
+		DoAndReturn(func(arg1 common.EncryptedPayloadHash) ([]string, error) {
+			capturedTxHash = arg1
+			return arbitraryMandatoryFor, nil
+		}).Times(1)
+
+	privacyMetadata, _ := public.GetContractPrivacyMetadata(arbitraryCtx, arbitraryMandatoryRecipientsSimpleStorageContractAddress)
+
+	assert.Equal(arbitraryMandatoryRecipientsContractEncryptedPayloadHash, capturedTxHash)
+
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, privacyMetadata.PrivacyFlag)
+	assert.Equal(arbitraryMandatoryRecipientsContractEncryptedPayloadHash, privacyMetadata.CreationTxHash)
+	assert.Equal(arbitraryMandatoryFor, privacyMetadata.MandatoryRecipients)
+}
+
 func TestSubmitPrivateTransaction(t *testing.T) {
 	assert := assert.New(t)
 
@@ -1107,7 +1172,16 @@ func (StubMinimalApiState) SetCode(common.Address, []byte) {
 }
 
 func (StubMinimalApiState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
-	panic("implement me")
+	if addr == arbitraryMandatoryRecipientsSimpleStorageContractAddress {
+		return &state.PrivacyMetadata{
+			CreationTxHash: arbitraryMandatoryRecipientsContractEncryptedPayloadHash,
+			PrivacyFlag:    2,
+		}, nil
+	}
+	return &state.PrivacyMetadata{
+		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
+		PrivacyFlag:    1,
+	}, nil
 }
 
 func (StubMinimalApiState) GetManagedParties(addr common.Address) ([]string, error) {
