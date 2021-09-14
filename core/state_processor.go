@@ -365,13 +365,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 			} else {
 				privateRoot = privateStateDB.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 			}
-			// This may have been a privacy marker transaction, in which case need to retrieve the receipt for the
-			// inner private transaction (note that this can be an mpsReceipt, containing private receipts in PSReceipts).
-			if evm.InnerPrivateReceipt != nil {
-				privateReceipt = evm.InnerPrivateReceipt
-			} else {
-				privateReceipt = types.NewReceipt(privateRoot, result.Failed(), *usedGas)
-			}
+			privateReceipt = types.NewReceipt(privateRoot, result.Failed(), *usedGas)
 			privateReceipt.TxHash = tx.Hash()
 			privateReceipt.GasUsed = result.UsedGas
 			if msg.To() == nil {
@@ -380,6 +374,12 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 
 			privateReceipt.Logs = privateStateDB.GetLogs(tx.Hash())
 			privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+		} else {
+			// This may have been a privacy marker transaction, in which case need to retrieve the receipt for the
+			// inner private transaction (note that this can be an mpsReceipt, containing private receipts in PSReceipts).
+			if evm.InnerPrivateReceipt != nil {
+				privateReceipt = evm.InnerPrivateReceipt
+			}
 		}
 	}
 
