@@ -1686,6 +1686,9 @@ func setAuthorizationList(ctx *cli.Context, cfg *eth.Config) {
 	authorizationList := ctx.GlobalString(AuthorizationListFlag.Name)
 	if authorizationList == "" {
 		authorizationList = ctx.GlobalString(DeprecatedAuthorizationListFlag.Name)
+		if authorizationList != "" {
+			log.Warn("The flag --whitelist is deprecated and will be removed in the future, please use --authorizationlist")
+		}
 	}
 	if authorizationList == "" {
 		return
