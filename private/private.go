@@ -42,6 +42,7 @@ type PrivateTransactionManager interface {
 	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error)
 	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
+	GetMandatory(txHash common.EncryptedPayloadHash) ([]string, error)
 	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 
