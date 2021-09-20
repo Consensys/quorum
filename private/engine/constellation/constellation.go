@@ -78,6 +78,10 @@ func (g *constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]s
 	return nil, engine.ErrPrivateTxManagerNotSupported
 }
 
+func (g *constellation) GetMandatory(txHash common.EncryptedPayloadHash) ([]string, error) {
+	return nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (g *constellation) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
 		return "", nil, nil, nil, nil

@@ -25,6 +25,10 @@ func (ptm *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPay
 	panic("implement me")
 }
 
+func (ptm *PrivateTransactionManager) GetMandatory(txHash common.EncryptedPayloadHash) ([]string, error) {
+	panic("implement me")
+}
+
 func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error) {
 	return "", nil, common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerNotinUse
 }
