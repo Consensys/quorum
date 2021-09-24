@@ -109,16 +109,6 @@ func (p *snapPeer) info() *snapPeerInfo {
 // AsyncSendPooledTransactionHashes queues a list of transactions hashes to eventually
 
 
-type PrivateTransactionsData []PrivateTransactionData
-
-type PrivateTransactionData struct {
-	Hash     *common.EncryptedPayloadHash
-	Payload  []byte
-	Extra    *engine.ExtraMetadata
-	IsSender bool
-}
-
-
 func (p *peer) QLightHandshake(server bool, psi string, token string) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)

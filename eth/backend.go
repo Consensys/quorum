@@ -672,8 +672,9 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 		return protos
 	}
 	protos := eth.MakeProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
-	if s.config.SnapshotCache > 0 {
+	if s.config.SnapshotCache > 0{
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
+	}
 
 	// /Quorum
 	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul

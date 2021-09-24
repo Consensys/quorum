@@ -131,7 +131,6 @@ func (pm *QLightServerProtocolManager) makeProtocol(version uint) p2p.Protocol {
 
 func (pm *QLightServerProtocolManager) removePeer(id string) {
 	// Short circuit if the peer was already removed
-	// Short circuit if the peer was already removed
 	log.Info("QLight removePeer", "id", id)
 	peer := pm.peers.Peer(id)
 	if peer == nil {
