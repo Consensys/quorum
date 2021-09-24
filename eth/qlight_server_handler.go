@@ -263,6 +263,7 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
+
 	// TODO Qlight - see what to do about this
 	//pm.syncTransactions(p)
 
@@ -496,9 +497,6 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 		// Send the block to all the peers
 		log.Info("Preparing new block private data")
 		for _, peer := range peers {
-			if peer.qlightServer {
-				continue
-			}
 			blockPrivateData, err := pm.privateBlockDataResolver.PrepareBlockPrivateData(block, peer.qlightPSI)
 			if err != nil {
 				log.Error("Unable to prepare private data for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
@@ -539,9 +537,6 @@ func (pm *QLightServerProtocolManager) BroadcastTransactions(txs types.Transacti
 
 			// Send the block to a subset of our peers
 			for _, peer := range peers {
-				if peer.qlightServer {
-					continue
-				}
 				txset[peer] = append(txset[peer], tx.Hash())
 			}
 			log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
