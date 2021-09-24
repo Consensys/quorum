@@ -155,3 +155,17 @@ func (p *peer) readQLightStatus(qligtStatus *qLightStatusData) error {
 	// TODO qlight - check that if multi tenancy is enabled the token matches the PSI
 	return nil
 }
+
+func (ps *peerSet) RegisterIdlePeer(p *peer, removePeer func(string), protoName string) error {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	if ps.closed {
+		return errClosed
+	}
+	if _, ok := ps.peers[p.id]; ok {
+		return errAlreadyRegistered
+	}
+	ps.peers[p.id] = p
+	return nil
+}

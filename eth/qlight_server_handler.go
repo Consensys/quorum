@@ -186,8 +186,10 @@ func (pm *QLightServerProtocolManager) Start(maxPeers int) {
 func (pm *QLightServerProtocolManager) Stop() {
 	log.Info("QLight protocol stopping")
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
+	log.Info("QLight protocol after txsSub.Unsubscribe() ")
 	// qlight - manually stop the tx fetcher
 	pm.txFetcher.Stop()
+	log.Info("QLight protocol after txFetcher.Stop() ")
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
@@ -260,32 +262,48 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 	}
 
 	p.Log().Debug("QLight handshake result for peer", "peer", p.id, "server", p.qlightServer, "psi", p.qlightPSI, "token", p.qlightToken)
+
+	if p.qlightServer {
+		// Register the peer locally
+		if err := pm.peers.RegisterIdlePeer(p, pm.removePeer, protoName); err != nil {
+			p.Log().Error("Ethereum peer registration failed", "err", err)
+
+			// Quorum
+			// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+			p.EthPeerDisconnected <- struct{}{}
+			// End Quorum
+
+			return err
+		}
+	} else {
+		if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
+			p.Log().Error("Ethereum peer registration failed", "err", err)
+
+			// Quorum
+			// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+			p.EthPeerDisconnected <- struct{}{}
+			// End Quorum
+
+			return err
+		}
+	}
+	defer pm.removePeer(p.id)
+
 	// we're a qlight server connected to another server - do nothing
 	if p.qlightServer {
 		p.Log().Debug("QLight handshake to another server. Wait for remote disconnect", "protoName", protoName)
 
+		// TODO Qlight - consider a server peers list (with it's own wait group)
 		// connected to another server, no messages expected, just wait for disconnection
-		_, err := p.rw.ReadMsg()
+		msg, err := p.rw.ReadMsg()
+		p.Log().Info("QLight - message received on server connection", "msg", msg, "err", err)
 		return err
 	}
-
-	// Register the peer locally
-	if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
-		p.Log().Error("Ethereum peer registration failed", "err", err)
-
-		// Quorum
-		// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
-		p.EthPeerDisconnected <- struct{}{}
-		// End Quorum
-
-		return err
-	}
-	defer pm.removePeer(p.id)
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
 
-	// TODO - see what to do about this
+	// TODO Qlight - see what to do about this
 	//pm.syncTransactions(p)
 
 	// Quorum notify other subprotocols that the eth peer is ready, and has been added to the peerset.
@@ -783,9 +801,12 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 		// Send the block to all the peers
 		log.Info("Preparing new block private data")
 		for _, peer := range peers {
+			if peer.qlightServer {
+				continue
+			}
 			privateTransactionsData, err := pm.preparePrivateTransactionsData(block, peer.qlightPSI)
 			if err != nil {
-				log.Error("Unable to prepare privateTransactionsData for block", "number", block.Number(), "hash", hash, "err", err)
+				log.Error("Unable to prepare privateTransactionsData for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
 				return
 			}
 			log.Info("Private transactions data", "is nil", privateTransactionsData == nil)
@@ -857,6 +878,9 @@ func (pm *QLightServerProtocolManager) BroadcastTransactions(txs types.Transacti
 
 			// Send the block to a subset of our peers
 			for _, peer := range peers {
+				if peer.qlightServer {
+					continue
+				}
 				txset[peer] = append(txset[peer], tx.Hash())
 			}
 			log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
@@ -870,6 +894,9 @@ func (pm *QLightServerProtocolManager) BroadcastTransactions(txs types.Transacti
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
+			if peer.qlightServer {
+				continue
+			}
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
 	}
@@ -914,8 +941,8 @@ func (pm *QLightServerProtocolManager) txBroadcastLoop() {
 				pm.BroadcastTransactions(event.Txs, false)
 				continue
 			}
-			pm.BroadcastTransactions(event.Txs, true)  // First propagate transactions to peers
-			pm.BroadcastTransactions(event.Txs, false) // Only then announce to the rest
+			pm.BroadcastTransactions(event.Txs, true) // First propagate transactions to peers
+			//			pm.BroadcastTransactions(event.Txs, false) // Only then announce to the rest
 
 		case <-pm.txsSub.Err():
 			return
