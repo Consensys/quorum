@@ -190,6 +190,10 @@ var (
 		utils.QuorumPTMTlsClientCertFlag,
 		utils.QuorumPTMTlsClientKeyFlag,
 		utils.QuorumPTMTlsInsecureSkipVerify,
+		utils.QuorumLightServerFlag,
+		utils.QuorumLightClientFlag,
+		utils.QuorumLightClientPSIFlag,
+		utils.QuorumLightClientServerNodeFlag,
 		// End-Quorum
 	}
 

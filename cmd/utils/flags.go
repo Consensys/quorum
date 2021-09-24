@@ -955,6 +955,22 @@ var (
 		Name:  "ptm.tls.insecureskipverify",
 		Usage: "Disable verification of server's TLS certificate on connection to private transaction manager",
 	}
+	QuorumLightServerFlag = cli.BoolFlag{
+		Name:  "qlight.server",
+		Usage: "If enabled, the quorum light P2P protocol is started in addition to the other P2P protocols",
+	}
+	QuorumLightClientFlag = cli.BoolFlag{
+		Name:  "qlight.client",
+		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
+	}
+	QuorumLightClientPSIFlag = cli.StringFlag{
+		Name:  "qlight.client.PSI",
+		Usage: "The PSI this client will use to connect a server node.",
+	}
+	QuorumLightClientServerNodeFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNode",
+		Usage: "The node ID of the target server node",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1871,6 +1887,26 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		} else {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
+	}
+
+	cfg.QuorumLightServer = false
+	if ctx.GlobalIsSet(QuorumLightServerFlag.Name) {
+		cfg.QuorumLightServer = ctx.GlobalBool(QuorumLightServerFlag.Name)
+	}
+
+	cfg.QuorumLightClient = false
+	if ctx.GlobalIsSet(QuorumLightClientFlag.Name) {
+		cfg.QuorumLightClient = ctx.GlobalBool(QuorumLightClientFlag.Name)
+	}
+
+	// TODO qlight - maybe we should panic if any of these is missing
+	cfg.QuorumLightClientPSI = "private"
+	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
+		cfg.QuorumLightClientPSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
+	}
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
+		cfg.QuorumLightClientServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
+		stack.Config().P2P.StaticNodes = append(stack.Config().P2P.StaticNodes, enode.MustParse(cfg.QuorumLightClientServerNode))
 	}
 
 	// set immutability threshold in config

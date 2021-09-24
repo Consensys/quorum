@@ -34,9 +34,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/qlight"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -135,6 +137,11 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
+	// TODO QLight - until DialCandidates is sorted add the server node url as a static node
+	if ctx.GlobalIsSet(utils.QuorumLightClientServerNodeFlag.Name) {
+		serverUrl := ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)
+		cfg.Node.P2P.StaticNodes = append(cfg.Node.P2P.StaticNodes, enode.MustParse(serverUrl))
+	}
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
@@ -156,8 +163,12 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
-	if err := quorumInitialisePrivacy(ctx); err != nil {
-		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	if cfg.Eth.QuorumLightClient {
+		private.P = qlight.New()
+	} else {
+		if err := quorumInitialisePrivacy(ctx); err != nil {
+			utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+		}
 	}
 
 	// Quorum - returning `ethService` too for the Raft and extension service

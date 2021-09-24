@@ -255,6 +255,10 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.RevertReasonFlag,
 			utils.PrivateCacheTrieJournalFlag,
 			utils.QuorumEnablePrivacyMarker,
+			utils.QuorumLightServerFlag,
+			utils.QuorumLightClientFlag,
+			utils.QuorumLightClientPSIFlag,
+			utils.QuorumLightClientServerNodeFlag,
 		},
 	},
 	{

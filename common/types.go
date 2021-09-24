@@ -24,12 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -298,6 +300,28 @@ func (ephs EncryptedPayloadHashes) NotExist(eph EncryptedPayloadHash) bool {
 
 func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
 	ephs[eph] = struct{}{}
+}
+
+func (ephs EncryptedPayloadHashes) EncodeRLP(writer io.Writer) error {
+	encryptedPayloadHashesArray := make([]EncryptedPayloadHash, len(ephs))
+	idx := 0
+	for key, _ := range ephs {
+		encryptedPayloadHashesArray[idx] = key
+		idx++
+	}
+	rlp.Encode(writer, encryptedPayloadHashesArray)
+	return nil
+}
+
+func (ephs EncryptedPayloadHashes) DecodeRLP(stream *rlp.Stream) error {
+	var encryptedPayloadHashesRLP []EncryptedPayloadHash
+	if err := stream.Decode(&encryptedPayloadHashesRLP); err != nil {
+		return err
+	}
+	for _, val := range encryptedPayloadHashesRLP {
+		ephs.Add(val)
+	}
+	return nil
 }
 
 func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {

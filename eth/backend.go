@@ -72,6 +72,9 @@ type Ethereum struct {
 	ethDialCandidates  enode.Iterator
 	snapDialCandidates enode.Iterator
 
+	qlServerProtocolManager *QLightServerProtocolManager
+	qlClientProtocolManager *QLightClientProtocolManager
+
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
 
@@ -271,6 +274,22 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		Engine:            eth.engine,
 	}); err != nil {
 		return nil, err
+
+	// TODO qlight rebase
+	if eth.config.QuorumLightClient {
+		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientServerNode); err != nil {
+			return nil, err
+		}
+		eth.protocolManager = &eth.qlClientProtocolManager.ProtocolManager
+	} else {
+		if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
+			return nil, err
+		}
+		if eth.config.QuorumLightServer {
+			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
+				return nil, err
+			}
+		}
 	}
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
@@ -575,9 +594,26 @@ func (s *Ethereum) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 // Protocols returns all the currently configured
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
+	if s.config.QuorumLightClient {
+		protos := make([]p2p.Protocol, 1)
+		qls := s.qlClientProtocolManager.makeProtocol(eth65)
+		qls.Name = "qlight"
+		protos[0] = qls
+		protos[0].Attributes = []enr.Entry{s.currentEthEntry()}
+		return protos
+	}
 	protos := eth.MakeProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
 	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
+
+	if s.config.QuorumLightServer {
+		qls := s.qlServerProtocolManager.makeProtocol(eth65)
+		qls.Name = "qlight"
+		i := len(protos)
+		protos = append(protos, qls)
+		protos[i].Attributes = []enr.Entry{s.currentEthEntry()}
+		// TODO - understand DialCandidates and see if we should only add the light clients here
+		protos[i].DialCandidates = s.dialCandidates
 	}
 
 	// /Quorum
@@ -608,7 +644,15 @@ func (s *Ethereum) Start() error {
 		maxPeers -= s.config.LightPeers
 	}
 	// Start the networking layer and the light server if requested
-	s.handler.Start(maxPeers)
+	if s.qlClientProtocolManager != nil {
+		s.qlClientProtocolManager.Start(1)
+	} else {
+		s.handler.Start(maxPeers)
+		if s.qlServerProtocolManager != nil {
+			s.qlServerProtocolManager.Start(maxPeers)
+		}
+	}
+
 	return nil
 }
 
@@ -616,7 +660,14 @@ func (s *Ethereum) Start() error {
 // Ethereum protocol.
 func (s *Ethereum) Stop() error {
 	// Stop all the peer-related stuff first.
-	s.handler.Stop()
+	if s.qlClientProtocolManager != nil {
+		s.qlClientProtocolManager.Stop()
+	} else {
+		if s.qlServerProtocolManager != nil {
+			s.qlServerProtocolManager.Stop()
+		}
+		s.handler.Stop()
+	}
 
 	// Then stop everything else.
 	s.bloomIndexer.Close()
