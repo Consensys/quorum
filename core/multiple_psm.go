@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 type MultiplePrivateStateManager struct {
@@ -22,10 +23,10 @@ type MultiplePrivateStateManager struct {
 	privacyGroupById   map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata
 }
 
-func newMultiplePrivateStateManager(db ethdb.Database, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
+func newMultiplePrivateStateManager(db ethdb.Database, config *trie.Config, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
 	return &MultiplePrivateStateManager{
 		db:                     db,
-		privateStatesTrieCache: state.NewDatabase(db),
+		privateStatesTrieCache: state.NewDatabaseWithConfig(db, config),
 		residentGroupByKey:     residentGroupByKey,
 		privacyGroupById:       privacyGroupById,
 	}, nil
@@ -71,4 +72,8 @@ func (m *MultiplePrivateStateManager) NotIncludeAny(psm *mps.PrivateStateMetadat
 func (m *MultiplePrivateStateManager) CheckAt(root common.Hash) error {
 	_, err := state.New(rawdb.GetPrivateStatesTrieRoot(m.db, root), m.privateStatesTrieCache, nil)
 	return err
+}
+
+func (m *MultiplePrivateStateManager) TrieDB() *trie.Database {
+	return m.privateStatesTrieCache.TrieDB()
 }

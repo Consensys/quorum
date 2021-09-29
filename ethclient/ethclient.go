@@ -109,6 +109,13 @@ func (ec *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Bl
 	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }
 
+// BlockNumber returns the most recent block number
+func (ec *Client) BlockNumber(ctx context.Context) (uint64, error) {
+	var result hexutil.Uint64
+	err := ec.c.CallContext(ctx, &result, "eth_blockNumber")
+	return uint64(result), err
+}
+
 type rpcBlock struct {
 	Hash         common.Hash      `json:"hash"`
 	Transactions []rpcTransaction `json:"transactions"`
@@ -540,9 +547,9 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, ar
 		return err
 	}
 	if args.PrivateFor != nil {
-		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
 	} else {
-		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
+		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
 	}
 }
 
@@ -555,6 +562,22 @@ func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) (co
 	}
 	payLoadHash, err := ec.pc.StoreRaw(data, privateFrom)
 	return payLoadHash, err
+}
+
+func (ec *Client) DistributeTransaction(ctx context.Context, tx *types.Transaction, args bind.PrivateTxArgs) (string, error) {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return "", err
+	}
+	retVal := ""
+	err = ec.c.CallContext(ctx, &retVal, "eth_distributePrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+	return retVal, err
+}
+
+func (ec *Client) GetPrivateTransaction(ctx context.Context, pmtHash common.Hash) (*types.Transaction, error) {
+	var privateTx types.Transaction
+	err := ec.c.CallContext(ctx, &privateTx, "eth_getPrivateTransactionByHash", pmtHash)
+	return &privateTx, err
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {

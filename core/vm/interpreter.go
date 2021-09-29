@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -39,6 +40,8 @@ type Config struct {
 	EVMInterpreter   string // External EVM interpreter options
 
 	ExtraEips []int // Additional EIPS that are to be enabled
+
+	ApplyOnPartyOverride *types.PrivateStateIdentifier
 }
 
 // Interpreter is used to run Ethereum based contracts and will utilise the
@@ -100,8 +103,8 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	if cfg.JumpTable[STOP] == nil {
 		var jt JumpTable
 		switch {
-		case evm.chainRules.IsYoloV1:
-			jt = yoloV1InstructionSet
+		case evm.chainRules.IsYoloV2:
+			jt = yoloV2InstructionSet
 		case evm.chainRules.IsIstanbul:
 			jt = istanbulInstructionSet
 		case evm.chainRules.IsConstantinople:

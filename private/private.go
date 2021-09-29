@@ -1,12 +1,15 @@
 package private
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	http2 "github.com/ethereum/go-ethereum/common/http"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
@@ -39,6 +42,7 @@ type PrivateTransactionManager interface {
 	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error)
 	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
+	GetMandatory(txHash common.EncryptedPayloadHash) ([]string, error)
 	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
 	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 
@@ -121,4 +125,26 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 		privateTxManager = tessera.New(client, []byte(tessera.RetrieveTesseraAPIVersion(client)))
 	}
 	return privateTxManager, nil
+}
+
+// Retrieve the private transaction that is associated with a privacy marker transaction
+func FetchPrivateTransaction(data []byte) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
+	txHash := common.BytesToEncryptedPayloadHash(data)
+
+	_, managedParties, txData, metadata, err := P.Receive(txHash)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if txData == nil {
+		return nil, nil, nil, nil
+	}
+
+	var tx types.Transaction
+	err = json.NewDecoder(bytes.NewReader(txData)).Decode(&tx)
+	if err != nil {
+		log.Trace("failed to deserialize private transaction", "err", err)
+		return nil, nil, nil, err
+	}
+
+	return &tx, managedParties, metadata, nil
 }

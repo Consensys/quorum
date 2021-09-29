@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // newPrivateStateManager instantiates an instance of mps.PrivateStateManager based on
@@ -16,7 +17,7 @@ import (
 //
 // If isMPS is true, it also does the validation to make sure
 // the target private.PrivateTransactionManager supports MPS
-func newPrivateStateManager(db ethdb.Database, isMPS bool) (mps.PrivateStateManager, error) {
+func newPrivateStateManager(db ethdb.Database, config *trie.Config, isMPS bool) (mps.PrivateStateManager, error) {
 	if isMPS {
 		// validation
 		if !private.P.HasFeature(engine.MultiplePrivateStates) {
@@ -28,7 +29,6 @@ func newPrivateStateManager(db ethdb.Database, isMPS bool) (mps.PrivateStateMana
 		}
 		residentGroupByKey := make(map[string]*mps.PrivateStateMetadata)
 		privacyGroupById := make(map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata)
-		convertedGroups := make([]engine.PrivacyGroup, 0)
 		for _, group := range groups {
 			if group.Type == engine.PrivacyGroupResident {
 				// Resident group IDs come in base64 encoded, so revert to original ID
@@ -53,11 +53,10 @@ func newPrivateStateManager(db ethdb.Database, isMPS bool) (mps.PrivateStateMana
 					residentGroupByKey[address] = privacyGroupToPrivateStateMetadata(group)
 				}
 			}
-			convertedGroups = append(convertedGroups, group)
 		}
-		return newMultiplePrivateStateManager(db, residentGroupByKey, privacyGroupById)
+		return newMultiplePrivateStateManager(db, config, residentGroupByKey, privacyGroupById)
 	} else {
-		return newDefaultPrivateStateManager(db), nil
+		return newDefaultPrivateStateManager(db, config), nil
 	}
 }
 

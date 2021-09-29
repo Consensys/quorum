@@ -30,7 +30,7 @@ require (
 	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea
 	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf
-	github.com/dop251/goja v0.0.0-20200219165308-d1232e640a87
+	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/eapache/channels v1.1.0
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/edsrzf/mmap-go v0.0.0-20160512033002-935e0e8a636c
@@ -43,8 +43,8 @@ require (
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.3.4
-	github.com/golang/snappy v0.0.2-0.20200707131729-196ae77b8a26
-	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3
+	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
 	github.com/gorilla/websocket v1.4.1-0.20190629185528-ae1634f6a989
 	github.com/graph-gophers/graphql-go v0.0.0-20191115155744-f33e81362277
 	github.com/hashicorp/go-hclog v0.13.0
@@ -54,6 +54,7 @@ require (
 	github.com/huin/goupnp v1.0.0
 	github.com/influxdata/influxdb v1.2.3-0.20180221223340-01288bdb0883
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
+	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
 	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714175524-662195b38a5e
 	github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go v0.0.0-20200210211148-57f99f69eeb3
 	github.com/jpmorganchase/quorum-security-plugin-sdk-go v0.0.0-20200714173835-22a319bb78ce
@@ -84,10 +85,9 @@ require (
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
-	golang.org/x/text v0.3.2
+	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
+	golang.org/x/sys v0.0.0-20200824131525-c12d262b63d8
+	golang.org/x/text v0.3.3
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/grpc v1.29.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127

@@ -213,6 +213,10 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
+// Modified for Quorum:
+// - If MPS is enabled then the list of receipts returned will contain all public receipts, plus the private receipts for this PSI.
+// - if MPS is not enabled, then list will contain all public and private receipts
+// Note that for a privacy marker transactions, the private receipts will remain under PSReceipts
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	receipts := b.eth.blockchain.GetReceiptsByHash(hash)
 	psm, err := b.PSMR().ResolveForUserContext(ctx)
@@ -225,7 +229,8 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 		psiReceipts[i] = receipts[i]
 		if receipts[i].PSReceipts != nil {
 			psReceipt, found := receipts[i].PSReceipts[psm.ID]
-			if found {
+			// if PSReceipt found and this is not a privacy marker transaction receipt, then pull out the PSI receipt
+			if found && receipts[i].TxHash == psReceipt.TxHash {
 				psiReceipts[i] = psReceipt
 			}
 		}
@@ -242,9 +247,17 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	if receipts == nil {
 		return nil, nil
 	}
-	logs := make([][]*types.Log, len(receipts))
+	privateReceipts, err := b.eth.blockchain.GetPMTPrivateReceiptsByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	logs := make([][]*types.Log, len(receipts)+len(privateReceipts))
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
+	}
+	for i, receipt := range privateReceipts {
+		logs[len(receipts)+i] = receipt.Logs
 	}
 	return logs, nil
 }
@@ -257,7 +270,8 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 	statedb := state.(EthAPIState)
 	vmError := func() error { return nil }
 
-	evmCtx := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	txContext := core.NewEVMTxContext(msg)
+	context := core.NewEVMBlockContext(header, b.eth.BlockChain(), nil)
 
 	// Set the private state to public state if contract address is not present in the private state
 	to := common.Address{}
@@ -270,7 +284,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 		privateState = statedb.state
 	}
 
-	return vm.NewEVM(evmCtx, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
+	return vm.NewEVM(context, txContext, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
@@ -422,7 +436,7 @@ func (b *EthAPIBackend) StartMining(threads int) error {
 // is being created. So it's safe to use the config value here.
 func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
-	if authToken != nil && b.eth.config.EnableMultitenancy {
+	if authToken != nil && b.eth.config.MultiTenantEnabled() {
 		return authToken, true
 	}
 	return nil, false
@@ -431,6 +445,10 @@ func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.Pre
 func (b *EthAPIBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
 	s, _, err := b.StateAndHeaderByNumber(ctx, number)
 	return s, err
+}
+
+func (b *EthAPIBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	return b.eth.config.QuorumChainConfig.PrivacyMarkerEnabled() && b.ChainConfig().IsPrivacyPrecompile(b.eth.blockchain.CurrentBlock().Number())
 }
 
 // used by Quorum

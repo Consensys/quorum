@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -91,7 +92,11 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	mpsm := newDefaultPrivateStateManager(blockchain.db)
+	mpsm := newDefaultPrivateStateManager(blockchain.db, &trie.Config{
+		Cache:     defaultCacheConfig.TrieCleanLimit,
+		Journal:   defaultCacheConfig.PrivateTrieCleanJournal,
+		Preimages: defaultCacheConfig.Preimages,
+	})
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, mps.DefaultPrivateStateMetadata)

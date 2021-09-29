@@ -22,6 +22,8 @@ type DefaultPrivateStateRepository struct {
 	root    common.Hash
 }
 
+var _ PrivateStateRepository = (*DefaultPrivateStateRepository)(nil) // DefaultPrivateStateRepository must implement PrivateStateRepository
+
 func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
 
@@ -63,17 +65,17 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits the private state and writes to disk
-func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
 	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
-		return err
+		return privateRoot, err
 	}
 
 	if err := rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot); err != nil {
 		log.Error("Failed writing private state root", "err", err)
-		return err
+		return privateRoot, err
 	}
-	return dpsr.stateCache.TrieDB().Commit(privateRoot, false, nil)
+	return privateRoot, nil
 }
 
 // Commit commits the private state only
@@ -92,6 +94,10 @@ func (dpsr *DefaultPrivateStateRepository) Copy() PrivateStateRepository {
 	}
 }
 
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
 func (dpsr *DefaultPrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {

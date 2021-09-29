@@ -67,6 +67,7 @@ var (
 		utils.LegacyBootnodesV4Flag,
 		utils.LegacyBootnodesV5Flag,
 		utils.DataDirFlag,
+		utils.RaftLogDirFlag,
 		utils.AncientFlag,
 		utils.KeyStoreDirFlag,
 		utils.ExternalSignerFlag,
@@ -107,7 +108,7 @@ var (
 		utils.UltraLightServersFlag,
 		utils.UltraLightFractionFlag,
 		utils.UltraLightOnlyAnnounceFlag,
-		utils.WhitelistFlag,
+		utils.AuthorizationListFlag,
 		utils.CacheFlag,
 		utils.CacheDatabaseFlag,
 		utils.CacheTrieFlag,
@@ -116,6 +117,7 @@ var (
 		utils.CacheGCFlag,
 		utils.CacheSnapshotFlag,
 		utils.CacheNoPrefetchFlag,
+		utils.CachePreimagesFlag,
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
@@ -147,7 +149,7 @@ var (
 		utils.RopstenFlag,
 		utils.RinkebyFlag,
 		utils.GoerliFlag,
-		utils.YoloV1Flag,
+		utils.YoloV2Flag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.EthStatsURLFlag,
@@ -157,10 +159,12 @@ var (
 		utils.LegacyGpoBlocksFlag,
 		utils.GpoPercentileFlag,
 		utils.LegacyGpoPercentileFlag,
+		utils.GpoMaxGasPriceFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		// Quorum
+		utils.PrivateCacheTrieJournalFlag,
 		utils.QuorumImmutabilityThreshold,
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
@@ -178,6 +182,8 @@ var (
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
+		utils.RevertReasonFlag,
+		utils.QuorumEnablePrivacyMarker,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,
 		utils.QuorumPTMTimeoutFlag,
@@ -221,8 +227,8 @@ var (
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 		utils.InsecureUnlockAllowedFlag,
-		utils.RPCGlobalGasCap,
-		utils.RPCGlobalTxFeeCap,
+		utils.RPCGlobalGasCapFlag,
+		utils.RPCGlobalTxFeeCapFlag,
 	}
 
 	whisperFlags = []cli.Flag{
@@ -254,6 +260,7 @@ func init() {
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,
+		mpsdbUpgradeCommand,
 		importCommand,
 		exportCommand,
 		importPreimagesCommand,
@@ -274,11 +281,10 @@ func init() {
 		makecacheCommand,
 		makedagCommand,
 		versionCommand,
+		versionCheckCommand,
 		licenseCommand,
 		// See config.go
 		dumpConfigCommand,
-		// See retesteth.go
-		retestethCommand,
 		// See cmd/utils/flags_legacy.go
 		utils.ShowDeprecated,
 	}

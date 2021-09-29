@@ -25,11 +25,17 @@ var (
 	arbitraryPrivatePayload        = []byte("arbitrary private payload")
 	arbitraryFrom                  = "arbitraryFrom"
 	arbitraryTo                    = []string{"arbitraryTo1", "arbitraryTo2"}
+	arbitraryMandatory             = []string{"arbitraryTo2"}
 	arbitraryPrivacyFlag           = engine.PrivacyFlagPartyProtection
 	arbitraryExtra                 = &engine.ExtraMetadata{
 		ACHashes:     Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
 		ACMerkleRoot: common.StringToHash("arbitrary root hash"),
 		PrivacyFlag:  arbitraryPrivacyFlag,
+	}
+	arbitraryExtraWithMandatoryFor = &engine.ExtraMetadata{
+		ACHashes:            Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
+		PrivacyFlag:         engine.PrivacyFlagMandatoryRecipients,
+		MandatoryRecipients: arbitraryMandatory,
 	}
 
 	testServer *httptest.Server
@@ -39,6 +45,7 @@ var (
 	receiveRequestCaptor                 = make(chan *capturedRequest)
 	sendSignedTxRequestCaptor            = make(chan *capturedRequest)
 	sendSignedTxOctetStreamRequestCaptor = make(chan *capturedRequest)
+	getMandatoryRequestCaptor            = make(chan *capturedRequest)
 )
 
 type capturedRequest struct {
@@ -64,7 +71,7 @@ func Must(o interface{}, err error) interface{} {
 func setup() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/send", MockSendAPIHandlerFunc)
-	mux.HandleFunc("/transaction/", MockReceiveAPIHandlerFunc)
+	mux.HandleFunc("/transaction/", MockTransactionAPIHandlerFunc)
 	mux.HandleFunc("/sendsignedtx", MockSendSignedTxAPIHandlerFunc)
 	mux.HandleFunc("/groups/resident", MockGroupsAPIHandlerFunc)
 
@@ -118,6 +125,30 @@ func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request)
 			ManagedParties: []string{"ArbitraryPublicKey"},
 		})
 		response.Write(data)
+	}
+}
+
+func MockTransactionAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	if strings.HasSuffix(request.RequestURI, "/mandatory") {
+		MockGetMandatoryAPIHandlerFunc(response, request)
+	} else {
+		MockReceiveAPIHandlerFunc(response, request)
+	}
+}
+
+func MockGetMandatoryAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	actualRequest, err := url.PathUnescape(strings.TrimSuffix(strings.TrimPrefix(request.RequestURI, "/transaction/"), "/mandatory"))
+	if err != nil {
+		go func(o *capturedRequest) { getMandatoryRequestCaptor <- o }(&capturedRequest{err: err})
+	} else {
+		go func(o *capturedRequest) {
+			getMandatoryRequestCaptor <- o
+		}(&capturedRequest{request: actualRequest, header: request.Header})
+		if actualRequest == arbitraryNotFoundHash.ToBase64() {
+			response.WriteHeader(http.StatusNotFound)
+		} else {
+			response.Write([]byte(strings.Join(arbitraryMandatory, ",")))
+		}
 	}
 }
 
@@ -201,6 +232,16 @@ func verifyRequestHeaderMultiTenancy(h http.Header, t *testing.T) {
 
 	if h.Get("Accept") != "application/vnd.tessera-2.1+json" {
 		t.Errorf("expected Accept header is application/vnd.tessera-2.1+json")
+	}
+}
+
+func verifyRequestHeaderMandatoryRecipients(h http.Header, t *testing.T) {
+	if h.Get("Content-type") != "application/vnd.tessera-4.0+json" {
+		t.Errorf("expected Content-type header is application/vnd.tessera-4.0+json")
+	}
+
+	if h.Get("Accept") != "application/vnd.tessera-4.0+json" {
+		t.Errorf("expected Accept header is application/vnd.tessera-4.0+json")
 	}
 }
 
@@ -302,6 +343,56 @@ func TestSend_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.T) 
 	_, _, _, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
 		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
+	}
+}
+
+func TestSend_whenTypical_MandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("4.0"))
+
+	_, _, actualHash, err := testObjectWithMR.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-sendRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMandatoryRecipients(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(*sendRequest)
+
+	assert.Equal(arbitraryPrivatePayload, actualRequest.Payload, "request.payload")
+	assert.Equal(arbitraryFrom, actualRequest.From, "request.from")
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtraWithMandatoryFor.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(arbitraryHash, actualHash, "returned hash")
+	assert.Equal(arbitraryMandatory, actualRequest.MandatoryRecipients, "request.mandatoryRecipients")
+}
+
+func TestSend_whenTesseraSupportEnhancedPrivacyButNotMandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectNoMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("3.0"))
+
+	assert.True(testObjectNoMR.HasFeature(engine.MultiTenancy))
+	assert.True(testObjectNoMR.HasFeature(engine.MultiplePrivateStates))
+	assert.False(testObjectNoMR.HasFeature(engine.MandatoryRecipients), "the supplied version does not support mandatory recipients")
+
+	// trying to send a mandatory recipients transaction
+	_, _, _, err := testObjectNoMR.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != engine.ErrPrivateTxManagerDoesNotSupportMandatoryRecipients {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportMandatoryRecipients")
 	}
 }
 
@@ -482,6 +573,53 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
 }
 
+func TestSendSignedTx_whenTypical_MandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("4.0"))
+
+	_, _, _, err := testObjectWithMR.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-sendSignedTxRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMandatoryRecipients(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(*sendSignedTxRequest)
+
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(arbitraryExtraWithMandatoryFor.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(engine.PrivacyFlagMandatoryRecipients, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtraWithMandatoryFor.MandatoryRecipients, actualRequest.MandatoryRecipients, "request.mandatoryRecipients")
+}
+
+func TestSendSignedTx_whenTesseraDoesNotSupportMandatoryRecipients(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectNoMR := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("3.0"))
+
+	assert.True(testObjectNoMR.HasFeature(engine.MultiTenancy))
+	assert.True(testObjectNoMR.HasFeature(engine.MultiplePrivateStates))
+	assert.False(testObjectNoMR.HasFeature(engine.MandatoryRecipients), "the supplied version does not support mandatory recipients")
+
+	// trying to send a mandatory recipients transaction
+	_, _, _, err := testObjectNoMR.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtraWithMandatoryFor)
+	if err != engine.ErrPrivateTxManagerDoesNotSupportMandatoryRecipients {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportMandatoryRecipients")
+	}
+}
+
 func TestReceive_whenCachingRawPayload(t *testing.T) {
 	assert := testifyassert.New(t)
 
@@ -507,4 +645,20 @@ func TestReceive_whenCachingRawPayload(t *testing.T) {
 	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "cached affected contract transaction hashes")
 	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "cached merkle root")
 	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "cached privacy flag")
+}
+
+func TestGetMandatory_valid(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	mandatoryRecipients, _ := testObject.GetMandatory(arbitraryHash)
+
+	assert.Equal(arbitraryMandatory, mandatoryRecipients)
+}
+
+func TestGetMandatory_notFound(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	_, err := testObject.GetMandatory(arbitraryNotFoundHash)
+
+	assert.Error(err, "Non-200 status code")
 }

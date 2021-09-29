@@ -41,7 +41,7 @@ var (
 	ErrNoCodeAfterDeploy = errors.New("no contract code after deployment")
 )
 
-// ContractCaller defines the methods needed to allow operating with contract on a read
+// ContractCaller defines the methods needed to allow operating with a contract on a read
 // only basis.
 type ContractCaller interface {
 	// CodeAt returns the code of the given account. This is needed to differentiate
@@ -62,8 +62,8 @@ type PendingContractCaller interface {
 	PendingCallContract(ctx context.Context, call ethereum.CallMsg) ([]byte, error)
 }
 
-// ContractTransactor defines the methods needed to allow operating with contract
-// on a write only basis. Beside the transacting method, the remainder are helpers
+// ContractTransactor defines the methods needed to allow operating with a contract
+// on a write only basis. Besides the transacting method, the remainder are helpers
 // used when the user does not provide some needed values, but rather leaves it up
 // to the transactor to decide.
 type ContractTransactor interface {
@@ -84,6 +84,9 @@ type ContractTransactor interface {
 	SendTransaction(ctx context.Context, tx *types.Transaction, args PrivateTxArgs) error
 	// PreparePrivateTransaction send the private transaction to Tessera/Constellation's /storeraw API using HTTP
 	PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error)
+	// DistributeTransaction distributes the private transaction payload to its private recipients, and sends the
+	// private transaction to the nodes PTM, returning a PTM hash for the Privacy Marker Transaction
+	DistributeTransaction(ctx context.Context, tx *types.Transaction, args PrivateTxArgs) (string, error)
 }
 
 // ContractFilterer defines the methods needed to access log events using one-off

@@ -106,3 +106,8 @@ func (args *SendTxArgs) toTransaction() (tx *types.Transaction) {
 	}
 	return
 }
+
+// Quorum
+func (args SendTxArgs) isPrivacyMarker() bool {
+	return args.To != nil && args.To.Address() == common.QuorumPrivacyPrecompileContractAddress()
+}

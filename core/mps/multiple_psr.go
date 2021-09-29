@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
+type StateRootProviderFunc func(isEIP158 bool) (common.Hash, error)
+
 // MultiplePrivateStateRepository manages a number of state DB objects
 // identified by their types.PrivateStateIdentifier. It also maintains a trie
 // of private states whose root hash is mapped with a block hash.
@@ -29,30 +31,50 @@ type MultiplePrivateStateRepository struct {
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
+var _ PrivateStateRepository = (*MultiplePrivateStateRepository)(nil) // MultiplePrivateStateRepository must implement PrivateStateRepository
+
 func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
 	}
-	return &MultiplePrivateStateRepository{
+	repo := &MultiplePrivateStateRepository{
 		db:            db,
 		repoCache:     cache,
 		trie:          tr,
-		managedStates: make(map[types.PrivateStateIdentifier]*managedState)}, nil
+		managedStates: make(map[types.PrivateStateIdentifier]*managedState),
+	}
+	return repo, nil
 }
 
 // A managed state is a pair of stateDb and it's corresponding stateCache objects
 // Although right now we may not need a separate stateCache it may be useful if we'll do multiple managed state commits in parallel
 type managedState struct {
-	stateDb    *state.StateDB
-	stateCache state.Database
+	stateDb               *state.StateDB
+	stateCache            state.Database
+	stateRootProviderFunc StateRootProviderFunc
 }
 
 func (ms *managedState) Copy() *managedState {
-	return &managedState{
+	copy := &managedState{
 		stateDb:    ms.stateDb.Copy(),
 		stateCache: ms.stateCache,
 	}
+	copy.stateRootProviderFunc = copy.calPrivateStateRoot
+	return copy
+}
+
+// calPrivateStateRoot is to return state root hash from the commit of a managedState identified by psi
+func (ms *managedState) calPrivateStateRoot(isEIP158 bool) (common.Hash, error) {
+	privateRoot, err := ms.stateDb.Commit(isEIP158)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	err = ms.stateCache.TrieDB().Commit(privateRoot, false, nil)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return privateRoot, nil
 }
 
 func (mpsr *MultiplePrivateStateRepository) DefaultState() (*state.StateDB, error) {
@@ -101,10 +123,12 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 	}
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
-	mpsr.managedStates[psi] = &managedState{
+	managedState := &managedState{
 		stateCache: stateCache,
 		stateDb:    stateDB,
 	}
+	managedState.stateRootProviderFunc = managedState.calPrivateStateRoot
+	mpsr.managedStates[psi] = managedState
 	return stateDB, nil
 }
 
@@ -129,41 +153,32 @@ func (mpsr *MultiplePrivateStateRepository) Reset() error {
 	return nil
 }
 
-// commitAndWrite- commits all private states, updates the trie of private states, writes to disk
-func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
+// CommitAndWrite commits all private states, updates the trie of private states, writes to disk
+func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
+	// commit each managed state
 	for psi, managedState := range mpsr.managedStates {
-		// commit each managed state
-		privateRoot, err := managedState.stateDb.Commit(isEIP158)
+		// calculate and commit state root if required
+		privateRoot, err := managedState.stateRootProviderFunc(isEIP158)
 		if err != nil {
-			return err
+			return privateRoot, err
 		}
-		// update the managed state root in the trie of states
-		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
-		if err != nil {
-			return err
-		}
-		err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
-		if err != nil {
-			return err
+		// update the managed state root in the trie of state roots
+		if err := mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes()); err != nil {
+			return privateRoot, err
 		}
 	}
 	// commit the trie of states
 	mtRoot, err := mpsr.trie.Commit(nil)
 	if err != nil {
-		return err
+		return mtRoot, err
 	}
 	err = rawdb.WritePrivateStatesTrieRoot(mpsr.db, block.Root(), mtRoot)
-	if err != nil {
-		return err
-	}
-	privateTriedb := mpsr.repoCache.TrieDB()
-	err = privateTriedb.Commit(mtRoot, false, nil)
-	return err
+	return mtRoot, err
 }
 
-// commit - commits all private states, updates the trie of private states only
+// Commit commits all private states, updates the trie of private states only
 func (mpsr *MultiplePrivateStateRepository) Commit(isEIP158 bool, block *types.Block) error {
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
@@ -202,17 +217,28 @@ func (mpsr *MultiplePrivateStateRepository) Copy() PrivateStateRepository {
 	}
 }
 
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
+// Each entry for a private receipt will actually consist of a copy of a dummy auxiliary receipt,
+// which holds the real private receipts for each PSI under PSReceipts[].
+// Note that we also add a private receipt for the "empty" PSI.
 func (mpsr *MultiplePrivateStateRepository) MergeReceipts(pub, priv types.Receipts) types.Receipts {
 	m := make(map[common.Hash]*types.Receipt)
 	for _, receipt := range pub {
 		m[receipt.TxHash] = receipt
 	}
 	for _, receipt := range priv {
-		publicReceipt := m[receipt.TxHash]
+		publicReceipt, found := m[receipt.TxHash]
+		if !found {
+			// this is a PMT receipt - no merging required as it already has the relevant PSReceipts set
+			continue
+		}
 		publicReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
 		publicReceipt.PSReceipts[EmptyPrivateStateMetadata.ID] = receipt
-		for psi, receipt := range receipt.PSReceipts {
-			publicReceipt.PSReceipts[psi] = receipt
+		for psi, psReceipt := range receipt.PSReceipts {
+			publicReceipt.PSReceipts[psi] = psReceipt
 		}
 	}
 

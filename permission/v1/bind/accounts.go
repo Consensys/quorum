@@ -1,10 +1,9 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package permission
+package bind
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strings"
 
@@ -21,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = math.U256Bytes
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -158,7 +156,7 @@ func bindAcctManager(address common.Address, caller bind.ContractCaller, transac
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_AcctManager *AcctManagerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_AcctManager *AcctManagerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _AcctManager.Contract.AcctManagerCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -177,7 +175,7 @@ func (_AcctManager *AcctManagerRaw) Transact(opts *bind.TransactOpts, method str
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_AcctManager *AcctManagerCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_AcctManager *AcctManagerCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _AcctManager.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -194,202 +192,225 @@ func (_AcctManager *AcctManagerTransactorRaw) Transact(opts *bind.TransactOpts, 
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) view returns(bool)
 func (_AcctManager *AcctManagerCaller) CheckOrgAdmin(opts *bind.CallOpts, _account common.Address, _orgId string, _ultParent string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "checkOrgAdmin", _account, _orgId, _ultParent)
-	return *ret0, err
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "checkOrgAdmin", _account, _orgId, _ultParent)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) view returns(bool)
 func (_AcctManager *AcctManagerSession) CheckOrgAdmin(_account common.Address, _orgId string, _ultParent string) (bool, error) {
 	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _account, _orgId, _ultParent)
 }
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) constant returns(bool)
+// Solidity: function checkOrgAdmin(address _account, string _orgId, string _ultParent) view returns(bool)
 func (_AcctManager *AcctManagerCallerSession) CheckOrgAdmin(_account common.Address, _orgId string, _ultParent string) (bool, error) {
 	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _account, _orgId, _ultParent)
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(address _account) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetails(address _account) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerCaller) GetAccountDetails(opts *bind.CallOpts, _account common.Address) (common.Address, string, string, *big.Int, bool, error) {
-	var (
-		ret0 = new(common.Address)
-		ret1 = new(string)
-		ret2 = new(string)
-		ret3 = new(*big.Int)
-		ret4 = new(bool)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
-		ret4,
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "getAccountDetails", _account)
+
+	if err != nil {
+		return *new(common.Address), *new(string), *new(string), *new(*big.Int), *new(bool), err
 	}
-	err := _AcctManager.contract.Call(opts, out, "getAccountDetails", _account)
-	return *ret0, *ret1, *ret2, *ret3, *ret4, err
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(string)).(*string)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	out4 := *abi.ConvertType(out[4], new(bool)).(*bool)
+
+	return out0, out1, out2, out3, out4, err
+
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(address _account) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetails(address _account) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerSession) GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error) {
 	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(address _account) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetails(address _account) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerCallerSession) GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error) {
 	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerCaller) GetAccountDetailsFromIndex(opts *bind.CallOpts, _aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
-	var (
-		ret0 = new(common.Address)
-		ret1 = new(string)
-		ret2 = new(string)
-		ret3 = new(*big.Int)
-		ret4 = new(bool)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-		ret2,
-		ret3,
-		ret4,
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "getAccountDetailsFromIndex", _aIndex)
+
+	if err != nil {
+		return *new(common.Address), *new(string), *new(string), *new(*big.Int), *new(bool), err
 	}
-	err := _AcctManager.contract.Call(opts, out, "getAccountDetailsFromIndex", _aIndex)
-	return *ret0, *ret1, *ret2, *ret3, *ret4, err
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	out1 := *abi.ConvertType(out[1], new(string)).(*string)
+	out2 := *abi.ConvertType(out[2], new(string)).(*string)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	out4 := *abi.ConvertType(out[4], new(bool)).(*bool)
+
+	return out0, out1, out2, out3, out4, err
+
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerSession) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
 	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, _aIndex)
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) constant returns(address, string, string, uint256, bool)
+// Solidity: function getAccountDetailsFromIndex(uint256 _aIndex) view returns(address, string, string, uint256, bool)
 func (_AcctManager *AcctManagerCallerSession) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
 	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, _aIndex)
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(address _account) constant returns(string)
+// Solidity: function getAccountRole(address _account) view returns(string)
 func (_AcctManager *AcctManagerCaller) GetAccountRole(opts *bind.CallOpts, _account common.Address) (string, error) {
-	var (
-		ret0 = new(string)
-	)
-	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "getAccountRole", _account)
-	return *ret0, err
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "getAccountRole", _account)
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(address _account) constant returns(string)
+// Solidity: function getAccountRole(address _account) view returns(string)
 func (_AcctManager *AcctManagerSession) GetAccountRole(_account common.Address) (string, error) {
 	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(address _account) constant returns(string)
+// Solidity: function getAccountRole(address _account) view returns(string)
 func (_AcctManager *AcctManagerCallerSession) GetAccountRole(_account common.Address) (string, error) {
 	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _account)
 }
 
 // GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function getNumberOfAccounts() constant returns(uint256)
+// Solidity: function getNumberOfAccounts() view returns(uint256)
 func (_AcctManager *AcctManagerCaller) GetNumberOfAccounts(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "getNumberOfAccounts")
-	return *ret0, err
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "getNumberOfAccounts")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function getNumberOfAccounts() constant returns(uint256)
+// Solidity: function getNumberOfAccounts() view returns(uint256)
 func (_AcctManager *AcctManagerSession) GetNumberOfAccounts() (*big.Int, error) {
 	return _AcctManager.Contract.GetNumberOfAccounts(&_AcctManager.CallOpts)
 }
 
 // GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function getNumberOfAccounts() constant returns(uint256)
+// Solidity: function getNumberOfAccounts() view returns(uint256)
 func (_AcctManager *AcctManagerCallerSession) GetNumberOfAccounts() (*big.Int, error) {
 	return _AcctManager.Contract.GetNumberOfAccounts(&_AcctManager.CallOpts)
 }
 
 // OrgAdminExists is a free data retrieval call binding the contract method 0x950145cf.
 //
-// Solidity: function orgAdminExists(string _orgId) constant returns(bool)
+// Solidity: function orgAdminExists(string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerCaller) OrgAdminExists(opts *bind.CallOpts, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "orgAdminExists", _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "orgAdminExists", _orgId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // OrgAdminExists is a free data retrieval call binding the contract method 0x950145cf.
 //
-// Solidity: function orgAdminExists(string _orgId) constant returns(bool)
+// Solidity: function orgAdminExists(string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerSession) OrgAdminExists(_orgId string) (bool, error) {
 	return _AcctManager.Contract.OrgAdminExists(&_AcctManager.CallOpts, _orgId)
 }
 
 // OrgAdminExists is a free data retrieval call binding the contract method 0x950145cf.
 //
-// Solidity: function orgAdminExists(string _orgId) constant returns(bool)
+// Solidity: function orgAdminExists(string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerCallerSession) OrgAdminExists(_orgId string) (bool, error) {
 	return _AcctManager.Contract.OrgAdminExists(&_AcctManager.CallOpts, _orgId)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerCaller) ValidateAccount(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "validateAccount", _account, _orgId)
-	return *ret0, err
+	var out []interface{}
+	err := _AcctManager.contract.Call(opts, &out, "validateAccount", _account, _orgId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
 	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _account, _orgId)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
+// Solidity: function validateAccount(address _account, string _orgId) view returns(bool)
 func (_AcctManager *AcctManagerCallerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
 	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _account, _orgId)
 }

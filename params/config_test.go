@@ -159,6 +159,23 @@ func TestCheckCompatible(t *testing.T) {
 			},
 		},
 		{
+			stored:  &ChainConfig{ConstantinopleBlock: big.NewInt(30)},
+			new:     &ChainConfig{ConstantinopleBlock: big.NewInt(30), PetersburgBlock: big.NewInt(30)},
+			head:    40,
+			wantErr: nil,
+		},
+		{
+			stored: &ChainConfig{ConstantinopleBlock: big.NewInt(30)},
+			new:    &ChainConfig{ConstantinopleBlock: big.NewInt(30), PetersburgBlock: big.NewInt(31)},
+			head:   40,
+			wantErr: &ConfigCompatError{
+				What:         "Petersburg fork block",
+				StoredConfig: nil,
+				NewConfig:    big.NewInt(31),
+				RewindTo:     30,
+			},
+		},
+		{
 			stored:  &ChainConfig{Istanbul: &IstanbulConfig{Ceil2Nby3Block: big.NewInt(10)}},
 			new:     &ChainConfig{Istanbul: &IstanbulConfig{Ceil2Nby3Block: big.NewInt(20)}},
 			head:    4,
@@ -173,6 +190,23 @@ func TestCheckCompatible(t *testing.T) {
 				StoredConfig: big.NewInt(10),
 				NewConfig:    big.NewInt(20),
 				RewindTo:     9,
+			},
+		},
+		{
+			stored:  &ChainConfig{Istanbul: &IstanbulConfig{TestQBFTBlock: big.NewInt(50)}},
+			new:     &ChainConfig{Istanbul: &IstanbulConfig{TestQBFTBlock: big.NewInt(60)}},
+			head:    40,
+			wantErr: nil,
+		},
+		{
+			stored: &ChainConfig{Istanbul: &IstanbulConfig{TestQBFTBlock: big.NewInt(20)}},
+			new:    &ChainConfig{Istanbul: &IstanbulConfig{TestQBFTBlock: big.NewInt(30)}},
+			head:   20,
+			wantErr: &ConfigCompatError{
+				What:         "Test QBFT fork block",
+				StoredConfig: big.NewInt(20),
+				NewConfig:    big.NewInt(30),
+				RewindTo:     19,
 			},
 		},
 		{

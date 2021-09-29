@@ -88,7 +88,7 @@ type ProtocolManager struct {
 	txsSub        event.Subscription
 	minedBlockSub *event.TypeMuxSubscription
 
-	whitelist map[uint64]common.Hash
+	authorizationList map[uint64]common.Hash
 
 	// channels for fetcher, syncer, txsyncLoop
 	txsyncCh chan *txsync
@@ -108,21 +108,21 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, whitelist map[uint64]common.Hash, raftMode bool) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
-		networkID:  networkID,
-		forkFilter: forkid.NewFilter(blockchain),
-		eventMux:   mux,
-		txpool:     txpool,
-		blockchain: blockchain,
-		chaindb:    chaindb,
-		peers:      newPeerSet(),
-		whitelist:  whitelist,
-		txsyncCh:   make(chan *txsync),
-		quitSync:   make(chan struct{}),
-		raftMode:   raftMode,
-		engine:     engine,
+		networkID:         networkID,
+		forkFilter:        forkid.NewFilter(blockchain),
+		eventMux:          mux,
+		txpool:            txpool,
+		blockchain:        blockchain,
+		chaindb:           chaindb,
+		peers:             newPeerSet(),
+		authorizationList: authorizationList,
+		txsyncCh:          make(chan *txsync),
+		quitSync:          make(chan struct{}),
+		raftMode:          raftMode,
+		engine:            engine,
 	}
 
 	// Quorum
@@ -348,14 +348,14 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, protoName); err != nil {
+	forkID := forkid.NewID(pm.blockchain.Config(), pm.blockchain.Genesis().Hash(), pm.blockchain.CurrentHeader().Number.Uint64())
+	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkID, pm.forkFilter, protoName); err != nil {
 		p.Log().Debug("Ethereum handshake failed", "protoName", protoName, "err", err)
 
 		// Quorum
 		// When the Handshake() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
 		p.EthPeerDisconnected <- struct{}{}
 		// End Quorum
-
 		return err
 	}
 
@@ -401,8 +401,8 @@ func (pm *ProtocolManager) handle(p *peer, protoName string) error {
 			}
 		}()
 	}
-	// If we have any explicit whitelist block hashes, request them
-	for number := range pm.whitelist {
+	// If we have any explicit authorized block hashes, request them
+	for number := range pm.authorizationList {
 		if err := p.RequestHeadersByNumber(number, 1, 0, false); err != nil {
 			return err
 		}
@@ -585,13 +585,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				}
 				return nil
 			}
-			// Otherwise if it's a whitelisted block, validate against the set
-			if want, ok := pm.whitelist[headers[0].Number.Uint64()]; ok {
+			// Otherwise if it's a authorized block, validate against the set
+			if want, ok := pm.authorizationList[headers[0].Number.Uint64()]; ok {
 				if hash := headers[0].Hash(); want != hash {
-					p.Log().Info("Whitelist mismatch, dropping peer", "number", headers[0].Number.Uint64(), "hash", hash, "want", want)
-					return errors.New("whitelist block mismatch")
+					p.Log().Info("AuthorizationList mismatch, dropping peer", "number", headers[0].Number.Uint64(), "hash", hash, "want", want)
+					return errors.New("authorizationList block mismatch")
 				}
-				p.Log().Debug("Whitelist block verified", "number", headers[0].Number.Uint64(), "hash", want)
+				p.Log().Debug("AuthorizationList block verified", "number", headers[0].Number.Uint64(), "hash", want)
 			}
 			// Irrelevant of the fork checks, send the header to the fetcher just in case
 			headers = pm.blockFetcher.FilterHeaders(p.id, headers, time.Now())
@@ -782,7 +782,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			log.Warn("Propagated block has invalid uncles", "have", hash, "exp", request.Block.UncleHash())
 			break // TODO(karalabe): return error eventually, but wait a few releases
 		}
-		if hash := types.DeriveSha(request.Block.Transactions(), new(trie.Trie)); hash != request.Block.TxHash() {
+		if hash := types.DeriveSha(request.Block.Transactions(), trie.NewStackTrie(nil)); hash != request.Block.TxHash() {
 			log.Warn("Propagated block has invalid body", "have", hash, "exp", request.Block.TxHash())
 			break // TODO(karalabe): return error eventually, but wait a few releases
 		}

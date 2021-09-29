@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // PrivateStateManager interface separates
@@ -17,6 +18,8 @@ type PrivateStateManager interface {
 	StateRepository(blockHash common.Hash) (PrivateStateRepository, error)
 	// CheckAt verifies if there's a state being managed at a block hash
 	CheckAt(blockHash common.Hash) error
+	// TrieDB returns the trie database
+	TrieDB() *trie.Database
 }
 
 type PrivateStateMetadataResolver interface {
@@ -33,7 +36,7 @@ type PrivateStateMetadataResolver interface {
 // retrieving from and peristing private states to the underlying database
 type PrivateStateRepository interface {
 	StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error)
-	CommitAndWrite(isEIP158 bool, block *types.Block) error
+	CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error)
 	Commit(isEIP158 bool, block *types.Block) error
 	Copy() PrivateStateRepository
 	Reset() error

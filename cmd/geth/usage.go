@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/flags"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // Quorum
@@ -47,7 +47,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.NetworkIdFlag,
 			utils.GoerliFlag,
 			utils.RinkebyFlag,
-			utils.YoloV1Flag,
+			utils.YoloV2Flag,
 			utils.RopstenFlag,
 			utils.SyncModeFlag,
 			utils.ExitWhenSyncedFlag,
@@ -56,7 +56,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
 			utils.LightKDFFlag,
-			utils.WhitelistFlag,
+			utils.AuthorizationListFlag,
 		},
 	},
 	{
@@ -119,6 +119,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.CacheGCFlag,
 			utils.CacheSnapshotFlag,
 			utils.CacheNoPrefetchFlag,
+			utils.CachePreimagesFlag,
 		},
 	},
 	{
@@ -149,8 +150,8 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.GraphQLEnabledFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCGlobalTxFeeCap,
+			utils.RPCGlobalGasCapFlag,
+			utils.RPCGlobalTxFeeCapFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
@@ -199,6 +200,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 		Flags: []cli.Flag{
 			utils.GpoBlocksFlag,
 			utils.GpoPercentileFlag,
+			utils.GpoMaxGasPriceFlag,
 		},
 	},
 	{
@@ -223,7 +225,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 		Flags: metricsFlags,
 	},
 	{
-		Name:  "WHISPER (EXPERIMENTAL)",
+		Name:  "WHISPER (deprecated)",
 		Flags: whisperFlags,
 	},
 	{
@@ -257,6 +259,9 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
 			utils.MultitenancyFlag,
+			utils.RevertReasonFlag,
+			utils.PrivateCacheTrieJournalFlag,
+			utils.QuorumEnablePrivacyMarker,
 		},
 	},
 	{

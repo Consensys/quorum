@@ -29,7 +29,6 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -60,7 +59,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/rules"
 	"github.com/ethereum/go-ethereum/signer/storage"
 
-	colorable "github.com/mattn/go-colorable"
+	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -703,8 +702,8 @@ func signer(c *cli.Context) error {
 	// </Quorum>
 
 	if c.GlobalBool(utils.HTTPEnabledFlag.Name) {
-		vhosts := splitAndTrim(c.GlobalString(utils.HTTPVirtualHostsFlag.Name))
-		cors := splitAndTrim(c.GlobalString(utils.HTTPCORSDomainFlag.Name))
+		vhosts := utils.SplitAndTrim(c.GlobalString(utils.HTTPVirtualHostsFlag.Name))
+		cors := utils.SplitAndTrim(c.GlobalString(utils.HTTPCORSDomainFlag.Name))
 
 		srv := rpc.NewServer()
 		err := node.RegisterApisFromWhitelist(rpcAPI, []string{"account"}, srv, false)
@@ -815,21 +814,11 @@ func addPluginAPIs(pm *plugin.PluginManager, rpcAPI []rpc.API, ui core.UIClientA
 	return append(rpcAPI, approvalPluginAPIs...)
 }
 
-// splitAndTrim splits input separated by a comma
-// and trims excessive white space from the substrings.
-func splitAndTrim(input string) []string {
-	result := strings.Split(input, ",")
-	for i, r := range result {
-		result[i] = strings.TrimSpace(r)
-	}
-	return result
-}
-
 // DefaultConfigDir is the default config directory to use for the vaults and other
 // persistence requirements.
 func DefaultConfigDir() string {
 	// Try to place the data folder in the user's home dir
-	home := homeDir()
+	home := utils.HomeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
 			return filepath.Join(home, "Library", "Signer")
@@ -837,26 +826,15 @@ func DefaultConfigDir() string {
 			appdata := os.Getenv("APPDATA")
 			if appdata != "" {
 				return filepath.Join(appdata, "Signer")
-			} else {
-				return filepath.Join(home, "AppData", "Roaming", "Signer")
 			}
-		} else {
-			return filepath.Join(home, ".clef")
+			return filepath.Join(home, "AppData", "Roaming", "Signer")
 		}
+		return filepath.Join(home, ".clef")
 	}
 	// As we cannot guess a stable location, return empty and handle later
 	return ""
 }
 
-func homeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
-}
 func readMasterKey(ctx *cli.Context, ui core.UIClientAPI) ([]byte, error) {
 	var (
 		file      string

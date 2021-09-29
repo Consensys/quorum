@@ -331,6 +331,39 @@ func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.Blo
 	return privateState.IntermediateRoot(true), nil
 }
 
+func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
+	psm, err := api.eth.blockchain.PrivateStateManager().StateRepository(api.eth.blockchain.CurrentBlock().Hash())
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defaultPSM := psm.DefaultStateMetadata()
+
+	var privateState *state.StateDB
+	if blockNr == rpc.PendingBlockNumber {
+		// If we're dumping the pending state, we need to request
+		// both the pending block as well as the pending state from
+		// the miner and operate on those
+		_, _, privateState = api.eth.miner.Pending(defaultPSM.ID)
+		// this is a copy of the private state so it is OK to do IntermediateRoot
+		return privateState.IntermediateRoot(true), nil
+	}
+
+	var block *types.Block
+	if blockNr == rpc.LatestBlockNumber {
+		block = api.eth.blockchain.CurrentBlock()
+	} else {
+		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+	}
+	if block == nil {
+		return common.Hash{}, fmt.Errorf("block #%d not found", blockNr)
+	}
+	_, privateState, err = api.eth.BlockChain().StateAtPSI(block.Root(), defaultPSM.ID)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return privateState.IntermediateRoot(true), nil
+}
+
 // Quorum
 // DumpAddress retrieves the state of an address at a given block.
 // Quorum adds an additional parameter to support private state dump
@@ -430,7 +463,7 @@ func (api *PrivateDebugAPI) GetBadBlocks(ctx context.Context) ([]*BadBlockArgs, 
 // AccountRangeMaxResults is the maximum number of results to be returned per call
 const AccountRangeMaxResults = 256
 
-// AccountRangeAt enumerates all accounts in the given block and start point in paging request
+// AccountRange enumerates all accounts in the given block and start point in paging request
 func (api *PublicDebugAPI) AccountRange(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, start []byte, maxResults int, nocode, nostorage, incompletes bool) (state.IteratorDump, error) {
 	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
@@ -468,6 +501,8 @@ func (api *PublicDebugAPI) AccountRange(ctx context.Context, blockNrOrHash rpc.B
 		if err != nil {
 			return state.IteratorDump{}, err
 		}
+	} else {
+		return state.IteratorDump{}, errors.New("either block number or block hash must be specified")
 	}
 
 	if maxResults > AccountRangeMaxResults || maxResults <= 0 {
@@ -491,7 +526,12 @@ type storageEntry struct {
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
 func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	_, _, statedb, _, err := api.computeTxEnv(ctx, blockHash, txIndex, 0)
+	// Retrieve the block
+	block := api.eth.blockchain.GetBlockByHash(blockHash)
+	if block == nil {
+		return StorageRangeResult{}, fmt.Errorf("block %#x not found", blockHash)
+	}
+	_, _, statedb, _, _, err := api.computeTxEnv(ctx, block, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}

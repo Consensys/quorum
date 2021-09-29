@@ -76,7 +76,7 @@ func (a *Account) Code(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(state.GetCode(a.address)), nil
+	return state.GetCode(a.address), nil
 }
 
 func (a *Account) Storage(ctx context.Context, args struct{ Slot common.Hash }) (common.Hash, error) {
@@ -115,17 +115,18 @@ func (l *Log) Topics(ctx context.Context) []common.Hash {
 }
 
 func (l *Log) Data(ctx context.Context) hexutil.Bytes {
-	return hexutil.Bytes(l.log.Data)
+	return l.log.Data
 }
 
 // Transaction represents an Ethereum transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	backend ethapi.Backend
-	hash    common.Hash
-	tx      *types.Transaction
-	block   *Block
-	index   uint64
+	backend       ethapi.Backend
+	hash          common.Hash
+	tx            *types.Transaction
+	block         *Block
+	index         uint64
+	receiptGetter receiptGetter
 }
 
 // resolve returns the internal transaction object, fetching it if needed.
@@ -156,7 +157,7 @@ func (t *Transaction) InputData(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil || tx == nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(tx.Data()), nil
+	return tx.Data(), nil
 }
 
 func (t *Transaction) Gas(ctx context.Context) (hexutil.Uint64, error) {
@@ -243,19 +244,71 @@ func (t *Transaction) Index(ctx context.Context) (*int32, error) {
 	return &index, nil
 }
 
-// getReceipt returns the receipt associated with this transaction, if any.
-func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
-	if _, err := t.resolve(ctx); err != nil {
+// (Quorum) receiptGetter allows Transaction to have different behaviours for getting transaction receipts
+// (e.g. getting standard receipts or privacy precompile receipts from the db)
+type receiptGetter interface {
+	get(ctx context.Context) (*types.Receipt, error)
+}
+
+// (Quorum) transactionReceiptGetter implements receiptGetter and provides the standard behaviour for getting transaction
+// receipts from the db
+type transactionReceiptGetter struct {
+	tx *Transaction
+}
+
+func (g *transactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.tx.resolve(ctx); err != nil {
 		return nil, err
 	}
-	if t.block == nil {
+	if g.tx.block == nil {
 		return nil, nil
 	}
-	receipts, err := t.block.resolveReceipts(ctx)
+	receipts, err := g.tx.block.resolveReceipts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return receipts[t.index], nil
+	return receipts[g.tx.index], nil
+}
+
+// (Quorum) privateTransactionReceiptGetter implements receiptGetter and gets privacy precompile transaction receipts
+// from the the db
+type privateTransactionReceiptGetter struct {
+	pmt *Transaction
+}
+
+func (g *privateTransactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.pmt.resolve(ctx); err != nil {
+		return nil, err
+	}
+	if g.pmt.block == nil {
+		return nil, nil
+	}
+	receipts, err := g.pmt.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := receipts[g.pmt.index]
+
+	psm, err := g.pmt.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	privateReceipt := receipt.PSReceipts[psm.ID]
+	if privateReceipt == nil {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+
+	return privateReceipt, nil
+}
+
+// getReceipt returns the receipt associated with this transaction, if any.
+func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
+	// default to standard receipt getter if one is not set
+	if t.receiptGetter == nil {
+		t.receiptGetter = &transactionReceiptGetter{tx: t}
+	}
+	return t.receiptGetter.get(ctx)
 }
 
 func (t *Transaction) Status(ctx context.Context) (*hexutil.Uint64, error) {
@@ -314,6 +367,38 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 }
 
 // Quorum
+
+// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
+func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	if !tx.IsPrivacyMarker() {
+		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
+		return nil, nil
+	}
+
+	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
+	if err != nil {
+		return nil, err
+	}
+
+	if pvtTx == nil {
+		return nil, nil
+	}
+
+	return &Transaction{
+		backend:       t.backend,
+		hash:          t.hash,
+		tx:            pvtTx,
+		block:         t.block,
+		index:         t.index,
+		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
+	}, nil
+}
+
 func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
 	ret := false
 	tx, err := t.resolve(ctx)
@@ -445,7 +530,7 @@ func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
 		if err != nil {
 			return nil, err
 		}
-		b.receipts = []*types.Receipt(receipts)
+		b.receipts = receipts
 	}
 	return b.receipts, nil
 }
@@ -525,7 +610,7 @@ func (b *Block) Nonce(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Nonce[:]), nil
+	return header.Nonce[:], nil
 }
 
 func (b *Block) MixHash(ctx context.Context) (common.Hash, error) {
@@ -599,7 +684,7 @@ func (b *Block) ExtraData(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Extra), nil
+	return header.Extra, nil
 }
 
 func (b *Block) LogsBloom(ctx context.Context) (hexutil.Bytes, error) {
@@ -607,7 +692,7 @@ func (b *Block) LogsBloom(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Bloom.Bytes()), nil
+	return header.Bloom.Bytes(), nil
 }
 
 func (b *Block) TotalDifficulty(ctx context.Context) (hexutil.Big, error) {
@@ -950,7 +1035,7 @@ func (r *Resolver) Block(ctx context.Context, args struct {
 }) (*Block, error) {
 	var block *Block
 	if args.Number != nil {
-		number := rpc.BlockNumber(uint64(*args.Number))
+		number := rpc.BlockNumber(*args.Number)
 		numberOrHash := rpc.BlockNumberOrHashWithNumber(number)
 		block = &Block{
 			backend:      r.backend,

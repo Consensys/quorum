@@ -9,7 +9,7 @@ on:
     branches:
       - master
 env:
-  GO_VERSION: 1.15.5
+  GO_VERSION: 1.15.6
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
@@ -49,10 +49,120 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           make test all
+  docker-build:
+    name: 'Build Docker image'
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Check out project files'
+        uses: actions/checkout@v2
+      - name: 'Build docker image'
+        id: build
+        run: |
+          output_dir=${{ runner.temp }}/docker
+          mkdir -p $output_dir
+          docker build -t quorumengineering/quorum:pr .
+          docker save quorumengineering/quorum:pr > quorum-pr.tar
+          tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
+          echo "::set-output name=output_dir::$output_dir"
+      - name: 'Upload workflow artifact - Docker image'
+        uses: actions/upload-artifact@v1
+        with:
+          name: docker-image
+          path: ${{ steps.build.outputs.output_dir }}
+  acceptance-tests:
+    name: Acceptance tests (${{ matrix.tag }})
+    needs:
+      - docker-build
+    if: success()
+    strategy:
+      fail-fast: false
+      matrix:
+        # list of tag expression being executed in parallel
+        # for PR, only selective tests are run.
+        # More comprehensive suites are scheduled to run in master
+        tag:
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+          - 'gcmode && block-sync && networks/template::raft-3plus1'
+          - 'gcmode && block-sync && networks/template::istanbul-3plus1'
+          - 'gcmode && block-sync && networks/template::qbft-3plus1'
+          - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
+          - 'validator-management && networks/template::qbft-3plus1'
+          - 'validator-management && networks/template::istanbul-3plus1'
+          - 'qbft-transition-network && networks/template::qbft-4nodes-transition'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::qbft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul'
+          - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::qbft-account-plugin-hashicorp-vault'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::istanbul-account-plugin-hashicorp-vault'
+          - 'basic-rpc-security || networks/plugins::raft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::qbft-rpc-security'
+          - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
+          - 'migration && networks/template::raft-4nodes'
+          - 'migration && networks/template::istanbul-4nodes'
+          - 'migration && networks/template::raft-4nodes-ancientdb'
+          - 'migration && networks/template::istanbul-4nodes-ancientdb'
+          - 'permissions-v1 && networks/template::raft-3plus1'
+          - 'permissions-v2 && networks/template::raft-3plus1'
+          - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          - 'multitenancy && networks/plugins::raft-multitenancy'
+          - 'basic || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft-simple-mps'
+          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+          - 'basic || networks/typical::raftmps'
+          - 'basic || networks/typical::qbftmps'
+          - 'basic || networks/typical::istanbulmps'
+          - 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
+          - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
+          - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
+          - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
+        privacy-enhancements:
+          - 'false'
+        include:
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
+            privacy-enhancements: 'true'
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+            privacy-enhancements: 'true'
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
+          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      - name: 'Run acceptance tests'
+        run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
+            quorumengineering/acctests:latest test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
   publish-docker:
     name: Publish Docker Image
     needs:
       - build
+      - acceptance-tests
     runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
@@ -271,3 +381,146 @@ jobs:
             curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -H "Content-type: application/json" --data "@${1}"
           }
           _post "long_message.json" || _post "short_message.json"
+  build-sentinel:
+    if: always()
+    needs:
+      - build
+      - docker-build
+      - acceptance-tests
+      - publish-docker
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - run: npm install @slack/web-api
+      - uses: actions/github-script@v4
+        env:
+          SLACK_TOKEN: "${{ secrets.BUILD_SENTINEL_SLACK_TOKEN }}"
+          CHANNEL_NAME: "${{ secrets.BUILD_SENTINEL_CHANNEL_NAME }}"
+          # The value of the WORKFLOW_ID variable must be equal of the workflow filename, in this case build.yml
+          WORKFLOW_ID: build.yml
+        with:
+          script: |
+            const { WebClient } = require('@slack/web-api')
+
+            const {
+              SLACK_TOKEN,
+              CHANNEL_NAME,
+              WORKFLOW_ID
+            } = process.env;
+
+            const { data: { workflow_runs: runs } } = await github.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: WORKFLOW_ID
+            });
+
+            const runId = "${{ github.run_id }}"
+            const isLatestRun = runs[0].id == runId;
+
+            // Only the latest run may publish a new message
+            if (!isLatestRun) return;
+
+            const slackClient = new WebClient(SLACK_TOKEN);
+
+            const repository = "${{ github.repository }}";
+
+            const pipelineUrl = `https://github.com/${repository}/actions/runs/${runId}`;
+            const pipelineLinkBlock = {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "url": pipelineUrl,
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Visit pipeline",
+                    "emoji": true
+                  }
+                }
+              ]
+            };
+
+            const successEmoji = ":large_green_circle:";
+            const successBlocks = [
+              {
+                "type": "section",
+                "text": {
+                  "type": "plain_text",
+                  "text": `${successEmoji} The build on ${repository} is back to green!`,
+                  "emoji": true
+                }
+              },
+              pipelineLinkBlock
+            ];
+            
+            const failureEmoji = ":red_circle:";
+            const failureBlocks = [
+              {
+                "type": "section",
+                "text": {
+                  "type": "plain_text",
+                  "text": `${failureEmoji} A build job on ${repository} has failed!`,
+                  "emoji": true
+                }
+              },
+              pipelineLinkBlock
+            ];
+
+            const results = [
+              "${{ needs['build'].result }}",
+              "${{ needs['docker-build'].result }}",
+              "${{ needs['acceptance-tests'].result }}",
+              "${{ needs['publish-docker'].result }}",
+            ];
+            const isCurrentRunSuccessful = results.every(r => r === "success");
+
+            // Find channel
+            const { channels } = await slackClient.conversations.list({ types: "private_channel" });
+            const channel = channels.find(c => c.name === CHANNEL_NAME);
+
+            // Find latest bot message among the 100 latest channel messages
+            // The number of loaded messages may be increased
+            const { messages } = await slackClient.conversations.history({
+              channel: channel.id,
+            });
+            const latestBotMessage = messages.find(m => {
+              const isWrittenByTheBot = Boolean(m.bot_profile);
+              if (!isWrittenByTheBot) return false;
+              const notificationText = m.text || "";
+              return notificationText.includes(repository) && (notificationText.startsWith(successEmoji) || notificationText.startsWith(failureEmoji));
+            });
+
+            if (!latestBotMessage) {
+              /** 
+               * The bot is optimistic, if the latest message has not been found
+               * and the run is successful, we assume the situation is fine
+               * if the run is not successful, we publish (possibly again) an error message
+               */
+              if (!isCurrentRunSuccessful) {
+                await slackClient.chat.postMessage({
+                  channel: channel.id,
+                  text: failureBlocks[0].text.text,
+                  blocks: failureBlocks
+                })
+              }
+              return;
+            }
+
+            const isInSuccessState = latestBotMessage.text.startsWith(successEmoji);
+
+            // If no change occurs, do not post any message
+            if (isInSuccessState === isCurrentRunSuccessful) return;
+
+            // Else, create the message and post it
+            const blocks = isCurrentRunSuccessful 
+              ? successBlocks
+              : failureBlocks;
+
+            await slackClient.chat.postMessage({
+              channel: channel.id,
+              text: blocks[0].text.text,
+              blocks
+            })
