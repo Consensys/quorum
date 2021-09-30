@@ -746,10 +746,10 @@ func TestBroadcastTransactionsOnQuorum(t *testing.T) {
 		totalPeers        = 100
 	)
 	gspec.MustCommit(db)
-	blockchain, err := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, nil)
+	blockchain, _ := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, nil)
 	txPool := &testTxPool{pool: make(map[common.Hash]*types.Transaction)}
 
-	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
+	pm, _ := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
 	pm.Start(totalPeers)
 	defer pm.Stop()
 
@@ -791,9 +791,8 @@ func TestBroadcastTransactionsOnQuorum(t *testing.T) {
 				t.Errorf("broadcast count mismatch: have %d, want %d", received, totalPeers)
 			}
 			return
-		case err = <-errCh:
+		case err := <-errCh:
 			t.Fatalf("broadcast failed: %v", err)
 		}
 	}
-	t.Fatal("test failed. shouldn't reach this point")
 }
