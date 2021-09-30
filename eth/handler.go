@@ -963,7 +963,7 @@ func (pm *ProtocolManager) BroadcastTransactions(txs types.Transactions, propaga
 	}
 	for peer, hashes := range annos {
 		if peer.version >= eth65 {
-			peer.AsyncSendPooledTransactionHashes(hashes) // TODO: can we make sure IBFT/QBFT supports eth65 properly?
+			peer.AsyncSendPooledTransactionHashes(hashes)
 		} else {
 			peer.AsyncSendTransactions(hashes)
 		}
