@@ -732,3 +732,68 @@ func TestBroadcastMalformedBlock(t *testing.T) {
 		}
 	}
 }
+
+// Quorum
+// Tests that when broadcasting transactions, it sends the full transactions to all peers instead of Announcing (aka sending only hashes)
+func TestBroadcastTransactionsOnQuorum(t *testing.T) {
+	var (
+		evmux             = new(event.TypeMux)
+		pow               = ethash.NewFaker()
+		db                = rawdb.NewMemoryDatabase()
+		config            = &params.ChainConfig{}
+		gspec             = &core.Genesis{Config: config}
+		destinationKey, _ = crypto.GenerateKey()
+		totalPeers        = 100
+	)
+	gspec.MustCommit(db)
+	blockchain, err := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, nil)
+	txPool := &testTxPool{pool: make(map[common.Hash]*types.Transaction)}
+
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
+	pm.Start(totalPeers)
+	defer pm.Stop()
+
+	var peers []*testPeer
+	for i := 0; i < totalPeers; i++ {
+		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), eth65, pm, true)
+		defer peer.close()
+
+		peers = append(peers, peer)
+	}
+
+	transaction := types.NewTransaction(0, crypto.PubkeyToAddress(destinationKey.PublicKey), common.Big0, uint64(3000000), common.Big0, nil)
+	transactions := types.Transactions{transaction}
+
+	txPool.AddRemotes(transactions) // this will trigger the transaction broadcast/announce
+
+	errCh := make(chan error, totalPeers)
+	doneCh := make(chan struct{}, totalPeers)
+	for _, peer := range peers {
+		go func(p *testPeer) {
+			if err := p2p.ExpectMsg(p.app, TransactionMsg, transactions); err != nil {
+				errCh <- err
+			} else {
+				doneCh <- struct{}{}
+			}
+		}(peer)
+	}
+	var received int
+	for {
+		select {
+		case <-doneCh:
+			received++
+			if received == totalPeers {
+				// We found the right number
+				return
+			}
+		case <-time.After(2 * time.Second):
+			if received != totalPeers {
+				t.Errorf("broadcast count mismatch: have %d, want %d", received, totalPeers)
+			}
+			return
+		case err = <-errCh:
+			t.Fatalf("broadcast failed: %v", err)
+		}
+	}
+	t.Fatal("test failed. shouldn't reach this point")
+}
