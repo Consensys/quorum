@@ -97,7 +97,6 @@ func (c *core) finalizeMessage(msg *ibfttypes.Message) ([]byte, error) {
 	// Add sender address
 	msg.Address = c.Address()
 
-	// Add proof of consensus
 	// Assign the CommittedSeal if it's a COMMIT message and proposal is not nil
 	if msg.Code == ibfttypes.MsgCommit && c.current.Proposal() != nil {
 		msg.CommittedSeal = []byte{}
