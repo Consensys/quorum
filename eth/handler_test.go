@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -749,37 +750,45 @@ func TestBroadcastTransactionsOnQuorum(t *testing.T) {
 	blockchain, _ := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, nil)
 	txPool := &testTxPool{pool: make(map[common.Hash]*types.Transaction)}
 
-	pm, _ := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
+	if err != nil {
+		t.Fatalf("failed to start test protocol manager: %v", err)
+	}
 	pm.Start(totalPeers)
 	defer pm.Stop()
 
 	var peers []*testPeer
+	wgPeers := sync.WaitGroup{}
+	wgPeers.Add(totalPeers)
 	for i := 0; i < totalPeers; i++ {
 		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), eth65, pm, true)
+		go func() {
+			<-peer.EthPeerRegistered
+			wgPeers.Done()
+		}()
 		defer peer.close()
 
 		peers = append(peers, peer)
 	}
-	time.Sleep(1 * time.Second) // wait until all peers are synced before pushing tx to the pool
+	wgPeers.Wait() // wait until all peers are synced before pushing tx to the pool
 
 	transaction := types.NewTransaction(0, crypto.PubkeyToAddress(destinationKey.PublicKey), common.Big0, uint64(3000000), common.Big0, nil)
 	transactions := types.Transactions{transaction}
 
 	txPool.AddRemotes(transactions) // this will trigger the transaction broadcast/announce
 
-	doneCh := make(chan err, totalPeers)
+	doneCh := make(chan error, totalPeers)
 
-	wg := sync.WaitGroup{}
-	wg.Add(totalPeers)
+	wgPeers.Add(totalPeers)
 	defer func() {
-		wg.Wait()
+		wgPeers.Wait()
 		close(doneCh)
 	}()
 
 	for _, peer := range peers {
 		go func(p *testPeer) {
-			errCh <- p2p.ExpectMsg(p.app, TransactionMsg, transactions)
-			wg.Done()
+			doneCh <- p2p.ExpectMsg(p.app, TransactionMsg, transactions)
+			wgPeers.Done()
 		}(peer)
 	}
 	var received int
