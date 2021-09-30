@@ -760,6 +760,7 @@ func TestBroadcastTransactionsOnQuorum(t *testing.T) {
 
 		peers = append(peers, peer)
 	}
+	time.Sleep(1 * time.Second) // wait until all peers are synced before pushing tx to the pool
 
 	transaction := types.NewTransaction(0, crypto.PubkeyToAddress(destinationKey.PublicKey), common.Big0, uint64(3000000), common.Big0, nil)
 	transactions := types.Transactions{transaction}
