@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	elog "github.com/ethereum/go-ethereum/log"
 )
@@ -93,5 +94,36 @@ func TestQuorumSize(t *testing.T) {
 		if 2*c.QuorumSize() <= (valSet.Size()+valSet.F()) || 2*c.QuorumSize() > (valSet.Size()+valSet.F()+2) {
 			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size())
 		}
+	}
+}
+
+func TestNilCommittedSealWithEmptyProposal(t *testing.T) {
+	N := uint64(4)
+	F := uint64(1)
+
+	sys := NewTestSystemWithBackend(N, F)
+	backend := sys.backends[0]
+	c := backend.engine
+	// Set the current round state with an empty proposal
+	preprepare := &istanbul.Preprepare{
+		View: c.currentView(),
+	}
+	c.current.SetPreprepare(preprepare)
+
+	// Create a Commit message
+	subject := &istanbul.Subject{
+		View:   c.currentView(),
+		Digest: common.StringToHash("1234567890"),
+	}
+	subjectPayload, _ := ibfttypes.Encode(subject)
+	msg := &ibfttypes.Message{
+		Code: ibfttypes.MsgCommit,
+		Msg:  subjectPayload,
+	}
+
+	c.finalizeMessage(msg)
+
+	if msg.CommittedSeal != nil {
+		t.Errorf("Unexpected committed seal: %s", msg.CommittedSeal)
 	}
 }
