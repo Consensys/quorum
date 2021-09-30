@@ -115,7 +115,10 @@ func TestNilCommittedSealWithEmptyProposal(t *testing.T) {
 		View:   c.currentView(),
 		Digest: common.StringToHash("1234567890"),
 	}
-	subjectPayload, _ := ibfttypes.Encode(subject)
+	subjectPayload, err := ibfttypes.Encode(subject)
+	if err != nil {
+		t.Errorf("problem with encoding: %v", err)
+	}
 	msg := &ibfttypes.Message{
 		Code: ibfttypes.MsgCommit,
 		Msg:  subjectPayload,
