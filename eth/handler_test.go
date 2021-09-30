@@ -767,33 +767,37 @@ func TestBroadcastTransactionsOnQuorum(t *testing.T) {
 
 	txPool.AddRemotes(transactions) // this will trigger the transaction broadcast/announce
 
-	errCh := make(chan error, totalPeers)
-	doneCh := make(chan struct{}, totalPeers)
+	doneCh := make(chan err, totalPeers)
+
+	wg := sync.WaitGroup{}
+	wg.Add(totalPeers)
+	defer func() {
+		wg.Wait()
+		close(doneCh)
+	}()
+
 	for _, peer := range peers {
 		go func(p *testPeer) {
-			if err := p2p.ExpectMsg(p.app, TransactionMsg, transactions); err != nil {
-				errCh <- err
-			} else {
-				doneCh <- struct{}{}
-			}
+			errCh <- p2p.ExpectMsg(p.app, TransactionMsg, transactions)
+			wg.Done()
 		}(peer)
 	}
 	var received int
 	for {
 		select {
-		case <-doneCh:
+		case err := <-doneCh:
+			if err != nil {
+				t.Fatalf("broadcast failed: %v", err)
+				return
+			}
 			received++
 			if received == totalPeers {
 				// We found the right number
 				return
 			}
 		case <-time.After(2 * time.Second):
-			if received != totalPeers {
-				t.Errorf("broadcast count mismatch: have %d, want %d", received, totalPeers)
-			}
+			t.Errorf("timeout: broadcast count mismatch: have %d, want %d", received, totalPeers)
 			return
-		case err := <-errCh:
-			t.Fatalf("broadcast failed: %v", err)
 		}
 	}
 }
