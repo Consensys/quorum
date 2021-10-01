@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -832,30 +833,50 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		return nil, err
 	}
 	for _, tx := range block.Transactions() {
-		if tx.IsPrivate() {
-			txHash := common.BytesToEncryptedPayloadHash(tx.Data())
-			_, _, payload, extra, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if tx.IsPrivacyMarker() {
+			result, err = pm.fetchPrivateData(tx.Data(), psm, result)
 			if err != nil {
 				return nil, err
 			}
-			if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
-				continue
-			}
 
-			extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
-
-			ptd := PrivateTransactionData{
-				Hash:    &txHash,
-				Payload: payload,
-				Extra:   extra,
+			innerTx, _, _, _ := private.FetchPrivateTransaction(tx.Data())
+			if innerTx != nil {
+				tx = innerTx
 			}
-			result = append(result, ptd)
+		}
+
+		if tx.IsPrivate() {
+			result, err = pm.fetchPrivateData(tx.Data(), psm, result)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	if len(result) > 0 {
 		return &result, nil
 	}
 	return nil, nil
+}
+
+func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result PrivateTransactionsData) (PrivateTransactionsData, error) {
+	txHash := common.BytesToEncryptedPayloadHash(privateData)
+	_, _, privateTx, extra, err := private.P.Receive(txHash)
+	if err != nil {
+		return nil, err
+	}
+	if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
+		return result, nil
+	}
+
+	extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
+
+	ptd := PrivateTransactionData{
+		Hash:    &txHash,
+		Payload: privateTx,
+		Extra:   extra,
+	}
+	result = append(result, ptd)
+	return result, nil
 }
 
 // BroadcastTransactions will propagate a batch of transactions to all peers which are not known to
