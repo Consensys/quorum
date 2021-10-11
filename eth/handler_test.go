@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -729,6 +730,83 @@ func TestBroadcastMalformedBlock(t *testing.T) {
 		case <-notify:
 			t.Fatalf("malformed block forwarded")
 		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+// Quorum
+// Tests that when broadcasting transactions, it sends the full transactions to all peers instead of Announcing (aka sending only hashes)
+func TestBroadcastTransactionsOnQuorum(t *testing.T) {
+	var (
+		evmux             = new(event.TypeMux)
+		pow               = ethash.NewFaker()
+		db                = rawdb.NewMemoryDatabase()
+		config            = &params.ChainConfig{}
+		gspec             = &core.Genesis{Config: config}
+		destinationKey, _ = crypto.GenerateKey()
+		totalPeers        = 100
+	)
+	gspec.MustCommit(db)
+	blockchain, _ := core.NewBlockChain(db, nil, config, pow, vm.Config{}, nil, nil, nil)
+	txPool := &testTxPool{pool: make(map[common.Hash]*types.Transaction)}
+
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, txPool, pow, blockchain, db, 1, nil, false)
+	if err != nil {
+		t.Fatalf("failed to start test protocol manager: %v", err)
+	}
+	pm.Start(totalPeers)
+	defer pm.Stop()
+
+	var peers []*testPeer
+	wgPeers := sync.WaitGroup{}
+	wgPeers.Add(totalPeers)
+	for i := 0; i < totalPeers; i++ {
+		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), eth65, pm, true)
+		go func() {
+			<-peer.EthPeerRegistered
+			wgPeers.Done()
+		}()
+		defer peer.close()
+
+		peers = append(peers, peer)
+	}
+	wgPeers.Wait() // wait until all peers are synced before pushing tx to the pool
+
+	transaction := types.NewTransaction(0, crypto.PubkeyToAddress(destinationKey.PublicKey), common.Big0, uint64(3000000), common.Big0, nil)
+	transactions := types.Transactions{transaction}
+
+	txPool.AddRemotes(transactions) // this will trigger the transaction broadcast/announce
+
+	doneCh := make(chan error, totalPeers)
+
+	wgPeers.Add(totalPeers)
+	defer func() {
+		wgPeers.Wait()
+		close(doneCh)
+	}()
+
+	for _, peer := range peers {
+		go func(p *testPeer) {
+			doneCh <- p2p.ExpectMsg(p.app, TransactionMsg, transactions)
+			wgPeers.Done()
+		}(peer)
+	}
+	var received int
+	for {
+		select {
+		case err := <-doneCh:
+			if err != nil {
+				t.Fatalf("broadcast failed: %v", err)
+				return
+			}
+			received++
+			if received == totalPeers {
+				// We found the right number
+				return
+			}
+		case <-time.After(2 * time.Second):
+			t.Errorf("timeout: broadcast count mismatch: have %d, want %d", received, totalPeers)
+			return
 		}
 	}
 }

@@ -27,12 +27,36 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
 )
+
+func TestAuthorizationList(t *testing.T) {
+	value := "1=" + common.HexToHash("0xfa").Hex() + ",2=" + common.HexToHash("0x12").Hex()
+	result := map[uint64]common.Hash{
+		1: common.HexToHash("0xfa"),
+		2: common.HexToHash("0x12"),
+	}
+
+	arbitraryNodeConfig := &eth.Config{}
+	fs := &flag.FlagSet{}
+	fs.String(AuthorizationListFlag.Name, value, "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(AuthorizationListFlag.Name, value)
+	setAuthorizationList(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.Equal(t, result, arbitraryNodeConfig.AuthorizationList)
+
+	fs = &flag.FlagSet{}
+	fs.String(AuthorizationListFlag.Name, value, "")
+	arbitraryCLIContext = cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(DeprecatedAuthorizationListFlag.Name, value) // old wlist flag
+	setAuthorizationList(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.Equal(t, result, arbitraryNodeConfig.AuthorizationList)
+}
 
 func TestPrivateTrieCache(t *testing.T) {
 	arbitraryNodeConfig := &eth.Config{}
