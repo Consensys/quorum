@@ -92,7 +92,7 @@ func (t *CachingProxyTxManager) DecryptPayload(payload common.DecryptRequest) ([
 }
 
 func (t *CachingProxyTxManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	panic("implement me")
+	return false, nil
 }
 
 func (t *CachingProxyTxManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
