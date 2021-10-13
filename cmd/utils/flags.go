@@ -971,6 +971,10 @@ var (
 		Name:  "qlight.client.serverNode",
 		Usage: "The node ID of the target server node",
 	}
+	QuorumLightClientServerNodeRPCFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNodeRPC",
+		Usage: "The RPC URL of the target server node",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1904,6 +1908,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
 		cfg.QuorumLightClientPSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
 	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
+		cfg.QuorumLightClientServerNodeRPC = ctx.GlobalString(QuorumLightClientServerNodeRPCFlag.Name)
+	}
+
 	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
 		cfg.QuorumLightClientServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
 		stack.Config().P2P.StaticNodes = append(stack.Config().P2P.StaticNodes, enode.MustParse(cfg.QuorumLightClientServerNode))

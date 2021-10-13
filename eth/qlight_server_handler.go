@@ -864,6 +864,10 @@ func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm 
 	if err != nil {
 		return nil, err
 	}
+	// we're not party to this transaction
+	if privateTx == nil {
+		return result, nil
+	}
 	if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
 		return result, nil
 	}

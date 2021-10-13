@@ -299,6 +299,18 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
+	// TODO qlight rebase
+	if eth.config.QuorumLightClient {
+		// TODO qlight - add PSI and token here
+		proxyClient, err := rpc.Dial(eth.config.QuorumLightClientServerNodeRPC)
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, proxyClient}
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
+	}
+
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.Miner.GasPrice

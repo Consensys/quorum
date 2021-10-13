@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/private/engine/qlight"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
 )
 
@@ -72,6 +73,11 @@ func InitialiseConnection(cfg http2.Config) error {
 
 func IsQuorumPrivacyEnabled() bool {
 	return isPrivacyEnabled
+}
+
+func NewQLightTxManager() (PrivateTransactionManager, error) {
+	isPrivacyEnabled = true
+	return qlight.New(), nil
 }
 
 func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {

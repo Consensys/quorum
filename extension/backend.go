@@ -339,7 +339,7 @@ func (service *PrivacyService) apis() []rpc.API {
 		{
 			Namespace: "quorumExtension",
 			Version:   "1.0",
-			Service:   NewPrivateExtensionAPI(service),
+			Service:   NewPrivateExtensionProxyAPI(service),
 			Public:    true,
 		},
 	}

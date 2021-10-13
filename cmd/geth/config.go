@@ -38,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/private/engine/qlight"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -164,7 +163,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
 	if cfg.Eth.QuorumLightClient {
-		private.P = qlight.New()
+		private.P, _ = private.NewQLightTxManager()
 	} else {
 		if err := quorumInitialisePrivacy(ctx); err != nil {
 			utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())

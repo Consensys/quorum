@@ -58,6 +58,16 @@ type EthAPIBackend struct {
 
 	// timeout value for call
 	evmCallTimeOut time.Duration
+	// Quorum
+	proxyClient *rpc.Client
+}
+
+func (b *EthAPIBackend) ProxyEnabled() bool {
+	return b.eth.config.QuorumLightClient
+}
+
+func (b *EthAPIBackend) ProxyClient() *rpc.Client {
+	return b.proxyClient
 }
 
 // ChainConfig returns the active chain configuration.

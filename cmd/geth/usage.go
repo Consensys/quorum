@@ -259,6 +259,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.QuorumLightClientFlag,
 			utils.QuorumLightClientPSIFlag,
 			utils.QuorumLightClientServerNodeFlag,
+			utils.QuorumLightClientServerNodeRPCFlag,
 		},
 	},
 	{
