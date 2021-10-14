@@ -59,7 +59,8 @@ func testCtx() *vmContext {
 }
 
 func runTrace(tracer *Tracer, vmctx *vmContext) (json.RawMessage, error) {
-	env := vm.NewEVM(vmctx.blockCtx, vmctx.txCtx, &dummyStatedb{}, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
+	db := &dummyStatedb{}
+	env := vm.NewEVM(vmctx.blockCtx, vmctx.txCtx, db, db, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
 	var (
 		startGas uint64 = 10000
 		value           = big.NewInt(0)
@@ -149,7 +150,8 @@ func TestHaltBetweenSteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := vm.NewEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{}, &dummyStatedb{}, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
+	db := &dummyStatedb{}
+	env := vm.NewEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{}, db, db, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
 	contract := vm.NewContract(&account{}, &account{}, big.NewInt(0), 0)
 
 	tracer.CaptureState(env, 0, 0, 0, 0, nil, nil, nil, nil, contract, 0, nil)

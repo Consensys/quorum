@@ -95,6 +95,25 @@ func (db *odrDatabase) TrieDB() *trie.Database {
 	return nil
 }
 
+type stubAccountExtraDataLinker struct {
+}
+
+func newAccountExtraDataLinkerStub() rawdb.AccountExtraDataLinker {
+	return &stubAccountExtraDataLinker{}
+}
+
+func (pml *stubAccountExtraDataLinker) GetAccountExtraDataRoot(_ common.Hash) common.Hash {
+	return common.Hash{}
+}
+
+func (pml *stubAccountExtraDataLinker) Link(_, _ common.Hash) error {
+	return nil
+}
+
+func (db *odrDatabase) AccountExtraDataLinker() rawdb.AccountExtraDataLinker {
+	return newAccountExtraDataLinkerStub()
+}
+
 type odrTrie struct {
 	db   *odrDatabase
 	id   *TrieID

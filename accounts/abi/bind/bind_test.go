@@ -1851,11 +1851,13 @@ func TestGolangBindings(t *testing.T) {
 	if out, err := replacer.CombinedOutput(); err != nil {
 		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
 	}
-	tidier := exec.Command(gocmd, "mod", "tidy")
-	tidier.Dir = pkg
-	if out, err := tidier.CombinedOutput(); err != nil {
-		t.Fatalf("failed to tidy Go module file: %v\n%s", err, out)
+	// Quorum - add package github.com/ConsenSys/quorum/crypto/secp256k1 that is defined as a standalone module
+	secp256Replacer := exec.Command(gocmd, "mod", "edit", "-replace", "github.com/ethereum/go-ethereum/crypto/secp256k1=github.com/ConsenSys/quorum/crypto/secp256k1@v0.0.0-20210223160031-6e8585c2a9ad") // Repo root
+	secp256Replacer.Dir = pkg
+	if out, err := secp256Replacer.CombinedOutput(); err != nil {
+		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
 	}
+
 	// Test the entire package and report any failures
 	cmd := exec.Command(gocmd, "test", "-v", "-count", "1")
 	cmd.Dir = pkg

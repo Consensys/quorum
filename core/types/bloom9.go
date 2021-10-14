@@ -70,6 +70,15 @@ func (b *Bloom) add(d []byte, buf []byte) {
 	b[i3] |= v3
 }
 
+// Quorum
+// OrBloom executes an Or operation on the bloom
+func (b *Bloom) OrBloom(bl []byte) {
+	bin := new(big.Int).SetBytes(b[:])
+	input := new(big.Int).SetBytes(bl[:])
+	bin.Or(bin, input)
+	b.SetBytes(bin.Bytes())
+}
+
 // Big converts b to a big integer.
 // Note: Converting a bloom filter to a big.Int and then calling GetBytes
 // does not return the same bytes, since big.Int will trim leading zeroes

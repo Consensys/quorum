@@ -61,13 +61,19 @@ func NewTransactor(keyin io.Reader, passphrase string) (*TransactOpts, error) {
 // Deprecated: Use NewKeyStoreTransactorWithChainID instead.
 func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account) (*TransactOpts, error) {
 	log.Warn("WARNING: NewKeyStoreTransactor has been deprecated in favour of NewTransactorWithChainID")
-	signer := types.HomesteadSigner{}
+	var homesteadSigner types.Signer = types.HomesteadSigner{}
 	return &TransactOpts{
 		From: account.Address,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != account.Address {
 				return nil, ErrNotAuthorized
 			}
+			// Quorum
+			signer := homesteadSigner
+			if tx.IsPrivate() {
+				signer = types.QuorumPrivateTxSigner{}
+			}
+			// / Quorum
 			signature, err := keystore.SignHash(account, signer.Hash(tx).Bytes())
 			if err != nil {
 				return nil, err
@@ -84,13 +90,19 @@ func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account
 func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 	log.Warn("WARNING: NewKeyedTransactor has been deprecated in favour of NewKeyedTransactorWithChainID")
 	keyAddr := crypto.PubkeyToAddress(key.PublicKey)
-	signer := types.HomesteadSigner{}
+	var homesteadSigner types.Signer = types.HomesteadSigner{}
 	return &TransactOpts{
 		From: keyAddr,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != keyAddr {
 				return nil, ErrNotAuthorized
 			}
+			// Quorum
+			signer := homesteadSigner
+			if tx.IsPrivate() {
+				signer = types.QuorumPrivateTxSigner{}
+			}
+			// / Quorum
 			signature, err := crypto.Sign(signer.Hash(tx).Bytes(), key)
 			if err != nil {
 				return nil, err
@@ -127,6 +139,11 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 			if address != account.Address {
 				return nil, ErrNotAuthorized
 			}
+			// Quorum
+			if tx.IsPrivate() {
+				signer = types.QuorumPrivateTxSigner{}
+			}
+			// / Quorum
 			signature, err := keystore.SignHash(account, signer.Hash(tx).Bytes())
 			if err != nil {
 				return nil, err
@@ -150,6 +167,11 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 			if address != keyAddr {
 				return nil, ErrNotAuthorized
 			}
+			// Quorum
+			if tx.IsPrivate() {
+				signer = types.QuorumPrivateTxSigner{}
+			}
+			// / Quorum
 			signature, err := crypto.Sign(signer.Hash(tx).Bytes(), key)
 			if err != nil {
 				return nil, err
@@ -169,6 +191,22 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 				return nil, ErrNotAuthorized
 			}
 			return clef.SignTx(account, transaction, nil) // Clef enforces its own chain id
+		},
+	}
+}
+
+// Quorum
+//
+// NewWalletTransactor is a utility method to easily create a transaction signer
+// from a wallet account
+func NewWalletTransactor(w accounts.Wallet, account accounts.Account) *TransactOpts {
+	return &TransactOpts{
+		From: account.Address,
+		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+			if address != account.Address {
+				return nil, errors.New("not authorized to sign this account")
+			}
+			return w.SignTx(account, tx, nil) // homestead signer without chainID is backward compatible
 		},
 	}
 }

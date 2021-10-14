@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/pruner"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/filters"
@@ -94,6 +95,9 @@ type Ethereum struct {
 	p2pServer *p2p.Server
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+
+	// Quorum - consensus as eth-service (e.g. raft)
+	consensusServicePendingLogsFeed *event.Feed
 }
 
 // New creates a new Ethereum object (including the
@@ -135,27 +139,68 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err := pruner.RecoverPruning(stack.ResolvePath(""), chainDb, stack.ResolvePath(config.TrieCleanCacheJournal)); err != nil {
 		log.Error("Failed to recover state", "error", err)
 	}
-	eth := &Ethereum{
-		config:            config,
-		chainDb:           chainDb,
-		eventMux:          stack.EventMux(),
-		accountManager:    stack.AccountManager(),
-		engine:            ethconfig.CreateConsensusEngine(stack, chainConfig, &config.Ethash, config.Miner.Notify, config.Miner.Noverify, chainDb),
-		closeBloomHandler: make(chan struct{}),
-		networkID:         config.NetworkId,
-		gasPrice:          config.Miner.GasPrice,
-		etherbase:         config.Miner.Etherbase,
-		bloomRequests:     make(chan chan *bloombits.Retrieval),
-		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
-		p2pServer:         stack.Server(),
+	if chainConfig.IsQuorum {
+		// changes to manipulate the chain id for migration from 2.0.2 and below version to 2.0.3
+		// version of Quorum  - this is applicable for v2.0.3 onwards
+		if (chainConfig.ChainID != nil && chainConfig.ChainID.Int64() == 1) || config.NetworkId == 1 {
+			return nil, errors.New("Cannot have chain id or network id as 1.")
+		}
+
+		if config.QuorumChainConfig.PrivacyMarkerEnabled() && chainConfig.PrivacyPrecompileBlock == nil {
+			return nil, errors.New("Privacy marker transactions require privacyPrecompileBlock to be set in genesis.json")
+		}
 	}
 
+	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {
+		//Upon starting the node, write the flag to disallow changing ChainID/EIP155 block after HF
+		rawdb.WriteQuorumEIP155Activation(chainDb)
+	}
+
+	eth := &Ethereum{
+		config:                          config,
+		chainDb:                         chainDb,
+		eventMux:                        stack.EventMux(),
+		accountManager:                  stack.AccountManager(),
+		engine:                          ethconfig.CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		closeBloomHandler:               make(chan struct{}),
+		networkID:                       config.NetworkId,
+		gasPrice:                        config.Miner.GasPrice,
+		etherbase:                       config.Miner.Etherbase,
+		bloomRequests:                   make(chan chan *bloombits.Retrieval),
+		bloomIndexer:                    core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
+		p2pServer:                       stack.Server(),
+		consensusServicePendingLogsFeed: new(event.Feed),
+	}
+
+	// Quorum: Set protocol Name/Version
+	// keep `var protocolName = "eth"` as is, and only update the quorum consensus specific protocol
+	// This is used to enable the eth service to return multiple devp2p subprotocols.
+	// Previously, for istanbul/64 istnbul/99 and clique (v2.6) `protocolName` would be overridden and
+	// set to the consensus subprotocol name instead of "eth", meaning the node would no longer
+	// communicate over the "eth" subprotocol, e.g. "eth" or "istanbul/99" but not eth" and "istanbul/99".
+	// With this change, support is added so that the "eth" subprotocol remains and optionally a consensus subprotocol
+	// can be added allowing the node to communicate over "eth" and an optional consensus subprotocol, e.g. "eth" and "istanbul/100"
+	if chainConfig.IsQuorum {
+		quorumProtocol := eth.engine.Protocol()
+		// set the quorum specific consensus devp2p subprotocol, eth subprotocol remains set to protocolName as in upstream geth.
+		quorumConsensusProtocolName = quorumProtocol.Name
+		quorumConsensusProtocolVersions = quorumProtocol.Versions
+		quorumConsensusProtocolLengths = quorumProtocol.Lengths
+	}
+
+	// force to set the istanbul etherbase to node key address
+	if chainConfig.Istanbul != nil {
+		eth.etherbase = crypto.PubkeyToAddress(stack.GetNodeKey().PublicKey)
+	}
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
 	var dbVer = "<nil>"
 	if bcVersion != nil {
 		dbVer = fmt.Sprintf("%d", *bcVersion)
 	}
 	log.Info("Initialising Ethereum protocol", "network", config.NetworkId, "dbversion", dbVer)
+	if chainConfig.IsQuorum {
+		log.Info("Initialising Quorum consensus protocol", "name", quorumConsensusProtocolName, "versions", quorumConsensusProtocolVersions, "network", config.NetworkId, "dbversion", dbVer)
+	}
 
 	if !config.SkipBcVersionCheck {
 		if bcVersion != nil && *bcVersion > core.BlockChainVersion {
@@ -181,9 +226,15 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 			SnapshotLimit:       config.SnapshotCache,
 			Preimages:           config.Preimages,
+			// Quorum
+			PrivateTrieCleanJournal: stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
 		}
 	)
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	newBlockChainFunc := core.NewBlockChain
+	if config.QuorumChainConfig.MultiTenantEnabled() {
+		newBlockChainFunc = core.NewMultitenantBlockChain
+	}
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, &config.QuorumChainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -207,22 +258,24 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 	if eth.handler, err = newHandler(&handlerConfig{
-		Database:   chainDb,
-		Chain:      eth.blockchain,
-		TxPool:     eth.txPool,
-		Network:    config.NetworkId,
-		Sync:       config.SyncMode,
-		BloomCache: uint64(cacheLimit),
-		EventMux:   eth.eventMux,
-		Checkpoint: checkpoint,
-		Whitelist:  config.Whitelist,
+		Database:          chainDb,
+		Chain:             eth.blockchain,
+		TxPool:            eth.txPool,
+		Network:           config.NetworkId,
+		Sync:              config.SyncMode,
+		BloomCache:        uint64(cacheLimit),
+		EventMux:          eth.eventMux,
+		Checkpoint:        checkpoint,
+		AuthorizationList: config.AuthorizationList,
+		RaftMode:          config.RaftMode,
 	}); err != nil {
 		return nil, err
 	}
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
-	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
+	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
-	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil}
+	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&stack.GetNodeKey().PublicKey)[1:]) // Quorum
+	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
@@ -263,7 +316,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	return eth, nil
 }
 
-func makeExtraData(extra []byte) []byte {
+func makeExtraData(extra []byte, isQuorum bool) []byte {
 	if len(extra) == 0 {
 		// create default extradata
 		extra, _ = rlp.EncodeToBytes([]interface{}{
@@ -273,8 +326,8 @@ func makeExtraData(extra []byte) []byte {
 			runtime.GOOS,
 		})
 	}
-	if uint64(len(extra)) > params.MaximumExtraDataSize {
-		log.Warn("Miner extra data exceed limit", "extra", hexutil.Bytes(extra), "limit", params.MaximumExtraDataSize)
+	if uint64(len(extra)) > params.GetMaximumExtraDataSize(isQuorum) {
+		log.Warn("Miner extra data exceed limit", "extra", hexutil.Bytes(extra), "limit", params.GetMaximumExtraDataSize(isQuorum))
 		extra = nil
 	}
 	return extra
@@ -289,7 +342,7 @@ func (s *Ethereum) APIs() []rpc.API {
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append all the local APIs and return
-	return append(apis, []rpc.API{
+	apis = append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -335,6 +388,7 @@ func (s *Ethereum) APIs() []rpc.API {
 			Public:    true,
 		},
 	}...)
+	return apis
 }
 
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
@@ -421,8 +475,12 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 // SetEtherbase sets the mining reward address.
 func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	s.lock.Lock()
+	defer s.lock.Unlock()
+	if _, ok := s.engine.(consensus.Istanbul); ok {
+		log.Error("Cannot set etherbase in Istanbul consensus")
+		return
+	}
 	s.etherbase = etherbase
-	s.lock.Unlock()
 
 	s.miner.SetEtherbase(etherbase)
 }
@@ -502,6 +560,17 @@ func (s *Ethereum) Synced() bool                       { return atomic.LoadUint3
 func (s *Ethereum) ArchiveMode() bool                  { return s.config.NoPruning }
 func (s *Ethereum) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 
+// Quorum
+// adds quorum specific protocols to the Protocols() function which in the associated upstream geth version returns
+// only one subprotocol, "eth", and the supported versions of the "eth" protocol.
+// Quorum uses the eth service to run configurable consensus protocols, e.g. istanbul. Thru release v20.10.0
+// the "eth" subprotocol would be replaced with a modified subprotocol, e.g. "istanbul/99" which would contain all the "eth"
+// messages + the istanbul message and be communicated over the consensus specific subprotocol ("istanbul"), and
+// not over "eth".
+// Now the eth service supports multiple protocols, e.g. "eth" and an optional consensus
+// protocol, e.g. "istanbul/100".
+// /Quorum
+
 // Protocols returns all the currently configured
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
@@ -509,6 +578,15 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
+
+	// /Quorum
+	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
+	if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
+		quorumProtos := s.quorumConsensusProtocols()
+		protos = append(protos, quorumProtos...)
+	}
+	// /end Quorum
+
 	return protos
 }
 
@@ -551,4 +629,23 @@ func (s *Ethereum) Stop() error {
 	s.eventMux.Stop()
 
 	return nil
+}
+
+func (s *Ethereum) CalcGasLimit(block *types.Block) uint64 {
+	return core.CalcGasLimit(block, s.config.Miner.GasFloor, s.config.Miner.GasCeil)
+}
+
+// (Quorum)
+// ConsensusServicePendingLogsFeed returns an event.Feed.  When the consensus protocol does not use eth.worker (e.g. raft), the event.Feed should be used to send logs from transactions included in the pending block
+func (s *Ethereum) ConsensusServicePendingLogsFeed() *event.Feed {
+	return s.consensusServicePendingLogsFeed
+}
+
+// (Quorum)
+// SubscribePendingLogs starts delivering logs from transactions included in the consensus engine's pending block to the given channel.
+func (s *Ethereum) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
+	if s.config.RaftMode {
+		return s.consensusServicePendingLogsFeed.Subscribe(ch)
+	}
+	return s.miner.SubscribePendingLogs(ch)
 }

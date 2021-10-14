@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -44,6 +46,21 @@ const (
 	AccessListTxType
 )
 
+// Quorum
+// deriveSigner makes a *best* guess about which signer to use.
+func deriveSigner(V *big.Int) Signer {
+	// joel: this is one of the two places we used a wrong signer to print txes
+	if V.Sign() != 0 && isProtectedV(V) {
+		return NewEIP155Signer(deriveChainId(V))
+	} else if isPrivate(V) {
+		return QuorumPrivateTxSigner{}
+	} else {
+		return HomesteadSigner{}
+	}
+}
+
+// End Quorum
+
 // Transaction is an Ethereum transaction.
 type Transaction struct {
 	inner TxData    // Consensus contents of a transaction
@@ -53,6 +70,8 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	privacyMetadata *PrivacyMetadata
 }
 
 // NewTx creates a new transaction.
@@ -81,6 +100,20 @@ type TxData interface {
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
 }
+
+// TODO: @achraf have a look
+// Quorum
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		PrivacyFlag: privacyFlag,
+	}
+}
+
+func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
+	tx.privacyMetadata = pm
+}
+
+// End Quorum
 
 // EncodeRLP implements rlp.Encoder
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
@@ -266,6 +299,9 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
+// TODO: @achraf llok
+func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
+
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
 func (tx *Transaction) To() *common.Address {
@@ -299,6 +335,15 @@ func (tx *Transaction) GasPriceCmp(other *Transaction) int {
 // GasPriceIntCmp compares the gas price of the transaction against the given price.
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.inner.gasPrice().Cmp(other)
+}
+
+func (tx *Transaction) From() common.Address {
+	v, _, _ := tx.RawSignatureValues()
+	signer := deriveSigner(v)
+	if from, err := Sender(signer, tx); err == nil {
+		return from
+	}
+	return common.Address{}
 }
 
 // Hash returns the transaction hash.
@@ -339,6 +384,59 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	cpy := tx.inner.copy()
 	cpy.setSignatureValues(signer.ChainID(), v, r, s)
 	return &Transaction{inner: cpy, time: tx.time}, nil
+}
+
+func (tx *Transaction) String() string {
+	var from, to string
+	v, r, s := tx.RawSignatureValues()
+	if v != nil {
+		// make a best guess about the signer and use that to derive
+		// the sender.
+		signer := deriveSigner(v)
+		if f, err := Sender(signer, tx); err != nil { // derive but don't cache
+			from = "[invalid sender: invalid sig]"
+		} else {
+			from = fmt.Sprintf("%x", f[:])
+		}
+	} else {
+		from = "[invalid sender: nil V field]"
+	}
+
+	if tx.To() == nil {
+		to = "[contract creation]"
+	} else {
+		to = fmt.Sprintf("%x", tx.To())
+	}
+	enc, _ := rlp.EncodeToBytes(&tx.inner)
+	return fmt.Sprintf(`
+	TX(%x)
+	Contract: %v
+	From:     %s
+	To:       %s
+	Nonce:    %v
+	GasPrice: %#x
+	GasLimit  %#x
+	Value:    %#x
+	Data:     0x%x
+	V:        %#x
+	R:        %#x
+	S:        %#x
+	Hex:      %x
+`,
+		tx.Hash(),
+		tx.To() == nil,
+		from,
+		to,
+		tx.Nonce(),
+		tx.Cost(),
+		tx.Gas(),
+		tx.Value(),
+		tx.Data(),
+		v,
+		r,
+		s,
+		enc,
+	)
 }
 
 // Transactions implements DerivableList for transactions.
@@ -489,6 +587,7 @@ type Message struct {
 	data       []byte
 	accessList AccessList
 	checkNonce bool
+	isPrivate  bool
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, accessList AccessList, checkNonce bool) Message {
@@ -516,6 +615,7 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 		data:       tx.Data(),
 		accessList: tx.AccessList(),
 		checkNonce: true,
+		isPrivate:  tx.IsPrivate(),
 	}
 
 	var err error
@@ -532,3 +632,56 @@ func (m Message) Nonce() uint64          { return m.nonce }
 func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) CheckNonce() bool       { return m.checkNonce }
+
+// Quorum
+func (m Message) IsPrivate() bool {
+	return m.isPrivate
+}
+
+// overriding msg.data so that when tesseera.receive is invoked we get nothing back
+func (m Message) WithEmptyPrivateData(b bool) Message {
+	if b {
+		m.data = common.EncryptedPayloadHash{}.Bytes()
+	}
+	return m
+}
+
+func (tx *Transaction) IsPrivate() bool {
+	v, _, _ := tx.RawSignatureValues()
+	if v == nil {
+		return false
+	}
+	return v.Uint64() == 37 || v.Uint64() == 38
+}
+
+/*
+ * Indicates that a transaction is private, but doesn't necessarily set the correct v value, as it can be called on
+ * an unsigned transaction.
+ * pre homestead signer, all v values were v=27 or v=28, with EIP155Signer that change,
+ * but SetPrivate() is also used on unsigned transactions to temporarily set the v value to indicate
+ * the transaction is intended to be private, and so that the correct signer can be selected. The signer will correctly
+ * set the valid v value (37 or 38): This helps minimize changes vs upstream go-ethereum code.
+ */
+func (tx *Transaction) SetPrivate() {
+	v, _, _ := tx.RawSignatureValues()
+	if tx.IsPrivate() {
+		return
+	}
+	if v.Int64() == 28 {
+		v.SetUint64(38)
+	} else {
+		v.SetUint64(37)
+	}
+}
+
+func (tx *Transaction) IsPrivacyMarker() bool {
+	return tx.To() != nil && *tx.To() == common.QuorumPrivacyPrecompileContractAddress()
+}
+
+// PrivacyMetadata encapsulates privacy information to be attached
+// to a transaction being processed
+type PrivacyMetadata struct {
+	PrivacyFlag engine.PrivacyFlagType
+}
+
+// End Quorum

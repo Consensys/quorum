@@ -86,6 +86,8 @@ type Peer struct {
 
 	term chan struct{} // Termination channel to stop the broadcasters
 	lock sync.RWMutex  // Mutex protecting the internal fields
+
+	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
@@ -519,4 +521,31 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 		})
 	}
 	return p2p.Send(p.rw, GetPooledTransactionsMsg, GetPooledTransactionsPacket(hashes))
+}
+
+// Quorum
+
+// SendConsensus Used to send consensus subprotocol messages from an "eth" peer, e.g.  "istanbul/100" subprotocol messages.
+func (p *Peer) SendConsensus(msgcode uint64, data interface{}) error {
+	if p.consensusRw == nil {
+		return nil
+	}
+	return p2p.Send(p.consensusRw, msgcode, data)
+}
+
+// SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
+func (p *Peer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
+	if p.consensusRw == nil {
+		return nil
+	}
+	return p2p.SendWithNoEncoding(p.consensusRw, msgcode, payload)
+}
+
+func (p *Peer) AddConsensusProtoRW(rw p2p.MsgReadWriter) *Peer {
+	p.consensusRw = rw
+	return p
+}
+
+func (p *Peer) Send(msgcode uint64, data interface{}) error {
+	panic("implement me")
 }

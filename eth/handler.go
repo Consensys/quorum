@@ -18,6 +18,8 @@ package eth
 
 import (
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math"
 	"math/big"
 	"sync"
@@ -25,9 +27,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
@@ -43,11 +49,13 @@ import (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
+	txChanSize         = 4096
+	protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 )
 
 var (
 	syncChallengeTimeout = 15 * time.Second // Time allowance for a node to reply to the sync progress challenge
+	errMsgTooLarge       = errors.New("message too long")
 )
 
 // txPool defines the methods needed from a transaction pool implementation to
@@ -76,15 +84,18 @@ type txPool interface {
 // handlerConfig is the collection of initialization parameters to create a full
 // node network handler.
 type handlerConfig struct {
-	Database   ethdb.Database            // Database for direct sync insertions
-	Chain      *core.BlockChain          // Blockchain to serve data from
-	TxPool     txPool                    // Transaction pool to propagate from
-	Network    uint64                    // Network identifier to adfvertise
-	Sync       downloader.SyncMode       // Whether to fast or full sync
-	BloomCache uint64                    // Megabytes to alloc for fast sync bloom
-	EventMux   *event.TypeMux            // Legacy event mux, deprecate for `feed`
-	Checkpoint *params.TrustedCheckpoint // Hard coded checkpoint for sync challenges
-	Whitelist  map[uint64]common.Hash    // Hard coded whitelist for sync challenged
+	Database          ethdb.Database            // Database for direct sync insertions
+	Chain             *core.BlockChain          // Blockchain to serve data from
+	TxPool            txPool                    // Transaction pool to propagate from
+	Network           uint64                    // Network identifier to adfvertise
+	Sync              downloader.SyncMode       // Whether to fast or full sync
+	BloomCache        uint64                    // Megabytes to alloc for fast sync bloom
+	EventMux          *event.TypeMux            // Legacy event mux, deprecate for `feed`
+	Checkpoint        *params.TrustedCheckpoint // Hard coded checkpoint for sync challenges
+	AuthorizationList map[uint64]common.Hash    // Hard coded authorizationList for sync challenged
+
+	// Quorum
+	RaftMode bool
 }
 
 type handler struct {
@@ -114,7 +125,7 @@ type handler struct {
 	txsSub        event.Subscription
 	minedBlockSub *event.TypeMuxSubscription
 
-	whitelist map[uint64]common.Hash
+	authorizationList map[uint64]common.Hash
 
 	// channels for fetcher, syncer, txsyncLoop
 	txsyncCh chan *txsync
@@ -123,6 +134,13 @@ type handler struct {
 	chainSync *chainSyncer
 	wg        sync.WaitGroup
 	peerWG    sync.WaitGroup
+
+	// Quorum
+	raftMode bool
+	engine   consensus.Engine
+
+	// Test fields or hooks
+	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -132,17 +150,27 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
 	h := &handler{
-		networkID:  config.Network,
-		forkFilter: forkid.NewFilter(config.Chain),
-		eventMux:   config.EventMux,
-		database:   config.Database,
-		txpool:     config.TxPool,
-		chain:      config.Chain,
-		peers:      newPeerSet(),
-		whitelist:  config.Whitelist,
-		txsyncCh:   make(chan *txsync),
-		quitSync:   make(chan struct{}),
+		networkID:         config.Network,
+		forkFilter:        forkid.NewFilter(config.Chain),
+		eventMux:          config.EventMux,
+		database:          config.Database,
+		txpool:            config.TxPool,
+		chain:             config.Chain,
+		peers:             newPeerSet(),
+		authorizationList: config.AuthorizationList,
+		txsyncCh:          make(chan *txsync),
+		quitSync:          make(chan struct{}),
+		raftMode:          config.RaftMode,
+		// TODO @achraf
+		//engine:            config.engine,
 	}
+
+	// Quorum
+	if handler, ok := h.engine.(consensus.Handler); ok {
+		handler.SetBroadcaster(h)
+	}
+	// /Quorum
+
 	if config.Sync == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the fast
 		// block is ahead, so fast sync was enabled for this node at a certain point.
@@ -257,6 +285,11 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	forkID := forkid.NewID(h.chain.Config(), h.chain.Genesis().Hash(), h.chain.CurrentHeader().Number.Uint64())
 	if err := peer.Handshake(h.networkID, td, hash, genesis.Hash(), forkID, h.forkFilter); err != nil {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
+
+		// Quorum
+		// When the Handshake() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+		peer.EthPeerDisconnected <- struct{}{}
+		// End Quorum
 		return err
 	}
 	reject := false // reserved peer slots
@@ -281,6 +314,12 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	// Register the peer locally
 	if err := h.peers.registerPeer(peer, snap); err != nil {
 		peer.Log().Error("Ethereum peer registration failed", "err", err)
+
+		// Quorum
+		// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+		peer.EthPeerDisconnected <- struct{}{}
+		// End Quorum
+
 		return err
 	}
 	defer h.removePeer(peer.ID())
@@ -325,12 +364,17 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 			}
 		}()
 	}
-	// If we have any explicit whitelist block hashes, request them
-	for number := range h.whitelist {
+	// If we have any explicit authorized block hashes, request them
+	for number := range h.authorizationList {
 		if err := peer.RequestHeadersByNumber(number, 1, 0, false); err != nil {
 			return err
 		}
 	}
+
+	// Quorum notify other subprotocols that the eth peer is ready, and has been added to the peerset.
+	p.EthPeerRegistered <- struct{}{}
+	// Quorum
+
 	// Handle incoming messages until the connection is torn down
 	return handler(peer)
 }
@@ -421,6 +465,11 @@ func (h *handler) Stop() {
 	h.peerWG.Wait()
 
 	log.Info("Ethereum protocol stopped")
+}
+
+// Quorum
+func (h *handler) Enqueue(id string, block *types.Block) {
+	h.blockFetcher.Enqueue(id, block)
 }
 
 // BroadcastBlock will either propagate a block to a subset of its peers, or
@@ -527,3 +576,194 @@ func (h *handler) txBroadcastLoop() {
 		}
 	}
 }
+
+// NodeInfo represents a short summary of the Ethereum sub-protocol metadata
+// known about the host peer.
+type NodeInfo struct {
+	Network    uint64              `json:"network"`    // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
+	Difficulty *big.Int            `json:"difficulty"` // Total difficulty of the host's blockchain
+	Genesis    common.Hash         `json:"genesis"`    // SHA3 hash of the host's genesis block
+	Config     *params.ChainConfig `json:"config"`     // Chain configuration for the fork rules
+	Head       common.Hash         `json:"head"`       // SHA3 hash of the host's best owned block
+	Consensus  string              `json:"consensus"`  // Consensus mechanism in use
+}
+
+// NodeInfo retrieves some protocol metadata about the running host node.
+func (h *handler) NodeInfo() *NodeInfo {
+	currentBlock := h.chain.CurrentBlock()
+	// //Quorum
+	//
+	// changes done to fetch maxCodeSize dynamically based on the
+	// maxCodeSizeConfig changes
+	// /Quorum
+	chainConfig := h.chain.Config()
+	chainConfig.MaxCodeSize = uint64(chainConfig.GetMaxCodeSize(h.chain.CurrentBlock().Number()) / 1024)
+
+	return &NodeInfo{
+		Network:    h.networkID,
+		Difficulty: h.chain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
+		Genesis:    h.chain.Genesis().Hash(),
+		Config:     chainConfig,
+		Head:       currentBlock.Hash(),
+		Consensus:  h.getConsensusAlgorithm(),
+	}
+}
+
+// Quorum
+func (h *handler) getConsensusAlgorithm() string {
+	var consensusAlgo string
+	if h.raftMode { // raft does not use consensus interface
+		consensusAlgo = "raft"
+	} else {
+		switch h.engine.(type) {
+		case consensus.Istanbul:
+			consensusAlgo = "istanbul"
+		case *clique.Clique:
+			consensusAlgo = "clique"
+		case *ethash.Ethash:
+			consensusAlgo = "ethash"
+		default:
+			consensusAlgo = "unknown"
+		}
+	}
+	return consensusAlgo
+}
+
+func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
+	m := make(map[common.Address]consensus.Peer)
+	for _, p := range h.peers.peers {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		if targets[addr] {
+			m[addr] = p
+		}
+	}
+	return m
+}
+
+// makeQuorumConsensusProtocol is similar to eth/handler.go -> makeProtocol. Called from eth/handler.go -> Protocols.
+// returns the supported subprotocol to the p2p server.
+// The Run method starts the protocol and is called by the p2p server. The quorum consensus subprotocol,
+// leverages the peer created and managed by the "eth" subprotocol.
+// The quorum consensus protocol requires that the "eth" protocol is running as well.
+func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, length uint64) p2p.Protocol {
+
+	return p2p.Protocol{
+		Name:    ProtoName,
+		Version: version,
+		Length:  length,
+		// no new peer created, uses the "eth" peer, so no peer management needed.
+		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+			/*
+			* 1. wait for the eth protocol to create and register an eth peer.
+			* 2. get the associate eth peer that was registered by he "eth" protocol.
+			* 2. add the rw protocol for the quorum subprotocol to the eth peer.
+			* 3. start listening for incoming messages.
+			* 4. the incoming message will be sent on the quorum specific subprotocol, e.g. "istanbul/100".
+			* 5. send messages to the consensus engine handler.
+			* 7. messages to other to other peers listening to the subprotocol can be sent using the
+			*    (eth)peer.ConsensusSend() which will write to the protoRW.
+			 */
+			// wait for the "eth" protocol to create and register the peer (added to peerset)
+			select {
+			case <-p.EthPeerRegistered:
+				// the ethpeer should be registered, try to retrieve it and start the consensus handler.
+				p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
+				ethPeer := h.peers.peer(p2pPeerId)
+				if ethPeer != nil {
+					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", p2pPeerId, "ProtoName", ProtoName)
+					// add the rw protocol for the quorum subprotocol to the eth peer.
+					ethPeer.AddConsensusProtoRW(rw)
+					return h.handleConsensusLoop(p, rw)
+				}
+				p.Log().Error("consensus subprotocol retrieved nil eth peer from peerset", "ethPeer.id", p2pPeerId)
+				return errEthPeerNil
+			case <-p.EthPeerDisconnected:
+				return errEthPeerNotRegistered
+			}
+		},
+		NodeInfo: func() interface{} {
+			return h.NodeInfo()
+		},
+		PeerInfo: func(id enode.ID) interface{} {
+			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
+				return p.Info()
+			}
+			return nil
+		},
+	}
+}
+
+func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
+	// Handle incoming messages until the connection is torn down
+	for {
+		if err := h.handleConsensus(p, protoRW); err != nil {
+			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
+			return err
+		}
+	}
+}
+
+// This is a no-op because the eth handleMsg main loop handle ibf message as well.
+func (h *handler) handleConsensus(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
+	// Read the next message from the remote peer (in protoRW), and ensure it's fully consumed
+	msg, err := protoRW.ReadMsg()
+	if err != nil {
+		return err
+	}
+	if msg.Size > protocolMaxMsgSize {
+		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, protocolMaxMsgSize)
+	}
+	defer msg.Discard()
+
+	// See if the consensus engine protocol can handle this message, e.g. istanbul will check for message is
+	// istanbulMsg = 0x11, and NewBlockMsg = 0x07.
+	handled, err := h.handleConsensusMsg(p, msg)
+	if handled {
+		p.Log().Debug("consensus message was handled by consensus engine", "handled", handled,
+			"quorumConsensusProtocolName", quorumConsensusProtocolName, "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *handler) handleConsensusMsg(p *p2p.Peer, msg p2p.Msg) (bool, error) {
+	if handler, ok := h.engine.(consensus.Handler); ok {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		handled, err := handler.HandleMsg(addr, msg)
+		return handled, err
+	}
+	return false, nil
+}
+
+// makeLegacyProtocol is basically a copy of the eth makeProtocol, but for legacy subprotocols, e.g. "istanbul/99" "istabnul/64"
+// If support legacy subprotocols is removed, remove this and associated code as well.
+// If quorum is using a legacy protocol then the "eth" subprotocol should not be available.
+func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint64) p2p.Protocol {
+	log.Debug("registering a legacy protocol ", "protoName", protoName)
+	return p2p.Protocol{
+		Name:    protoName,
+		Version: version,
+		Length:  length,
+		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+			peer := eth.NewPeer(version, p, rw, h.txpool)
+			peer.AddConsensusProtoRW(rw)
+			return h.runEthPeer(peer, func(peer *eth.Peer) error {
+				return h.handleConsensusLoop(p, rw)
+			})
+		},
+		NodeInfo: func() interface{} {
+			return h.NodeInfo()
+		},
+		PeerInfo: func(id enode.ID) interface{} {
+			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
+				return p.Info()
+			}
+			return nil
+		},
+	}
+}
+
+// End Quorum

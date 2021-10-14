@@ -31,8 +31,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
@@ -87,18 +89,36 @@ func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*type
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	if number := rawdb.ReadHeaderNumber(b.db, hash); number != nil {
-		return rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig), nil
+		receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
+
+		psm, err := b.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		psiReceipts := make([]*types.Receipt, len(receipts))
+		for i := 0; i < len(receipts); i++ {
+			psiReceipts[i] = receipts[i]
+			if receipts[i].PSReceipts != nil {
+				psReceipt, found := receipts[i].PSReceipts[psm.ID]
+				if found {
+					psiReceipts[i] = psReceipt
+				}
+			}
+		}
+		return psiReceipts, nil
 	}
 	return nil, nil
 }
 
 func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	number := rawdb.ReadHeaderNumber(b.db, hash)
-	if number == nil {
+	receipts, err := b.GetReceipts(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if receipts == nil {
 		return nil, nil
 	}
-	receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
-
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
@@ -155,6 +175,14 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 			}
 		}
 	}()
+}
+
+func (b *testBackend) AccountExtraDataStateGetterByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	return nil, nil
+}
+
+func (b *testBackend) PSMR() mps.PrivateStateMetadataResolver {
+	return &core.DefaultPrivateStateManager{}
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.
@@ -240,7 +268,7 @@ func TestPendingTxFilter(t *testing.T) {
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
-		results, err := api.GetFilterChanges(fid0)
+		results, err := api.GetFilterChanges(context.Background(), fid0)
 		if err != nil {
 			t.Fatalf("Unable to retrieve logs: %v", err)
 		}
@@ -301,7 +329,7 @@ func TestLogFilterCreation(t *testing.T) {
 	)
 
 	for i, test := range testCases {
-		_, err := api.NewFilter(test.crit)
+		_, err := api.NewFilter(context.Background(), test.crit)
 		if test.success && err != nil {
 			t.Errorf("expected filter creation for case %d to success, got %v", i, err)
 		}
@@ -331,7 +359,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	}
 
 	for i, test := range testCases {
-		if _, err := api.NewFilter(test); err == nil {
+		if _, err := api.NewFilter(context.Background(), test); err == nil {
 			t.Errorf("Expected NewFilter for case #%d to fail", i)
 		}
 	}
@@ -424,7 +452,7 @@ func TestLogFilter(t *testing.T) {
 
 	// create all filters
 	for i := range testCases {
-		testCases[i].id, _ = api.NewFilter(testCases[i].crit)
+		testCases[i].id, _ = api.NewFilter(context.Background(), testCases[i].crit)
 	}
 
 	// raise events
@@ -440,7 +468,7 @@ func TestLogFilter(t *testing.T) {
 		var fetched []*types.Log
 		timeout := time.Now().Add(1 * time.Second)
 		for { // fetch all expected logs
-			results, err := api.GetFilterChanges(tt.id)
+			results, err := api.GetFilterChanges(context.Background(), tt.id)
 			if err != nil {
 				t.Fatalf("Unable to fetch logs: %v", err)
 			}

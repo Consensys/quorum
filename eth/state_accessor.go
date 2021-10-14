@@ -19,6 +19,7 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -33,11 +34,11 @@ import (
 // stateAtBlock retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *state.StateDB, release func(), err error) {
+func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *state.StateDB, privateStateDB mps.PrivateStateRepository, release func(), err error) {
 	// If we have the state fully available, use that
-	statedb, err = eth.blockchain.StateAt(block.Root())
+	statedb, privateStateRepo, err := eth.blockchain.StateAt(block.Root())
 	if err == nil {
-		return statedb, func() {}, nil
+		return statedb, privateStateRepo, func() {}, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
@@ -45,11 +46,11 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 
 	for i := uint64(0); i < reexec; i++ {
 		if block.NumberU64() == 0 {
-			return nil, nil, errors.New("genesis state is missing")
+			return nil, nil, nil, errors.New("genesis state is missing")
 		}
 		parent := eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 		if parent == nil {
-			return nil, nil, fmt.Errorf("missing block %v %d", block.ParentHash(), block.NumberU64()-1)
+			return nil, nil, nil, fmt.Errorf("missing block %v %d", block.ParentHash(), block.NumberU64()-1)
 		}
 		block = parent
 
@@ -61,9 +62,9 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 	if err != nil {
 		switch err.(type) {
 		case *trie.MissingNodeError:
-			return nil, nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
+			return nil, nil, nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
 		default:
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 	// State was available at historical point, regenerate
@@ -85,20 +86,20 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 		}
 		// Retrieve the next block to regenerate and process it
 		if block = eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
-			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
+			return nil, nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, err := eth.blockchain.Processor().Process(block, statedb, vm.Config{})
+		_, _, _, _, err := eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
-			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
 		// Finalize the state so any modifications are written to the trie
 		root, err := statedb.Commit(eth.blockchain.Config().IsEIP158(block.Number()))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		statedb, err = state.New(root, database, nil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		database.TrieDB().Reference(root, common.Hash{})
 		if parent != (common.Hash{}) {
@@ -108,16 +109,16 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 	}
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
-	return statedb, func() { database.TrieDB().Dereference(parent) }, nil
+	return statedb, privateStateRepo, func() { database.TrieDB().Dereference(parent) }, nil
 }
 
 // statesInRange retrieves a batch of state databases associated with the specific
 // block ranges. If no state is locally available for the given range, a number of
 // blocks are attempted to be reexecuted to generate the ancestor state.
 func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint64) (states []*state.StateDB, release func(), err error) {
-	statedb, err := eth.blockchain.StateAt(fromBlock.Root())
+	statedb, privateStateRepo, err := eth.blockchain.StateAt(fromBlock.Root())
 	if err != nil {
-		statedb, _, err = eth.stateAtBlock(fromBlock, reexec)
+		statedb, privateStateRepo, _, err = eth.stateAtBlock(fromBlock, reexec)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -151,7 +152,7 @@ func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint6
 		if block == nil {
 			return nil, nil, fmt.Errorf("block #%d not found", i)
 		}
-		_, _, _, err := eth.blockchain.Processor().Process(block, statedb, vm.Config{})
+		_, _, _, _, err := eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
@@ -160,7 +161,7 @@ func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint6
 		if err != nil {
 			return nil, nil, err
 		}
-		statedb, err := eth.blockchain.StateAt(root)
+		statedb, _, err := eth.blockchain.StateAt(root)
 		if err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
@@ -198,7 +199,7 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 	if parent == nil {
 		return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
-	statedb, release, err := eth.stateAtBlock(parent, reexec)
+	statedb, privateStateRepo, release, err := eth.stateAtBlock(parent, reexec)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, nil, err
 	}
@@ -216,7 +217,11 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 			return msg, context, statedb, release, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, eth.blockchain.Config(), vm.Config{})
+		privateState, err := privateStateRepo.DefaultState()
+		if err != nil {
+			return nil, vm.BlockContext{}, nil, nil, err
+		}
+		vmenv := vm.NewEVM(context, txContext, statedb, privateState, eth.blockchain.Config(), vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			release()
 			return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)

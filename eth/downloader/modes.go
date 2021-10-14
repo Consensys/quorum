@@ -27,6 +27,8 @@ const (
 	FastSync                  // Quickly download the headers, full sync only at the chain
 	SnapSync                  // Download the chain and the state via compact snapshots
 	LightSync                 // Download only the headers and terminate afterwards
+	// Used by raft:
+	BoundedFullSync SyncMode = 100 // Perform a full sync until the requested hash, and no further
 )
 
 func (mode SyncMode) IsValid() bool {
