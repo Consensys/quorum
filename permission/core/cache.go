@@ -131,6 +131,10 @@ type OrgDetailInfo struct {
 	SubOrgList []string      `json:"subOrgList"`
 }
 
+type ContractWhitelistInfo struct {
+	ContractAddress common.Address `json:"address"` // we might accept function selectors in future
+}
+
 var syncStarted = false
 var defaultAccess = FullAccess
 var qip714BlockReached = false
@@ -140,10 +144,11 @@ var orgAdminRole string
 var PermissionModel = Default
 var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType TransactionType) error
 var (
-	OrgInfoMap  *OrgCache
-	NodeInfoMap *NodeCache
-	RoleInfoMap *RoleCache
-	AcctInfoMap *AcctCache
+	OrgInfoMap           *OrgCache
+	NodeInfoMap          *NodeCache
+	RoleInfoMap          *RoleCache
+	AcctInfoMap          *AcctCache
+	ContractWhitelistMap *ContractWhitelistCache
 )
 
 type OrgKey struct {
@@ -245,6 +250,25 @@ func NewAcctCache(cacheSize int) *AcctCache {
 
 	acctCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &acctCache
+}
+
+type ContractWhitelistCache struct {
+	c                 *lru.Cache
+	evicted           bool
+	populateCacheFunc func(account common.Address) (*ContractWhitelistInfo, error)
+}
+
+func (a *ContractWhitelistCache) PopulateCacheFunc(cf func(common.Address) (*ContractWhitelistInfo, error)) {
+	a.populateCacheFunc = cf
+}
+
+func NewContractWhitelistCache(cacheSize int) *ContractWhitelistCache {
+	contractWhitelistCache := ContractWhitelistCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		contractWhitelistCache.evicted = true
+	}
+	contractWhitelistCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	return &contractWhitelistCache
 }
 
 func SetSyncStatus() {
