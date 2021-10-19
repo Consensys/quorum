@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"math/big"
 	"reflect"
 	"testing"
@@ -571,7 +572,7 @@ func sendTransaction(ec *Client) error {
 		return err
 	}
 	// Send transaction
-	return ec.SendTransaction(context.Background(), signedTx)
+	return ec.SendTransaction(context.Background(), signedTx, bind.PrivateTxArgs{PrivateFor: nil})
 }
 
 func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {

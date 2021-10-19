@@ -324,6 +324,37 @@ func (s *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) 
 	return rlp.EncodeToBytes(stateObject)
 }
 
+// Reset clears out all ephemeral state objects from the state db, but keeps
+// the underlying state trie to avoid reloading data for the next operations.
+func (s *StateDB) Reset(root common.Hash) error {
+	tr, err := s.db.OpenTrie(root)
+	if err != nil {
+		return err
+	}
+	s.trie = tr
+	s.stateObjects = make(map[common.Address]*stateObject)
+	s.stateObjectsPending = make(map[common.Address]struct{})
+	s.stateObjectsDirty = make(map[common.Address]struct{})
+	s.thash = common.Hash{}
+	s.bhash = common.Hash{}
+	s.txIndex = 0
+	s.logs = make(map[common.Hash][]*types.Log)
+	s.logSize = 0
+	s.preimages = make(map[common.Hash][]byte)
+	s.clearJournalAndRefund()
+
+	if s.snaps != nil {
+		s.snapAccounts, s.snapDestructs, s.snapStorage = nil, nil, nil
+		if s.snap = s.snaps.Snapshot(root); s.snap != nil {
+			s.snapDestructs = make(map[common.Hash]struct{})
+			s.snapAccounts = make(map[common.Hash][]byte)
+			s.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
+		}
+	}
+	s.accessList = newAccessList()
+	return nil
+}
+
 // End Quorum
 
 // TxIndex returns the current transaction index set by Prepare.

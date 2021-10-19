@@ -101,6 +101,17 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
+
+		// Quorum
+		err = privateStateRepo.Commit(eth.blockchain.Config().IsEIP158(block.Number()), block)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if err := privateStateRepo.Reset(); err != nil {
+			return nil, nil, nil, fmt.Errorf("private state reset after block %d failed: %v", block.NumberU64(), err)
+		}
+		// End Quorum
+
 		database.TrieDB().Reference(root, common.Hash{})
 		if parent != (common.Hash{}) {
 			database.TrieDB().Dereference(parent)
@@ -115,15 +126,16 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 // statesInRange retrieves a batch of state databases associated with the specific
 // block ranges. If no state is locally available for the given range, a number of
 // blocks are attempted to be reexecuted to generate the ancestor state.
-func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint64) (states []*state.StateDB, release func(), err error) {
+func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint64) (states []*state.StateDB, privateStateRepos []mps.PrivateStateRepository, release func(), err error) {
 	statedb, privateStateRepo, err := eth.blockchain.StateAt(fromBlock.Root())
 	if err != nil {
 		statedb, privateStateRepo, _, err = eth.stateAtBlock(fromBlock, reexec)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	states = append(states, statedb.Copy())
+	privateStateRepos = append(privateStateRepos, privateStateRepo)
 
 	var (
 		logged   time.Time
@@ -150,22 +162,23 @@ func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint6
 		// Retrieve the next block to regenerate and process it
 		block := eth.blockchain.GetBlockByNumber(i)
 		if block == nil {
-			return nil, nil, fmt.Errorf("block #%d not found", i)
+			return nil, nil, nil, fmt.Errorf("block #%d not found", i)
 		}
 		_, _, _, _, err := eth.blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
 		if err != nil {
-			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
 		// Finalize the state so any modifications are written to the trie
 		root, err := statedb.Commit(eth.blockchain.Config().IsEIP158(block.Number()))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		statedb, _, err := eth.blockchain.StateAt(root)
+		statedb, privateStateRepo, err := eth.blockchain.StateAt(root)
 		if err != nil {
-			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		states = append(states, statedb.Copy())
+		privateStateRepos = append(privateStateRepos, privateStateRepo.Copy())
 
 		// Reference the trie twice, once for us, once for the tracer
 		database.TrieDB().Reference(root, common.Hash{})
@@ -185,26 +198,26 @@ func (eth *Ethereum) statesInRange(fromBlock, toBlock *types.Block, reexec uint6
 			database.TrieDB().Dereference(ref)
 		}
 	}
-	return states, release, nil
+	return states, privateStateRepos, release, nil
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
-func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, func(), error) {
+func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, mps.PrivateStateRepository, func(), error) {
 	// Short circuit if it's genesis block.
 	if block.NumberU64() == 0 {
-		return nil, vm.BlockContext{}, nil, nil, errors.New("no transaction in genesis")
+		return nil, vm.BlockContext{}, nil, nil, nil, errors.New("no transaction in genesis")
 	}
 	// Create the parent state database
 	parent := eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
-		return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
+		return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
 	statedb, privateStateRepo, release, err := eth.stateAtBlock(parent, reexec)
 	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, err
+		return nil, vm.BlockContext{}, nil, nil, nil, err
 	}
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, release, nil
+		return nil, vm.BlockContext{}, statedb, privateStateRepo, release, nil
 	}
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(eth.blockchain.Config(), block.Number())
@@ -214,22 +227,26 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil)
 		if idx == txIndex {
-			return msg, context, statedb, release, nil
+			return msg, context, statedb, privateStateRepo, release, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
 		privateState, err := privateStateRepo.DefaultState()
 		if err != nil {
-			return nil, vm.BlockContext{}, nil, nil, err
+			return nil, vm.BlockContext{}, nil, nil, nil, err
 		}
 		vmenv := vm.NewEVM(context, txContext, statedb, privateState, eth.blockchain.Config(), vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			release()
-			return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
 	release()
-	return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+}
+
+func (eth *Ethereum) GetBlockchain() *core.BlockChain {
+	return eth.BlockChain()
 }

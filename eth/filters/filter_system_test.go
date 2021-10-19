@@ -672,7 +672,7 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 		fids[i] = fid
 		// Wait for at least one tx to arrive in filter
 		for {
-			hashes, err := api.GetFilterChanges(fid)
+			hashes, err := api.GetFilterChanges(nil, fid)
 			if err != nil {
 				t.Fatalf("Filter should exist: %v\n", err)
 			}
@@ -692,7 +692,7 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 	case done <- struct{}{}:
 		// Check that all filters have been uninstalled
 		for _, fid := range fids {
-			if _, err := api.GetFilterChanges(fid); err == nil {
+			if _, err := api.GetFilterChanges(nil, fid); err == nil {
 				t.Errorf("Filter %s should have been uninstalled\n", fid)
 			}
 		}

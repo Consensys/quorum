@@ -684,6 +684,10 @@ func (sb *StubBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
 	panic("implement me")
 }
 
+func (sb *StubBackend) UnprotectedAllowed() bool {
+	panic("implement me")
+}
+
 type StubPSMR struct {
 }
 

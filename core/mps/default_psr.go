@@ -61,11 +61,11 @@ func (dpsr *DefaultPrivateStateRepository) StatePSI(psi types.PrivateStateIdenti
 
 func (dpsr *DefaultPrivateStateRepository) Reset() error {
 	// TODO - see if we need to  store the original root
-	stateDB, err := state.New(dpsr.root, dpsr.stateCache, nil)
-	if err == nil {
-		dpsr.stateDB = stateDB
-	}
-	return err
+	//stateDB, err := state.New(dpsr.root, , nil)
+	//if err == nil {
+	//	dpsr.stateDB = stateDB
+	//}
+	return dpsr.stateDB.Reset(dpsr.root)
 }
 
 // CommitAndWrite commits the private state and writes to disk
