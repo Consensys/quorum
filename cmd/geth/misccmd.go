@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"os"
 	"runtime"
 	"strconv"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )

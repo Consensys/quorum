@@ -1,9 +1,9 @@
 package eth
 
 import (
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/stretchr/testify/assert"
 )
 
