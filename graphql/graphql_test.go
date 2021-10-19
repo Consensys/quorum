@@ -201,7 +201,7 @@ func TestGraphQL_BadRequest(t *testing.T) {
 	}
 	// create http request
 	body := strings.NewReader("{\"query\": \"{bleh{number}}\",\"variables\": null}")
-	gqlReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/graphql", "127.0.0.1:9393"), body)
+	gqlReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/graphql", stack.HTTPEndpoint()), body)
 	if err != nil {
 		t.Error("could not issue new http request ", err)
 	}
