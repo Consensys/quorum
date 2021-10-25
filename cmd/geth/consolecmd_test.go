@@ -147,8 +147,8 @@ func TestAttachWelcome(t *testing.T) {
 	wsPort = strconv.Itoa(p + 1)
 	geth := runMinimalGeth(t, "--datadir", datadir, "--miner.etherbase", coinbase,
 		"--ipcpath", ipc,
-		"--http", "--http.port", httpPort, "--rpcapi", "admin,eth,net,web3",
-		"--ws", "--ws.port", wsPort, "--wsapi", "admin,eth,net,web3")
+		"--http", "--http.port", httpPort, "--http.api", "admin,eth,net,web3",
+		"--ws", "--ws.port", wsPort, "--ws.api", "admin,eth,net,web3")
 	t.Run("ipc", func(t *testing.T) {
 		waitForEndpoint(t, ipc, 3*time.Second)
 		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
@@ -175,7 +175,7 @@ func TestHTTPAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--http", "--http.port", port, "--rpcapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--http", "--http.port", port, "--http.api", "admin,eth,net,web3")
 
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
@@ -192,7 +192,7 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--ws", "--ws.port", port, "--wsapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--ws", "--ws.port", port, "--ws.api", "admin,eth,net,web3")
 
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
