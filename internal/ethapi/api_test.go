@@ -906,13 +906,14 @@ type StubBackend struct {
 	accountManager                            *accounts.Manager
 	ks                                        *keystore.KeyStore
 	poolNonce                                 uint64
+	allowUnprotectedTxs                       bool
 
 	IstanbulBlock     *big.Int
 	CurrentHeadNumber *big.Int
 }
 
 func (sb *StubBackend) UnprotectedAllowed() bool {
-	panic("implement me")
+	return sb.allowUnprotectedTxs
 }
 
 func (sb *StubBackend) CurrentHeader() *types.Header {
