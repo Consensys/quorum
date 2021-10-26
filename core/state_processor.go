@@ -303,8 +303,6 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc ChainContext, author *
 
 func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, evm *vm.EVM, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
 	// Create a new context to be used in the EVM environment.
-	txContext := NewEVMTxContext(msg)
-	evm.Reset(txContext, statedb, privateStateDB)
 
 	// Quorum
 	txIndex := statedb.TxIndex()
@@ -330,7 +328,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
-	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}
+	receipt := &types.Receipt{Type: tx.Type(), PostState: common.CopyBytes(root), CumulativeGasUsed: *usedGas}
 
 	// If this is a private transaction, the public receipt should always
 	// indicate success.
@@ -439,6 +437,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 }
 
 // Quorum
+
 // ApplyInnerTransaction is called from within the Quorum precompile for privacy marker transactions.
 // It's a call back which essentially duplicates the logic in Process(),
 // in this case to process the actual private transaction.
