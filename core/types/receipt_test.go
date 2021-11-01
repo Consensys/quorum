@@ -147,6 +147,9 @@ func compareLogsConsensusFields(t *testing.T, encLogs []*Log, decLogs []*Log) {
 }
 
 func comparePSReceipts(t *testing.T, encPSReceipts map[PrivateStateIdentifier]*Receipt, decPSReceipts map[PrivateStateIdentifier]*Receipt, supportPTM bool) {
+	if encPSReceipts == nil {
+		t.Fatalf("Receipt is missing the expected psReceipts[]")
+	}
 	if len(encPSReceipts) != len(decPSReceipts) {
 		t.Fatalf("Receipt psi number mismatch, want %v, have %v", len(encPSReceipts), len(decPSReceipts))
 	}
@@ -634,7 +637,7 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 
 func TestQuorumReceiptExtraDataDecodingSuccess(t *testing.T) {
 	tx := NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
-	receipt := &Receipt{
+	ps1Receipt := &Receipt{
 		Status:            ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
 		Logs: []*Log{
@@ -653,11 +656,11 @@ func TestQuorumReceiptExtraDataDecodingSuccess(t *testing.T) {
 		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
 		GasUsed:         111111,
 	}
-	receipt.Bloom = CreateBloom(Receipts{receipt})
+	ps1Receipt.Bloom = CreateBloom(Receipts{ps1Receipt})
 
 	extraData := &QuorumReceiptExtraData{
 		RevertReason: []byte("arbitrary reason"),
-		PSReceipts:   map[PrivateStateIdentifier]*Receipt{PrivateStateIdentifier("psi1"): receipt},
+		PSReceipts:   map[PrivateStateIdentifier]*Receipt{PrivateStateIdentifier("psi1"): ps1Receipt},
 	}
 	rlpData, err := rlp.EncodeToBytes(extraData)
 	assert.Nil(t, err)
@@ -668,7 +671,7 @@ func TestQuorumReceiptExtraDataDecodingSuccess(t *testing.T) {
 	assert.Contains(t, decodedExtraData.PSReceipts, PrivateStateIdentifier("psi1"))
 	decodedReceipt := decodedExtraData.PSReceipts[PrivateStateIdentifier("psi1")]
 	assert.NotNil(t, decodedReceipt)
-	testConsensusFields(t, ReceiptForStorage(*decodedReceipt), receipt, true, true, true)
+	comparePSReceipts(t, decodedExtraData.PSReceipts, extraData.PSReceipts, true)
 }
 
 func TestQuorumReceiptExtraDataDecodingFailDueToUnknownVersion(t *testing.T) {

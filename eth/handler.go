@@ -521,17 +521,25 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 
 	)
 	// Broadcast transactions to a batch of peers not knowing about it
+	// NOTE: Raft-based consensus currently assumes that geth broadcasts
+	// transactions to all peers in the network. A previous comment here
+	// indicated that this logic might change in the future to only send to a
+	// subset of peers. If this change occurs upstream, a merge conflict should
+	// arise here, and we should add logic to send to *all* peers in raft mode.
+
 	for _, tx := range txs {
 		peers := h.peers.peersWithoutTransaction(tx.Hash())
 		// Send the tx unconditionally to a subset of our peers
-		numDirect := int(math.Sqrt(float64(len(peers))))
-		for _, peer := range peers[:numDirect] {
+		// Quorum changes for broadcasting to all peers not only Sqrt
+		//numDirect := int(math.Sqrt(float64(len(peers))))
+		for _, peer := range peers {
 			txset[peer] = append(txset[peer], tx.Hash())
 		}
 		// For the remaining peers, send announcement only
-		for _, peer := range peers[numDirect:] {
-			annos[peer] = append(annos[peer], tx.Hash())
-		}
+		//for _, peer := range peers[numDirect:] {
+		//	annos[peer] = append(annos[peer], tx.Hash())
+		//}
+		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	for peer, hashes := range txset {
 		directPeers++

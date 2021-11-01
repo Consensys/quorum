@@ -31,8 +31,6 @@ type MultiplePrivateStateRepository struct {
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
-var _ PrivateStateRepository = (*MultiplePrivateStateRepository)(nil) // MultiplePrivateStateRepository must implement PrivateStateRepository
-
 func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
@@ -159,7 +157,7 @@ func (mpsr *MultiplePrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits all private states, updates the trie of private states, writes to disk
-func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
+func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
 	// commit each managed state
@@ -167,20 +165,25 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		// calculate and commit state root if required
 		privateRoot, err := managedState.stateRootProviderFunc(isEIP158)
 		if err != nil {
-			return privateRoot, err
+			return err
 		}
 		// update the managed state root in the trie of state roots
 		if err := mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes()); err != nil {
-			return privateRoot, err
+			return err
 		}
 	}
 	// commit the trie of states
 	mtRoot, err := mpsr.trie.Commit(nil)
 	if err != nil {
-		return mtRoot, err
+		return err
 	}
 	err = rawdb.WritePrivateStatesTrieRoot(mpsr.db, block.Root(), mtRoot)
-	return mtRoot, err
+	if err != nil {
+		return err
+	}
+	privateTriedb := mpsr.repoCache.TrieDB()
+	err = privateTriedb.Commit(mtRoot, false, nil)
+	return err
 }
 
 // Commit commits all private states, updates the trie of private states only
