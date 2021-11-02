@@ -188,6 +188,38 @@ func TestGetProposer(t *testing.T) {
 	}
 }
 
+// TestQBFTTransitionDeadlock test whether a deadlock occurs when testQBFTBlock is set to 1
+// This was fixed as part of commit 2a8310663ecafc0233758ca7883676bf568e926e
+func TestQBFTTransitionDeadlock(t *testing.T) {
+	timeout := time.After(1 * time.Minute)
+	done := make(chan bool)
+	go func() {
+		chain, engine := newBlockChain(1, big.NewInt(1))
+		defer engine.Stop()
+		// Create an insert a new block into the chain.
+		block := makeBlock(chain, engine, chain.Genesis())
+		_, err := chain.InsertChain(types.Blocks{block})
+		if err != nil {
+			t.Errorf("Error inserting block: %v", err)
+		}
+
+		if err = engine.NewChainHead(); err != nil {
+			t.Errorf("Error posting NewChainHead Event: %v", err)
+		}
+
+		if !engine.IsQBFTConsensus() {
+			t.Errorf("IsQBFTConsensus() should return true after block insertion")
+		}
+		done <- true
+	}()
+
+	select {
+	case <-timeout:
+		t.Fatal("Deadlock occurred during IBFT to QBFT transition")
+	case <-done:
+	}
+}
+
 func TestIsQBFTConsensus(t *testing.T) {
 	chain, engine := newBlockChain(1, big.NewInt(2))
 	defer engine.Stop()
