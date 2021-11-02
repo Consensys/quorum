@@ -37,6 +37,8 @@ type PrivacyService struct {
 
 	node   *node.Node
 	config *params.ChainConfig
+
+	isQlightClient bool
 }
 
 var (
@@ -86,6 +88,14 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 		apiBackendHelper: apiBackendHelper,
 		node:             stack,
 		config:           config,
+		isQlightClient:   false,
+	}
+
+	apiSupport, ok := service.apiBackendHelper.(ethapi.ProxyAPISupport)
+	if ok {
+		if apiSupport.ProxyEnabled() {
+			service.isQlightClient = true
+		}
 	}
 
 	var err error
@@ -152,6 +162,11 @@ func (service *PrivacyService) watchForNewContracts(psi types.PrivateStateIdenti
 
 		isSender, _ := service.ptm.IsSender(enclaveKey)
 
+		if service.isQlightClient {
+			log.Debug("Extension: this is a light node and it does not handle self vote events", "address", newContractExtension.ContractExtended.Hex())
+			return
+		}
+
 		if isSender {
 			fetchedParties, err := service.ptm.GetParticipants(enclaveKey)
 			if err != nil || len(fetchedParties) == 0 {
@@ -207,6 +222,12 @@ func (service *PrivacyService) watchForCompletionEvents(psi types.PrivateStateId
 
 	cb := func(l types.Log) {
 		log.Debug("Extension: Received a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
+
+		if service.isQlightClient {
+			log.Debug("Extension: this is a light node and it does not handle completion events", "address", l.Address.Hex())
+			return
+		}
+
 		service.mu.Lock()
 		defer func() {
 			service.mu.Unlock()

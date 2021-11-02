@@ -737,7 +737,7 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		for _, ptd := range request {
-			pm.proxyTM.AddToCache(*ptd.Hash, ptd.Payload, ptd.Extra)
+			pm.proxyTM.AddToCache(*ptd.Hash, ptd.Payload, ptd.Extra, ptd.IsSender)
 		}
 
 	case msg.Code == NewBlockMsg:

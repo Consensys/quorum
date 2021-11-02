@@ -92,9 +92,10 @@ func (p *snapPeer) info() *snapPeerInfo {
 type PrivateTransactionsData []PrivateTransactionData
 
 type PrivateTransactionData struct {
-	Hash    *common.EncryptedPayloadHash
-	Payload []byte
-	Extra   *engine.ExtraMetadata
+	Hash     *common.EncryptedPayloadHash
+	Payload  []byte
+	Extra    *engine.ExtraMetadata
+	IsSender bool
 }
 
 

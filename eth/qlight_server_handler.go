@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
@@ -37,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -827,14 +830,19 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 
 func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*PrivateTransactionsData, error) {
 	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store privateTransactionsData structures / PSI)
+	PSI := types.PrivateStateIdentifier(psi)
 	result := make(PrivateTransactionsData, 0)
-	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), types.PrivateStateIdentifier(psi)))
+	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
 	if err != nil {
 		return nil, err
 	}
-	for _, tx := range block.Transactions() {
+	receipts := pm.blockchain.GetReceiptsByHash(block.Hash())
+	if err != nil {
+		return nil, err
+	}
+	for txIdx, tx := range block.Transactions() {
 		if tx.IsPrivacyMarker() {
-			result, err = pm.fetchPrivateData(tx.Data(), psm, result)
+			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
 			if err != nil {
 				return nil, err
 			}
@@ -846,9 +854,57 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		}
 
 		if tx.IsPrivate() {
-			result, err = pm.fetchPrivateData(tx.Data(), psm, result)
+			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
 			if err != nil {
 				return nil, err
+			}
+			// TODO qlight - nicolae - I hate the idea of having to look at receipts in order to build the private data
+			// package necessary on the qlight client (could be solved by preparing ready packages for each PSI at the
+			// time of block processing)
+			receipt := receipts[txIdx]
+			if val, ok := receipt.PSReceipts[PSI]; ok {
+				receipt = val
+			}
+			for _, log := range receipt.Logs {
+				if len(log.Topics) != 1 {
+					continue
+				}
+				if log.Topics[0].String() == extensionContracts.StateSharedTopicHash {
+					_, hash, uuid, err := extensionContracts.UnpackStateSharedLog(log.Data)
+					if err != nil {
+						return nil, err
+					}
+					ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
+					_, result, err = pm.fetchPrivateData(ptmHash.Bytes(), psm, result)
+					if err != nil {
+						return nil, err
+					}
+					uuidHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
+					var uuidData *PrivateTransactionData
+					uuidData, result, err = pm.fetchPrivateData(uuidHash.Bytes(), psm, result)
+					if err != nil {
+						return nil, err
+					}
+					if uuidData != nil {
+						var payload common.DecryptRequest
+						if err := json.Unmarshal(uuidData.Payload, &payload); err != nil {
+							return nil, err
+						}
+						contractDetails, _, err := private.P.DecryptPayload(payload)
+						if err != nil {
+							continue
+						}
+						sha3512 := sha3.New512()
+						txHash := common.BytesToEncryptedPayloadHash(sha3512.Sum(payload.CipherText))
+						ptd := PrivateTransactionData{
+							Hash:     &txHash,
+							Payload:  contractDetails,
+							Extra:    uuidData.Extra,
+							IsSender: false,
+						}
+						result = append(result, ptd)
+					}
+				}
 			}
 		}
 	}
@@ -858,29 +914,37 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 	return nil, nil
 }
 
-func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result PrivateTransactionsData) (PrivateTransactionsData, error) {
+func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result PrivateTransactionsData) (*PrivateTransactionData, PrivateTransactionsData, error) {
 	txHash := common.BytesToEncryptedPayloadHash(privateData)
 	_, _, privateTx, extra, err := private.P.Receive(txHash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// we're not party to this transaction
 	if privateTx == nil {
-		return result, nil
+		return nil, result, nil
 	}
 	if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
-		return result, nil
+		return nil, result, nil
 	}
 
 	extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
 
 	ptd := PrivateTransactionData{
-		Hash:    &txHash,
-		Payload: privateTx,
-		Extra:   extra,
+		Hash:     &txHash,
+		Payload:  privateTx,
+		Extra:    extra,
+		IsSender: false,
+	}
+	if len(psm.Addresses) == 0 {
+		// this is not an MPS node so we have to ask tessera
+		ptd.IsSender, _ = private.P.IsSender(txHash)
+	} else {
+		// this is an MPS node so we can speed up the IsSender logic by checking the addresses in the private state metadata
+		ptd.IsSender = !pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.Sender)
 	}
 	result = append(result, ptd)
-	return result, nil
+	return &ptd, result, nil
 }
 
 // BroadcastTransactions will propagate a batch of transactions to all peers which are not known to
