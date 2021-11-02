@@ -2,6 +2,7 @@ package qlight
 
 import (
 	"fmt"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -12,6 +13,11 @@ import (
 type CachingProxyTxManager struct {
 	features *engine.FeatureSet
 	cache    *gocache.Cache
+}
+
+type CPItem struct {
+	cache.PrivateCacheItem
+	IsSender bool
 }
 
 func Is(ptm interface{}) bool {
@@ -64,7 +70,7 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 		cacheKey = fmt.Sprintf("%s-incomplete", cacheKey)
 	}
 	if item, found := t.cache.Get(cacheKey); found {
-		cacheItem, ok := item.(cache.PrivateCacheItem)
+		cacheItem, ok := item.(CPItem)
 		if !ok {
 			return "", nil, nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
 		}
@@ -74,24 +80,45 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 }
 
 // retrieve raw will not return information about medata
-func (t *CachingProxyTxManager) AddToCache(hash common.EncryptedPayloadHash, payload []byte, extra *engine.ExtraMetadata) {
+func (t *CachingProxyTxManager) AddToCache(hash common.EncryptedPayloadHash, payload []byte, extra *engine.ExtraMetadata, isSender bool) {
 	if common.EmptyEncryptedPayloadHash(hash) {
 		return
 	}
 	cacheKey := hash.Hex()
 
-	t.cache.Set(cacheKey, cache.PrivateCacheItem{
-		Payload: payload,
-		Extra:   *extra,
+	t.cache.Set(cacheKey, CPItem{
+		PrivateCacheItem: cache.PrivateCacheItem{
+			Payload: payload,
+			Extra:   *extra,
+		},
+		IsSender: isSender,
 	}, gocache.DefaultExpiration)
 }
 
 // retrieve raw will not return information about medata
 func (t *CachingProxyTxManager) DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
-	panic("implement me")
+	sha3512 := sha3.New512()
+	txHash := common.BytesToEncryptedPayloadHash(sha3512.Sum(payload.CipherText))
+	cacheKey := txHash.Hex()
+	if item, found := t.cache.Get(cacheKey); found {
+		cacheItem, ok := item.(CPItem)
+		if !ok {
+			return nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
+		}
+		return cacheItem.Payload, nil, nil
+	}
+	return nil, nil, nil
 }
 
-func (t *CachingProxyTxManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+func (t *CachingProxyTxManager) IsSender(data common.EncryptedPayloadHash) (bool, error) {
+	cacheKey := data.Hex()
+	if item, found := t.cache.Get(cacheKey); found {
+		cacheItem, ok := item.(CPItem)
+		if !ok {
+			return false, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
+		}
+		return cacheItem.IsSender, nil
+	}
 	return false, nil
 }
 
