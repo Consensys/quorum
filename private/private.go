@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/private/engine/qlight"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -24,6 +25,10 @@ var (
 	P                PrivateTransactionManager
 	isPrivacyEnabled = false
 )
+
+type HasRPCClient interface {
+	SetRPCClient(client *rpc.Client)
+}
 
 type Identifiable interface {
 	Name() string

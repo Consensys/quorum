@@ -59,6 +59,38 @@ type EncryptedPayloadHash [EncryptedPayloadHashLength]byte
 // Using map to enable fast lookup
 type EncryptedPayloadHashes map[EncryptedPayloadHash]struct{}
 
+func (h *EncryptedPayloadHash) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64())
+}
+
+func (h *EncryptedPayloadHash) UnmarshalJSON(j []byte) (err error) {
+	var ephStr string
+	json.Unmarshal(j, ephStr)
+	eph, err := Base64ToEncryptedPayloadHash(ephStr)
+	if err != nil {
+		return err
+	}
+	h.SetBytes(eph.Bytes())
+	return nil
+}
+
+func (h *EncryptedPayloadHashes) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64s())
+}
+
+func (h *EncryptedPayloadHashes) UnmarshalJSON(j []byte) (err error) {
+	var ephStrArray []string
+	json.Unmarshal(j, ephStrArray)
+	for _, str := range ephStrArray {
+		eph, err := Base64ToEncryptedPayloadHash(str)
+		if err != nil {
+			return err
+		}
+		h.Add(eph)
+	}
+	return nil
+}
+
 // BytesToEncryptedPayloadHash sets b to EncryptedPayloadHash.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {

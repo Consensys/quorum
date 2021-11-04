@@ -599,6 +599,7 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 
 		for i, body := range request {
 			transactions[i] = body.Transactions
+			pm.updateCacheWithNonPartyTxData(body.Transactions)
 			uncles[i] = body.Uncles
 		}
 		// Filter out any explicitly requested bodies, deliver the rest to the downloader
@@ -761,6 +762,8 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 		request.Block.ReceivedAt = msg.ReceivedAt
 		request.Block.ReceivedFrom = p
 
+		pm.updateCacheWithNonPartyTxData(request.Block.Transactions())
+
 		// Mark the peer as owning the block and schedule it for import
 		p.MarkBlock(request.Block.Hash())
 		pm.blockFetcher.Enqueue(p.id, request.Block)
@@ -852,6 +855,15 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
+}
+
+func (pm *QLightClientProtocolManager) updateCacheWithNonPartyTxData(transactions types.Transactions) {
+	for _, tx := range transactions {
+		if tx.IsPrivate() || tx.IsPrivacyMarker() {
+			txHash := common.BytesToEncryptedPayloadHash(tx.Data())
+			pm.proxyTM.CheckAndAddEmptyToCache(txHash)
+		}
+	}
 }
 
 // Quorum

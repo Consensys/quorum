@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -2754,6 +2755,88 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(ctx context.Context, digestHex st
 		return "0x", nil
 	}
 	return fmt.Sprintf("0x%x", data), nil
+}
+
+func (s *PublicBlockChainAPI) GetQuorumPayloadExtra(ctx context.Context, digestHex string) (*engine.QuorumPayloadExtra, error) {
+	if !private.IsQuorumPrivacyEnabled() {
+		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(digestHex) < 3 {
+		return nil, fmt.Errorf("Invalid digest hex")
+	}
+	if digestHex[:2] == "0x" {
+		digestHex = digestHex[2:]
+	}
+	b, err := hex.DecodeString(digestHex)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(b) != common.EncryptedPayloadHashLength {
+		return nil, fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
+	}
+	_, managedParties, data, extraMetaData, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	if err != nil {
+		return nil, err
+	}
+	if s.b.PSMR().NotIncludeAny(psm, managedParties...) {
+		return nil, nil
+	}
+	isSender := false
+	if len(psm.Addresses) == 0 {
+		isSender, _ = private.P.IsSender(common.BytesToEncryptedPayloadHash(b))
+	} else {
+		isSender = !psm.NotIncludeAny(extraMetaData.Sender)
+	}
+	return &engine.QuorumPayloadExtra{
+		Payload:       fmt.Sprintf("0x%x", data),
+		ExtraMetaData: extraMetaData,
+		IsSender:      isSender,
+	}, nil
+}
+
+// GetQuorumPayload returns the contents of a private transaction
+func (s *PublicBlockChainAPI) DecryptQuorumPayload(ctx context.Context, payloadHex string) (*engine.QuorumPayloadExtra, error) {
+	if !private.IsQuorumPrivacyEnabled() {
+		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(payloadHex) < 3 {
+		return nil, fmt.Errorf("Invalid payload hex")
+	}
+	if payloadHex[:2] == "0x" {
+		payloadHex = payloadHex[2:]
+	}
+	b, err := hex.DecodeString(payloadHex)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload common.DecryptRequest
+	if err := json.Unmarshal(b, &payload); err != nil {
+		return nil, err
+	}
+	// if we are MPS and the sender is not part of the resolved PSM - return empty
+	if len(psm.Addresses) != 0 && psm.NotIncludeAny(base64.StdEncoding.EncodeToString(payload.SenderKey)) {
+		return nil, nil
+	}
+	data, extraMetaData, err := private.P.DecryptPayload(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return &engine.QuorumPayloadExtra{
+		Payload:       fmt.Sprintf("0x%x", data),
+		ExtraMetaData: extraMetaData,
+		IsSender:      true,
+	}, nil
 }
 
 // Quorum

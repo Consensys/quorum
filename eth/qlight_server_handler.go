@@ -26,8 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
@@ -39,7 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -836,11 +833,7 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 	if err != nil {
 		return nil, err
 	}
-	receipts := pm.blockchain.GetReceiptsByHash(block.Hash())
-	if err != nil {
-		return nil, err
-	}
-	for txIdx, tx := range block.Transactions() {
+	for _, tx := range block.Transactions() {
 		if tx.IsPrivacyMarker() {
 			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
 			if err != nil {
@@ -857,54 +850,6 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
 			if err != nil {
 				return nil, err
-			}
-			// TODO qlight - nicolae - I hate the idea of having to look at receipts in order to build the private data
-			// package necessary on the qlight client (could be solved by preparing ready packages for each PSI at the
-			// time of block processing)
-			receipt := receipts[txIdx]
-			if val, ok := receipt.PSReceipts[PSI]; ok {
-				receipt = val
-			}
-			for _, log := range receipt.Logs {
-				if len(log.Topics) != 1 {
-					continue
-				}
-				if log.Topics[0].String() == extensionContracts.StateSharedTopicHash {
-					_, hash, uuid, err := extensionContracts.UnpackStateSharedLog(log.Data)
-					if err != nil {
-						return nil, err
-					}
-					ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
-					_, result, err = pm.fetchPrivateData(ptmHash.Bytes(), psm, result)
-					if err != nil {
-						return nil, err
-					}
-					uuidHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
-					var uuidData *PrivateTransactionData
-					uuidData, result, err = pm.fetchPrivateData(uuidHash.Bytes(), psm, result)
-					if err != nil {
-						return nil, err
-					}
-					if uuidData != nil {
-						var payload common.DecryptRequest
-						if err := json.Unmarshal(uuidData.Payload, &payload); err != nil {
-							return nil, err
-						}
-						contractDetails, _, err := private.P.DecryptPayload(payload)
-						if err != nil {
-							continue
-						}
-						sha3512 := sha3.New512()
-						txHash := common.BytesToEncryptedPayloadHash(sha3512.Sum(payload.CipherText))
-						ptd := PrivateTransactionData{
-							Hash:     &txHash,
-							Payload:  contractDetails,
-							Extra:    uuidData.Extra,
-							IsSender: false,
-						}
-						result = append(result, ptd)
-					}
-				}
 			}
 		}
 	}
@@ -941,7 +886,7 @@ func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm 
 		ptd.IsSender, _ = private.P.IsSender(txHash)
 	} else {
 		// this is an MPS node so we can speed up the IsSender logic by checking the addresses in the private state metadata
-		ptd.IsSender = !pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.Sender)
+		ptd.IsSender = !psm.NotIncludeAny(extra.Sender)
 	}
 	result = append(result, ptd)
 	return &ptd, result, nil

@@ -48,6 +48,12 @@ type ExtraMetadata struct {
 	MandatoryRecipients []string
 }
 
+type QuorumPayloadExtra struct {
+	Payload       string
+	ExtraMetaData *ExtraMetadata
+	IsSender      bool
+}
+
 type Client struct {
 	HttpClient *http.Client
 	BaseURL    string
