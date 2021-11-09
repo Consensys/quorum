@@ -60,6 +60,13 @@ type (
 // ActivePrecompiles returns the addresses of the precompiles enabled with the current
 // configuration
 func (evm *EVM) ActivePrecompiles() []common.Address {
+	return append(evm.activePrecompiles(), evm.activeQuorumPrecompiles()...)
+}
+
+// (Quorum) moved upstream ActivePrecompiles() logic to new method activePrecompiles()
+// This functionality is part of an experimental feature so may be subject to future changes. Keeping the original code
+// untouched in a new method should flag any changes from future merges.
+func (evm *EVM) activePrecompiles() []common.Address {
 	switch {
 	case evm.chainRules.IsBerlin:
 		return PrecompiledAddressesBerlin
@@ -70,6 +77,14 @@ func (evm *EVM) ActivePrecompiles() []common.Address {
 	default:
 		return PrecompiledAddressesHomestead
 	}
+}
+
+func (evm *EVM) activeQuorumPrecompiles() []common.Address {
+	var p []common.Address
+	if evm.chainRules.IsPrivacyPrecompile {
+		p = append(p, common.QuorumPrivacyPrecompileContractAddress())
+	}
+	return p
 }
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
