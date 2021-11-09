@@ -46,21 +46,6 @@ const (
 	AccessListTxType
 )
 
-// Quorum
-// deriveSigner makes a *best* guess about which signer to use.
-func deriveSigner(V *big.Int) Signer {
-	// joel: this is one of the two places we used a wrong signer to print txes
-	if V.Sign() != 0 && isProtectedV(V) {
-		return NewEIP155Signer(deriveChainId(V))
-	} else if isPrivate(V) {
-		return QuorumPrivateTxSigner{}
-	} else {
-		return HomesteadSigner{}
-	}
-}
-
-// End Quorum
-
 // Transaction is an Ethereum transaction.
 type Transaction struct {
 	inner TxData    // Consensus contents of a transaction
@@ -338,9 +323,7 @@ func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 }
 
 func (tx *Transaction) From() common.Address {
-	v, _, _ := tx.RawSignatureValues()
-	signer := deriveSigner(v)
-	if from, err := Sender(signer, tx); err == nil {
+	if from, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err == nil {
 		return from
 	}
 	return common.Address{}
@@ -390,10 +373,7 @@ func (tx *Transaction) String() string {
 	var from, to string
 	v, r, s := tx.RawSignatureValues()
 	if v != nil {
-		// make a best guess about the signer and use that to derive
-		// the sender.
-		signer := deriveSigner(v)
-		if f, err := Sender(signer, tx); err != nil { // derive but don't cache
+		if f, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err != nil {
 			from = "[invalid sender: invalid sig]"
 		} else {
 			from = fmt.Sprintf("%x", f[:])

@@ -183,6 +183,11 @@ func (s eip2930Signer) Equal(s2 Signer) bool {
 }
 
 func (s eip2930Signer) Sender(tx *Transaction) (common.Address, error) {
+	// Quorum
+	if tx.IsPrivate() {
+		return QuorumPrivateTxSigner{}.Sender(tx)
+	}
+	// End Quorum
 	V, R, S := tx.RawSignatureValues()
 	switch tx.Type() {
 	case LegacyTxType:

@@ -603,9 +603,15 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 		ignored <- struct{}{}
 		return true
 	}
+	timer := time.NewTimer(3 * time.Second)
 	for i := 0; i < 2; i++ {
-		<-ignored
+		select {
+		case <-ignored:
+		case <-timer.C:
+			t.Fatalf("timeout")
+		}
 	}
+	timer.Stop()
 
 	go listenNewBlock()
 
