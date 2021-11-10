@@ -54,6 +54,11 @@ type QuorumPayloadExtra struct {
 	IsSender      bool
 }
 
+type BlockPrivatePayloads struct {
+	BlockHash string
+	Payloads  map[string]QuorumPayloadExtra
+}
+
 type Client struct {
 	HttpClient *http.Client
 	BaseURL    string
