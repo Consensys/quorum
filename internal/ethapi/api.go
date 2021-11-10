@@ -53,6 +53,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
@@ -2799,7 +2800,45 @@ func (s *PublicBlockChainAPI) GetQuorumPayloadExtra(ctx context.Context, digestH
 	}, nil
 }
 
-// GetQuorumPayload returns the contents of a private transaction
+func (s *PublicBlockChainAPI) GetQuorumPayloadsForBlock(ctx context.Context, key string) (*engine.BlockPrivatePayloads, error) {
+	if !private.IsQuorumPrivacyEnabled() {
+		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
+	}
+
+	psm, err := s.b.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheKey, err := qlight.DecodeQLightCacheKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if psm.ID != cacheKey.PSI {
+		return nil, nil
+	}
+
+	privateTxsData, found := qlight.GetDataFromServerCache(cacheKey)
+	if !found {
+		return nil, nil
+	}
+
+	result := &engine.BlockPrivatePayloads{
+		BlockHash: base64.StdEncoding.EncodeToString(cacheKey.BlockHash.Bytes()),
+		Payloads:  make(map[string]engine.QuorumPayloadExtra, len(privateTxsData)),
+	}
+	for _, privTxData := range privateTxsData {
+		result.Payloads[base64.StdEncoding.EncodeToString(privTxData.Hash.Bytes())] = engine.QuorumPayloadExtra{
+			Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
+			ExtraMetaData: privTxData.Extra,
+			IsSender:      privTxData.IsSender,
+		}
+	}
+	return result, nil
+}
+
+// DecryptQuorumPayload returns the decrypted version of the input transaction
 func (s *PublicBlockChainAPI) DecryptQuorumPayload(ctx context.Context, payloadHex string) (*engine.QuorumPayloadExtra, error) {
 	if !private.IsQuorumPrivacyEnabled() {
 		return nil, fmt.Errorf("PrivateTransactionManager is not enabled")

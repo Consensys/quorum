@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -490,10 +491,10 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		}
 		// Gather blocks until the fetch or network limits is reached
 		var (
-			hash                    common.Hash
-			bytes                   int
-			bodies                  []rlp.RawValue
-			privateTransactionsData PrivateTransactionsData
+			hash            common.Hash
+			bytes           int
+			bodies          []rlp.RawValue
+			qlightCacheKeys qlight.QLightCacheKeys
 		)
 		for bytes < softResponseLimit && len(bodies) < downloader.MaxBlockFetch {
 			// Retrieve the hash of the next block
@@ -505,12 +506,12 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			// TODO Qlight - loading and parsing the block is a much heavier operation (than just loading the RLP encoded value)
 			block := pm.blockchain.GetBlockByHash(hash)
 			if block != nil {
-				blockPTD, err := pm.preparePrivateTransactionsData(block, p.qlightPSI)
+				blockCacheKey, err := pm.preparePrivateTransactionsData(block, p.qlightPSI)
 				if err != nil {
 					return errResp(ErrDecode, "Unable to produce block private transaction data %v: %v", hash, err)
 				}
-				if blockPTD != nil {
-					privateTransactionsData = append(privateTransactionsData, *blockPTD...)
+				if blockCacheKey != nil {
+					qlightCacheKeys = append(qlightCacheKeys, *blockCacheKey)
 				}
 			}
 			// Retrieve the requested block body, stopping if enough was found
@@ -519,8 +520,8 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 				bytes += len(data)
 			}
 		}
-		if len(privateTransactionsData) > 0 {
-			err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, privateTransactionsData)
+		if len(qlightCacheKeys) > 0 {
+			err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, qlightCacheKeys)
 			if err != nil {
 				log.Info("Error occurred while sending private data msg", "err", err)
 				return err
@@ -805,13 +806,17 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 			if peer.qlightServer {
 				continue
 			}
-			privateTransactionsData, err := pm.preparePrivateTransactionsData(block, peer.qlightPSI)
+			blockCacheKey, err := pm.preparePrivateTransactionsData(block, peer.qlightPSI)
 			if err != nil {
-				log.Error("Unable to prepare privateTransactionsData for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
+				log.Error("Unable to prepare qlightCacheKeys for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
 				return
 			}
-			log.Info("Private transactions data", "is nil", privateTransactionsData == nil)
-			peer.AsyncSendNewBlock(block, td, privateTransactionsData)
+			log.Info("Private transactions data", "is nil", blockCacheKey == nil)
+			var blockCacheKeys qlight.QLightCacheKeys = nil
+			if blockCacheKey != nil {
+				blockCacheKeys = qlight.QLightCacheKeys{*blockCacheKey}
+			}
+			peer.AsyncSendNewBlock(block, td, blockCacheKeys)
 		}
 		log.Trace("Propagated block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 		return
@@ -825,17 +830,17 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 	}
 }
 
-func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*PrivateTransactionsData, error) {
-	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store privateTransactionsData structures / PSI)
+func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*qlight.QLightCacheKey, error) {
+	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store qlightCacheKeys structures / PSI)
 	PSI := types.PrivateStateIdentifier(psi)
-	result := make(PrivateTransactionsData, 0)
+	ptd := make(qlight.PrivateTransactionsData, 0)
 	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
 	if err != nil {
 		return nil, err
 	}
 	for _, tx := range block.Transactions() {
 		if tx.IsPrivacyMarker() {
-			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
+			_, ptd, err = pm.fetchPrivateData(tx.Data(), psm, ptd)
 			if err != nil {
 				return nil, err
 			}
@@ -847,19 +852,25 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		}
 
 		if tx.IsPrivate() {
-			_, result, err = pm.fetchPrivateData(tx.Data(), psm, result)
+			_, ptd, err = pm.fetchPrivateData(tx.Data(), psm, ptd)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	if len(result) > 0 {
-		return &result, nil
+	if len(ptd) > 0 {
+		// TODO - figure out a way to prove that a request for a cache key comes from this specific node (possibly using signatures)
+		cacheKey := &qlight.QLightCacheKey{
+			BlockHash: block.Hash(),
+			PSI:       PSI,
+		}
+		qlight.AddDataToServerCache(cacheKey, ptd)
+		return cacheKey, nil
 	}
 	return nil, nil
 }
 
-func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result PrivateTransactionsData) (*PrivateTransactionData, PrivateTransactionsData, error) {
+func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result qlight.PrivateTransactionsData) (*qlight.PrivateTransactionData, qlight.PrivateTransactionsData, error) {
 	txHash := common.BytesToEncryptedPayloadHash(privateData)
 	_, _, privateTx, extra, err := private.P.Receive(txHash)
 	if err != nil {
@@ -875,7 +886,7 @@ func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm 
 
 	extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
 
-	ptd := PrivateTransactionData{
+	ptd := qlight.PrivateTransactionData{
 		Hash:     &txHash,
 		Payload:  privateTx,
 		Extra:    extra,

@@ -40,15 +40,13 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/engine/qlight"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
 type QLightClientProtocolManager struct {
 	ProtocolManager
-	proxyTM        *qlight.CachingProxyTxManager
 	dialCandidates enode.Iterator
 	psi            string
 }
@@ -219,7 +217,7 @@ func (pm *QLightClientProtocolManager) removePeer(id string) {
 func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
-	pm.proxyTM, _ = private.P.(*qlight.CachingProxyTxManager)
+	qlight.InitializeClientCache()
 
 	// broadcast transactions
 	pm.wg.Add(1)
@@ -733,12 +731,15 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == QLightNewBlockPrivateDataMsg:
 		log.Info("Received new block private data")
 		// Retrieve and decode the propagated block
-		var request PrivateTransactionsData
+		var request qlight.QLightCacheKeys
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		for _, ptd := range request {
-			pm.proxyTM.AddToCache(*ptd.Hash, ptd.Payload, ptd.Extra, ptd.IsSender)
+		for _, cacheKey := range request {
+			err := qlight.AddPrivateBlockToClientCache(cacheKey)
+			if err != nil {
+				return errResp(ErrDecode, "%v: %v", msg, err)
+			}
 		}
 
 	case msg.Code == NewBlockMsg:
@@ -861,7 +862,7 @@ func (pm *QLightClientProtocolManager) updateCacheWithNonPartyTxData(transaction
 	for _, tx := range transactions {
 		if tx.IsPrivate() || tx.IsPrivacyMarker() {
 			txHash := common.BytesToEncryptedPayloadHash(tx.Data())
-			pm.proxyTM.CheckAndAddEmptyToCache(txHash)
+			qlight.CheckAndAddEmptyToClientCache(txHash)
 		}
 	}
 }
