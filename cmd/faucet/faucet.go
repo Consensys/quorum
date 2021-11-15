@@ -851,9 +851,9 @@ func authFacebook(url string) (string, string, common.Address, error) {
 	// Facebook recently changed their desktop webpage to use AJAX for loading post
 	// content, so switch over to the mobile site for now. Will probably end up having
 	// to use the API eventually.
-	crawl := strings.Replace(url, "www.facebook.com", "m.facebook.com", 1)
+	//crawl := strings.Replace(url, "www.facebook.com", "m.facebook.com", 1)
 
-	res, err := http.Get(crawl)
+	res, err := http.Get(url)
 	if err != nil {
 		return "", "", common.Address{}, err
 	}
