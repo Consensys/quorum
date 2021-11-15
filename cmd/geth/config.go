@@ -144,6 +144,10 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	if ctx.GlobalIsSet(utils.QuorumLightClientServerNodeFlag.Name) {
 		serverUrl := ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)
 		cfg.Node.P2P.StaticNodes = append(cfg.Node.P2P.StaticNodes, enode.MustParse(serverUrl))
+		// TODO QLight - must devise a way to warn that qlight client overrides settings like port/peers config
+		cfg.Node.P2P.MaxPeers = 1
+		// force the qlight client node to disable the local P2P listener
+		cfg.Node.P2P.ListenAddr = ""
 	}
 	stack, err := node.New(&cfg.Node)
 	if err != nil {

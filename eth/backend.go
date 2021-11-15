@@ -304,15 +304,15 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if eth.config.QuorumLightClient {
 		// TODO qlight - add PSI and token here
 		proxyClient, err := rpc.Dial(eth.config.QuorumLightClientServerNodeRPC)
+		if err != nil {
+			return nil, err
+		}
 		// TODO qlight - need to find a better way to inject the rpc client into the tx manager
 		rpcClientSetter, ok := private.P.(private.HasRPCClient)
 		if ok {
 			rpcClientSetter.SetRPCClient(proxyClient)
 		}
 		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, proxyClient}
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
 	}
