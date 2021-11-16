@@ -473,6 +473,10 @@ func (p *Peer) ExpectRequestHeadersByNumber(origin uint64, amount int, skip int,
 	return p2p.ExpectMsg(p.rw, GetBlockHeadersMsg, req)
 }
 
+func (p *Peer) ExpectPeerMessage(code uint64, content types.Transactions) error {
+	return p2p.ExpectMsg(p.rw, code, content)
+}
+
 // RequestBodies fetches a batch of blocks' bodies corresponding to the hashes
 // specified.
 func (p *Peer) RequestBodies(hashes []common.Hash) error {
