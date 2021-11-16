@@ -1974,11 +1974,14 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
-	if err := b.SendTx(ctx, tx); err != nil {
-		return common.Hash{}, err
-	}
 	// Print a log with full tx details for manual investigations and interventions
-	signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
+	// Quorum
+	var signer types.Signer
+	if tx.IsPrivate() {
+		signer = types.QuorumPrivateTxSigner{}
+	} else {
+		signer = types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
+	}
 	from, err := types.Sender(signer, tx)
 	if err != nil {
 		return common.Hash{}, err
