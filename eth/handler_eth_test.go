@@ -463,6 +463,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 	}
 }
 
+// Quorum
 // Tests that transactions get propagated to all peers using TransactionMessages and not PooledTransactionHashesMsg
 func TestQuorumTransactionPropagation64(t *testing.T) { testQuorumTransactionPropagation(t, 64) }
 func TestQuorumTransactionPropagation65(t *testing.T) { testQuorumTransactionPropagation(t, 65) }
@@ -540,6 +541,8 @@ func testQuorumTransactionPropagation(t *testing.T, protocol uint) {
 	// wait until all messages are handled
 	wgExpectPeerMessages.Wait()
 }
+
+// End Quorum
 
 // Tests that post eth protocol handshake, clients perform a mutual checkpoint
 // challenge to validate each other's chains. Hash mismatches, or missing ones
