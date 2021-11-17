@@ -54,6 +54,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -278,10 +279,15 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// TODO qlight rebase
 	if eth.config.QuorumLightClient {
-		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientServerNode); err != nil {
+		clientCache, err := qlight.NewClientCache(chainDb)
+		if err != nil {
+			return nil, err
+		}
+		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientServerNode, clientCache); err != nil {
 			return nil, err
 		}
 		eth.protocolManager = &eth.qlClientProtocolManager.ProtocolManager
+		eth.blockchain.SetPrivateStateRootHashValidator(clientCache)
 	} else {
 		if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
 			return nil, err

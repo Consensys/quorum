@@ -199,24 +199,6 @@ func (t *CachingProxyTxManager) HasFeature(f engine.PrivateTransactionManagerFea
 	return t.features.HasFeature(f)
 }
 
-func (t *CachingProxyTxManager) AddPrivateBlockToCache(key string) error {
-	var result engine.BlockPrivatePayloads
-	err := t.rpcClient.Call(&result, "eth_getQuorumPayloadsForBlock", key)
-	if err != nil {
-		return err
-	}
-	for txKey, qpe := range result.Payloads {
-		eph, err := common.Base64ToEncryptedPayloadHash(txKey)
-		if err != nil {
-			return err
-		}
-		if len(qpe.Payload) > 3 {
-			payloadBytes, err := hex.DecodeString(qpe.Payload[2:])
-			if err != nil {
-				return err
-			}
-			t.AddToCache(eph, payloadBytes, qpe.ExtraMetaData, qpe.IsSender)
-		}
-	}
-	return nil
+func (t *CachingProxyTxManager) GetRPCClient() *rpc.Client {
+	return t.rpcClient
 }

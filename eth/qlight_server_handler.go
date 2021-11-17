@@ -864,7 +864,21 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 			BlockHash: block.Hash(),
 			PSI:       PSI,
 		}
-		qlight.AddDataToServerCache(cacheKey, ptd)
+		// TODO - once private state optimisations are implemented it is very likely that we won't have public <-> private block mappings
+		// for each block anymore (they would only be written for the actually stored blocks)
+		stateRepo, err := pm.blockchain.PrivateStateManager().StateRepository(block.Root())
+		if err != nil {
+			return nil, err
+		}
+		privateStateRoot, err := stateRepo.PrivateStateRoot(PSI)
+		if err != nil {
+			return nil, err
+		}
+		pbd := qlight.PrivateBlockData{
+			PrivateStateRoot:    privateStateRoot,
+			PrivateTransactions: ptd,
+		}
+		qlight.AddDataToServerCache(cacheKey, pbd)
 		return cacheKey, nil
 	}
 	return nil, nil

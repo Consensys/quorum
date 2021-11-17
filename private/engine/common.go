@@ -55,8 +55,9 @@ type QuorumPayloadExtra struct {
 }
 
 type BlockPrivatePayloads struct {
-	BlockHash string
-	Payloads  map[string]QuorumPayloadExtra
+	BlockHash        string
+	PrivateStateRoot string
+	Payloads         map[string]QuorumPayloadExtra
 }
 
 type Client struct {

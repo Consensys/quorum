@@ -2819,16 +2819,17 @@ func (s *PublicBlockChainAPI) GetQuorumPayloadsForBlock(ctx context.Context, key
 		return nil, nil
 	}
 
-	privateTxsData, found := qlight.GetDataFromServerCache(cacheKey)
+	privateBlockData, found := qlight.GetDataFromServerCache(cacheKey)
 	if !found {
 		return nil, nil
 	}
 
 	result := &engine.BlockPrivatePayloads{
-		BlockHash: base64.StdEncoding.EncodeToString(cacheKey.BlockHash.Bytes()),
-		Payloads:  make(map[string]engine.QuorumPayloadExtra, len(privateTxsData)),
+		BlockHash:        base64.StdEncoding.EncodeToString(cacheKey.BlockHash.Bytes()),
+		PrivateStateRoot: base64.StdEncoding.EncodeToString(privateBlockData.PrivateStateRoot.Bytes()),
+		Payloads:         make(map[string]engine.QuorumPayloadExtra, len(privateBlockData.PrivateTransactions)),
 	}
-	for _, privTxData := range privateTxsData {
+	for _, privTxData := range privateBlockData.PrivateTransactions {
 		result.Payloads[base64.StdEncoding.EncodeToString(privTxData.Hash.Bytes())] = engine.QuorumPayloadExtra{
 			Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
 			ExtraMetaData: privTxData.Extra,

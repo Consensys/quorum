@@ -7,19 +7,19 @@ import (
 
 var privateDataCache = gocache.New(cache.DefaultExpiration, cache.CleanupInterval)
 
-func AddDataToServerCache(key *QLightCacheKey, data PrivateTransactionsData) error {
+func AddDataToServerCache(key *QLightCacheKey, data PrivateBlockData) error {
 	return privateDataCache.Add(key.String(), data, gocache.DefaultExpiration)
 }
 
-func GetDataFromServerCache(key *QLightCacheKey) (PrivateTransactionsData, bool) {
+func GetDataFromServerCache(key *QLightCacheKey) (*PrivateBlockData, bool) {
 	cacheItem, found := privateDataCache.Get(key.String())
 	if !found {
 		return nil, false
 	}
 
-	privateTxsData, ok := cacheItem.(PrivateTransactionsData)
+	privateBlockData, ok := cacheItem.(PrivateBlockData)
 	if !ok {
 		return nil, false
 	}
-	return privateTxsData, true
+	return &privateBlockData, true
 }

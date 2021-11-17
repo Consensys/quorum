@@ -53,6 +53,10 @@ func (dpsr *DefaultPrivateStateRepository) IsMPS() bool {
 	return false
 }
 
+func (dpsr *DefaultPrivateStateRepository) PrivateStateRoot(psi types.PrivateStateIdentifier) (common.Hash, error) {
+	return dpsr.root, nil
+}
+
 func (dpsr *DefaultPrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	if psi != types.DefaultPrivateStateIdentifier {
 		return nil, fmt.Errorf("only the 'private' psi is supported by the default private state manager")

@@ -47,13 +47,14 @@ import (
 
 type QLightClientProtocolManager struct {
 	ProtocolManager
-	dialCandidates enode.Iterator
-	psi            string
+	dialCandidates     enode.Iterator
+	psi                string
+	privateClientCache qlight.PrivateClientCache
 }
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, psi string, serverNodeUrl string) (*QLightClientProtocolManager, error) {
+func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, psi string, serverNodeUrl string, privateClientCache qlight.PrivateClientCache) (*QLightClientProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &QLightClientProtocolManager{
 		ProtocolManager: ProtocolManager{
@@ -70,7 +71,8 @@ func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *para
 			raftMode:          raftMode,
 			engine:            engine,
 		},
-		psi: psi,
+		psi:                psi,
+		privateClientCache: privateClientCache,
 	}
 
 	// Quorum
@@ -216,8 +218,6 @@ func (pm *QLightClientProtocolManager) removePeer(id string) {
 
 func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
-
-	qlight.InitializeClientCache()
 
 	// broadcast transactions
 	pm.wg.Add(1)
@@ -736,7 +736,7 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		for _, cacheKey := range request {
-			err := qlight.AddPrivateBlockToClientCache(cacheKey)
+			err := pm.privateClientCache.AddPrivateBlock(cacheKey)
 			if err != nil {
 				return errResp(ErrDecode, "%v: %v", msg, err)
 			}
@@ -862,7 +862,7 @@ func (pm *QLightClientProtocolManager) updateCacheWithNonPartyTxData(transaction
 	for _, tx := range transactions {
 		if tx.IsPrivate() || tx.IsPrivacyMarker() {
 			txHash := common.BytesToEncryptedPayloadHash(tx.Data())
-			qlight.CheckAndAddEmptyToClientCache(txHash)
+			pm.privateClientCache.CheckAndAddEmptyEntry(txHash)
 		}
 	}
 }
