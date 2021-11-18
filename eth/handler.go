@@ -437,10 +437,19 @@ func (h *handler) Start(maxPeers int) {
 	h.txsSub = h.txpool.SubscribeNewTxsEvent(h.txsCh)
 	go h.txBroadcastLoop()
 
-	// broadcast mined blocks
-	h.wg.Add(1)
-	h.minedBlockSub = h.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go h.minedBroadcastLoop()
+	// Quorum
+	if !h.raftMode {
+		// broadcast mined blocks
+		h.wg.Add(1)
+		h.minedBlockSub = h.eventMux.Subscribe(core.NewMinedBlockEvent{})
+		go h.minedBroadcastLoop()
+	} else {
+		// We set this immediately in raft mode to make sure the miner never drops
+		// incoming txes. Raft mode doesn't use the fetcher or downloader, and so
+		// this would never be set otherwise.
+		atomic.StoreUint32(&h.acceptTxs, 1)
+	}
+	// End Quorum
 
 	// start sync handlers
 	h.wg.Add(2)
