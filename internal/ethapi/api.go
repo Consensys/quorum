@@ -1196,8 +1196,18 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 		} else {
 			data = []byte(*args.Data)
 		}
-		intrinsicGasPublic, _ := core.IntrinsicGas(data, *args.AccessList, args.To == nil, homestead, istanbul)
-		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), *args.AccessList, args.To == nil, homestead, istanbul)
+		var accessList types.AccessList
+		if args.AccessList != nil {
+			accessList = *args.AccessList
+		}
+		intrinsicGasPublic, err := core.IntrinsicGas(data, accessList, args.To == nil, homestead, istanbul)
+		if err != nil {
+			return 0, err
+		}
+		intrinsicGasPrivate, err := core.IntrinsicGas(common.Hex2Bytes(common.MaxPrivateIntrinsicDataHex), accessList, args.To == nil, homestead, istanbul)
+		if err != nil {
+			return 0, err
+		}
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
 			if math.MaxUint64-hi < intrinsicGasPrivate-intrinsicGasPublic {

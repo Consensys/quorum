@@ -289,8 +289,6 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb, privateState StateD
 func (evm *EVM) Reset(txCtx TxContext, statedb StateDB, privateStateDB StateDB) {
 	evm.TxContext = txCtx
 	evm.StateDB = statedb
-	evm.publicState = statedb
-	evm.privateState = privateStateDB
 }
 
 // Cancel cancels any running EVM operation. This may be called concurrently and
