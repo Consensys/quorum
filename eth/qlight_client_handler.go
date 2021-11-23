@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -46,7 +45,7 @@ import (
 )
 
 type QLightClientProtocolManager struct {
-	ProtocolManager
+	*ProtocolManager
 	dialCandidates     enode.Iterator
 	psi                string
 	privateClientCache qlight.PrivateClientCache
@@ -57,7 +56,7 @@ type QLightClientProtocolManager struct {
 func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, psi string, serverNodeUrl string, privateClientCache qlight.PrivateClientCache) (*QLightClientProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &QLightClientProtocolManager{
-		ProtocolManager: ProtocolManager{
+		ProtocolManager: &ProtocolManager{
 			networkID:         networkID,
 			forkFilter:        forkid.NewFilter(blockchain),
 			eventMux:          mux,
@@ -164,7 +163,7 @@ func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *para
 	}
 	manager.txFetcher = fetcher.NewTxFetcher(txpool.Has, txpool.AddRemotes, fetchTx)
 
-	manager.chainSync = newChainSyncer(&manager.ProtocolManager)
+	manager.chainSync = newChainSyncer(manager.ProtocolManager)
 
 	log.Info("Configured server node", "url", serverNodeUrl)
 
@@ -219,12 +218,6 @@ func (pm *QLightClientProtocolManager) removePeer(id string) {
 func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
-	// broadcast transactions
-	pm.wg.Add(1)
-	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
-	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
-	go pm.txBroadcastLoop()
-
 	// Quorum
 	if !pm.raftMode {
 		// broadcast mined blocks
@@ -243,7 +236,6 @@ func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 	pm.wg.Add(2)
 	go pm.chainSync.loop()
 	go pm.txsyncLoop64() // TODO(karalabe): Legacy initial tx echange, drop with eth/64.
-
 }
 
 func (pm *QLightClientProtocolManager) Stop() {
@@ -417,94 +409,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 
-	// Block header query, collect the requested headers and reply
-	case msg.Code == GetBlockHeadersMsg:
-		// Decode the complex header query
-		//var query getBlockHeadersData
-		//if err := msg.Decode(&query); err != nil {
-		//	return errResp(ErrDecode, "%v: %v", msg, err)
-		//}
-		//hashMode := query.Origin.Hash != (common.Hash{})
-		//first := true
-		//maxNonCanonical := uint64(100)
-		//
-		//// Gather headers until the fetch or network limits is reached
-		//var (
-		//	bytes   common.StorageSize
-		//	headers []*types.Header
-		//	unknown bool
-		//)
-		//for !unknown && len(headers) < int(query.Amount) && bytes < softResponseLimit && len(headers) < downloader.MaxHeaderFetch {
-		//	// Retrieve the next header satisfying the query
-		//	var origin *types.Header
-		//	if hashMode {
-		//		if first {
-		//			first = false
-		//			origin = pm.blockchain.GetHeaderByHash(query.Origin.Hash)
-		//			if origin != nil {
-		//				query.Origin.Number = origin.Number.Uint64()
-		//			}
-		//		} else {
-		//			origin = pm.blockchain.GetHeader(query.Origin.Hash, query.Origin.Number)
-		//		}
-		//	} else {
-		//		origin = pm.blockchain.GetHeaderByNumber(query.Origin.Number)
-		//	}
-		//	if origin == nil {
-		//		break
-		//	}
-		//	headers = append(headers, origin)
-		//	bytes += estHeaderRlpSize
-		//
-		//	// Advance to the next header of the query
-		//	switch {
-		//	case hashMode && query.Reverse:
-		//		// Hash based traversal towards the genesis block
-		//		ancestor := query.Skip + 1
-		//		if ancestor == 0 {
-		//			unknown = true
-		//		} else {
-		//			query.Origin.Hash, query.Origin.Number = pm.blockchain.GetAncestor(query.Origin.Hash, query.Origin.Number, ancestor, &maxNonCanonical)
-		//			unknown = (query.Origin.Hash == common.Hash{})
-		//		}
-		//	case hashMode && !query.Reverse:
-		//		// Hash based traversal towards the leaf block
-		//		var (
-		//			current = origin.Number.Uint64()
-		//			next    = current + query.Skip + 1
-		//		)
-		//		if next <= current {
-		//			infos, _ := json.MarshalIndent(p.Peer.Info(), "", "  ")
-		//			p.Log().Warn("GetBlockHeaders skip overflow attack", "current", current, "skip", query.Skip, "next", next, "attacker", infos)
-		//			unknown = true
-		//		} else {
-		//			if header := pm.blockchain.GetHeaderByNumber(next); header != nil {
-		//				nextHash := header.Hash()
-		//				expOldHash, _ := pm.blockchain.GetAncestor(nextHash, next, query.Skip+1, &maxNonCanonical)
-		//				if expOldHash == query.Origin.Hash {
-		//					query.Origin.Hash, query.Origin.Number = nextHash, next
-		//				} else {
-		//					unknown = true
-		//				}
-		//			} else {
-		//				unknown = true
-		//			}
-		//		}
-		//	case query.Reverse:
-		//		// Number based traversal towards the genesis block
-		//		if query.Origin.Number >= query.Skip+1 {
-		//			query.Origin.Number -= query.Skip + 1
-		//		} else {
-		//			unknown = true
-		//		}
-		//
-		//	case !query.Reverse:
-		//		// Number based traversal towards the leaf block
-		//		query.Origin.Number += query.Skip + 1
-		//	}
-		//}
-		//return p.SendBlockHeaders(headers)
-
 	case msg.Code == BlockHeadersMsg:
 		// A batch of headers arrived to one of our previous requests
 		var headers []*types.Header
@@ -558,33 +462,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 
-	case msg.Code == GetBlockBodiesMsg:
-		//// Decode the retrieval message
-		//msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		//if _, err := msgStream.List(); err != nil {
-		//	return err
-		//}
-		//// Gather blocks until the fetch or network limits is reached
-		//var (
-		//	hash   common.Hash
-		//	bytes  int
-		//	bodies []rlp.RawValue
-		//)
-		//for bytes < softResponseLimit && len(bodies) < downloader.MaxBlockFetch {
-		//	// Retrieve the hash of the next block
-		//	if err := msgStream.Decode(&hash); err == rlp.EOL {
-		//		break
-		//	} else if err != nil {
-		//		return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//	}
-		//	// Retrieve the requested block body, stopping if enough was found
-		//	if data := pm.blockchain.GetBodyRLP(hash); len(data) != 0 {
-		//		bodies = append(bodies, data)
-		//		bytes += len(data)
-		//	}
-		//}
-		//return p.SendBlockBodiesRLP(bodies)
-
 	case msg.Code == BlockBodiesMsg:
 		// A batch of block bodies arrived to one of our previous requests
 		var request blockBodiesData
@@ -612,44 +489,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 
-	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
-		//// Decode the retrieval message
-		//msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		//if _, err := msgStream.List(); err != nil {
-		//	return err
-		//}
-		//// Gather state data until the fetch or network limits is reached
-		//var (
-		//	hash  common.Hash
-		//	bytes int
-		//	data  [][]byte
-		//)
-		//for bytes < softResponseLimit && len(data) < downloader.MaxStateFetch {
-		//	// Retrieve the hash of the next state entry
-		//	if err := msgStream.Decode(&hash); err == rlp.EOL {
-		//		break
-		//	} else if err != nil {
-		//		return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//	}
-		//	// Retrieve the requested state entry, stopping if enough was found
-		//	// todo now the code and trienode is mixed in the protocol level,
-		//	// separate these two types.
-		//	if !pm.downloader.SyncBloomContains(hash[:]) {
-		//		// Only lookup the trie node if there's chance that we actually have it
-		//		continue
-		//	}
-		//	entry, err := pm.blockchain.TrieNode(hash)
-		//	if len(entry) == 0 || err != nil {
-		//		// Read the contract code with prefix only to save unnecessary lookups.
-		//		entry, err = pm.blockchain.ContractCodeWithPrefix(hash)
-		//	}
-		//	if err == nil && len(entry) > 0 {
-		//		data = append(data, entry)
-		//		bytes += len(entry)
-		//	}
-		//}
-		//return p.SendNodeData(data)
-
 	case p.version >= eth63 && msg.Code == NodeDataMsg:
 		// A batch of node state data arrived to one of our previous requests
 		var data [][]byte
@@ -660,42 +499,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 		if err := pm.downloader.DeliverNodeData(p.id, data); err != nil {
 			log.Debug("Failed to deliver node state data", "err", err)
 		}
-
-	case p.version >= eth63 && msg.Code == GetReceiptsMsg:
-		//// Decode the retrieval message
-		//msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		//if _, err := msgStream.List(); err != nil {
-		//	return err
-		//}
-		//// Gather state data until the fetch or network limits is reached
-		//var (
-		//	hash     common.Hash
-		//	bytes    int
-		//	receipts []rlp.RawValue
-		//)
-		//for bytes < softResponseLimit && len(receipts) < downloader.MaxReceiptFetch {
-		//	// Retrieve the hash of the next block
-		//	if err := msgStream.Decode(&hash); err == rlp.EOL {
-		//		break
-		//	} else if err != nil {
-		//		return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//	}
-		//	// Retrieve the requested block's receipts, skipping if unknown to us
-		//	results := pm.blockchain.GetReceiptsByHash(hash)
-		//	if results == nil {
-		//		if header := pm.blockchain.GetHeaderByHash(hash); header == nil || header.ReceiptHash != types.EmptyRootHash {
-		//			continue
-		//		}
-		//	}
-		//	// If known, encode and queue for response packet
-		//	if encoded, err := rlp.EncodeToBytes(results); err != nil {
-		//		log.Error("Failed to encode receipt", "err", err)
-		//	} else {
-		//		receipts = append(receipts, encoded)
-		//		bytes += len(encoded)
-		//	}
-		//}
-		//return p.SendReceiptsRLP(receipts)
 
 	case p.version >= eth63 && msg.Code == ReceiptsMsg:
 		// A batch of receipts arrived to one of our previous requests
@@ -743,7 +546,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == NewBlockMsg:
-		log.Info("Received new block data")
 		// Retrieve and decode the propagated block
 		var request newBlockData
 		if err := msg.Decode(&request); err != nil {
@@ -872,106 +674,24 @@ func (pm *QLightClientProtocolManager) Enqueue(id string, block *types.Block) {
 	pm.blockFetcher.Enqueue(id, block)
 }
 
-// BroadcastBlock will either propagate a block to a subset of its peers, or
-// will only announce its availability (depending what's requested).
-func (pm *QLightClientProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
-	// the qlight client does not broadcast block notifications
-
-	//hash := block.Hash()
-	//peers := pm.peers.PeersWithoutBlock(hash)
-	//
-	//// If propagation is requested, send to a subset of the peer
-	//if propagate {
-	//	// Calculate the TD of the block (it's not imported yet, so block.Td is not valid)
-	//	var td *big.Int
-	//	if parent := pm.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1); parent != nil {
-	//		td = new(big.Int).Add(block.Difficulty(), pm.blockchain.GetTd(block.ParentHash(), block.NumberU64()-1))
-	//	} else {
-	//		log.Error("Propagating dangling block", "number", block.Number(), "hash", hash)
-	//		return
-	//	}
-	//	// Send the block to a subset of our peers
-	//	transfer := peers[:int(math.Sqrt(float64(len(peers))))]
-	//	for _, peer := range transfer {
-	//		peer.AsyncSendNewBlock(block, td)
-	//	}
-	//	log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
-	//	return
-	//}
-	//// Otherwise if the block is indeed in out own chain, announce it
-	//if pm.blockchain.HasBlock(hash, block.NumberU64()) {
-	//	for _, peer := range peers {
-	//		peer.AsyncSendNewBlockHash(block)
-	//	}
-	//	log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
-	//}
+// BroadcastBlock is a no-op for QLightClientProtocolManager
+func (pm *QLightClientProtocolManager) BroadcastBlock(_ *types.Block, _ bool) {
+	// do nothing
 }
 
-// BroadcastTransactions will propagate a batch of transactions to all peers which are not known to
-// already have the given transaction.
-func (pm *QLightClientProtocolManager) BroadcastTransactions(txs types.Transactions, propagate bool) {
-	var (
-		txset = make(map[*peer][]common.Hash)
-		annos = make(map[*peer][]common.Hash)
-	)
-	// Broadcast transactions to a batch of peers not knowing about it
-	// NOTE: Raft-based consensus currently assumes that geth broadcasts
-	// transactions to all peers in the network. A previous comment here
-	// indicated that this logic might change in the future to only send to a
-	// subset of peers. If this change occurs upstream, a merge conflict should
-	// arise here, and we should add logic to send to *all* peers in raft mode.
-
-	if propagate {
-		for _, tx := range txs {
-			peers := pm.peers.PeersWithoutTx(tx.Hash())
-
-			// Send the block to a subset of our peers
-			transfer := peers[:int(math.Sqrt(float64(len(peers))))]
-			for _, peer := range transfer {
-				txset[peer] = append(txset[peer], tx.Hash())
-			}
-			log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
-		}
-		for peer, hashes := range txset {
-			peer.AsyncSendTransactions(hashes)
-		}
-		return
-	}
-	// Otherwise only broadcast the announcement to peers
-	for _, tx := range txs {
-		peers := pm.peers.PeersWithoutTx(tx.Hash())
-		for _, peer := range peers {
-			annos[peer] = append(annos[peer], tx.Hash())
-		}
-	}
-	for peer, hashes := range annos {
-		if peer.version >= eth65 {
-			peer.AsyncSendPooledTransactionHashes(hashes)
-		} else {
-			peer.AsyncSendTransactions(hashes)
-		}
-	}
+// BroadcastTransactions is a no-op for QLightClientProtocolManager
+func (pm *QLightClientProtocolManager) BroadcastTransactions(_ types.Transactions, _ bool) {
+	// do nothing
 }
 
-// txBroadcastLoop announces new transactions to connected peers.
+// minedBroadcastLoop is a no-op for QLightClientProtocolManager
+func (pm *QLightClientProtocolManager) minedBroadcastLoop() {
+	// do nothing
+}
+
+// txBroadcastLoop is a no-op for QLightClientProtocolManager
 func (pm *QLightClientProtocolManager) txBroadcastLoop() {
-	defer pm.wg.Done()
-
-	for {
-		select {
-		case event := <-pm.txsCh:
-			// For testing purpose only, disable propagation
-			if pm.broadcastTxAnnouncesOnly {
-				pm.BroadcastTransactions(event.Txs, false)
-				continue
-			}
-			pm.BroadcastTransactions(event.Txs, true)  // First propagate transactions to peers
-			pm.BroadcastTransactions(event.Txs, false) // Only then announce to the rest
-
-		case <-pm.txsSub.Err():
-			return
-		}
-	}
+	// do nothing
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
