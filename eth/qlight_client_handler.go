@@ -378,7 +378,7 @@ func (pm *QLightClientProtocolManager) handle(p *peer, protoName string) error {
 			}
 		}()
 	}
-	// If we have any explicit authorizationList block hashes, request them
+	// If we have any explicit authorized block hashes, request them
 	for number := range pm.authorizationList {
 		if err := p.RequestHeadersByNumber(number, 1, 0, false); err != nil {
 			return err
@@ -540,13 +540,13 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 				}
 				return nil
 			}
-			// Otherwise if it's a whitelisted block, validate against the set
+			// Otherwise if it's a authorized block, validate against the set
 			if want, ok := pm.authorizationList[headers[0].Number.Uint64()]; ok {
 				if hash := headers[0].Hash(); want != hash {
-					p.Log().Info("Whitelist mismatch, dropping peer", "number", headers[0].Number.Uint64(), "hash", hash, "want", want)
+					p.Log().Info("AuthorizationList mismatch, dropping peer", "number", headers[0].Number.Uint64(), "hash", hash, "want", want)
 					return errors.New("authorizationList block mismatch")
 				}
-				p.Log().Debug("Whitelist block verified", "number", headers[0].Number.Uint64(), "hash", want)
+				p.Log().Debug("AuthorizationList block verified", "number", headers[0].Number.Uint64(), "hash", want)
 			}
 			// Irrelevant of the fork checks, send the header to the fetcher just in case
 			headers = pm.blockFetcher.FilterHeaders(p.id, headers, time.Now())
