@@ -19,7 +19,6 @@ package eth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -34,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -62,10 +60,8 @@ type QLightServerProtocolManager struct {
 	chaindb    ethdb.Database
 	maxPeers   int
 
-	downloader   *downloader.Downloader
-	blockFetcher *fetcher.BlockFetcher
-	txFetcher    *fetcher.TxFetcher
-	peers        *peerSet
+	//downloader   *downloader.Downloader // TODO(cjh) can we remove downloader given that we won't be downloading from the client-side light node?
+	peers *peerSet
 
 	eventMux      *event.TypeMux
 	txsCh         chan core.NewTxsEvent
@@ -80,9 +76,8 @@ type QLightServerProtocolManager struct {
 
 	closeCh chan struct{}
 
-	chainSync *chainSyncer
-	wg        sync.WaitGroup
-	peerWG    sync.WaitGroup
+	wg     sync.WaitGroup
+	peerWG sync.WaitGroup
 
 	// Quorum
 	raftMode bool
@@ -110,15 +105,6 @@ func NewQLightServerProtocolManager(config *params.ChainConfig, checkpoint *para
 		raftMode:          raftMode,
 		engine:            engine,
 	}
-
-	fetchTx := func(peer string, hashes []common.Hash) error {
-		p := manager.peers.Peer(peer)
-		if p == nil {
-			return errors.New("unknown peer")
-		}
-		return p.RequestTxs(hashes)
-	}
-	manager.txFetcher = fetcher.NewTxFetcher(txpool.Has, txpool.AddRemotes, fetchTx)
 
 	return manager, nil
 }
@@ -152,10 +138,6 @@ func (pm *QLightServerProtocolManager) removePeer(id string) {
 	}
 	log.Debug("Removing Ethereum peer", "peer", id)
 
-	log.Info("QLight removePeer - before txFetcher.drop", "id", id)
-	pm.txFetcher.Drop(id)
-	log.Info("QLight removePeer - after txFetcher.drop", "id", id)
-
 	if err := pm.peers.Unregister(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
 	}
@@ -175,8 +157,6 @@ func (pm *QLightServerProtocolManager) Start(maxPeers int) {
 	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
-	// qlight - manually start the tx fetcher
-	pm.txFetcher.Start()
 
 	// broadcast mined blocks
 	pm.wg.Add(1)
@@ -189,12 +169,7 @@ func (pm *QLightServerProtocolManager) Stop() {
 	log.Info("QLight protocol stopping")
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 	log.Info("QLight protocol after txsSub.Unsubscribe() ")
-	// qlight - manually stop the tx fetcher
-	pm.txFetcher.Stop()
-	log.Info("QLight protocol after txFetcher.Stop() ")
 
-	// Quit chainSync and txsync64.
-	// After this is done, no new peers will be accepted.
 	close(pm.closeCh)
 	pm.wg.Wait()
 
@@ -216,9 +191,6 @@ func (pm *QLightServerProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgRe
 
 // Quorum - added protoName argument
 func (pm *QLightServerProtocolManager) runPeer(p *peer, protoName string) error {
-	//if !pm.chainSync.handlePeerEvent(p) {
-	//	return p2p.DiscQuitting
-	//}
 	pm.peerWG.Add(1)
 	defer pm.peerWG.Done()
 	return pm.handle(p, protoName)
@@ -304,7 +276,6 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
-
 	// TODO Qlight - see what to do about this
 	//pm.syncTransactions(p)
 
@@ -430,59 +401,6 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		}
 		return p.SendBlockHeaders(headers)
 
-	case msg.Code == BlockHeadersMsg:
-		//// A batch of headers arrived to one of our previous requests
-		//var headers []*types.Header
-		//if err := msg.Decode(&headers); err != nil {
-		//	return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//}
-		//// If no headers were received, but we're expencting a checkpoint header, consider it that
-		//if len(headers) == 0 && p.syncDrop != nil {
-		//	// Stop the timer either way, decide later to drop or not
-		//	p.syncDrop.Stop()
-		//	p.syncDrop = nil
-		//
-		//	// If we're doing a fast sync, we must enforce the checkpoint block to avoid
-		//	// eclipse attacks. Unsynced nodes are welcome to connect after we're done
-		//	// joining the network
-		//	if atomic.LoadUint32(&pm.fastSync) == 1 {
-		//		p.Log().Warn("Dropping unsynced node during fast sync", "addr", p.RemoteAddr(), "type", p.Name())
-		//		return errors.New("unsynced node cannot serve fast sync")
-		//	}
-		//}
-		//// Filter out any explicitly requested headers, deliver the rest to the downloader
-		//filter := len(headers) == 1
-		//if filter {
-		//	// If it's a potential sync progress check, validate the content and advertised chain weight
-		//	if p.syncDrop != nil && headers[0].Number.Uint64() == pm.checkpointNumber {
-		//		// Disable the sync drop timer
-		//		p.syncDrop.Stop()
-		//		p.syncDrop = nil
-		//
-		//		// Validate the header and either drop the peer or continue
-		//		if headers[0].Hash() != pm.checkpointHash {
-		//			return errors.New("checkpoint hash mismatch")
-		//		}
-		//		return nil
-		//	}
-		//	// Otherwise if it's a whitelisted block, validate against the set
-		//	if want, ok := pm.authorizationList[headers[0].Number.Uint64()]; ok {
-		//		if hash := headers[0].Hash(); want != hash {
-		//			p.Log().Info("Whitelist mismatch, dropping peer", "number", headers[0].Number.Uint64(), "hash", hash, "want", want)
-		//			return errors.New("authorizationList block mismatch")
-		//		}
-		//		p.Log().Debug("Whitelist block verified", "number", headers[0].Number.Uint64(), "hash", want)
-		//	}
-		//	// Irrelevant of the fork checks, send the header to the fetcher just in case
-		//	headers = pm.blockFetcher.FilterHeaders(p.id, headers, time.Now())
-		//}
-		//if len(headers) > 0 || !filter {
-		//	err := pm.downloader.DeliverHeaders(p.id, headers)
-		//	if err != nil {
-		//		log.Debug("Failed to deliver headers", "err", err)
-		//	}
-		//}
-
 	case msg.Code == GetBlockBodiesMsg:
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
@@ -528,32 +446,6 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		return p.SendBlockBodiesRLP(bodies)
-
-	case msg.Code == BlockBodiesMsg:
-		//// A batch of block bodies arrived to one of our previous requests
-		//var request blockBodiesData
-		//if err := msg.Decode(&request); err != nil {
-		//	return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//}
-		//// Deliver them all to the downloader for queuing
-		//transactions := make([][]*types.Transaction, len(request))
-		//uncles := make([][]*types.Header, len(request))
-		//
-		//for i, body := range request {
-		//	transactions[i] = body.Transactions
-		//	uncles[i] = body.Uncles
-		//}
-		//// Filter out any explicitly requested bodies, deliver the rest to the downloader
-		//filter := len(transactions) > 0 || len(uncles) > 0
-		//if filter {
-		//	transactions, uncles = pm.blockFetcher.FilterBodies(p.id, transactions, uncles, time.Now())
-		//}
-		//if len(transactions) > 0 || len(uncles) > 0 || !filter {
-		//	err := pm.downloader.DeliverBodies(p.id, transactions, uncles)
-		//	if err != nil {
-		//		log.Debug("Failed to deliver bodies", "err", err)
-		//	}
-		//}
 
 	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
 		// Decode the retrieval message
@@ -639,73 +531,6 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		return p.SendReceiptsRLP(receipts)
-
-	case p.version >= eth63 && msg.Code == ReceiptsMsg:
-		// A batch of receipts arrived to one of our previous requests
-		//var receipts [][]*types.Receipt
-		//if err := msg.Decode(&receipts); err != nil {
-		//	return errResp(ErrDecode, "msg %v: %v", msg, err)
-		//}
-		//// Deliver all to the downloader
-		//if err := pm.downloader.DeliverReceipts(p.id, receipts); err != nil {
-		//	log.Debug("Failed to deliver receipts", "err", err)
-		//}
-
-	case msg.Code == NewBlockHashesMsg:
-		//var announces newBlockHashesData
-		//if err := msg.Decode(&announces); err != nil {
-		//	return errResp(ErrDecode, "%v: %v", msg, err)
-		//}
-		//// Mark the hashes as present at the remote node
-		//for _, block := range announces {
-		//	p.MarkBlock(block.Hash)
-		//}
-		//// Schedule all the unknown hashes for retrieval
-		//unknown := make(newBlockHashesData, 0, len(announces))
-		//for _, block := range announces {
-		//	if !pm.blockchain.HasBlock(block.Hash, block.Number) {
-		//		unknown = append(unknown, block)
-		//	}
-		//}
-		//for _, block := range unknown {
-		//	pm.blockFetcher.Notify(p.id, block.Hash, block.Number, time.Now(), p.RequestOneHeader, p.RequestBodies)
-		//}
-
-	case msg.Code == NewBlockMsg:
-		// Retrieve and decode the propagated block
-		//var request newBlockData
-		//if err := msg.Decode(&request); err != nil {
-		//	return errResp(ErrDecode, "%v: %v", msg, err)
-		//}
-		//if hash := types.CalcUncleHash(request.Block.Uncles()); hash != request.Block.UncleHash() {
-		//	log.Warn("Propagated block has invalid uncles", "have", hash, "exp", request.Block.UncleHash())
-		//	break // TODO(karalabe): return error eventually, but wait a few releases
-		//}
-		//if hash := types.DeriveSha(request.Block.Transactions(), trie.NewStackTrie(nil)); hash != request.Block.TxHash() {
-		//	log.Warn("Propagated block has invalid body", "have", hash, "exp", request.Block.TxHash())
-		//	break // TODO(karalabe): return error eventually, but wait a few releases
-		//}
-		//if err := request.sanityCheck(); err != nil {
-		//	return err
-		//}
-		//request.Block.ReceivedAt = msg.ReceivedAt
-		//request.Block.ReceivedFrom = p
-		//
-		//// Mark the peer as owning the block and schedule it for import
-		//p.MarkBlock(request.Block.Hash())
-		//pm.blockFetcher.Enqueue(p.id, request.Block)
-		//
-		//// Assuming the block is importable by the peer, but possibly not yet done so,
-		//// calculate the head hash and TD that the peer truly must have.
-		//var (
-		//	trueHead = request.Block.ParentHash()
-		//	trueTD   = new(big.Int).Sub(request.TD, request.Block.Difficulty())
-		//)
-		//// Update the peer's total difficulty if better than the previous
-		//if _, td := p.Head(); trueTD.Cmp(td) > 0 {
-		//	p.SetHead(trueHead, trueTD)
-		//	pm.chainSync.handlePeerEvent(p)
-		//}
 
 	case msg.Code == NewPooledTransactionHashesMsg && p.version >= eth65:
 		// New transaction announcement arrived, make sure we have
