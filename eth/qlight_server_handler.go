@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -60,7 +59,6 @@ type QLightServerProtocolManager struct {
 	chaindb    ethdb.Database
 	maxPeers   int
 
-	//downloader   *downloader.Downloader // TODO(cjh) can we remove downloader given that we won't be downloading from the client-side light node?
 	peers *peerSet
 
 	eventMux      *event.TypeMux
@@ -466,13 +464,18 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			} else if err != nil {
 				return errResp(ErrDecode, "msg %v: %v", msg, err)
 			}
+
 			// Retrieve the requested state entry, stopping if enough was found
+
+			// TODO qlight - without an active downloader we can't do this precheck. not sure what impact this will have on performance.
+			// this was uncommented and didn't cause nil pointers in the initial testing so is this handler ever actually being invoked?
+
 			// todo now the code and trienode is mixed in the protocol level,
 			// separate these two types.
-			if !pm.downloader.SyncBloomContains(hash[:]) {
-				// Only lookup the trie node if there's chance that we actually have it
-				continue
-			}
+			//if !pm.downloader.SyncBloomContains(hash[:]) {
+			//	// Only lookup the trie node if there's chance that we actually have it
+			//	continue
+			//}
 			entry, err := pm.blockchain.TrieNode(hash)
 			if len(entry) == 0 || err != nil {
 				// Read the contract code with prefix only to save unnecessary lookups.
@@ -484,17 +487,6 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		return p.SendNodeData(data)
-
-	case p.version >= eth63 && msg.Code == NodeDataMsg:
-		// A batch of node state data arrived to one of our previous requests
-		var data [][]byte
-		if err := msg.Decode(&data); err != nil {
-			return errResp(ErrDecode, "msg %v: %v", msg, err)
-		}
-		// Deliver all to the downloader
-		if err := pm.downloader.DeliverNodeData(p.id, data); err != nil {
-			log.Debug("Failed to deliver node state data", "err", err)
-		}
 
 	case p.version >= eth63 && msg.Code == GetReceiptsMsg:
 		// Decode the retrieval message
@@ -533,20 +525,24 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		return p.SendReceiptsRLP(receipts)
 
 	case msg.Code == NewPooledTransactionHashesMsg && p.version >= eth65:
-		// New transaction announcement arrived, make sure we have
-		// a valid and fresh chain to handle them
-		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
-			break
-		}
-		var hashes []common.Hash
-		if err := msg.Decode(&hashes); err != nil {
-			return errResp(ErrDecode, "msg %v: %v", msg, err)
-		}
-		// Schedule all the unknown hashes for retrieval
-		for _, hash := range hashes {
-			p.MarkTransaction(hash)
-		}
-		pm.txFetcher.Notify(p.id, hashes)
+		// TODO(cjh) qlight - don't think we need these msgs handled.
+		// the qlight server shouldn't be receiving any txs from the qlight client that it doesn't already know about
+		// need to check if the qlight client is still sending these msgs before removing the switch case
+
+		//// New transaction announcement arrived, make sure we have
+		//// a valid and fresh chain to handle them
+		//if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+		//	break
+		//}
+		//var hashes []common.Hash
+		//if err := msg.Decode(&hashes); err != nil {
+		//	return errResp(ErrDecode, "msg %v: %v", msg, err)
+		//}
+		//// Schedule all the unknown hashes for retrieval
+		//for _, hash := range hashes {
+		//	p.MarkTransaction(hash)
+		//}
+		//pm.txFetcher.Notify(p.id, hashes)
 
 	case msg.Code == GetPooledTransactionsMsg && p.version >= eth65:
 		// Decode the retrieval message
@@ -585,23 +581,27 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		return p.SendPooledTransactionsRLP(hashes, txs)
 
 	case msg.Code == TransactionMsg || (msg.Code == PooledTransactionsMsg && p.version >= eth65):
-		// Transactions arrived, make sure we have a valid and fresh chain to handle them
-		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
-			break
-		}
-		// Transactions can be processed, parse all of them and deliver to the pool
-		var txs []*types.Transaction
-		if err := msg.Decode(&txs); err != nil {
-			return errResp(ErrDecode, "msg %v: %v", msg, err)
-		}
-		for i, tx := range txs {
-			// Validate and mark the remote transaction
-			if tx == nil {
-				return errResp(ErrDecode, "transaction %d is nil", i)
-			}
-			p.MarkTransaction(tx.Hash())
-		}
-		pm.txFetcher.Enqueue(p.id, txs, msg.Code == PooledTransactionsMsg)
+		// TODO(cjh) qlight - don't think we need these msgs handled.
+		// the qlight server shouldn't be receiving any txs from the qlight client that it doesn't already know about
+		// need to check if the qlight client is still sending these msgs before removing the switch case
+
+		//// Transactions arrived, make sure we have a valid and fresh chain to handle them
+		//if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+		//	break
+		//}
+		//// Transactions can be processed, parse all of them and deliver to the pool
+		//var txs []*types.Transaction
+		//if err := msg.Decode(&txs); err != nil {
+		//	return errResp(ErrDecode, "msg %v: %v", msg, err)
+		//}
+		//for i, tx := range txs {
+		//	// Validate and mark the remote transaction
+		//	if tx == nil {
+		//		return errResp(ErrDecode, "transaction %d is nil", i)
+		//	}
+		//	p.MarkTransaction(tx.Hash())
+		//}
+		//pm.txFetcher.Enqueue(p.id, txs, msg.Code == PooledTransactionsMsg)
 
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
