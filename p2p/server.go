@@ -979,11 +979,12 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 
 	// If raft is running, check if the dialing node is in the raft cluster
 	// Node doesn't belong to raft cluster is not allowed to join the p2p network
-	if srv.checkPeerInRaft != nil && !srv.checkPeerInRaft(c.node) {
-		node := c.node.ID().String()
-		log.Trace("incoming connection peer is not in the raft cluster", "enode.id", node)
-		return newPeerError(errNotInRaftCluster, "id=%s…%s", node[:4], node[len(node)-4:])
-	}
+	// TODO QLight - see how to change this rule about allowed raft peers when running as qlight server
+	//if srv.checkPeerInRaft != nil && !srv.checkPeerInRaft(c.node) {
+	//	node := c.node.ID().String()
+	//	log.Trace("incoming connection peer is not in the raft cluster", "enode.id", node)
+	//	return newPeerError(errNotInRaftCluster, "id=%s…%s", node[:4], node[len(node)-4:])
+	//}
 
 	//START - QUORUM Permissioning
 	currentNode := srv.NodeInfo().ID
