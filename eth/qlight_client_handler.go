@@ -218,17 +218,10 @@ func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// Quorum
-	if !pm.raftMode {
-		// broadcast mined blocks
-		pm.wg.Add(1)
-		pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-		go pm.minedBroadcastLoop()
-	} else {
-		// We set this immediately in raft mode to make sure the miner never drops
-		// incoming txes. Raft mode doesn't use the fetcher or downloader, and so
-		// this would never be set otherwise.
-		atomic.StoreUint32(&pm.acceptTxs, 1)
-	}
+	// We set this immediately to make sure the qlight client never drops
+	// incoming txes. Qlight client doesn't use the fetcher or downloader, and so
+	// this would never be set otherwise.
+	atomic.StoreUint32(&pm.acceptTxs, 1)
 	// /Quorum
 
 	// start sync handlers
@@ -238,11 +231,6 @@ func (pm *QLightClientProtocolManager) Start(maxPeers int) {
 }
 
 func (pm *QLightClientProtocolManager) Stop() {
-	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
-	if !pm.raftMode {
-		pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
-	}
-
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
 	close(pm.quitSync)
