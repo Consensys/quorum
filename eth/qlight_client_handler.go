@@ -40,7 +40,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/qlight"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -489,17 +488,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 
-	case p.version >= eth63 && msg.Code == NodeDataMsg:
-		// A batch of node state data arrived to one of our previous requests
-		var data [][]byte
-		if err := msg.Decode(&data); err != nil {
-			return errResp(ErrDecode, "msg %v: %v", msg, err)
-		}
-		// Deliver all to the downloader
-		if err := pm.downloader.DeliverNodeData(p.id, data); err != nil {
-			log.Debug("Failed to deliver node state data", "err", err)
-		}
-
 	case p.version >= eth63 && msg.Code == ReceiptsMsg:
 		// A batch of receipts arrived to one of our previous requests
 		var receipts [][]*types.Receipt
@@ -598,42 +586,6 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 			p.MarkTransaction(hash)
 		}
 		pm.txFetcher.Notify(p.id, hashes)
-
-	case msg.Code == GetPooledTransactionsMsg && p.version >= eth65:
-		// Decode the retrieval message
-		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		if _, err := msgStream.List(); err != nil {
-			return err
-		}
-		// Gather transactions until the fetch or network limits is reached
-		var (
-			hash   common.Hash
-			bytes  int
-			hashes []common.Hash
-			txs    []rlp.RawValue
-		)
-		for bytes < softResponseLimit {
-			// Retrieve the hash of the next block
-			if err := msgStream.Decode(&hash); err == rlp.EOL {
-				break
-			} else if err != nil {
-				return errResp(ErrDecode, "msg %v: %v", msg, err)
-			}
-			// Retrieve the requested transaction, skipping if unknown to us
-			tx := pm.txpool.Get(hash)
-			if tx == nil {
-				continue
-			}
-			// If known, encode and queue for response packet
-			if encoded, err := rlp.EncodeToBytes(tx); err != nil {
-				log.Error("Failed to encode transaction", "err", err)
-			} else {
-				hashes = append(hashes, hash)
-				txs = append(txs, encoded)
-				bytes += len(encoded)
-			}
-		}
-		return p.SendPooledTransactionsRLP(hashes, txs)
 
 	case msg.Code == TransactionMsg || (msg.Code == PooledTransactionsMsg && p.version >= eth65):
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them

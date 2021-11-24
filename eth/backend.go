@@ -286,7 +286,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientServerNode, clientCache); err != nil {
 			return nil, err
 		}
-		eth.protocolManager = &eth.qlClientProtocolManager.ProtocolManager
+		eth.protocolManager = eth.qlClientProtocolManager.ProtocolManager
 		eth.blockchain.SetPrivateStateRootHashValidator(clientCache)
 	} else {
 		if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
