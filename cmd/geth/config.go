@@ -193,7 +193,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name), backend.ChainConfig().ChainID)
 	}
 
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !ctx.GlobalBool(utils.QuorumLightClientFlag.Name) {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
