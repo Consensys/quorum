@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -138,6 +139,15 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
 		if err := loadConfig(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
+		}
+	}
+	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
+		cfg.Node.QP2P = &p2p.Config{
+			ListenAddr:  ":30305",
+			MaxPeers:    10,
+			NAT:         nil,
+			NoDial:      true,
+			NoDiscovery: true,
 		}
 	}
 	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {

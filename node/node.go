@@ -152,6 +152,7 @@ func New(conf *Config) (*Node, error) {
 		node.qserver.Config.Name = "qgeth"
 		node.qserver.Config.Logger = node.log
 		node.qserver.Config.NodeDatabase = node.config.QNodeDB()
+		node.qserver.Config.EnableNodePermission = false
 		node.qserver.Config.DataDir = node.config.DataDir
 	}
 
