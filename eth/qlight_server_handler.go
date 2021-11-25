@@ -445,41 +445,8 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		}
 		return p.SendBlockBodiesRLP(bodies)
 
-	case p.version >= eth63 && msg.Code == GetReceiptsMsg:
-		// Decode the retrieval message
-		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		if _, err := msgStream.List(); err != nil {
-			return err
-		}
-		// Gather state data until the fetch or network limits is reached
-		var (
-			hash     common.Hash
-			bytes    int
-			receipts []rlp.RawValue
-		)
-		for bytes < softResponseLimit && len(receipts) < downloader.MaxReceiptFetch {
-			// Retrieve the hash of the next block
-			if err := msgStream.Decode(&hash); err == rlp.EOL {
-				break
-			} else if err != nil {
-				return errResp(ErrDecode, "msg %v: %v", msg, err)
-			}
-			// Retrieve the requested block's receipts, skipping if unknown to us
-			results := pm.blockchain.GetReceiptsByHash(hash)
-			if results == nil {
-				if header := pm.blockchain.GetHeaderByHash(hash); header == nil || header.ReceiptHash != types.EmptyRootHash {
-					continue
-				}
-			}
-			// If known, encode and queue for response packet
-			if encoded, err := rlp.EncodeToBytes(results); err != nil {
-				log.Error("Failed to encode receipt", "err", err)
-			} else {
-				receipts = append(receipts, encoded)
-				bytes += len(encoded)
-			}
-		}
-		return p.SendReceiptsRLP(receipts)
+	case msg.Code == NewBlockHashesMsg:
+		log.Info("Ignoring NewBlockHashes message from qlight client")
 
 	case msg.Code == GetPooledTransactionsMsg && p.version >= eth65:
 		// Decode the retrieval message
