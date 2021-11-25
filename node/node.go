@@ -580,6 +580,13 @@ func (n *Node) Server() *p2p.Server {
 	return n.server
 }
 
+func (n *Node) QServer() *p2p.Server {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.qserver
+}
+
 // DataDir retrieves the current datadir used by the protocol stack.
 // Deprecated: No files should be stored in this directory, use InstanceDir instead.
 func (n *Node) DataDir() string {

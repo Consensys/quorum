@@ -980,6 +980,18 @@ var (
 		Name:  "qlight.client.serverNodeRPC",
 		Usage: "The RPC URL of the target server node",
 	}
+	QuorumLightTLSFlag = cli.BoolFlag{
+		Name:  "qlight.tls",
+		Usage: "If enabled, the quorum light client P2P protocol will use tls",
+	}
+	QuorumLightTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.tls.cert",
+		Usage: "The certificate file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.tls.key",
+		Usage: "The key file to use for the qlight P2P connection",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating

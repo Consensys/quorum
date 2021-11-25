@@ -18,9 +18,12 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"math/big"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"unicode"
@@ -168,8 +171,63 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
+	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
+		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
+		stack.QServer().SetNewTransportFunc(p2p.NewQlightServerTransport)
+	}
+	if ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name) {
+		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))
+		stack.Server().SetNewTransportFunc(p2p.NewQlightClientTransport)
+	}
 
 	return stack, cfg
+}
+
+func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no client certificate has been provided")
+	}
+	certFileName := ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name)
+	CA_Pool := x509.NewCertPool()
+	cert, err := ioutil.ReadFile(certFileName)
+	if err != nil {
+		utils.Fatalf("Unable to load the specified certificate: %s", certFileName)
+	}
+	CA_Pool.AppendCertsFromPEM(cert)
+	serverUrl := ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)
+	node := enode.MustParse(serverUrl)
+	return &tls.Config{
+		RootCAs:    CA_Pool,
+		ServerName: node.IP().String(),
+	}
+}
+
+func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no server certificate has been provided")
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSKeyFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no server key has been provided")
+	}
+
+	certFileName := ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name)
+	keyFileName := ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name)
+
+	cert, err := tls.LoadX509KeyPair(certFileName, keyFileName)
+
+	if err != nil {
+		utils.Fatalf("QLight tls - unable to read server certificate key pair: %v", err)
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.

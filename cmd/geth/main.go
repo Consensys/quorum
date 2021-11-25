@@ -196,6 +196,9 @@ var (
 		utils.QuorumLightClientPSIFlag,
 		utils.QuorumLightClientServerNodeFlag,
 		utils.QuorumLightClientServerNodeRPCFlag,
+		utils.QuorumLightTLSFlag,
+		utils.QuorumLightTLSCertFlag,
+		utils.QuorumLightTLSKeyFlag,
 		// End-Quorum
 	}
 
