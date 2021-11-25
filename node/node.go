@@ -50,6 +50,7 @@ type Node struct {
 	dirLock       fileutil.Releaser // prevents concurrent use of instance directory
 	stop          chan struct{}     // Channel to wait for termination notifications
 	server        *p2p.Server       // Currently running P2P networking layer
+	qserver       *p2p.Server       // Currently running P2P networking layer
 	startStopLock sync.Mutex        // Start/Stop are protected by an additional lock
 	state         int               // Tracks state of node lifecycle
 
@@ -113,6 +114,9 @@ func New(conf *Config) (*Node, error) {
 		databases:     make(map[*closeTrackingDB]struct{}),
 		pluginManager: plugin.NewEmptyPluginManager(),
 	}
+	if conf.QP2P != nil {
+		node.qserver = &p2p.Server{Config: *conf.QP2P}
+	}
 
 	// Register built-in APIs.
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
@@ -142,6 +146,14 @@ func New(conf *Config) (*Node, error) {
 	}
 	if node.server.Config.NodeDatabase == "" {
 		node.server.Config.NodeDatabase = node.config.NodeDB()
+	}
+	if node.qserver != nil {
+		node.qserver.Config.PrivateKey = node.config.NodeKey()
+		node.qserver.Config.Name = "qgeth"
+		node.qserver.Config.Logger = node.log
+		node.qserver.Config.NodeDatabase = node.config.QNodeDB()
+		node.qserver.Config.EnableNodePermission = false
+		node.qserver.Config.DataDir = node.config.DataDir
 	}
 
 	// Check HTTP/WS prefixes are valid.
@@ -286,6 +298,11 @@ func (n *Node) openEndpoints() error {
 	if err := n.server.Start(); err != nil {
 		return convertFileLockError(err)
 	}
+	if n.qserver != nil {
+		if err := n.qserver.Start(); err != nil {
+			return convertFileLockError(err)
+		}
+	}
 	// start RPC endpoints
 	err := n.startRPC()
 	if err != nil {
@@ -325,6 +342,9 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop p2p networking.
 	n.server.Stop()
+	if n.qserver != nil {
+		n.qserver.Stop()
+	}
 
 	if len(failure.Services) > 0 {
 		return failure
@@ -481,6 +501,16 @@ func (n *Node) RegisterProtocols(protocols []p2p.Protocol) {
 		panic("can't register protocols on running/stopped node")
 	}
 	n.server.Protocols = append(n.server.Protocols, protocols...)
+}
+
+func (n *Node) RegisterQProtocols(protocols []p2p.Protocol) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.state != initializingState {
+		panic("can't register protocols on running/stopped node")
+	}
+	n.qserver.Protocols = append(n.qserver.Protocols, protocols...)
 }
 
 // RegisterAPIs registers the APIs a service provides on the node.

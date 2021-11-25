@@ -256,6 +256,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.PrivateCacheTrieJournalFlag,
 			utils.QuorumEnablePrivacyMarker,
 			utils.QuorumLightServerFlag,
+			utils.QuorumLightServerListenPortFlag,
 			utils.QuorumLightClientFlag,
 			utils.QuorumLightClientPSIFlag,
 			utils.QuorumLightClientServerNodeFlag,

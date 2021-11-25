@@ -959,6 +959,11 @@ var (
 		Name:  "qlight.server",
 		Usage: "If enabled, the quorum light P2P protocol is started in addition to the other P2P protocols",
 	}
+	QuorumLightServerListenPortFlag = cli.IntFlag{
+		Name:  "qlight.port",
+		Usage: "QLight Network listening port",
+		Value: 30305,
+	}
 	QuorumLightClientFlag = cli.BoolFlag{
 		Name:  "qlight.client",
 		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
@@ -1415,9 +1420,29 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 }
 
+func SetQP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+	setNodeKey(ctx, cfg)
+	//setNAT(ctx, cfg)
+	cfg.NAT = nil
+	if ctx.GlobalIsSet(QuorumLightServerListenPortFlag.Name) {
+		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerListenPortFlag.Name))
+	}
+	//setBootstrapNodes(ctx, cfg)
+	//setBootstrapNodesV5(ctx, cfg)
+
+	cfg.MaxPeers = 10
+	cfg.MaxPendingPeers = 10
+	cfg.NoDiscovery = true
+	cfg.DiscoveryV5 = false
+	cfg.NoDial = true
+}
+
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
+	if cfg.QP2P != nil {
+		SetQP2PConfig(ctx, cfg.QP2P)
+	}
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)
 	setGraphQL(ctx, cfg)

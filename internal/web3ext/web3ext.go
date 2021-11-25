@@ -224,8 +224,16 @@ web3._extend({
 			getter: 'admin_nodeInfo'
 		}),
 		new web3._extend.Property({
+			name: 'qnodeInfo',
+			getter: 'admin_qnodeInfo'
+		}),
+		new web3._extend.Property({
 			name: 'peers',
 			getter: 'admin_peers'
+		}),
+		new web3._extend.Property({
+			name: 'qpeers',
+			getter: 'admin_qpeers'
 		}),
 		new web3._extend.Property({
 			name: 'datadir',

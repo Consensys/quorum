@@ -343,6 +343,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// Register the backend on the node
 	stack.RegisterAPIs(eth.APIs())
 	stack.RegisterProtocols(eth.Protocols())
+	if eth.config.QuorumLightServer {
+		stack.RegisterQProtocols(eth.QProtocols())
+	}
 	stack.RegisterLifecycle(eth)
 	// Check for unclean shutdown
 	if uncleanShutdowns, discards, err := rawdb.PushUncleanShutdownMarker(chainDb); err != nil {
@@ -630,16 +633,6 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 
-	if s.config.QuorumLightServer {
-		qls := s.qlServerProtocolManager.makeProtocol(eth65)
-		qls.Name = "qlight"
-		i := len(protos)
-		protos = append(protos, qls)
-		protos[i].Attributes = []enr.Entry{s.currentEthEntry()}
-		// TODO - understand DialCandidates and see if we should only add the light clients here
-		protos[i].DialCandidates = s.dialCandidates
-	}
-
 	// /Quorum
 	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
 	if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
@@ -647,6 +640,17 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 		protos = append(protos, quorumProtos...)
 	}
 	// /end Quorum
+
+	return protos
+}
+
+func (s *Ethereum) QProtocols() []p2p.Protocol {
+
+	protos := make([]p2p.Protocol, 1)
+
+	protos[0] = s.qlServerProtocolManager.makeProtocol(eth65)
+	protos[0].Name = "qlight"
+	protos[0].Attributes = []enr.Entry{s.currentEthEntry()}
 
 	return protos
 }

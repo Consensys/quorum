@@ -191,6 +191,7 @@ var (
 		utils.QuorumPTMTlsClientKeyFlag,
 		utils.QuorumPTMTlsInsecureSkipVerify,
 		utils.QuorumLightServerFlag,
+		utils.QuorumLightServerListenPortFlag,
 		utils.QuorumLightClientFlag,
 		utils.QuorumLightClientPSIFlag,
 		utils.QuorumLightClientServerNodeFlag,

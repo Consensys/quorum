@@ -312,6 +312,14 @@ func (api *publicAdminAPI) Peers() ([]*p2p.PeerInfo, error) {
 	return server.PeersInfo(), nil
 }
 
+func (api *publicAdminAPI) Qpeers() ([]*p2p.PeerInfo, error) {
+	server := api.node.qserver
+	if server == nil {
+		return nil, nil
+	}
+	return server.PeersInfo(), nil
+}
+
 // NodeInfo retrieves all the information we know about the host node at the
 // protocol granularity.
 func (api *publicAdminAPI) NodeInfo() (*QuorumNodeInfo, error) {
@@ -322,6 +330,16 @@ func (api *publicAdminAPI) NodeInfo() (*QuorumNodeInfo, error) {
 	return &QuorumNodeInfo{
 		NodeInfo: server.NodeInfo(),
 		Plugins:  api.node.PluginManager().PluginsInfo(),
+	}, nil
+}
+
+func (api *publicAdminAPI) QnodeInfo() (*QuorumNodeInfo, error) {
+	server := api.node.qserver
+	if server == nil {
+		return nil, nil
+	}
+	return &QuorumNodeInfo{
+		NodeInfo: server.NodeInfo(),
 	}, nil
 }
 

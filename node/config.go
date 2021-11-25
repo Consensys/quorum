@@ -78,7 +78,8 @@ type Config struct {
 	RaftLogDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P p2p.Config
+	P2P  p2p.Config
+	QP2P *p2p.Config
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -238,6 +239,13 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
+}
+
+func (c *Config) QNodeDB() string {
+	if c.DataDir == "" {
+		return "" // ephemeral
+	}
+	return c.ResolvePath("qnodes")
 }
 
 // DefaultIPCEndpoint returns the IPC path used by default.
