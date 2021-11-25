@@ -120,6 +120,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			Network:    1,
 			Sync:       downloader.FullSync,
 			BloomCache: 1,
+			Engine:     engine,
 		})
 		ethProFork, _ = newHandler(&handlerConfig{
 			Database:   dbProFork,
@@ -128,6 +129,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			Network:    1,
 			Sync:       downloader.FullSync,
 			BloomCache: 1,
+			Engine:     engine,
 		})
 	)
 	ethNoFork.Start(1000)

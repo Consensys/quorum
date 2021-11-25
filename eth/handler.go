@@ -95,6 +95,7 @@ type handlerConfig struct {
 	AuthorizationList map[uint64]common.Hash    // Hard coded authorizationList for sync challenged
 
 	// Quorum
+	Engine   consensus.Engine
 	RaftMode bool
 }
 
@@ -161,8 +162,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		txsyncCh:          make(chan *txsync),
 		quitSync:          make(chan struct{}),
 		raftMode:          config.RaftMode,
-		// TODO @achraf
-		//engine:            config.engine,
+		engine:            config.Engine,
 	}
 
 	// Quorum
@@ -212,7 +212,9 @@ func newHandler(config *handlerConfig) (*handler, error) {
 
 	// Construct the fetcher (short sync)
 	validator := func(header *types.Header) error {
-		return h.chain.Engine().VerifyHeader(h.chain, header, true)
+		err := h.chain.Engine().VerifyHeader(h.chain, header, true)
+		log.Error("validator eth fn", "err", err)
+		return err
 	}
 	heighter := func() uint64 {
 		return h.chain.CurrentBlock().NumberU64()
@@ -632,6 +634,7 @@ func (h *handler) getConsensusAlgorithm() string {
 	if h.raftMode { // raft does not use consensus interface
 		consensusAlgo = "raft"
 	} else {
+		log.Trace("algo", "engine", h.engine)
 		switch h.engine.(type) {
 		case consensus.Istanbul:
 			consensusAlgo = "istanbul"
@@ -674,10 +677,10 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 			/*
 			* 1. wait for the eth protocol to create and register an eth peer.
 			* 2. get the associate eth peer that was registered by he "eth" protocol.
-			* 2. add the rw protocol for the quorum subprotocol to the eth peer.
-			* 3. start listening for incoming messages.
-			* 4. the incoming message will be sent on the quorum specific subprotocol, e.g. "istanbul/100".
-			* 5. send messages to the consensus engine handler.
+			* 3. add the rw protocol for the quorum subprotocol to the eth peer.
+			* 4. start listening for incoming messages.
+			* 5. the incoming message will be sent on the quorum specific subprotocol, e.g. "istanbul/100".
+			* 6. send messages to the consensus engine handler.
 			* 7. messages to other to other peers listening to the subprotocol can be sent using the
 			*    (eth)peer.ConsensusSend() which will write to the protoRW.
 			 */
@@ -687,6 +690,11 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 				// the ethpeer should be registered, try to retrieve it and start the consensus handler.
 				p2pPeerId := fmt.Sprintf("%x", p.ID().Bytes()[:8])
 				ethPeer := h.peers.peer(p2pPeerId)
+				if ethPeer == nil {
+					p2pPeerId = fmt.Sprintf("%x", p.ID().Bytes())
+					ethPeer = h.peers.peer(p2pPeerId)
+					log.Warn("full p2p peer", "id", p2pPeerId, "ethPeer", ethPeer)
+				}
 				if ethPeer != nil {
 					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", p2pPeerId, "ProtoName", ProtoName)
 					// add the rw protocol for the quorum subprotocol to the eth peer.
@@ -706,6 +714,9 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
 				return p.Info()
 			}
+			if p := h.peers.peer(fmt.Sprintf("%x", id)); p != nil {
+				return p.Info()
+			}
 			return nil
 		},
 	}
@@ -714,8 +725,9 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
 	// Handle incoming messages until the connection is torn down
 	for {
+		log.Trace("call handle consensus", "p", p, "protoRW", protoRW)
 		if err := h.handleConsensus(p, protoRW); err != nil {
-			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
+			p.Log().Error("Ethereum quorum message handling failed", "err", err)
 			return err
 		}
 	}
@@ -724,24 +736,28 @@ func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) er
 // This is a no-op because the eth handleMsg main loop handle ibf message as well.
 func (h *handler) handleConsensus(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
 	// Read the next message from the remote peer (in protoRW), and ensure it's fully consumed
+	log.Trace("protoRW.ReadMsg()", "protoRW", protoRW)
 	msg, err := protoRW.ReadMsg()
 	if err != nil {
+		log.Error("handle consensus", "err", err)
 		return err
 	}
 	if msg.Size > protocolMaxMsgSize {
+		log.Error("handle consensus", "err", "msg size > protocol max size")
 		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, protocolMaxMsgSize)
 	}
 	defer msg.Discard()
 
 	// See if the consensus engine protocol can handle this message, e.g. istanbul will check for message is
 	// istanbulMsg = 0x11, and NewBlockMsg = 0x07.
+	log.Trace("h.handleConsensusMsg(p, msg)", "p", p, "msg", msg)
 	handled, err := h.handleConsensusMsg(p, msg)
+	log.Error("handle consensus", "handled", handled, "err", err)
 	if handled {
 		p.Log().Debug("consensus message was handled by consensus engine", "handled", handled,
 			"quorumConsensusProtocolName", quorumConsensusProtocolName, "err", err)
 		return err
 	}
-
 	return nil
 }
 
@@ -765,9 +781,11 @@ func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+			log.Trace("make legacy protocol: run", "peer", p)
 			peer := eth.NewPeer(version, p, rw, h.txpool)
 			peer.AddConsensusProtoRW(rw)
 			return h.runEthPeer(peer, func(peer *eth.Peer) error {
+				log.Trace("run eth", "peer", peer)
 				return h.handleConsensusLoop(p, rw)
 			})
 		},
@@ -775,9 +793,15 @@ func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint
 			return h.NodeInfo()
 		},
 		PeerInfo: func(id enode.ID) interface{} {
-			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
+			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil { // TODO #BBO
+				log.Trace("peer info", "p", p)
 				return p.Info()
 			}
+			/*if p := h.peers.peer(fmt.Sprintf("%x", id)); p != nil { // TODO #BBO
+				log.Trace("peer info", "p", p)
+				return p.Info()
+			}*/
+			log.Warn("peer info nil")
 			return nil
 		},
 	}

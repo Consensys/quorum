@@ -268,6 +268,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		Checkpoint:        checkpoint,
 		AuthorizationList: config.AuthorizationList,
 		RaftMode:          config.RaftMode,
+		Engine:            eth.engine,
 	}); err != nil {
 		return nil, err
 	}
