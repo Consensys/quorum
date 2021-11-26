@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/naoina/toml"
@@ -173,7 +174,16 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	applyMetricConfig(ctx, &cfg)
 	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
 		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
+		// permissioning for the qlight P2P server
 		stack.QServer().SetNewTransportFunc(p2p.NewQlightServerTransport)
+		if ctx.GlobalIsSet(utils.QuorumLightServerPermissioningFlag.Name) {
+			prefix := "qlight"
+			if ctx.GlobalIsSet(utils.QuorumLightServerPermissioningPrefixFlag.Name) {
+				prefix = ctx.GlobalString(utils.QuorumLightServerPermissioningPrefixFlag.Name)
+			}
+			fbp := core.NewFileBasedPermissoningWithPrefix(prefix)
+			stack.QServer().SetIsNodePermissioned(fbp.IsNodePermissionedEnode)
+		}
 	}
 	if ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name) {
 		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))

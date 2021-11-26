@@ -964,13 +964,21 @@ var (
 		Usage: "QLight Network listening port",
 		Value: 30305,
 	}
+	QuorumLightServerPermissioningFlag = cli.BoolFlag{
+		Name:  "qlight.server.permissioning",
+		Usage: "If enabled, the qlight peers are checked against a permissioned list and a disallowed list.",
+	}
+	QuorumLightServerPermissioningPrefixFlag = cli.StringFlag{
+		Name:  "qlight.server.permissioning.prefix",
+		Usage: "The prefix for the permissioned-nodes.json and dissallowed-nodes.json files.",
+	}
 	QuorumLightClientFlag = cli.BoolFlag{
 		Name:  "qlight.client",
 		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
 	}
 	QuorumLightClientPSIFlag = cli.StringFlag{
 		Name:  "qlight.client.PSI",
-		Usage: "The PSI this client will use to connect a server node.",
+		Usage: "The PSI this client will use to connect to a server node.",
 	}
 	QuorumLightClientServerNodeFlag = cli.StringFlag{
 		Name:  "qlight.client.serverNode",
@@ -1439,6 +1447,9 @@ func SetQP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	if ctx.GlobalIsSet(QuorumLightServerListenPortFlag.Name) {
 		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerListenPortFlag.Name))
 	}
+
+	cfg.EnableNodePermission = ctx.GlobalIsSet(QuorumLightServerPermissioningFlag.Name)
+
 	//setBootstrapNodes(ctx, cfg)
 	//setBootstrapNodesV5(ctx, cfg)
 
