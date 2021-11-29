@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"math/big"
 	"sync"
 	"time"
@@ -463,10 +464,10 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 		}
 		// Gather blocks until the fetch or network limits is reached
 		var (
-			hash            common.Hash
-			bytes           int
-			bodies          []rlp.RawValue
-			qlightCacheKeys qlight.QLightCacheKeys
+			hash                 common.Hash
+			bytes                int
+			bodies               []rlp.RawValue
+			blockPrivatePayloads []engine.BlockPrivatePayloads
 		)
 		for bytes < softResponseLimit && len(bodies) < downloader.MaxBlockFetch {
 			// Retrieve the hash of the next block
@@ -478,12 +479,25 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			// TODO Qlight - loading and parsing the block is a much heavier operation (than just loading the RLP encoded value)
 			block := pm.blockchain.GetBlockByHash(hash)
 			if block != nil {
-				blockCacheKey, err := pm.preparePrivateTransactionsData(block, p.qlightPSI)
+				blockCacheKey, privateBlockData, err := pm.preparePrivateTransactionsData(block, p.qlightPSI)
 				if err != nil {
 					return errResp(ErrDecode, "Unable to produce block private transaction data %v: %v", hash, err)
 				}
-				if blockCacheKey != nil {
-					qlightCacheKeys = append(qlightCacheKeys, *blockCacheKey)
+				if blockCacheKey != nil && privateBlockData != nil {
+					result := &engine.BlockPrivatePayloads{
+						BlockHash:        blockCacheKey.BlockHash.ToBase64(),
+						PrivateStateRoot: privateBlockData.PrivateStateRoot.ToBase64(),
+						Payloads:         make([]engine.RLPPrivateTx, len(privateBlockData.PrivateTransactions)),
+					}
+					for i, privTxData := range privateBlockData.PrivateTransactions {
+						result.Payloads[i].EncryptedPayloadHashB64 = privTxData.Hash.ToBase64()
+						result.Payloads[i].QuorumPrivateTxData = engine.QuorumPayloadExtra{
+							Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
+							ExtraMetaData: privTxData.Extra,
+							IsSender:      privTxData.IsSender,
+						}
+					}
+					blockPrivatePayloads = append(blockPrivatePayloads, *result)
 				}
 			}
 			// Retrieve the requested block body, stopping if enough was found
@@ -492,8 +506,8 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 				bytes += len(data)
 			}
 		}
-		if len(qlightCacheKeys) > 0 {
-			err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, qlightCacheKeys)
+		if len(blockPrivatePayloads) > 0 {
+			err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, blockPrivatePayloads)
 			if err != nil {
 				log.Info("Error occurred while sending private data msg", "err", err)
 				return err
@@ -568,17 +582,17 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 			if peer.qlightServer {
 				continue
 			}
-			blockCacheKey, err := pm.preparePrivateTransactionsData(block, peer.qlightPSI)
+			blockCacheKey, privateBlockData, err := pm.preparePrivateTransactionsData(block, peer.qlightPSI)
 			if err != nil {
 				log.Error("Unable to prepare qlightCacheKeys for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
 				return
 			}
-			log.Info("Private transactions data", "is nil", blockCacheKey == nil)
+			log.Info("Private transactions data", "is nil", privateBlockData == nil)
 			var blockCacheKeys qlight.QLightCacheKeys = nil
 			if blockCacheKey != nil {
 				blockCacheKeys = qlight.QLightCacheKeys{*blockCacheKey}
 			}
-			peer.AsyncSendNewBlock(block, td, blockCacheKeys)
+			peer.AsyncSendNewBlock(block, td, blockCacheKeys, privateBlockData)
 		}
 		log.Trace("Propagated block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 		return
@@ -592,20 +606,21 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 	}
 }
 
-func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*qlight.QLightCacheKey, error) {
+// TODO(cjh) combine 2 return structs into 1
+func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*qlight.QLightCacheKey, *qlight.PrivateBlockData, error) {
 	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store qlightCacheKeys structures / PSI)
 	PSI := types.PrivateStateIdentifier(psi)
-	ptds := make([]qlight.PrivateTransactionData, 0)
+	var ptds []qlight.PrivateTransactionData
 	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, tx := range block.Transactions() {
 		var ptd *qlight.PrivateTransactionData
 		if tx.IsPrivacyMarker() {
 			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			innerTx, _, _, _ := private.FetchPrivateTransaction(tx.Data())
@@ -617,39 +632,38 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		if tx.IsPrivate() {
 			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		if ptd != nil {
 			ptds = append(ptds, *ptd)
 		}
 	}
-	if len(ptds) > 0 {
-		// TODO - figure out a way to prove that a request for a cache key comes from this specific node (possibly using signatures)
-		cacheKey := &qlight.QLightCacheKey{
-			BlockHash: block.Hash(),
-			PSI:       PSI,
-		}
-		// TODO - once private state optimisations are implemented it is very likely that we won't have public <-> private block mappings
-		// for each block anymore (they would only be written for the actually stored blocks)
-		stateRepo, err := pm.blockchain.PrivateStateManager().StateRepository(block.Root())
-		if err != nil {
-			return nil, err
-		}
-		privateStateRoot, err := stateRepo.PrivateStateRoot(PSI)
-		if err != nil {
-			return nil, err
-		}
-		pbd := qlight.PrivateBlockData{
-			PrivateStateRoot:    privateStateRoot,
-			PrivateTransactions: ptds,
-		}
-		if err := qlight.AddDataToServerCache(cacheKey, pbd); err != nil {
-			log.Warn("qlight: unable to cache private block data", "blockHash", cacheKey.BlockHash.Hex(), "PSI", cacheKey.PSI.String(), "err", err)
-		}
-		return cacheKey, nil
+	if len(ptds) == 0 {
+		return nil, nil, nil
 	}
-	return nil, nil
+
+	// TODO - figure out a way to prove that a request for a cache key comes from this specific node (possibly using signatures)
+	cacheKey := &qlight.QLightCacheKey{
+		BlockHash: block.Hash(),
+		PSI:       PSI,
+	}
+
+	// TODO - once private state optimisations are implemented it is very likely that we won't have public <-> private block mappings
+	// for each block anymore (they would only be written for the actually stored blocks)
+	stateRepo, err := pm.blockchain.PrivateStateManager().StateRepository(block.Root())
+	if err != nil {
+		return nil, nil, err
+	}
+	privateStateRoot, err := stateRepo.PrivateStateRoot(PSI)
+	if err != nil {
+		return nil, nil, err
+	}
+	pbd := &qlight.PrivateBlockData{
+		PrivateStateRoot:    privateStateRoot,
+		PrivateTransactions: ptds,
+	}
+	return cacheKey, pbd, nil
 }
 
 func (pm *QLightServerProtocolManager) fetchPrivateData(encryptedPayloadHash []byte, psm *mps.PrivateStateMetadata) (*qlight.PrivateTransactionData, error) {
