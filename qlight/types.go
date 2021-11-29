@@ -3,10 +3,10 @@ package qlight
 import (
 	"encoding/base64"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type PrivateStateRootHashValidator interface {
@@ -19,7 +19,12 @@ type PrivateClientCache interface {
 	CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash)
 }
 
-type QLightCacheKeys []QLightCacheKey
+type ServerPrivateBlockData struct {
+	BlockHash           common.Hash
+	PSI                 types.PrivateStateIdentifier
+	PrivateStateRoot    common.Hash
+	PrivateTransactions []PrivateTransactionData
+}
 
 type QLightCacheKey struct {
 	BlockHash common.Hash
@@ -34,25 +39,10 @@ func (k *QLightCacheKey) String() string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
-func DecodeQLightCacheKey(data string) (*QLightCacheKey, error) {
-	keyBytes, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return nil, err
-	}
-	var cacheKey QLightCacheKey
-	err = rlp.DecodeBytes(keyBytes, &cacheKey)
-	if err != nil {
-		return nil, err
-	}
-	return &cacheKey, nil
-}
-
 type PrivateBlockData struct {
 	PrivateStateRoot    common.Hash
 	PrivateTransactions []PrivateTransactionData
 }
-
-//type PrivateTransactionsData []PrivateTransactionData
 
 type PrivateTransactionData struct {
 	Hash     *common.EncryptedPayloadHash

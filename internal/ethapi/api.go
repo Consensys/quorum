@@ -2799,47 +2799,6 @@ func (s *PublicBlockChainAPI) GetQuorumPayloadExtra(ctx context.Context, digestH
 	}, nil
 }
 
-func (s *PublicBlockChainAPI) GetQuorumPayloadsForBlock(ctx context.Context, key string) (*engine.BlockPrivatePayloads, error) {
-	// TODO(cjh) no-op for now, delete later
-	return nil, nil
-	//if !private.IsQuorumPrivacyEnabled() {
-	//	return nil, fmt.Errorf("PrivateTransactionManager is not enabled")
-	//}
-	//
-	//psm, err := s.b.PSMR().ResolveForUserContext(ctx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//cacheKey, err := qlight.DecodeQLightCacheKey(key)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//if psm.ID != cacheKey.PSI {
-	//	return nil, nil
-	//}
-	//
-	//privateBlockData, found := qlight.GetDataFromServerCache(cacheKey)
-	//if !found {
-	//	return nil, nil
-	//}
-	//
-	//result := &engine.BlockPrivatePayloads{
-	//	BlockHash:        base64.StdEncoding.EncodeToString(cacheKey.BlockHash.Bytes()),
-	//	PrivateStateRoot: base64.StdEncoding.EncodeToString(privateBlockData.PrivateStateRoot.Bytes()),
-	//	Payloads:         make(map[string]engine.QuorumPayloadExtra, len(privateBlockData.PrivateTransactions)),
-	//}
-	//for _, privTxData := range privateBlockData.PrivateTransactions {
-	//	result.Payloads[base64.StdEncoding.EncodeToString(privTxData.Hash.Bytes())] = engine.QuorumPayloadExtra{
-	//		Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
-	//		ExtraMetaData: privTxData.Extra,
-	//		IsSender:      privTxData.IsSender,
-	//	}
-	//}
-	//return result, nil
-}
-
 // DecryptQuorumPayload returns the decrypted version of the input transaction
 func (s *PublicBlockChainAPI) DecryptQuorumPayload(ctx context.Context, payloadHex string) (*engine.QuorumPayloadExtra, error) {
 	if !private.IsQuorumPrivacyEnabled() {

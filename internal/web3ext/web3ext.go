@@ -648,12 +648,6 @@ web3._extend({
 			inputFormatter: [null]
 		}),
 		new web3._extend.Method({
-			name: 'getQuorumPayloadsForBlock',
-			call: 'eth_getQuorumPayloadsForBlock',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
 			name: 'decryptQuorumPayload',
 			call: 'eth_decryptQuorumPayload',
 			params: 1,

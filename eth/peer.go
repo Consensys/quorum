@@ -89,28 +89,22 @@ func (p *snapPeer) info() *snapPeerInfo {
 //}
 //}
 
-//if len(p.qlightPSI) > 0 && prop.qlightCacheKeys != nil {
-//p.Log().Info("CHRISSY qlight: retrieving private block data from cache (temp test impl - eventually remove all cache stuff for qlight server)")
-//
+//case prop := <-p.queuedBlocks:
+//if pbd := prop.privateBlockData; len(p.qlightPSI) > 0 && pbd != nil {
 //var toBroadcast []engine.BlockPrivatePayloads
-//for _, cacheKey := range prop.qlightCacheKeys {
 //
-//if p.qlightPSI != cacheKey.PSI.String() {
-//p.Log().Debug("qlight: PSI not used by the qlight client, skipping")
+//if p.qlightPSI != pbd.PSI.String() {
+//// TODO(cjh) review log levels for all new logs - if the decision is to use the qlight prefix make sure this is consistently present
+//p.Log().Info("qlight: PSI not used by the qlight client, skipping")
 //continue
 //}
 //
-//privateBlockData, found := qlight.GetDataFromServerCache(&cacheKey)
-//if !found {
-//p.Log().Warn("CHRISSY qlight: private tx data not found in cache", "cacheKey", cacheKey)
-//continue
-//}
 //result := &engine.BlockPrivatePayloads{
-//BlockHash:        cacheKey.BlockHash.ToBase64(),
-//PrivateStateRoot: privateBlockData.PrivateStateRoot.ToBase64(),
-//Payloads:         make([]engine.RLPPrivateTx, len(privateBlockData.PrivateTransactions)),
+//BlockHash:        pbd.BlockHash.ToBase64(),
+//PrivateStateRoot: pbd.PrivateStateRoot.ToBase64(),
+//Payloads:         make([]engine.RLPPrivateTx, len(pbd.PrivateTransactions)),
 //}
-//for i, privTxData := range privateBlockData.PrivateTransactions {
+//for i, privTxData := range pbd.PrivateTransactions {
 //result.Payloads[i].EncryptedPayloadHashB64 = privTxData.Hash.ToBase64()
 //result.Payloads[i].QuorumPrivateTxData = engine.QuorumPayloadExtra{
 //Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
@@ -119,9 +113,16 @@ func (p *snapPeer) info() *snapPeerInfo {
 //}
 //}
 //toBroadcast = append(toBroadcast, *result)
-//}
-//p.Log().Info("CHRISSY qlight: retrieved private block data from cache", "len", len(toBroadcast))
 //
+//p.Log().Info("Sending new block private data msg", "len(toBroadcast)", len(toBroadcast))
+//err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, toBroadcast)
+//if err != nil {
+//p.Log().Error("Error occurred while sending private data msg", "err", err)
+//removePeer(p.id)
+//return
+//}
+//}
+
 
 
 type PrivateTransactionsData []PrivateTransactionData
