@@ -18,9 +18,14 @@
 package eth
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -53,6 +58,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -283,7 +289,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		if err != nil {
 			return nil, err
 		}
-		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientServerNode, clientCache); err != nil {
+		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientToken, clientCache); err != nil {
 			return nil, err
 		}
 		eth.protocolManager = eth.qlClientProtocolManager.ProtocolManager
@@ -293,7 +299,11 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			return nil, err
 		}
 		if eth.config.QuorumLightServer {
-			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
+			authManProvider := func() security.AuthenticationManager {
+				_, authManager, _ := stack.GetSecuritySupports()
+				return authManager
+			}
+			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, authManProvider); err != nil {
 				return nil, err
 			}
 		}
@@ -308,10 +318,54 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	// TODO qlight rebase
 	if eth.config.QuorumLightClient {
-		// TODO qlight - add PSI and token here
-		proxyClient, err := rpc.Dial(eth.config.QuorumLightClientServerNodeRPC)
-		if err != nil {
-			return nil, err
+		var (
+			proxyClient *rpc.Client
+			err         error
+		)
+		// setup rpc client TLS context
+		if eth.config.QuorumLightClientRPCTLS {
+			tlsConfig := &tls.Config{
+				InsecureSkipVerify: eth.config.QuorumLightClientRPCTLSInsecureSkipVerify,
+			}
+			certPool, err := x509.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
+			if len(eth.config.QuorumLightClientRPCTLSCACert) > 0 {
+				caPem, err := ioutil.ReadFile(eth.config.QuorumLightClientRPCTLSCACert)
+				if err != nil {
+					return nil, err
+				}
+				if len(caPem) != 0 {
+					certPool.AppendCertsFromPEM(caPem)
+				}
+			}
+			tlsConfig.RootCAs = certPool
+
+			customHttpClient := &http.Client{
+				Transport: http.DefaultTransport,
+			}
+			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
+			proxyClient, err = rpc.DialHTTPWithClient(eth.config.QuorumLightClientServerNodeRPC, customHttpClient)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			proxyClient, err = rpc.Dial(eth.config.QuorumLightClientServerNodeRPC)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if len(eth.config.QuorumLightClientToken) > 0 {
+			var f rpc.HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
+				return eth.config.QuorumLightClientToken, nil
+			}
+			proxyClient = proxyClient.WithHTTPCredentials(f)
+		}
+
+		if len(eth.config.QuorumLightClientPSI) > 0 {
+			proxyClient = proxyClient.WithPSI(types.PrivateStateIdentifier(eth.config.QuorumLightClientPSI))
 		}
 		// TODO qlight - need to find a better way to inject the rpc client into the tx manager
 		rpcClientSetter, ok := private.P.(private.HasRPCClient)

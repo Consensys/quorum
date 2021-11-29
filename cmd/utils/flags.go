@@ -980,6 +980,22 @@ var (
 		Name:  "qlight.client.PSI",
 		Usage: "The PSI this client will use to connect to a server node.",
 	}
+	QuorumLightClientTokenFlag = cli.StringFlag{
+		Name:  "qlight.client.token",
+		Usage: "The token this client will use to connect to a server node.",
+	}
+	QuorumLightClientRPCTLSFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls",
+		Usage: "If enabled, the quorum light client RPC connection will be configured to use TLS",
+	}
+	QuorumLightClientRPCTLSInsecureSkipVerifyFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls.insecureskipverify",
+		Usage: "If enabled, the quorum light client RPC connection skips TLS verification",
+	}
+	QuorumLightClientRPCTLSCACertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cacert",
+		Usage: "The quorum light client RPC client certificate authority.",
+	}
 	QuorumLightClientServerNodeFlag = cli.StringFlag{
 		Name:  "qlight.client.serverNode",
 		Usage: "The node ID of the target server node",
@@ -1955,6 +1971,18 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	cfg.QuorumLightClientPSI = "private"
 	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
 		cfg.QuorumLightClientPSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenFlag.Name) {
+		cfg.QuorumLightClientToken = ctx.GlobalString(QuorumLightClientTokenFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
+		cfg.QuorumLightClientRPCTLS = ctx.GlobalBool(QuorumLightClientRPCTLSFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
+		cfg.QuorumLightClientRPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
 	}
 
 	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {

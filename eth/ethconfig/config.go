@@ -223,11 +223,15 @@ type Config struct {
 	// Quorum
 	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
 
-	QuorumLightServer              bool   `toml:",omitempty"`
-	QuorumLightClient              bool   `toml:",omitempty"`
-	QuorumLightClientPSI           string `toml:",omitempty"`
-	QuorumLightClientServerNode    string `toml:",omitempty"`
-	QuorumLightClientServerNodeRPC string `toml:",omitempty"`
+	QuorumLightServer                         bool   `toml:",omitempty"`
+	QuorumLightClient                         bool   `toml:",omitempty"`
+	QuorumLightClientPSI                      string `toml:",omitempty"`
+	QuorumLightClientToken                    string `toml:",omitempty"`
+	QuorumLightClientRPCTLS                   bool   `toml:",omitempty"`
+	QuorumLightClientRPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	QuorumLightClientRPCTLSCACert             string `toml:",omitempty"`
+	QuorumLightClientServerNode               string `toml:",omitempty"`
+	QuorumLightClientServerNodeRPC            string `toml:",omitempty"`
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

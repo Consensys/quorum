@@ -47,12 +47,13 @@ type QLightClientProtocolManager struct {
 	*ProtocolManager
 	dialCandidates     enode.Iterator
 	psi                string
+	token              string
 	privateClientCache qlight.PrivateClientCache
 }
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, psi string, serverNodeUrl string, privateClientCache qlight.PrivateClientCache) (*QLightClientProtocolManager, error) {
+func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, psi string, token string, privateClientCache qlight.PrivateClientCache) (*QLightClientProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &QLightClientProtocolManager{
 		ProtocolManager: &ProtocolManager{
@@ -70,6 +71,7 @@ func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *para
 			engine:            engine,
 		},
 		psi:                psi,
+		token:              token,
 		privateClientCache: privateClientCache,
 	}
 
@@ -163,11 +165,6 @@ func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *para
 	manager.txFetcher = fetcher.NewTxFetcher(txpool.Has, txpool.AddRemotes, fetchTx)
 
 	manager.chainSync = newChainSyncer(manager.ProtocolManager)
-
-	log.Info("Configured server node", "url", serverNodeUrl)
-
-	// TODO Qlight - having tried CycleNodes it seems that it causes the discovery nodeCh channel to fill up and overuse memory/cpu
-	manager.dialCandidates = enode.IterNodes([]*enode.Node{enode.MustParse(serverNodeUrl)})
 
 	return manager, nil
 }
@@ -291,7 +288,7 @@ func (pm *QLightClientProtocolManager) handle(p *peer, protoName string) error {
 	}
 
 	log.Info("QLight attempting handshake")
-	if err := p.QLightHandshake(false, pm.psi, ""); err != nil {
+	if err := p.QLightHandshake(false, pm.psi, pm.token); err != nil {
 		p.Log().Debug("QLight handshake failed", "protoName", protoName, "err", err)
 		log.Info("QLight handshake failed", "protoName", protoName, "err", err)
 

@@ -35,9 +35,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -78,30 +80,35 @@ type QLightServerProtocolManager struct {
 	peerWG sync.WaitGroup
 
 	// Quorum
-	raftMode bool
-	engine   consensus.Engine
+	raftMode            bool
+	engine              consensus.Engine
+	authManager         security.AuthenticationManager
+	authManagerProvider AuthManagerProvider
 
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
 }
 
+type AuthManagerProvider func() security.AuthenticationManager
+
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewQLightServerProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool) (*QLightServerProtocolManager, error) {
+func NewQLightServerProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, authManagerProvider AuthManagerProvider) (*QLightServerProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &QLightServerProtocolManager{
-		networkID:         networkID,
-		forkFilter:        forkid.NewFilter(blockchain),
-		eventMux:          mux,
-		txpool:            txpool,
-		blockchain:        blockchain,
-		chaindb:           chaindb,
-		peers:             newPeerSet(),
-		authorizationList: authorizationList,
-		txsyncCh:          make(chan *txsync),
-		quitSync:          make(chan struct{}),
-		raftMode:          raftMode,
-		engine:            engine,
+		networkID:           networkID,
+		forkFilter:          forkid.NewFilter(blockchain),
+		eventMux:            mux,
+		txpool:              txpool,
+		blockchain:          blockchain,
+		chaindb:             chaindb,
+		peers:               newPeerSet(),
+		authorizationList:   authorizationList,
+		txsyncCh:            make(chan *txsync),
+		quitSync:            make(chan struct{}),
+		raftMode:            raftMode,
+		engine:              engine,
+		authManagerProvider: authManagerProvider,
 	}
 
 	return manager, nil
@@ -128,6 +135,7 @@ func (pm *QLightServerProtocolManager) makeProtocol(version uint) p2p.Protocol {
 }
 
 func (pm *QLightServerProtocolManager) removePeer(id string) {
+	// Short circuit if the peer was already removed
 	// Short circuit if the peer was already removed
 	log.Info("QLight removePeer", "id", id)
 	peer := pm.peers.Peer(id)
@@ -161,6 +169,9 @@ func (pm *QLightServerProtocolManager) Start(maxPeers int) {
 	pm.closeCh = make(chan struct{})
 	go pm.newBlockBroadcastLoop()
 
+	if pm.authManagerProvider != nil {
+		pm.authManager = pm.authManagerProvider()
+	}
 }
 
 func (pm *QLightServerProtocolManager) Stop() {
@@ -260,6 +271,51 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 		}
 	}
 	defer pm.removePeer(p.id)
+
+	p.Log().Info("QLight server handler auth manager", "isNil", pm.authManager == nil)
+
+	if pm.authManager != nil {
+		authEnabled, err := pm.authManager.IsEnabled(context.Background())
+		if err != nil {
+			return err
+		}
+		if authEnabled {
+			authToken, err := pm.authManager.Authenticate(context.Background(), p.qlightToken)
+			if err != nil {
+				return err
+			}
+			PSI := types.PrivateStateIdentifier(p.qlightPSI)
+			// check that we have access to the relevant PSI
+			psiAuth, err := multitenancy.IsPSIAuthorized(authToken, PSI)
+			if err != nil {
+				return err
+			}
+			if !psiAuth {
+				return fmt.Errorf("PSI not authorized")
+			}
+			// check that we have access to  qlight://p2p , rpc://eth_*
+			// TODO figure out what other entitlements we want to check here
+			qlightP2P := false
+			rpcETH := false
+			for _, ga := range authToken.GetAuthorities() {
+				if ga.GetRaw() == "p2p://qlight" {
+					qlightP2P = true
+				}
+				if ga.GetRaw() == "rpc://eth_*" {
+					rpcETH = true
+				}
+			}
+			if !qlightP2P || !rpcETH {
+				p.Log().Error("The P2P token does not have the necessary authirization", "p2p", qlightP2P, "rpcETH", rpcETH)
+				return fmt.Errorf("The P2P token does not have the necessary authirization p2p=%s rpcETH=%s", qlightP2P, rpcETH)
+			}
+			// try to resolve the PSI
+			_, err = pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	// we're a qlight server connected to another server - do nothing
 	if p.qlightServer {
