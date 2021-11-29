@@ -2,9 +2,9 @@ package qlight
 
 import (
 	"encoding/base64"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -15,7 +15,7 @@ type PrivateStateRootHashValidator interface {
 
 type PrivateClientCache interface {
 	PrivateStateRootHashValidator
-	AddPrivateBlock(key QLightCacheKey) error
+	AddPrivateBlock(blockPrivateData engine.BlockPrivatePayloads) error
 	CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash)
 }
 
@@ -49,10 +49,10 @@ func DecodeQLightCacheKey(data string) (*QLightCacheKey, error) {
 
 type PrivateBlockData struct {
 	PrivateStateRoot    common.Hash
-	PrivateTransactions PrivateTransactionsData
+	PrivateTransactions []PrivateTransactionData
 }
 
-type PrivateTransactionsData []PrivateTransactionData
+//type PrivateTransactionsData []PrivateTransactionData
 
 type PrivateTransactionData struct {
 	Hash     *common.EncryptedPayloadHash

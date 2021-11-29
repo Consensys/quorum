@@ -507,12 +507,12 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == QLightNewBlockPrivateDataMsg:
 		log.Info("Received new block private data")
 		// Retrieve and decode the propagated block
-		var request qlight.QLightCacheKeys
+		var request []engine.BlockPrivatePayloads
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		for _, cacheKey := range request {
-			err := pm.privateClientCache.AddPrivateBlock(cacheKey)
+		for _, blockPrivateData := range request {
+			err := pm.privateClientCache.AddPrivateBlock(blockPrivateData)
 			if err != nil {
 				return errResp(ErrDecode, "%v: %v", msg, err)
 			}

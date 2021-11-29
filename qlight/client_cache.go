@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -34,26 +33,21 @@ func NewClientCache(db ethdb.Database) (PrivateClientCache, error) {
 	}, nil
 }
 
-func (c *clientCache) AddPrivateBlock(key QLightCacheKey) error {
-	var result engine.BlockPrivatePayloads
-	err := c.cachingTXManager.GetRPCClient().Call(&result, "eth_getQuorumPayloadsForBlock", key.String())
-	if err != nil {
-		return err
-	}
-	for txKey, qpe := range result.Payloads {
-		eph, err := common.Base64ToEncryptedPayloadHash(txKey)
+func (c *clientCache) AddPrivateBlock(blockPrivateData engine.BlockPrivatePayloads) error {
+	for _, p := range blockPrivateData.Payloads {
+		eph, err := common.Base64ToEncryptedPayloadHash(p.EncryptedPayloadHashB64)
 		if err != nil {
 			return err
 		}
-		if len(qpe.Payload) > 3 {
-			payloadBytes, err := hex.DecodeString(qpe.Payload[2:])
+		if len(p.QuorumPrivateTxData.Payload) > 3 {
+			payloadBytes, err := hex.DecodeString(p.QuorumPrivateTxData.Payload[2:])
 			if err != nil {
 				return err
 			}
-			c.cachingTXManager.AddToCache(eph, payloadBytes, qpe.ExtraMetaData, qpe.IsSender)
+			c.cachingTXManager.AddToCache(eph, payloadBytes, p.QuorumPrivateTxData.ExtraMetaData, p.QuorumPrivateTxData.IsSender)
 		}
 	}
-	return c.privateBlockCache.Add(result.BlockHash, result.PrivateStateRoot, gocache.DefaultExpiration)
+	return c.privateBlockCache.Add(blockPrivateData.BlockHash, blockPrivateData.PrivateStateRoot, gocache.DefaultExpiration)
 }
 
 func (c *clientCache) CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash) {

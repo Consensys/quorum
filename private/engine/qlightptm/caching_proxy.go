@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -77,6 +78,7 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 		// indicate the cache item is incomplete, this will be fulfilled in SendSignedTx
 		cacheKey = fmt.Sprintf("%s-incomplete", cacheKey)
 	}
+	log.Info("qlight: retrieving private data from ptm cache")
 	if item, found := t.cache.Get(cacheKey); found {
 		cacheItem, ok := item.(CPItem)
 		if !ok {
@@ -88,6 +90,7 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 		return cacheItem.Extra.Sender, cacheItem.Extra.ManagedParties, cacheItem.Payload, &cacheItem.Extra, nil
 	}
 
+	log.Info("qlight: no private data in ptm cache, retrieving from qlight server node")
 	var result engine.QuorumPayloadExtra
 	err := t.rpcClient.Call(&result, "eth_getQuorumPayloadExtra", data.Hex())
 	if err != nil {

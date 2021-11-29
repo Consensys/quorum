@@ -595,14 +595,15 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *types.Block, psi string) (*qlight.QLightCacheKey, error) {
 	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store qlightCacheKeys structures / PSI)
 	PSI := types.PrivateStateIdentifier(psi)
-	ptd := make(qlight.PrivateTransactionsData, 0)
+	ptds := make([]qlight.PrivateTransactionData, 0)
 	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
 	if err != nil {
 		return nil, err
 	}
 	for _, tx := range block.Transactions() {
+		var ptd *qlight.PrivateTransactionData
 		if tx.IsPrivacyMarker() {
-			_, ptd, err = pm.fetchPrivateData(tx.Data(), psm, ptd)
+			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
 			if err != nil {
 				return nil, err
 			}
@@ -614,13 +615,16 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		}
 
 		if tx.IsPrivate() {
-			_, ptd, err = pm.fetchPrivateData(tx.Data(), psm, ptd)
+			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
 			if err != nil {
 				return nil, err
 			}
 		}
+		if ptd != nil {
+			ptds = append(ptds, *ptd)
+		}
 	}
-	if len(ptd) > 0 {
+	if len(ptds) > 0 {
 		// TODO - figure out a way to prove that a request for a cache key comes from this specific node (possibly using signatures)
 		cacheKey := &qlight.QLightCacheKey{
 			BlockHash: block.Hash(),
@@ -638,26 +642,28 @@ func (pm *QLightServerProtocolManager) preparePrivateTransactionsData(block *typ
 		}
 		pbd := qlight.PrivateBlockData{
 			PrivateStateRoot:    privateStateRoot,
-			PrivateTransactions: ptd,
+			PrivateTransactions: ptds,
 		}
-		qlight.AddDataToServerCache(cacheKey, pbd)
+		if err := qlight.AddDataToServerCache(cacheKey, pbd); err != nil {
+			log.Warn("qlight: unable to cache private block data", "blockHash", cacheKey.BlockHash.Hex(), "PSI", cacheKey.PSI.String(), "err", err)
+		}
 		return cacheKey, nil
 	}
 	return nil, nil
 }
 
-func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm *mps.PrivateStateMetadata, result qlight.PrivateTransactionsData) (*qlight.PrivateTransactionData, qlight.PrivateTransactionsData, error) {
-	txHash := common.BytesToEncryptedPayloadHash(privateData)
+func (pm *QLightServerProtocolManager) fetchPrivateData(encryptedPayloadHash []byte, psm *mps.PrivateStateMetadata) (*qlight.PrivateTransactionData, error) {
+	txHash := common.BytesToEncryptedPayloadHash(encryptedPayloadHash)
 	_, _, privateTx, extra, err := private.P.Receive(txHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// we're not party to this transaction
 	if privateTx == nil {
-		return nil, result, nil
+		return nil, nil
 	}
 	if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
-		return nil, result, nil
+		return nil, nil
 	}
 
 	extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
@@ -675,8 +681,8 @@ func (pm *QLightServerProtocolManager) fetchPrivateData(privateData []byte, psm 
 		// this is an MPS node so we can speed up the IsSender logic by checking the addresses in the private state metadata
 		ptd.IsSender = !psm.NotIncludeAny(extra.Sender)
 	}
-	result = append(result, ptd)
-	return &ptd, result, nil
+
+	return &ptd, nil
 }
 
 // BroadcastTransactions will propagate a batch of transactions to all peers which are not known to
