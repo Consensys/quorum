@@ -57,7 +57,12 @@ type QuorumPayloadExtra struct {
 type BlockPrivatePayloads struct {
 	BlockHash        string
 	PrivateStateRoot string
-	Payloads         map[string]QuorumPayloadExtra
+	Payloads         []RLPPrivateTx
+}
+
+type RLPPrivateTx struct {
+	EncryptedPayloadHashB64 string
+	QuorumPrivateTxData     QuorumPayloadExtra
 }
 
 type Client struct {
