@@ -54,17 +54,6 @@ type QuorumPayloadExtra struct {
 	IsSender      bool
 }
 
-type BlockPrivatePayloads struct {
-	BlockHash        string
-	PrivateStateRoot string
-	Payloads         []RLPPrivateTx
-}
-
-type RLPPrivateTx struct {
-	EncryptedPayloadHashB64 string
-	QuorumPrivateTxData     QuorumPayloadExtra
-}
-
 type Client struct {
 	HttpClient *http.Client
 	BaseURL    string

@@ -2,11 +2,13 @@ package qlight
 
 import (
 	"encoding/base64"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/qlightptm"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type PrivateStateRootHashValidator interface {
@@ -15,11 +17,11 @@ type PrivateStateRootHashValidator interface {
 
 type PrivateClientCache interface {
 	PrivateStateRootHashValidator
-	AddPrivateBlock(blockPrivateData engine.BlockPrivatePayloads) error
+	AddPrivateBlock(blockPrivateData BlockPrivateData) error
 	CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash)
 }
 
-type ServerPrivateBlockData struct {
+type BlockPrivateData struct {
 	BlockHash           common.Hash
 	PSI                 types.PrivateStateIdentifier
 	PrivateStateRoot    common.Hash
@@ -39,14 +41,20 @@ func (k *QLightCacheKey) String() string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
-type PrivateBlockData struct {
-	PrivateStateRoot    common.Hash
-	PrivateTransactions []PrivateTransactionData
-}
-
 type PrivateTransactionData struct {
 	Hash     *common.EncryptedPayloadHash
 	Payload  []byte
 	Extra    *engine.ExtraMetadata
 	IsSender bool
+}
+
+func (d *PrivateTransactionData) ToCachable() *qlightptm.CachablePrivateTransactionData {
+	return &qlightptm.CachablePrivateTransactionData{
+		Hash: *d.Hash,
+		QuorumPrivateTxData: engine.QuorumPayloadExtra{
+			Payload:       fmt.Sprintf("0x%x", d.Payload),
+			ExtraMetaData: d.Extra,
+			IsSender:      d.IsSender,
+		},
+	}
 }

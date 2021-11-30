@@ -4,9 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/cache"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -69,11 +70,11 @@ func (t *CachingProxyTxManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]
 }
 
 // retrieve raw will not return information about medata
-func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw bool) (string, []string, []byte, *engine.ExtraMetadata, error) {
-	if common.EmptyEncryptedPayloadHash(data) {
+func (t *CachingProxyTxManager) receive(hash common.EncryptedPayloadHash, isRaw bool) (string, []string, []byte, *engine.ExtraMetadata, error) {
+	if common.EmptyEncryptedPayloadHash(hash) {
 		return "", nil, nil, nil, nil
 	}
-	cacheKey := data.Hex()
+	cacheKey := hash.Hex()
 	if isRaw {
 		// indicate the cache item is incomplete, this will be fulfilled in SendSignedTx
 		cacheKey = fmt.Sprintf("%s-incomplete", cacheKey)
@@ -92,7 +93,7 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 
 	log.Info("qlight: no private data in ptm cache, retrieving from qlight server node")
 	var result engine.QuorumPayloadExtra
-	err := t.rpcClient.Call(&result, "eth_getQuorumPayloadExtra", data.Hex())
+	err := t.rpcClient.Call(&result, "eth_getQuorumPayloadExtra", hash.Hex())
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -101,13 +102,20 @@ func (t *CachingProxyTxManager) receive(data common.EncryptedPayloadHash, isRaw 
 		if err != nil {
 			return "", nil, nil, nil, err
 		}
-		t.AddToCache(data, payloadBytes, result.ExtraMetaData, result.IsSender)
+
+		toCache := &CachablePrivateTransactionData{
+			Hash:                hash,
+			QuorumPrivateTxData: result,
+		}
+		if err := t.Cache(toCache); err != nil {
+			log.Warn("unable to cache ptm data", "err", err)
+		}
+
 		return result.ExtraMetaData.Sender, result.ExtraMetaData.ManagedParties, payloadBytes, result.ExtraMetaData, nil
 	}
 	return "", nil, nil, nil, nil
 }
 
-// retrieve raw will not return information about medata
 func (t *CachingProxyTxManager) CheckAndAddEmptyToCache(hash common.EncryptedPayloadHash) {
 	if common.EmptyEncryptedPayloadHash(hash) {
 		return
@@ -123,19 +131,31 @@ func (t *CachingProxyTxManager) CheckAndAddEmptyToCache(hash common.EncryptedPay
 	}, gocache.DefaultExpiration)
 }
 
-func (t *CachingProxyTxManager) AddToCache(hash common.EncryptedPayloadHash, payload []byte, extra *engine.ExtraMetadata, isSender bool) {
-	if common.EmptyEncryptedPayloadHash(hash) {
-		return
+type CachablePrivateTransactionData struct {
+	Hash                common.EncryptedPayloadHash
+	QuorumPrivateTxData engine.QuorumPayloadExtra
+}
+
+func (t *CachingProxyTxManager) Cache(privateTxData *CachablePrivateTransactionData) error {
+	if common.EmptyEncryptedPayloadHash(privateTxData.Hash) {
+		return nil
 	}
-	cacheKey := hash.Hex()
+	cacheKey := privateTxData.Hash.Hex()
+
+	payload, err := hexutil.Decode(privateTxData.QuorumPrivateTxData.Payload)
+	if err != nil {
+		return err
+	}
 
 	t.cache.Set(cacheKey, CPItem{
 		PrivateCacheItem: cache.PrivateCacheItem{
 			Payload: payload,
-			Extra:   *extra,
+			Extra:   *privateTxData.QuorumPrivateTxData.ExtraMetaData,
 		},
-		IsSender: isSender,
+		IsSender: privateTxData.QuorumPrivateTxData.IsSender,
 	}, gocache.DefaultExpiration)
+
+	return nil
 }
 
 // retrieve raw will not return information about medata

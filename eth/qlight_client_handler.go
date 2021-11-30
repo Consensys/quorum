@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -380,6 +379,7 @@ func (pm *QLightClientProtocolManager) handle(p *peer, protoName string) error {
 func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := p.rw.ReadMsg()
+	log.Info("QLight message received", "msg.Code", msg.Code, "err", err)
 	if err != nil {
 		return err
 	}
@@ -507,14 +507,12 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 
 	case msg.Code == QLightNewBlockPrivateDataMsg:
 		log.Info("Received new block private data")
-		// Retrieve and decode the propagated block
-		var request []engine.BlockPrivatePayloads
+		var request []qlight.BlockPrivateData
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		for _, blockPrivateData := range request {
-			err := pm.privateClientCache.AddPrivateBlock(blockPrivateData)
-			if err != nil {
+		for _, b := range request {
+			if err := pm.privateClientCache.AddPrivateBlock(b); err != nil {
 				return errResp(ErrDecode, "%v: %v", msg, err)
 			}
 		}

@@ -89,33 +89,15 @@ func (p *snapPeer) info() *snapPeerInfo {
 //}
 //}
 
-//case prop := <-p.queuedBlocks:
-//if pbd := prop.privateBlockData; len(p.qlightPSI) > 0 && pbd != nil {
-//var toBroadcast []engine.BlockPrivatePayloads
-//
-//if p.qlightPSI != pbd.PSI.String() {
+//if len(p.qlightPSI) > 0 && prop.qlightData != nil {
+//// TODO this check is probably unnecessary given peer connection validation checks PSI
+//if p.qlightPSI != prop.qlightData.PSI.String() {
 //// TODO(cjh) review log levels for all new logs - if the decision is to use the qlight prefix make sure this is consistently present
 //p.Log().Info("qlight: PSI not used by the qlight client, skipping")
 //continue
 //}
 //
-//result := &engine.BlockPrivatePayloads{
-//BlockHash:        pbd.BlockHash.ToBase64(),
-//PrivateStateRoot: pbd.PrivateStateRoot.ToBase64(),
-//Payloads:         make([]engine.RLPPrivateTx, len(pbd.PrivateTransactions)),
-//}
-//for i, privTxData := range pbd.PrivateTransactions {
-//result.Payloads[i].EncryptedPayloadHashB64 = privTxData.Hash.ToBase64()
-//result.Payloads[i].QuorumPrivateTxData = engine.QuorumPayloadExtra{
-//Payload:       fmt.Sprintf("0x%x", privTxData.Payload),
-//ExtraMetaData: privTxData.Extra,
-//IsSender:      privTxData.IsSender,
-//}
-//}
-//toBroadcast = append(toBroadcast, *result)
-//
-//p.Log().Info("Sending new block private data msg", "len(toBroadcast)", len(toBroadcast))
-//err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, toBroadcast)
+//err := p2p.Send(p.rw, QLightNewBlockPrivateDataMsg, []qlight.BlockPrivateData{*prop.qlightData})
 //if err != nil {
 //p.Log().Error("Error occurred while sending private data msg", "err", err)
 //removePeer(p.id)
@@ -123,6 +105,8 @@ func (p *snapPeer) info() *snapPeerInfo {
 //}
 //}
 
+
+// AsyncSendPooledTransactionHashes queues a list of transactions hashes to eventually
 
 
 type PrivateTransactionsData []PrivateTransactionData
