@@ -587,6 +587,12 @@ func (pm *QLightClientProtocolManager) handleMsg(p *peer) error {
 				return errResp(ErrDecode, "transaction %d is nil", i)
 			}
 			p.MarkTransaction(tx.Hash())
+			// QLight - prevent the transactions from the TXPool from retrieving any data from the qlight server node.
+			// The pending block would be generated as if the current node is not a party to those transactions.
+			if tx.IsPrivate() || tx.IsPrivacyMarker() {
+				txHash := common.BytesToEncryptedPayloadHash(tx.Data())
+				pm.privateClientCache.CheckAndAddEmptyEntry(txHash)
+			}
 		}
 		pm.txFetcher.Enqueue(p.id, txs, msg.Code == PooledTransactionsMsg)
 
