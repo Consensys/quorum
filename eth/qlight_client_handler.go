@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"math/big"
 	"sync/atomic"
 	"time"
