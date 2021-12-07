@@ -306,8 +306,8 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 				}
 			}
 			if !qlightP2P || !rpcETH {
-				p.Log().Error("The P2P token does not have the necessary authirization", "p2p", qlightP2P, "rpcETH", rpcETH)
-				return fmt.Errorf("The P2P token does not have the necessary authirization p2p=%s rpcETH=%s", qlightP2P, rpcETH)
+				p.Log().Error("The P2P token does not have the necessary authorization", "p2p", qlightP2P, "rpcETH", rpcETH)
+				return fmt.Errorf("The P2P token does not have the necessary authorization p2p=%v rpcETH=%v", qlightP2P, rpcETH)
 			}
 			// try to resolve the PSI
 			_, err = pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
