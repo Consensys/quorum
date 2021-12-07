@@ -241,7 +241,13 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 }
 
 func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	receipts := b.eth.blockchain.GetReceiptsByHash(hash)
+	// Quorum
+	// We should use the modified getReceipts to get the private receipts for PSI (MPS)
+	receipts, err := b.GetReceipts(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	// End Quorum
 	if receipts == nil {
 		return nil, nil
 	}
