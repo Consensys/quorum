@@ -321,7 +321,7 @@ func (b *LesApiBackend) StatesInRange(ctx context.Context, fromBlock *types.Bloc
 	return b.eth.statesInRange(ctx, fromBlock, toBlock, reexec)
 }
 
-func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
 	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
 }
 

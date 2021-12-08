@@ -146,21 +146,25 @@ func (b *testBackend) StateAtBlock(ctx context.Context, block *types.Block, reex
 	return statedb, privateStateRepo, func() {}, nil
 }
 
-func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
 	parent := b.chain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, errBlockNotFound
+		return nil, vm.BlockContext{}, nil, nil, nil, nil, errBlockNotFound
 	}
 	statedb, privateStateRepo, err := b.chain.StateAt(parent.Root())
 	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, errStateNotFound
+		return nil, vm.BlockContext{}, nil, nil, nil, nil, errStateNotFound
 	}
-	privateState, err := privateStateRepo.DefaultState()
+	psm, err := b.chain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, errStateNotFound
+		return nil, vm.BlockContext{}, nil, nil, nil, nil, err
+	}
+	privateState, err := privateStateRepo.StatePSI(psm.ID)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, nil, nil, errStateNotFound
 	}
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, privateStateRepo, func() {}, nil
+		return nil, vm.BlockContext{}, statedb, privateState, privateStateRepo, func() {}, nil
 	}
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(b.chainConfig, block.Number())
@@ -169,15 +173,15 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), b.chain, nil)
 		if idx == txIndex {
-			return msg, context, statedb, privateStateRepo, func() {}, nil
+			return msg, context, statedb, privateState, privateStateRepo, func() {}, nil
 		}
 		vmenv := vm.NewEVM(context, txContext, statedb, privateState, b.chainConfig, vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			return nil, vm.BlockContext{}, nil, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
-	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, vm.BlockContext{}, nil, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }
 
 func (b *testBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
