@@ -122,10 +122,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Quorum: Must occur before setQuorumConfig, as it needs an initialised PTM to be enabled
 	// 		   Extension Service and Multitenancy feature validation also depend on PTM availability
 	// TODO qlight - wasn't aware that te privacy service was initialized twice (need to reconsider this)
-	if ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name) {
-		private.P, _ = private.NewQLightTxManager()
-		privacyExtension.Init()
-	} else if err := quorumInitialisePrivacy(ctx); err != nil {
+	if err := quorumInitialisePrivacy(ctx); err != nil {
 		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
@@ -248,13 +245,8 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
-	if cfg.Eth.QuorumLightClient {
-		private.P, _ = private.NewQLightTxManager()
-		privacyExtension.Init()
-	} else {
-		if err := quorumInitialisePrivacy(ctx); err != nil {
-			utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
-		}
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
 	// Quorum - returning `ethService` too for the Raft and extension service
@@ -393,7 +385,7 @@ func quorumInitialisePrivacy(ctx *cli.Context) error {
 		return err
 	}
 
-	err = private.InitialiseConnection(cfg)
+	err = private.InitialiseConnection(cfg, ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name))
 	if err != nil {
 		return err
 	}

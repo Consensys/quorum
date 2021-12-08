@@ -70,8 +70,12 @@ func FromEnvironmentOrNil(name string) (http2.Config, error) {
 	return cfg, nil
 }
 
-func InitialiseConnection(cfg http2.Config) error {
+func InitialiseConnection(cfg http2.Config, isLightClient bool) error {
 	var err error
+	if isLightClient {
+		P, err = NewQLightTxManager()
+		return err
+	}
 	P, err = NewPrivateTxManager(cfg)
 	return err
 }
