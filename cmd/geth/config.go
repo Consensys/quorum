@@ -19,7 +19,6 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"math/big"
@@ -43,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -121,7 +121,6 @@ func defaultNodeConfig() node.Config {
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Quorum: Must occur before setQuorumConfig, as it needs an initialised PTM to be enabled
 	// 		   Extension Service and Multitenancy feature validation also depend on PTM availability
-	// TODO qlight - wasn't aware that te privacy service was initialized twice (need to reconsider this)
 	if err := quorumInitialisePrivacy(ctx); err != nil {
 		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
@@ -197,19 +196,15 @@ func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
 		utils.Fatalf("QLight tls flag is set but no client certificate has been provided")
 	}
-	certFileName := ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name)
-	CA_Pool := x509.NewCertPool()
-	cert, err := ioutil.ReadFile(certFileName)
+	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
+		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		ServerName:     enode.MustParse(ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)).IP().String(),
+	})
+
 	if err != nil {
-		utils.Fatalf("Unable to load the specified certificate: %s", certFileName)
+		utils.Fatalf("Unable to load the specified tls configuration: %v", err)
 	}
-	CA_Pool.AppendCertsFromPEM(cert)
-	serverUrl := ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)
-	node := enode.MustParse(serverUrl)
-	return &tls.Config{
-		RootCAs:    CA_Pool,
-		ServerName: node.IP().String(),
-	}
+	return tlsConfig
 }
 
 func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
@@ -223,18 +218,16 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 		utils.Fatalf("QLight tls flag is set but no server key has been provided")
 	}
 
-	certFileName := ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name)
-	keyFileName := ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name)
-
-	cert, err := tls.LoadX509KeyPair(certFileName, keyFileName)
+	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
+		CertFileName: ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:  ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+	})
 
 	if err != nil {
-		utils.Fatalf("QLight tls - unable to read server certificate key pair: %v", err)
+		utils.Fatalf("QLight tls - unable to read server tls configuration: %v", err)
 	}
 
-	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
+	return tlsConfig
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.

@@ -19,11 +19,8 @@ package eth
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net/http"
 	"runtime"
@@ -324,24 +321,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		)
 		// setup rpc client TLS context
 		if eth.config.QuorumLightClientRPCTLS {
-			tlsConfig := &tls.Config{
+			tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
 				InsecureSkipVerify: eth.config.QuorumLightClientRPCTLSInsecureSkipVerify,
-			}
-			certPool, err := x509.SystemCertPool()
+				CACertFileName:     eth.config.QuorumLightClientRPCTLSCACert,
+			})
 			if err != nil {
 				return nil, err
 			}
-			if len(eth.config.QuorumLightClientRPCTLSCACert) > 0 {
-				caPem, err := ioutil.ReadFile(eth.config.QuorumLightClientRPCTLSCACert)
-				if err != nil {
-					return nil, err
-				}
-				if len(caPem) != 0 {
-					certPool.AppendCertsFromPEM(caPem)
-				}
-			}
-			tlsConfig.RootCAs = certPool
-
 			customHttpClient := &http.Client{
 				Transport: http.DefaultTransport,
 			}
