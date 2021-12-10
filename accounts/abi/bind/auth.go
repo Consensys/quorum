@@ -192,7 +192,7 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 			if address != account.Address {
 				return nil, ErrNotAuthorized
 			}
-			return clef.SignTx(account, transaction, nil) // Clef enforces its own chain id
+			return clef.SignTx(account, transaction, transaction.ChainId()) // Clef enforces its own chain id
 		},
 	}
 }
@@ -204,11 +204,11 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 func NewWalletTransactor(w accounts.Wallet, account accounts.Account) *TransactOpts {
 	return &TransactOpts{
 		From: account.Address,
-		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		Signer: func(address common.Address, transaction *types.Transaction) (*types.Transaction, error) {
 			if address != account.Address {
 				return nil, errors.New("not authorized to sign this account")
 			}
-			return w.SignTx(account, tx, nil) // homestead signer without chainID is backward compatible
+			return w.SignTx(account, transaction, transaction.ChainId()) // homestead signer without chainID is backward compatible
 		},
 	}
 }
