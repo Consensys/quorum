@@ -2039,13 +2039,13 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node, useDns bool) {
+func RegisterPermissionService(stack *node.Node, useDns bool, chainID *big.Int) {
 	permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 	if err != nil {
 		Fatalf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}
 	// start the permissions management service
-	_, err = permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
+	_, err = permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns, chainID)
 	if err != nil {
 		Fatalf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 	}

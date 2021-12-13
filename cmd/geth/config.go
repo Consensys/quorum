@@ -171,7 +171,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	if cfg.Node.IsPermissionEnabled() {
-		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name))
+		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name), backend.ChainConfig().ChainID)
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {

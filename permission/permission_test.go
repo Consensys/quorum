@@ -222,6 +222,7 @@ func setup() {
 			t.Fatal(err)
 		}
 	}
+
 	fmt.Printf("current block is %v\n", ethereum.BlockChain().CurrentBlock().Number().Int64())
 }
 
@@ -715,7 +716,7 @@ func typicalPermissionCtrl(t *testing.T, v2Flag bool) *PermissionCtrl {
 	} else {
 		pconfig.PermissionsModel = ptype.PERMISSION_V1
 	}
-	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false, ethereum.BlockChain().Config().ChainID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -724,7 +725,7 @@ func typicalPermissionCtrl(t *testing.T, v2Flag bool) *PermissionCtrl {
 	testObject.eth = ethereum
 
 	// set contract and backend's contract as asyncStart won't get called
-	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.IsV2Permission(), testObject.key, testObject.permConfig, false, false)
+	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.IsV2Permission(), testObject.key, testObject.permConfig, false, false, ethereum.BlockChain().Config().ChainID)
 	if v2Flag {
 		b := testObject.backend.(*v2.Backend)
 		b.Contr = testObject.contract.(*v2.Init)

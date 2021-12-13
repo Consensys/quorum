@@ -325,7 +325,11 @@ func (i *Init) bindContract() error {
 }
 
 func (i *Init) initSession() {
-	auth := bind.NewKeyedTransactor(i.Backend.Key)
+	auth, err := bind.NewKeyedTransactorWithChainID(i.Backend.Key, i.Backend.ChainID)
+	if err != nil {
+		log.Error("V1 Permissioning failed to initialise", "NewKeyedTransactorWithChainID", err)
+		panic("V1 Permissioning failed to initialise")
+	}
 	log.Debug("NodeAccount V1", "nodeAcc", auth.From)
 	i.PermInterfSession = &pb.PermInterfaceSession{
 		Contract: i.PermInterf,

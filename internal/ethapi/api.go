@@ -1959,7 +1959,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	} else {
 		data = &types.AccessListTx{
 			To:         args.To,
-			ChainID:    (*big.Int)(args.ChainID),
+			ChainID:    args.ChainID,
 			Nonce:      uint64(*args.Nonce),
 			Gas:        uint64(*args.Gas),
 			GasPrice:   (*big.Int)(args.GasPrice),

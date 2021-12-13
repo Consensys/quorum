@@ -26,6 +26,7 @@ type PermissionCtrl struct {
 	ethClnt            bind.ContractBackend
 	eth                *eth.Ethereum
 	key                *ecdsa.PrivateKey
+	chainID            *big.Int
 	dataDir            string
 	permConfig         *ptype.PermissionConfig
 	contract           ptype.InitService
@@ -52,7 +53,7 @@ func setPermissionService(ps *PermissionCtrl) {
 // 1. EthService to be ready
 // 2. Downloader to sync up blocks
 // 3. InProc RPC server to be ready
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, useDns bool) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, useDns bool, chainID *big.Int) (*PermissionCtrl, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
@@ -65,6 +66,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, 
 		errorChan:      make(chan error),
 		useDns:         useDns,
 		isRaft:         false,
+		chainID:        chainID,
 	}
 
 	err := p.populateBackEnd()
@@ -127,7 +129,7 @@ func (p *PermissionCtrl) IsV2Permission() bool {
 }
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, permissionV2 bool, key *ecdsa.PrivateKey,
-	permConfig *ptype.PermissionConfig, isRaft, useDns bool) ptype.InitService {
+	permConfig *ptype.PermissionConfig, isRaft, useDns bool, chainId *big.Int) ptype.InitService {
 
 	contractBackEnd := ptype.ContractBackend{
 		EthClnt:    ethClnt,
@@ -135,6 +137,7 @@ func NewPermissionContractService(ethClnt bind.ContractBackend, permissionV2 boo
 		PermConfig: permConfig,
 		IsRaft:     isRaft,
 		UseDns:     useDns,
+		ChainID:    chainId,
 	}
 
 	if permissionV2 {
@@ -188,7 +191,7 @@ func (p *PermissionCtrl) NewPermissionControlService() (ptype.ControlService, er
 }
 
 func (p *PermissionCtrl) getContractBackend() ptype.ContractBackend {
-	return ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig, IsRaft: p.isRaft, UseDns: p.isRaft}
+	return ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig, IsRaft: p.isRaft, UseDns: p.isRaft, ChainID: p.chainID}
 }
 
 func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
@@ -238,7 +241,7 @@ func (p *PermissionCtrl) populateBackEnd() error {
 }
 
 func (p *PermissionCtrl) updateBackEnd() {
-	p.contract = NewPermissionContractService(p.ethClnt, p.IsV2Permission(), p.key, p.permConfig, p.isRaft, p.useDns)
+	p.contract = NewPermissionContractService(p.ethClnt, p.IsV2Permission(), p.key, p.permConfig, p.isRaft, p.useDns, p.chainID)
 	switch p.IsV2Permission() {
 	case true:
 		p.backend.(*v2.Backend).Contr = p.contract.(*v2.Init)
