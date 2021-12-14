@@ -384,7 +384,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 
 	//Find the account we plan to send the transaction from
 
-	txArgs := bind.NewWalletTransactor(wallet, from)
+	txArgs := bind.NewWalletTransactor(wallet, from, txa.ChainID)
 	txArgs.PrivateFrom = txa.PrivateFrom
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit

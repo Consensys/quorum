@@ -145,7 +145,7 @@ func setup() {
 	var permUpgrInstance *v1bind.PermUpgr
 	var permUpgrInstanceE *v2bind.PermUpgr
 
-	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
+	guardianTransactor, _ := bind.NewKeyedTransactorWithChainID(guardianKey, ethereum.BlockChain().Config().ChainID)
 
 	if v2Flag {
 		permUpgrAddress, _, permUpgrInstanceE, err = v2bind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
