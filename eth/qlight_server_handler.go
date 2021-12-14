@@ -247,29 +247,21 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 	p.Log().Debug("QLight handshake result for peer", "peer", p.id, "server", p.qlightServer, "psi", p.qlightPSI, "token", p.qlightToken)
 
 	if p.qlightServer {
-		// Register the peer locally
-		if err := pm.peers.RegisterIdlePeer(p, pm.removePeer, protoName); err != nil {
-			p.Log().Error("Ethereum peer registration failed", "err", err)
-
-			// Quorum
-			// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
-			p.EthPeerDisconnected <- struct{}{}
-			// End Quorum
-
-			return err
-		}
-	} else {
-		if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
-			p.Log().Error("Ethereum peer registration failed", "err", err)
-
-			// Quorum
-			// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
-			p.EthPeerDisconnected <- struct{}{}
-			// End Quorum
-
-			return err
-		}
+		p.Log().Debug("QLight server handshake error. Cannot connect to another QLight server.")
+		return errResp(ErrExtraStatusMsg, "QLight server handshake error. Cannot connect to another QLight server.")
 	}
+
+	if err := pm.peers.Register(p, pm.removePeer, protoName); err != nil {
+		p.Log().Error("Ethereum peer registration failed", "err", err)
+
+		// Quorum
+		// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
+		p.EthPeerDisconnected <- struct{}{}
+		// End Quorum
+
+		return err
+	}
+
 	defer pm.removePeer(p.id)
 
 	p.Log().Info("QLight server handler auth manager", "isNil", pm.authManager == nil)
