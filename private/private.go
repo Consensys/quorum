@@ -144,9 +144,13 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 
 // Retrieve the private transaction that is associated with a privacy marker transaction
 func FetchPrivateTransaction(data []byte) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
+	return FetchPrivateTransactionWithPTM(data, P)
+}
+
+func FetchPrivateTransactionWithPTM(data []byte, ptm PrivateTransactionManager) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
 	txHash := common.BytesToEncryptedPayloadHash(data)
 
-	_, managedParties, txData, metadata, err := P.Receive(txHash)
+	_, managedParties, txData, metadata, err := ptm.Receive(txHash)
 	if err != nil {
 		return nil, nil, nil, err
 	}

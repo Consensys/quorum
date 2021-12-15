@@ -300,7 +300,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 				_, authManager, _ := stack.GetSecuritySupports()
 				return authManager
 			}
-			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, authManProvider); err != nil {
+			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode,
+				qlight.NewAuthProvider(eth.blockchain.PrivateStateManager(), authManProvider),
+				qlight.NewPrivateBlockDataResolver(eth.blockchain.PrivateStateManager(), private.P)); err != nil {
 				return nil, err
 			}
 		}

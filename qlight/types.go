@@ -3,6 +3,7 @@ package qlight
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/ethereum/go-ethereum/plugin/security"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -19,6 +20,17 @@ type PrivateClientCache interface {
 	PrivateStateRootHashValidator
 	AddPrivateBlock(blockPrivateData BlockPrivateData) error
 	CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash)
+}
+
+type PrivateBlockDataResolver interface {
+	PrepareBlockPrivateData(block *types.Block, psi string) (*BlockPrivateData, error)
+}
+
+type AuthManagerProvider func() security.AuthenticationManager
+
+type AuthProvider interface {
+	Initialize() error
+	Authorize(token string, psi string) error
 }
 
 type BlockPrivateData struct {

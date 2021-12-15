@@ -17,7 +17,6 @@
 package eth
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -28,22 +27,17 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin/security"
-	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type QLightServerProtocolManager struct {
@@ -80,35 +74,36 @@ type QLightServerProtocolManager struct {
 	peerWG sync.WaitGroup
 
 	// Quorum
-	raftMode            bool
-	engine              consensus.Engine
-	authManager         security.AuthenticationManager
-	authManagerProvider AuthManagerProvider
+	raftMode bool
+	engine   consensus.Engine
 
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
-}
 
-type AuthManagerProvider func() security.AuthenticationManager
+	// QLight
+	authProvider             qlight.AuthProvider
+	privateBlockDataResolver qlight.PrivateBlockDataResolver
+}
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewQLightServerProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, authManagerProvider AuthManagerProvider) (*QLightServerProtocolManager, error) {
+func NewQLightServerProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCheckpoint, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database, cacheLimit int, authorizationList map[uint64]common.Hash, raftMode bool, authProvider qlight.AuthProvider, privateBlockDataResolver qlight.PrivateBlockDataResolver) (*QLightServerProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &QLightServerProtocolManager{
-		networkID:           networkID,
-		forkFilter:          forkid.NewFilter(blockchain),
-		eventMux:            mux,
-		txpool:              txpool,
-		blockchain:          blockchain,
-		chaindb:             chaindb,
-		peers:               newPeerSet(),
-		authorizationList:   authorizationList,
-		txsyncCh:            make(chan *txsync),
-		quitSync:            make(chan struct{}),
-		raftMode:            raftMode,
-		engine:              engine,
-		authManagerProvider: authManagerProvider,
+		networkID:                networkID,
+		forkFilter:               forkid.NewFilter(blockchain),
+		eventMux:                 mux,
+		txpool:                   txpool,
+		blockchain:               blockchain,
+		chaindb:                  chaindb,
+		peers:                    newPeerSet(),
+		authorizationList:        authorizationList,
+		txsyncCh:                 make(chan *txsync),
+		quitSync:                 make(chan struct{}),
+		raftMode:                 raftMode,
+		engine:                   engine,
+		authProvider:             authProvider,
+		privateBlockDataResolver: privateBlockDataResolver,
 	}
 
 	return manager, nil
@@ -169,9 +164,7 @@ func (pm *QLightServerProtocolManager) Start(maxPeers int) {
 	pm.closeCh = make(chan struct{})
 	go pm.newBlockBroadcastLoop()
 
-	if pm.authManagerProvider != nil {
-		pm.authManager = pm.authManagerProvider()
-	}
+	pm.authProvider.Initialize()
 }
 
 func (pm *QLightServerProtocolManager) Stop() {
@@ -264,59 +257,8 @@ func (pm *QLightServerProtocolManager) handle(p *peer, protoName string) error {
 
 	defer pm.removePeer(p.id)
 
-	p.Log().Info("QLight server handler auth manager", "isNil", pm.authManager == nil)
-
-	if pm.authManager != nil {
-		authEnabled, err := pm.authManager.IsEnabled(context.Background())
-		if err != nil {
-			return err
-		}
-		if authEnabled {
-			authToken, err := pm.authManager.Authenticate(context.Background(), p.qlightToken)
-			if err != nil {
-				return err
-			}
-			PSI := types.PrivateStateIdentifier(p.qlightPSI)
-			// check that we have access to the relevant PSI
-			psiAuth, err := multitenancy.IsPSIAuthorized(authToken, PSI)
-			if err != nil {
-				return err
-			}
-			if !psiAuth {
-				return fmt.Errorf("PSI not authorized")
-			}
-			// check that we have access to  qlight://p2p , rpc://eth_*
-			// TODO figure out what other entitlements we want to check here
-			qlightP2P := false
-			rpcETH := false
-			for _, ga := range authToken.GetAuthorities() {
-				if ga.GetRaw() == "p2p://qlight" {
-					qlightP2P = true
-				}
-				if ga.GetRaw() == "rpc://eth_*" {
-					rpcETH = true
-				}
-			}
-			if !qlightP2P || !rpcETH {
-				p.Log().Error("The P2P token does not have the necessary authorization", "p2p", qlightP2P, "rpcETH", rpcETH)
-				return fmt.Errorf("The P2P token does not have the necessary authorization p2p=%v rpcETH=%v", qlightP2P, rpcETH)
-			}
-			// try to resolve the PSI
-			_, err = pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// we're a qlight server connected to another server - do nothing
-	if p.qlightServer {
-		p.Log().Debug("QLight handshake to another server. Wait for remote disconnect", "protoName", protoName)
-
-		// TODO Qlight - consider a server peers list (with it's own wait group)
-		// connected to another server, no messages expected, just wait for disconnection
-		msg, err := p.rw.ReadMsg()
-		p.Log().Info("QLight - message received on server connection", "msg", msg, "err", err)
+	err := pm.authProvider.Authorize(p.qlightToken, p.qlightPSI)
+	if err != nil {
 		return err
 	}
 
@@ -470,7 +412,7 @@ func (pm *QLightServerProtocolManager) handleMsg(p *peer) error {
 			// TODO Qlight - loading and parsing the block is a much heavier operation (than just loading the RLP encoded value)
 			block := pm.blockchain.GetBlockByHash(hash)
 			if block != nil {
-				if bpd, err := pm.prepareBlockPrivateData(block, p.qlightPSI); err != nil {
+				if bpd, err := pm.privateBlockDataResolver.PrepareBlockPrivateData(block, p.qlightPSI); err != nil {
 					return errResp(ErrDecode, "Unable to produce block private transaction data %v: %v", hash, err)
 				} else if bpd != nil {
 					blockPrivateDatas = append(blockPrivateDatas, *bpd)
@@ -558,7 +500,7 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 			if peer.qlightServer {
 				continue
 			}
-			blockPrivateData, err := pm.prepareBlockPrivateData(block, peer.qlightPSI)
+			blockPrivateData, err := pm.privateBlockDataResolver.PrepareBlockPrivateData(block, peer.qlightPSI)
 			if err != nil {
 				log.Error("Unable to prepare private data for block", "number", block.Number(), "hash", hash, "err", err, "psi", peer.qlightPSI)
 				return
@@ -576,95 +518,6 @@ func (pm *QLightServerProtocolManager) BroadcastBlock(block *types.Block, propag
 		}
 		log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 	}
-}
-
-func (pm *QLightServerProtocolManager) prepareBlockPrivateData(block *types.Block, psi string) (*qlight.BlockPrivateData, error) {
-	// TODO qlight - this can probably be replaced with loading prepared data (if the block processing is updated to store qlightCacheKeys structures / PSI)
-	PSI := types.PrivateStateIdentifier(psi)
-	var pvtTxs []qlight.PrivateTransactionData
-	psm, err := pm.blockchain.PrivateStateManager().ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
-	if err != nil {
-		return nil, err
-	}
-	for _, tx := range block.Transactions() {
-		var ptd *qlight.PrivateTransactionData
-		if tx.IsPrivacyMarker() {
-			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
-			if err != nil {
-				return nil, err
-			}
-
-			innerTx, _, _, _ := private.FetchPrivateTransaction(tx.Data())
-			if innerTx != nil {
-				tx = innerTx
-			}
-		}
-
-		if tx.IsPrivate() {
-			ptd, err = pm.fetchPrivateData(tx.Data(), psm)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if ptd != nil {
-			pvtTxs = append(pvtTxs, *ptd)
-		}
-	}
-	if len(pvtTxs) == 0 {
-		return nil, nil
-	}
-
-	// TODO - once private state optimisations are implemented it is very likely that we won't have public <-> private block mappings
-	// for each block anymore (they would only be written for the actually stored blocks)
-	stateRepo, err := pm.blockchain.PrivateStateManager().StateRepository(block.Root())
-	if err != nil {
-		return nil, err
-	}
-	privateStateRoot, err := stateRepo.PrivateStateRoot(PSI)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO - figure out a way to prove that a request for a cache key comes from this specific node (possibly using signatures)
-	return &qlight.BlockPrivateData{
-		BlockHash:           block.Hash(),
-		PSI:                 PSI,
-		PrivateStateRoot:    privateStateRoot,
-		PrivateTransactions: pvtTxs,
-	}, nil
-}
-
-func (pm *QLightServerProtocolManager) fetchPrivateData(encryptedPayloadHash []byte, psm *mps.PrivateStateMetadata) (*qlight.PrivateTransactionData, error) {
-	txHash := common.BytesToEncryptedPayloadHash(encryptedPayloadHash)
-	_, _, privateTx, extra, err := private.P.Receive(txHash)
-	if err != nil {
-		return nil, err
-	}
-	// we're not party to this transaction
-	if privateTx == nil {
-		return nil, nil
-	}
-	if pm.blockchain.PrivateStateManager().NotIncludeAny(psm, extra.ManagedParties...) {
-		return nil, nil
-	}
-
-	extra.ManagedParties = psm.FilterAddresses(extra.ManagedParties...)
-
-	ptd := qlight.PrivateTransactionData{
-		Hash:     &txHash,
-		Payload:  privateTx,
-		Extra:    extra,
-		IsSender: false,
-	}
-	if len(psm.Addresses) == 0 {
-		// this is not an MPS node so we have to ask tessera
-		ptd.IsSender, _ = private.P.IsSender(txHash)
-	} else {
-		// this is an MPS node so we can speed up the IsSender logic by checking the addresses in the private state metadata
-		ptd.IsSender = !psm.NotIncludeAny(extra.Sender)
-	}
-
-	return &ptd, nil
 }
 
 // BroadcastTransactions will propagate a batch of transactions to all peers which are not known to
@@ -703,9 +556,6 @@ func (pm *QLightServerProtocolManager) BroadcastTransactions(txs types.Transacti
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
-			if peer.qlightServer {
-				continue
-			}
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
 	}
