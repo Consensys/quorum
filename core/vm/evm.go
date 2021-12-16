@@ -340,7 +340,11 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 			return nil, gas, nil
 		}
-		evm.StateDB.CreateAccount(addr)
+		// If we are executing the quorum PMT precompile, then don't add it to state.
+		// (When executing the PMT precompile, we are using private state - adding the account can cause differences in private state root when using with MPS.)
+		if !isQuorumPrecompile {
+			evm.StateDB.CreateAccount(addr)
+		}
 	}
 
 	// Quorum
