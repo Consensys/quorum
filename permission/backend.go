@@ -270,7 +270,7 @@ func (p *PermissionCtrl) getTxParams(txa ethapi.SendTxArgs) (*bind.TransactOpts,
 		return nil, ptype.ErrInvalidAccount
 	}
 	fromAcct := accounts.Account{Address: txa.From}
-	transactOpts := bind.NewWalletTransactor(w, fromAcct, txa.ChainID)
+	transactOpts := bind.NewWalletTransactor(w, fromAcct)
 
 	transactOpts.GasPrice = defaultGasPrice
 	if txa.GasPrice != nil {
