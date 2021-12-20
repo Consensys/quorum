@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"sync"
 
@@ -34,7 +35,8 @@ type PrivacyService struct {
 	mu           sync.Mutex
 	psiContracts map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract
 
-	node *node.Node
+	node   *node.Node
+	config *params.ChainConfig
 }
 
 var (
@@ -74,7 +76,7 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper) (*PrivacyService, error) {
+func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, apiBackendHelper APIBackendHelper, config *params.ChainConfig) (*PrivacyService, error) {
 	service := &PrivacyService{
 		psiContracts:     make(map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract),
 		ptm:              ptm,
@@ -83,6 +85,7 @@ func New(stack *node.Node, ptm private.PrivateTransactionManager, manager *accou
 		accountManager:   manager,
 		apiBackendHelper: apiBackendHelper,
 		node:             stack,
+		config:           config,
 	}
 
 	var err error
@@ -384,7 +387,7 @@ func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*
 
 	//Find the account we plan to send the transaction from
 
-	txArgs := bind.NewWalletTransactor(wallet, from)
+	txArgs := bind.NewWalletTransactor(wallet, from, service.config.ChainID)
 	txArgs.PrivateFrom = txa.PrivateFrom
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit

@@ -30,7 +30,7 @@ func NewServicesFactory(stack *node.Node, ptm private.PrivateTransactionManager,
 	factory.dataHandler = NewJsonFileDataHandler(stack.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
-	backendService, err := New(stack, ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend)
+	backendService, err := New(stack, ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService.APIBackend, ethService.BlockChain().Config())
 	if err != nil {
 		return nil, err
 	}
