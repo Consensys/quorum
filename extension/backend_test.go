@@ -1,7 +1,6 @@
 package extension
 
 import (
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type MockBackend struct {
