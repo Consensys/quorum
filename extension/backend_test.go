@@ -1,6 +1,7 @@
 package extension
 
 import (
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"testing"
 
@@ -146,9 +147,14 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
 	mockAPIBackendHelper := MockEthAPIBackend{}
 	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
+	config := params.ChainConfig{
+		ChainID: big.NewInt(1337),
+	}
+
 	service := &PrivacyService{
 		accountManager:   accountManager,
 		apiBackendHelper: &mockAPIBackendHelper,
+		config:           &config,
 	}
 
 	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
@@ -201,9 +207,13 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
 	mockAPIBackendHelper := MockEthAPIBackend{}
 	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
+	config := params.ChainConfig{
+		ChainID: big.NewInt(1337),
+	}
 	service := &PrivacyService{
 		accountManager:   accountManager,
 		apiBackendHelper: &mockAPIBackendHelper,
+		config:           &config,
 	}
 
 	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
