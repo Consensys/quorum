@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -86,8 +87,8 @@ type TxData interface {
 	setSignatureValues(chainID, v, r, s *big.Int)
 }
 
-// TODO: @achraf have a look
 // Quorum
+
 func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
 	return &PrivacyMetadata{
 		PrivacyFlag: privacyFlag,
@@ -284,7 +285,6 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
-// TODO: @achraf llok
 func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
 
 // To returns the recipient address of the transaction.
@@ -511,7 +511,11 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 	heads := make(TxByPriceAndTime, 0, len(txs))
 	for from, accTxs := range txs {
 		// Ensure the sender address is from the signer
-		if acc, _ := Sender(signer, accTxs[0]); acc != from {
+		acc, err := Sender(signer, accTxs[0])
+		if err != nil {
+			log.Error("Failed to retrieve the sender address", "err", err)
+		}
+		if acc != from {
 			delete(txs, from)
 			continue
 		}
