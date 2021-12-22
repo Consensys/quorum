@@ -13,7 +13,7 @@ import (
 )
 
 type PrivateStateRootHashValidator interface {
-	ValidatePrivateStateRoot(blockHash common.Hash, blockPrivateStateRoot common.Hash) error
+	ValidatePrivateStateRoot(blockHash common.Hash, blockPublicStateRoot common.Hash) error
 }
 
 type PrivateClientCache interface {
@@ -31,6 +31,11 @@ type AuthManagerProvider func() security.AuthenticationManager
 type AuthProvider interface {
 	Initialize() error
 	Authorize(token string, psi string) error
+}
+
+type CacheWithEmpty interface {
+	Cache(privateTxData *qlightptm.CachablePrivateTransactionData) error
+	CheckAndAddEmptyToCache(hash common.EncryptedPayloadHash)
 }
 
 type BlockPrivateData struct {

@@ -58,7 +58,7 @@ func ConfigureQLightTLSConfig(config *TLSConfig) (*tls.Config, error) {
 		}
 		ClientCA_Pool.AppendCertsFromPEM(cert)
 		if config.ClientAuth < 0 || config.ClientAuth > 4 {
-			return nil, fmt.Errorf("Invalid ClientAuth value: %s", config.ClientAuth)
+			return nil, fmt.Errorf("Invalid ClientAuth value: %d", config.ClientAuth)
 		}
 		ClientAuth = tls.ClientAuthType(config.ClientAuth)
 	}

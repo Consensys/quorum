@@ -15,7 +15,7 @@ import (
 )
 
 type clientCache struct {
-	cachingTXManager  *qlightptm.CachingProxyTxManager
+	cacheWithEmpty    CacheWithEmpty
 	privateBlockCache *gocache.Cache
 	db                ethdb.Database
 }
@@ -23,18 +23,22 @@ type clientCache struct {
 func NewClientCache(db ethdb.Database) (PrivateClientCache, error) {
 	cachingTXManager, ok := private.P.(*qlightptm.CachingProxyTxManager)
 	if !ok {
-		return nil, fmt.Errorf("unable to initialize cachingTXManager")
+		return nil, fmt.Errorf("unable to initialize cacheWithEmpty")
 	}
+	return NewClientCacheWithEmpty(db, cachingTXManager, gocache.New(cache.DefaultExpiration, cache.CleanupInterval))
+}
+
+func NewClientCacheWithEmpty(db ethdb.Database, cacheWithEmpty CacheWithEmpty, gocache *gocache.Cache) (PrivateClientCache, error) {
 	return &clientCache{
-		cachingTXManager:  cachingTXManager,
-		privateBlockCache: gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
+		cacheWithEmpty:    cacheWithEmpty,
+		privateBlockCache: gocache,
 		db:                db,
 	}, nil
 }
 
 func (c *clientCache) AddPrivateBlock(blockPrivateData BlockPrivateData) error {
 	for _, pvtTx := range blockPrivateData.PrivateTransactions {
-		if err := c.cachingTXManager.Cache(pvtTx.ToCachable()); err != nil {
+		if err := c.cacheWithEmpty.Cache(pvtTx.ToCachable()); err != nil {
 			return err
 		}
 	}
@@ -42,7 +46,7 @@ func (c *clientCache) AddPrivateBlock(blockPrivateData BlockPrivateData) error {
 }
 
 func (c *clientCache) CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash) {
-	c.cachingTXManager.CheckAndAddEmptyToCache(hash)
+	c.cacheWithEmpty.CheckAndAddEmptyToCache(hash)
 }
 
 func (c *clientCache) ValidatePrivateStateRoot(blockHash common.Hash, publicStateRoot common.Hash) error {
