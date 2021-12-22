@@ -147,11 +147,6 @@ func (mpsr *MultiplePrivateStateRepository) Reset() error {
 		if err != nil {
 			return err
 		}
-		//stateDB, err := state.New(common.BytesToHash(root), managedState.stateCache, nil)
-		//if err != nil {
-		//	return err
-		//}
-		//managedState.stateDb = stateDB
 	}
 	return nil
 }
