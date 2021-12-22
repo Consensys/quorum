@@ -3,10 +3,10 @@ package qlight
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/ethereum/go-ethereum/plugin/security"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/qlightptm"
 	"github.com/ethereum/go-ethereum/rlp"
