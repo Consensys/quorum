@@ -1,6 +1,8 @@
 package test
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -13,10 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/golang/mock/gomock"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -130,6 +134,201 @@ func TestPrivateBlockDataResolverImpl_PrepareBlockPrivateData_PMTTransaction(t *
 	// TODO figure out how to test PMT transactions
 }
 
+func TestAuthProviderImpl_Authorize_AuthManagerNil(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager { return nil })
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.Nil(err)
+}
+
+func TestAuthProviderImpl_Authorize_AuthManagerDisabled(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager {
+		return &testAuthManager{
+			enabled:   false,
+			authError: nil,
+			authToken: nil,
+		}
+	})
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.Nil(err)
+}
+
+func TestAuthProviderImpl_Authorize_AuthManagerEnabledAuthError(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager {
+		return &testAuthManager{
+			enabled:   true,
+			authError: fmt.Errorf("auth error"),
+			authToken: nil,
+		}
+	})
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.EqualError(err, "auth error")
+}
+
+func TestAuthProviderImpl_Authorize_AuthManagerEnabledNotEntitledToPSI(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager {
+		return &testAuthManager{
+			enabled:   true,
+			authError: nil,
+			authToken: &proto.PreAuthenticatedAuthenticationToken{
+				RawToken:  nil,
+				ExpiredAt: nil,
+				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+					Service:              "psi",
+					Method:               "psi2",
+					Raw:                  "psi://psi2",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				}},
+				XXX_NoUnkeyedLiteral: struct{}{},
+				XXX_unrecognized:     nil,
+				XXX_sizecache:        0,
+			},
+		}
+	})
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.EqualError(err, "PSI not authorized")
+}
+
+func TestAuthProviderImpl_Authorize_AuthManagerEnabledMissingEntitlement(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager {
+		return &testAuthManager{
+			enabled:   true,
+			authError: nil,
+			authToken: &proto.PreAuthenticatedAuthenticationToken{
+				RawToken:  nil,
+				ExpiredAt: nil,
+				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+					Service:              "psi",
+					Method:               "psi1",
+					Raw:                  "psi://psi1",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				}, &proto.GrantedAuthority{
+					Service:              "p2p",
+					Method:               "qlight",
+					Raw:                  "p2p://qlight",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				},
+				},
+				XXX_NoUnkeyedLiteral: struct{}{},
+				XXX_unrecognized:     nil,
+				XXX_sizecache:        0,
+			},
+		}
+	})
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.EqualError(err, "The P2P token does not have the necessary authorization p2p=true rpcETH=false")
+}
+
+func TestAuthProviderImpl_Authorize_AuthManagerEnabledSuccess(t *testing.T) {
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	authProvider := qlight.NewAuthProvider(mockpsm, func() security.AuthenticationManager {
+		return &testAuthManager{
+			enabled:   true,
+			authError: nil,
+			authToken: &proto.PreAuthenticatedAuthenticationToken{
+				RawToken:  nil,
+				ExpiredAt: nil,
+				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+					Service:              "psi",
+					Method:               "psi1",
+					Raw:                  "psi://psi1",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				}, &proto.GrantedAuthority{
+					Service:              "p2p",
+					Method:               "qlight",
+					Raw:                  "p2p://qlight",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				}, &proto.GrantedAuthority{
+					Service:              "rpc",
+					Method:               "eth_*",
+					Raw:                  "rpc://eth_*",
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				},
+				},
+				XXX_NoUnkeyedLiteral: struct{}{},
+				XXX_unrecognized:     nil,
+				XXX_sizecache:        0,
+			},
+		}
+	})
+
+	err := authProvider.Initialize()
+	assert.Nil(err)
+
+	err = authProvider.Authorize("token", "psi1")
+	assert.Nil(err)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////// Helpers /////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const (
 	// testCode is the testing contract binary code which will initialises some
 	// variables in constructor
@@ -224,4 +423,18 @@ var PrivacyGroups = []engine.PrivacyGroup{
 		From:           "",
 		Members:        []string{"LEG1", "LEG2"},
 	},
+}
+
+type testAuthManager struct {
+	enabled   bool
+	authError error
+	authToken *proto.PreAuthenticatedAuthenticationToken
+}
+
+func (am *testAuthManager) Authenticate(ctx context.Context, token string) (*proto.PreAuthenticatedAuthenticationToken, error) {
+	return am.authToken, am.authError
+}
+
+func (am *testAuthManager) IsEnabled(ctx context.Context) (bool, error) {
+	return am.enabled, nil
 }
