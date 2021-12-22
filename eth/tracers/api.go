@@ -77,7 +77,7 @@ type Backend interface {
 	GetBlockchain() *core.BlockChain
 }
 
-// API is the collection of tracing APIsstatedb exposed over the private debugging endpoint.
+// API is the collection of tracing APIs statedb exposed over the private debugging endpoint.
 type API struct {
 	backend Backend
 }
@@ -93,7 +93,6 @@ type chainContext struct {
 }
 
 // Quorum
-// TODO: to be refactored after creation of ChainContextWithQuorum
 
 func (context *chainContext) Config() *params.ChainConfig {
 	return context.api.backend.ChainConfig()
@@ -927,62 +926,6 @@ func (api *API) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateSt
 	}
 	return msg
 }
-
-/*
-// computeTxEnv returns the execution environment of a certain transaction.
-func (api *API) computeTxEnv(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
-	// Create the parent state database
-	parent := api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
-	if parent == nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
-	}
-	statedb, privateStateRepo, err := api.computeStateDB(parent, reexec)
-	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, err
-	}
-	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
-	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, err
-	}
-	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
-	if err != nil {
-		return nil, vm.BlockContext{}, nil, nil, nil, err
-	}
-
-	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, privateStateDb, privateStateRepo, nil
-	}
-
-	// Recompute transactions up to the target index.
-	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
-
-	for idx, tx := range block.Transactions() {
-		// Quorum
-		privateStateDbToUse := core.PrivateStateDBForTxn(api.eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
-		// /Quorum
-		// Assemble the transaction call message and return if the requested offset
-		msg, _ := tx.AsMessage(signer)
-		msg = api.clearMessageDataIfNonParty(msg, psm)
-		txContext := core.NewEVMTxContext(msg)
-		context := core.NewEVMBlockContext(block.Header(), api.eth.blockchain, nil)
-		if idx == txIndex {
-			return msg, context, statedb, privateStateDb, privateStateRepo, nil
-		}
-		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
-		vmenv.SetCurrentTX(tx)
-		vmenv.InnerApply = func(innerTx *types.Transaction) error {
-			return applyInnerTransaction(api.eth.blockchain, statedb, privateStateDbToUse, block.Header(), tx, vm.Config{}, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, idx)
-		}
-		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
-		}
-		// Ensure any modifications are committed to the state
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
-		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
-	}
-	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
-}*/
 
 func applyInnerTransaction(bc *core.BlockChain, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
 	var (
