@@ -184,10 +184,10 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
 		// permissioning for the qlight P2P server
 		stack.QServer().SetNewTransportFunc(p2p.NewQlightServerTransport)
-		if ctx.GlobalIsSet(utils.QuorumLightServerPermissioningFlag.Name) {
+		if ctx.GlobalIsSet(utils.QuorumLightServerP2PPermissioningFlag.Name) {
 			prefix := "qlight"
-			if ctx.GlobalIsSet(utils.QuorumLightServerPermissioningPrefixFlag.Name) {
-				prefix = ctx.GlobalString(utils.QuorumLightServerPermissioningPrefixFlag.Name)
+			if ctx.GlobalIsSet(utils.QuorumLightServerP2PPermissioningPrefixFlag.Name) {
+				prefix = ctx.GlobalString(utils.QuorumLightServerP2PPermissioningPrefixFlag.Name)
 			}
 			fbp := core.NewFileBasedPermissoningWithPrefix(prefix)
 			stack.QServer().SetIsNodePermissioned(fbp.IsNodePermissionedEnode)

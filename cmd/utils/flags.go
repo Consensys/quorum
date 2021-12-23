@@ -959,17 +959,26 @@ var (
 		Name:  "qlight.server",
 		Usage: "If enabled, the quorum light P2P protocol is started in addition to the other P2P protocols",
 	}
-	QuorumLightServerListenPortFlag = cli.IntFlag{
-		Name:  "qlight.port",
+	QuorumLightServerP2PListenPortFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.port",
 		Usage: "QLight Network listening port",
 		Value: 30305,
 	}
-	QuorumLightServerPermissioningFlag = cli.BoolFlag{
-		Name:  "qlight.server.permissioning",
+	QuorumLightServerP2PMaxPeersFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.maxpeers",
+		Usage: "QLight Network listening port",
+		Value: 30305,
+	}
+	QuorumLightServerP2PNetrestrictFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.netrestrict",
+		Usage: "Restricts network communication to the given IP networks (CIDR masks)",
+	}
+	QuorumLightServerP2PPermissioningFlag = cli.BoolFlag{
+		Name:  "qlight.server.p2p.permissioning",
 		Usage: "If enabled, the qlight peers are checked against a permissioned list and a disallowed list.",
 	}
-	QuorumLightServerPermissioningPrefixFlag = cli.StringFlag{
-		Name:  "qlight.server.permissioning.prefix",
+	QuorumLightServerP2PPermissioningPrefixFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.permissioning.prefix",
 		Usage: "The prefix for the permissioned-nodes.json and dissallowed-nodes.json files.",
 	}
 	QuorumLightClientFlag = cli.BoolFlag{
@@ -1460,17 +1469,26 @@ func SetQP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setNodeKey(ctx, cfg)
 	//setNAT(ctx, cfg)
 	cfg.NAT = nil
-	if ctx.GlobalIsSet(QuorumLightServerListenPortFlag.Name) {
-		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerListenPortFlag.Name))
+	if ctx.GlobalIsSet(QuorumLightServerP2PListenPortFlag.Name) {
+		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerP2PListenPortFlag.Name))
 	}
 
-	cfg.EnableNodePermission = ctx.GlobalIsSet(QuorumLightServerPermissioningFlag.Name)
-
-	//setBootstrapNodes(ctx, cfg)
-	//setBootstrapNodesV5(ctx, cfg)
+	cfg.EnableNodePermission = ctx.GlobalIsSet(QuorumLightServerP2PPermissioningFlag.Name)
 
 	cfg.MaxPeers = 10
-	cfg.MaxPendingPeers = 10
+	if ctx.GlobalIsSet(QuorumLightServerP2PMaxPeersFlag.Name) {
+		cfg.MaxPeers = ctx.GlobalInt(QuorumLightServerP2PMaxPeersFlag.Name)
+	}
+
+	if netrestrict := ctx.GlobalString(QuorumLightServerP2PNetrestrictFlag.Name); netrestrict != "" {
+		list, err := netutil.ParseNetlist(netrestrict)
+		if err != nil {
+			Fatalf("Option %q: %v", QuorumLightServerP2PNetrestrictFlag.Name, err)
+		}
+		cfg.NetRestrict = list
+	}
+
+	cfg.MaxPendingPeers = 0
 	cfg.NoDiscovery = true
 	cfg.DiscoveryV5 = false
 	cfg.NoDial = true
