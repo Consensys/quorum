@@ -14,10 +14,14 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 )
 
+type RPCClientCaller interface {
+	Call(result interface{}, method string, args ...interface{}) error
+}
+
 type CachingProxyTxManager struct {
 	features  *engine.FeatureSet
 	cache     *gocache.Cache
-	rpcClient *rpc.Client
+	rpcClient RPCClientCaller
 }
 
 type CPItem struct {
@@ -39,6 +43,10 @@ func New() *CachingProxyTxManager {
 }
 
 func (t *CachingProxyTxManager) SetRPCClient(client *rpc.Client) {
+	t.rpcClient = client
+}
+
+func (t *CachingProxyTxManager) SetRPCClientCaller(client RPCClientCaller) {
 	t.rpcClient = client
 }
 
@@ -220,8 +228,4 @@ func (t *CachingProxyTxManager) Name() string {
 
 func (t *CachingProxyTxManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
 	return t.features.HasFeature(f)
-}
-
-func (t *CachingProxyTxManager) GetRPCClient() *rpc.Client {
-	return t.rpcClient
 }
