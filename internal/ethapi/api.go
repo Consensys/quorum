@@ -2045,7 +2045,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 
 // runSimulation runs a simulation of the given transaction.
 // It returns the EVM instance upon completion
-func runSimulation(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) (*vm.EVM, error) {
+func runSimulation(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) (*vm.EVM, []byte, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
@@ -2074,11 +2074,11 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	stateAtBlock, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if stateAtBlock == nil || err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	evm, _, err := b.GetEVM(ctx, msg, stateAtBlock, header)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Wait for the context to be done and cancel the evm. Even if the
@@ -2093,7 +2093,8 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	// even the creation of a contract (init code) can invoke other contracts
 	if tx.To() != nil {
 		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
-		_, _, err = evm.Call(vm.AccountRef(addr), *tx.To(), tx.Data(), tx.Gas(), tx.Value())
+		data, _, err := evm.Call(vm.AccountRef(addr), *tx.To(), tx.Data(), tx.Gas(), tx.Value())
+		return evm, data, err
 	} else {
 		_, contractAddr, _, err = evm.Create(vm.AccountRef(addr), tx.Data(), tx.Gas(), tx.Value())
 		//make sure that nonce is same in simulation as in actual block processing
@@ -2103,7 +2104,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 			evm.StateDB.SetNonce(contractAddr, 1)
 		}
 	}
-	return evm, err
+	return evm, nil, err
 }
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
@@ -2965,7 +2966,7 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 		return nil, common.Hash{}, nil
 	}
 
-	evm, err := runSimulation(ctx, b, from, privateTx)
+	evm, data, err := runSimulation(ctx, b, from, privateTx)
 	if evm == nil {
 		log.Debug("TX Simulation setup failed", "error", err)
 		return nil, common.Hash{}, err
@@ -2976,6 +2977,9 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 				"Continuing to simulation checks.", "error", err)
 		} else {
 			log.Trace("Simulated execution", "error", err)
+			if len(data) > 0 && errors.Is(err, vm.ErrExecutionReverted) {
+				err = fmt.Errorf("%w: reason: data=%s", err, common.Bytes2Hex(data))
+			}
 			return nil, common.Hash{}, err
 		}
 	}
