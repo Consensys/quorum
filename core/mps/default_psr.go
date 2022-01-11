@@ -41,6 +41,9 @@ func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, p
 }
 
 func (dpsr *DefaultPrivateStateRepository) DefaultState() (*state.StateDB, error) {
+	if dpsr == nil {
+		return nil, fmt.Errorf("nil instance")
+	}
 	return dpsr.stateDB, nil
 }
 

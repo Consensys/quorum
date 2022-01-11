@@ -430,18 +430,19 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			bc.cacheConfig.TrieCleanRejournal = time.Minute
 		}
 		triedb := bc.stateCache.TrieDB()
-		bc.wg.Add(2)
-		go func() {
-			defer bc.wg.Done()
-			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
-		}()
 		privatetriedb := bc.PrivateStateManager()
+		bc.wg.Add(1)
 		go func() {
 			defer bc.wg.Done()
-			privatetriedb.TrieDB().SaveCachePeriodically(bc.cacheConfig.PrivateTrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
+			bc.saveCachePeriodically(triedb, privatetriedb)
 		}()
 	}
 	return bc, nil
+}
+
+func (bc *BlockChain) saveCachePeriodically(triedb *trie.Database, privatetriedb mps.PrivateStateManager) {
+	triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
+	privatetriedb.TrieDB().SaveCachePeriodically(bc.cacheConfig.PrivateTrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
 }
 
 // Quorum
