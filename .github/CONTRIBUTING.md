@@ -38,5 +38,5 @@ and testing procedures.
 
 ## Issue reproductibility
 
-Before you create an issue, we want you to try to reproduce it over the [quorum quick dev start framework](https://github.com/ConsenSys/quorum-dev-quickstart) with the latest release.
+Before you create an issue, please try to reproduce it with [quorum quick dev start framework](https://github.com/ConsenSys/quorum-dev-quickstart) with the latest release.
 Many issues have been creating under an environment we are not able to reproduce quickly.
