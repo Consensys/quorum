@@ -136,9 +136,9 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 					msg: preprepare,
 				})
 			})
+		} else {
+			logger.Warn("QBFT: invalid PRE-PREPARE block proposal", "err", err)
 		}
-
-		logger.Warn("QBFT: invalid PRE-PREPARE block proposal", "err", err)
 
 		return err
 	}
