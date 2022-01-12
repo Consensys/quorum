@@ -941,8 +941,9 @@ func (pm *ProtocolManager) BroadcastTransactions(txs types.Transactions, propaga
 		for _, tx := range txs {
 			peers := pm.peers.PeersWithoutTx(tx.Hash())
 
-			// Send the block to a subset of our peers
-			transfer := peers[:int(math.Sqrt(float64(len(peers))))]
+			// Quorum - Propagate the transactions to all our peers (instead of subset as geth is doing)
+			transfer := peers
+			// End Quorum
 			for _, peer := range transfer {
 				txset[peer] = append(txset[peer], tx.Hash())
 			}

@@ -22,8 +22,6 @@ type DefaultPrivateStateRepository struct {
 	root    common.Hash
 }
 
-var _ PrivateStateRepository = (*DefaultPrivateStateRepository)(nil) // DefaultPrivateStateRepository must implement PrivateStateRepository
-
 func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
 
@@ -68,17 +66,17 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits the private state and writes to disk
-func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
 	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
-		return privateRoot, err
+		return err
 	}
 
 	if err := rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot); err != nil {
 		log.Error("Failed writing private state root", "err", err)
-		return privateRoot, err
+		return err
 	}
-	return privateRoot, nil
+	return dpsr.stateCache.TrieDB().Commit(privateRoot, false, nil)
 }
 
 // Commit commits the private state only
