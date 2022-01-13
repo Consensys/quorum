@@ -38,8 +38,8 @@ Check out some of the interesting projects we are actively working on:
 
 * [quorum-remix-plugin](https://consensys.net/docs/goquorum/en/latest/tutorials/quorum-dev-quickstart/remix/): The GoQuorum plugin for Ethereum's Remix IDE adds support for creating and interacting with private contracts on a GoQuorum network.
 * [Cakeshop](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/monitor/cakeshop/): An integrated development environment and SDK for GoQuorum
+* [quorum-examples](https://github.com/ConsenSys/quorum-examples): GoQuorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [Quorum-Kubernetes](https://consensys.net/docs/goquorum/en/latest/deploy/install/kubernetes/): Deploy GoQuorum on Kubernetes
-
 * [we3js-quorum](https://consensys.net/docs/goquorum/en/latest/reference/web3js-quorum/): Extends web3.js to support GoQuorum and Hyperledger Besu specific APIs
 * Zero Knowledge on GoQuorum
    * [ZSL on GoQuorum](https://github.com/ConsenSys/zsl-q/)
