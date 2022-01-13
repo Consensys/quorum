@@ -337,7 +337,7 @@ func (s *stateObject) setState(key, value common.Hash) {
 func (s *stateObject) finalise(prefetch bool) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-  
+
 	slotsToPrefetch := make([][]byte, 0, len(s.dirtyStorage))
 
 	for key, value := range s.dirtyStorage {
