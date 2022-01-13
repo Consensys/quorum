@@ -20,7 +20,7 @@ Key enhancements over go-ethereum:
     * [__Raft-based Consensus__](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/configure/consensus-protocols/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
 * [__Peer Permissioning__](https://consensys.net/docs/goquorum/en/latest/concepts/permissions-overview/) - node/peer permissioning, ensuring only known parties can join the network
 * [__Account Management__](https://consensys.net/docs/goquorum/en/latest/concepts/account-management/) - GoQuorum introduced account plugins, which allows GoQuorum or clef to be extended with alternative methods of managing accounts including external vaults.
-* [__Pluggable Architecture__](https://consensys.net/docs/goquorum/en/latest/concepts/plugins) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of GoQuorum features.
+* [__Pluggable Architecture__](https://consensys.net/docs/goquorum/en/latest/concepts/plugins/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of GoQuorum features.
 * __Higher Performance__ - GoQuorum offers significantly higher performance throughput than public geth
 
 ## Architecture
