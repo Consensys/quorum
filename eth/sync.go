@@ -271,13 +271,6 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 		core.SetSyncStatus()
 		return nil // We're in sync.
 	}
-	if mode == downloader.FastSync {
-		// Make sure the peer's total difficulty we are synchronizing is higher.
-		if cs.handler.chain.GetTdByHash(cs.handler.chain.CurrentFastBlock().Hash()).Cmp(ourTD) >= 0 {
-			// Quorum never use FastSync, no need to execute SetSyncStatus
-			return nil
-		}
-	}
 	return op
 }
 
@@ -342,10 +335,6 @@ func (h *handler) doSync(op *chainSyncOp) error {
 	if atomic.LoadUint32(&h.fastSync) == 1 {
 		log.Info("Fast sync complete, auto disabling")
 		atomic.StoreUint32(&h.fastSync, 0)
-	}
-	if atomic.LoadUint32(&h.snapSync) == 1 {
-		log.Info("Snap sync complete, auto disabling")
-		atomic.StoreUint32(&h.snapSync, 0)
 	}
 	// If we've successfully finished a sync cycle and passed any required checkpoint,
 	// enable accepting transactions from the network.
