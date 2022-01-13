@@ -102,6 +102,8 @@ type stateObject struct {
 	// Quorum
 	// flag to track changes in AccountExtraData
 	dirtyAccountExtraData bool
+
+	mux sync.Mutex
 }
 
 // empty returns whether the account is considered empty.
@@ -249,6 +251,10 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		}
 		value.SetBytes(content)
 	}
+
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	s.originStorage[key] = value
 	return value
 }
@@ -293,12 +299,18 @@ func (s *stateObject) SetStorage(storage map[common.Hash]common.Hash) {
 }
 
 func (s *stateObject) setState(key, value common.Hash) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	s.dirtyStorage[key] = value
 }
 
 // finalise moves all dirty storage slots into the pending area to be hashed or
 // committed later. It is invoked at the end of every transaction.
 func (s *stateObject) finalise() {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	for key, value := range s.dirtyStorage {
 		s.pendingStorage[key] = value
 	}
@@ -331,6 +343,10 @@ func (s *stateObject) updateTrie(db Database) Trie {
 	}
 	// Insert all the pending updates into the trie
 	tr := s.getTrie(db)
+
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	for key, value := range s.pendingStorage {
 		// Skip noop changes, persist actual changes
 		if value == s.originStorage[key] {
@@ -430,6 +446,9 @@ func (s *stateObject) setBalance(amount *big.Int) {
 func (s *stateObject) ReturnGas(gas *big.Int) {}
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	stateObject := newObject(db, s.address, s.data)
 	if s.trie != nil {
 		stateObject.trie = db.db.CopyTrie(s.trie)
