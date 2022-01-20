@@ -69,13 +69,14 @@ jobs:
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
-  acceptance-tests:
+  acceptance-tests-1:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
       - docker-build
     if: success()
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
@@ -101,6 +102,77 @@ jobs:
           - 'basic-rpc-security || networks/plugins::qbft-rpc-security'
           - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
           - 'migration && networks/template::raft-4nodes'
+          #- 'migration && networks/template::istanbul-4nodes'
+          #- 'migration && networks/template::raft-4nodes-ancientdb'
+          #- 'migration && networks/template::istanbul-4nodes-ancientdb'
+          #- 'permissions-v1 && networks/template::raft-3plus1'
+          #- 'permissions-v2 && networks/template::raft-3plus1'
+          #- 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          #- 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
+          #- 'multitenancy && networks/plugins::raft-multitenancy'
+          #- 'basic || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+          #- 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft-simple-mps'
+          #- 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+          #- 'basic || networks/typical::raftmps'
+          #- 'basic || networks/typical::qbftmps'
+          #- 'basic || networks/typical::istanbulmps'
+          #- 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
+          #- 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
+          #- '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
+          #- '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
+        privacy-enhancements:
+          - 'false'
+        #include:
+        #  - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
+        #    privacy-enhancements: 'true'
+        #  - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+        #    privacy-enhancements: 'true'
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
+          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      - name: 'Run acceptance tests'
+        run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
+            quorumengineering/acctests:latest test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
+  acceptance-tests-2:
+    name: Acceptance tests (${{ matrix.tag }})
+    needs:
+      - docker-build
+      - acceptance-tests-1
+    if: success()
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        # list of tag expression being executed in parallel
+        # for PR, only selective tests are run.
+        # More comprehensive suites are scheduled to run in master
+        tag:
           - 'migration && networks/template::istanbul-4nodes'
           - 'migration && networks/template::raft-4nodes-ancientdb'
           - 'migration && networks/template::istanbul-4nodes-ancientdb'
@@ -162,7 +234,7 @@ jobs:
     name: Publish Docker Image
     needs:
       - build
-      - acceptance-tests
+      - acceptance-tests-2
     runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
@@ -386,7 +458,8 @@ jobs:
     needs:
       - build
       - docker-build
-      - acceptance-tests
+      - acceptance-tests-1
+      - acceptance-tests-2
       - publish-docker
     runs-on: ubuntu-18.04
     steps:
@@ -472,7 +545,8 @@ jobs:
             const results = [
               "${{ needs['build'].result }}",
               "${{ needs['docker-build'].result }}",
-              "${{ needs['acceptance-tests'].result }}",
+              "${{ needs['acceptance-tests-1'].result }}",
+              "${{ needs['acceptance-tests-2'].result }}",
               "${{ needs['publish-docker'].result }}",
             ];
             const isCurrentRunSuccessful = results.every(r => r === "success");
