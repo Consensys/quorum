@@ -1,6 +1,7 @@
 # Contributing
 
-Thank you for your interest in contributing to Quorum!
+Thank you for your interest in contributing to GoQuorum!
+
 We welcome contributions from anyone on the internet, and are grateful for even the
 smallest of fixes!
 
@@ -34,3 +35,8 @@ and help.
 Please see the [Developers' Guide](https://geth.ethereum.org/docs/developers/devguide)
 for more details on configuring your environment, managing project dependencies
 and testing procedures.
+
+## Issue reproductibility
+
+Before you create an issue, please try to reproduce it with [quorum quick dev start framework](https://github.com/ConsenSys/quorum-dev-quickstart) with the latest release.
+Many issues have been creating under an environment we are not able to reproduce quickly.
