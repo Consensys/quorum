@@ -43,9 +43,10 @@ import (
 )
 
 type LesApiBackend struct {
-	extRPCEnabled bool
-	eth           *LightEthereum
-	gpo           *gasprice.Oracle
+	extRPCEnabled       bool
+	allowUnprotectedTxs bool
+	eth                 *LightEthereum
+	gpo                 *gasprice.Oracle
 }
 
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
@@ -271,6 +272,10 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
+func (b *LesApiBackend) UnprotectedAllowed() bool {
+	return b.allowUnprotectedTxs
+}
+
 // Quorum
 func (b *LesApiBackend) CallTimeOut() time.Duration {
 	return b.eth.config.EVMCallTimeOut
@@ -308,7 +313,24 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
 
+func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtBlock(ctx, block, reexec)
+}
+
+func (b *LesApiBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
+	return b.eth.statesInRange(ctx, fromBlock, toBlock, reexec)
+}
+
+func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
+}
+
 // Quorum
+
+func (b *LesApiBackend) GetBlockchain() *core.BlockChain {
+	return nil
+}
+
 func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
 	if authToken != nil && b.eth.config.MultiTenantEnabled() {

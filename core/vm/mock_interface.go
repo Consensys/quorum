@@ -836,6 +836,10 @@ func (mr *MockStateDBMockRecorder) SlotInAccessList(addr, slot interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SlotInAccessList", reflect.TypeOf((*MockStateDB)(nil).SlotInAccessList), addr, slot)
 }
 
+func (m *MockStateDB) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	panic("implement me")
+}
+
 // AddAddressToAccessList mocks base method
 func (m *MockStateDB) AddAddressToAccessList(addr common.Address) {
 	m.ctrl.T.Helper()

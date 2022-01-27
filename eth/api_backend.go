@@ -46,9 +46,10 @@ import (
 
 // EthAPIBackend implements ethapi.Backend for full nodes
 type EthAPIBackend struct {
-	extRPCEnabled bool
-	eth           *Ethereum
-	gpo           *gasprice.Oracle
+	extRPCEnabled       bool
+	allowUnprotectedTxs bool
+	eth                 *Ethereum
+	gpo                 *gasprice.Oracle
 
 	// Quorum
 	//
@@ -74,7 +75,7 @@ func (b *EthAPIBackend) CurrentBlock() *types.Block {
 }
 
 func (b *EthAPIBackend) SetHead(number uint64) {
-	b.eth.protocolManager.downloader.Cancel()
+	b.eth.handler.downloader.Cancel()
 	b.eth.blockchain.SetHead(number)
 }
 
@@ -115,7 +116,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
-		if b.eth.protocolManager.raftMode {
+		if b.eth.handler.raftMode {
 			// Use latest instead.
 			return b.eth.blockchain.CurrentBlock(), nil
 		}
@@ -162,7 +163,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		// Quorum
-		if b.eth.protocolManager.raftMode {
+		if b.eth.handler.raftMode {
 			// Use latest instead.
 			header, err := b.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 			if header == nil || err != nil {
@@ -240,10 +241,13 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 }
 
 func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
+	// Quorum
+	// We should use the modified getReceipts to get the private receipts for PSI (MPS)
 	receipts, err := b.GetReceipts(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
+	// End Quorum
 	if receipts == nil {
 		return nil, nil
 	}
@@ -365,10 +369,6 @@ func (b *EthAPIBackend) Downloader() *downloader.Downloader {
 	return b.eth.Downloader()
 }
 
-func (b *EthAPIBackend) ProtocolVersion() int {
-	return b.eth.EthVersion()
-}
-
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	if b.ChainConfig().IsQuorum {
 		return big.NewInt(0), nil
@@ -395,6 +395,10 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 
 func (b *EthAPIBackend) CallTimeOut() time.Duration {
 	return b.evmCallTimeOut
+}
+
+func (b *EthAPIBackend) UnprotectedAllowed() bool {
+	return b.allowUnprotectedTxs
 }
 
 func (b *EthAPIBackend) RPCGasCap() uint64 {
@@ -430,6 +434,22 @@ func (b *EthAPIBackend) Miner() *miner.Miner {
 
 func (b *EthAPIBackend) StartMining(threads int) error {
 	return b.eth.StartMining(threads)
+}
+
+func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtBlock(block, reexec)
+}
+
+func (b *EthAPIBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
+	return b.eth.statesInRange(fromBlock, toBlock, reexec)
+}
+
+func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
+}
+
+func (b *EthAPIBackend) GetBlockchain() *core.BlockChain {
+	return b.eth.BlockChain()
 }
 
 // The validation of pre-requisite for multitenancy is done when EthService

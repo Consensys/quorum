@@ -32,6 +32,7 @@ type ContractBackend struct {
 	PermConfig *PermissionConfig
 	IsRaft     bool
 	UseDns     bool
+	ChainID    *big.Int
 }
 
 type RoleService interface {

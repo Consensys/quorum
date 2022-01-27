@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/external"
@@ -132,7 +133,8 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 	if chainID == nil {
 		return nil, ErrNoChainID
 	}
-	var eipo155Signer types.Signer = types.NewEIP155Signer(chainID)
+	latestSigner := types.LatestSignerForChainID(chainID)
+	log.Info("NewKeyStoreTransactorWithChainID", "latestSigner", reflect.TypeOf(latestSigner))
 	return &TransactOpts{
 		From: account.Address,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -140,7 +142,7 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := eipo155Signer
+			signer := latestSigner
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
@@ -161,7 +163,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 	if chainID == nil {
 		return nil, ErrNoChainID
 	}
-	var eipo155Signer types.Signer = types.NewEIP155Signer(chainID)
+	latestSigner := types.LatestSignerForChainID(chainID)
 	return &TransactOpts{
 		From: keyAddr,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
@@ -169,7 +171,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 				return nil, ErrNotAuthorized
 			}
 			// Quorum
-			signer := eipo155Signer
+			signer := latestSigner
 			if tx.IsPrivate() {
 				signer = types.QuorumPrivateTxSigner{}
 			}
@@ -192,7 +194,8 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 			if address != account.Address {
 				return nil, ErrNotAuthorized
 			}
-			return clef.SignTx(account, transaction, nil) // Clef enforces its own chain id
+			log.Info("Signing with NewClefTransactor")
+			return clef.SignTx(account, transaction, transaction.ChainId()) // Clef enforces its own chain id
 		},
 	}
 }
@@ -201,14 +204,18 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 //
 // NewWalletTransactor is a utility method to easily create a transaction signer
 // from a wallet account
-func NewWalletTransactor(w accounts.Wallet, account accounts.Account) *TransactOpts {
+func NewWalletTransactor(w accounts.Wallet, account accounts.Account, chainId *big.Int) *TransactOpts {
 	return &TransactOpts{
 		From: account.Address,
-		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		Signer: func(address common.Address, transaction *types.Transaction) (*types.Transaction, error) {
 			if address != account.Address {
 				return nil, errors.New("not authorized to sign this account")
 			}
-			return w.SignTx(account, tx, nil) // homestead signer without chainID is backward compatible
+			if transaction.ChainId() == nil {
+				chainId = transaction.ChainId()
+			}
+
+			return w.SignTx(account, transaction, chainId)
 		},
 	}
 }

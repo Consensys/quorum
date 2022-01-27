@@ -50,7 +50,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		panic(err)
 	}
 
-	backend.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
+	backend.Start(blockchain, blockchain.CurrentBlock, rawdb.HasBadBlock)
 
 	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {

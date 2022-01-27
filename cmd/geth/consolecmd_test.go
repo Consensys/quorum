@@ -79,7 +79,7 @@ func runMinimalGeth(t *testing.T, args ...string) *testgeth {
 	// --ropsten to make the 'writing genesis to disk' faster (no accounts): it is disabled for Quorum compatibility purpose
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
-	allArgs := []string{ /*"--ropsten",*/ "--nousb", "--networkid", "1337", "--syncmode=full", "--port", "0",
+	allArgs := []string{ /*"--ropsten",*/ "--networkid", "1337", "--syncmode=full", "--port", "0",
 		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64"}
 	return runGeth(t, append(allArgs, args...)...)
 }
@@ -94,7 +94,7 @@ func TestConsoleWelcome(t *testing.T) {
 	defer os.RemoveAll(datadir)
 
 	// Start a geth console, make sure it's cleaned up and terminate the console
-	geth := runMinimalGeth(t, "--datadir", datadir, "--etherbase", coinbase, "console")
+	geth := runMinimalGeth(t, "--datadir", datadir, "--miner.etherbase", coinbase, "console")
 
 	// Gather all the infos the welcome message needs to contain
 	geth.SetTemplateFunc("goos", func() string { return runtime.GOOS })
@@ -145,10 +145,10 @@ func TestAttachWelcome(t *testing.T) {
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
-	geth := runMinimalGeth(t, "--datadir", datadir, "--etherbase", coinbase,
+	geth := runMinimalGeth(t, "--datadir", datadir, "--miner.etherbase", coinbase,
 		"--ipcpath", ipc,
-		"--http", "--http.port", httpPort, "--rpcapi", "admin,eth,net,web3",
-		"--ws", "--ws.port", wsPort, "--wsapi", "admin,eth,net,web3")
+		"--http", "--http.port", httpPort, "--http.api", "admin,eth,net,web3",
+		"--ws", "--ws.port", wsPort, "--ws.api", "admin,eth,net,web3")
 	t.Run("ipc", func(t *testing.T) {
 		waitForEndpoint(t, ipc, 3*time.Second)
 		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
@@ -175,7 +175,7 @@ func TestHTTPAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--http", "--http.port", port, "--rpcapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--http", "--http.port", port, "--http.api", "admin,eth,net,web3")
 
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
@@ -192,7 +192,7 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--ws", "--ws.port", port, "--wsapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--ws", "--ws.port", port, "--ws.api", "admin,eth,net,web3")
 
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)

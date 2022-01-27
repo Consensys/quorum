@@ -32,7 +32,7 @@ and help.
 
 ## Configuration, dependencies, and tests
 
-Please see the [Developers' Guide](https://github.com/ethereum/go-ethereum/wiki/Developers'-Guide)
+Please see the [Developers' Guide](https://geth.ethereum.org/docs/developers/devguide)
 for more details on configuring your environment, managing project dependencies
 and testing procedures.
 

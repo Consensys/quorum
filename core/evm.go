@@ -30,6 +30,7 @@ import (
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
+// TODO: Split this interface for the quorum functions ex: ChainContextWithQuorum
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine

@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -212,4 +213,13 @@ func (s *notificationTestService) HangSubscription(ctx context.Context, val int)
 		notifier.Notify(subscription.ID, val)
 	}()
 	return subscription, nil
+}
+
+// largeRespService generates arbitrary-size JSON responses.
+type largeRespService struct {
+	length int
+}
+
+func (x largeRespService) LargeResp() string {
+	return strings.Repeat("x", x.length)
 }

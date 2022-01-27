@@ -107,6 +107,7 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	if err != nil {
 		return err
 	}
+	// Quorum
 	// Create the EVM and execute the transaction
 	context := NewEVMBlockContext(header, bc, author)
 	txContext := NewEVMTxContext(msg)
@@ -118,9 +119,10 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	} else {
 		evm = vm.NewEVM(context, txContext, statedb, statedb, config, cfg)
 	}
+	// End Quorum
 	evm.SetCurrentTX(tx) // Quorum
 	evm.InnerApply = innerApply
-
+	// Add addresses to access list if applicable
 	_, err = ApplyMessage(evm, msg, gaspool)
 	return err
 }
@@ -178,3 +180,5 @@ func createInnerApply(block *types.Block, tx *types.Transaction, txIndex int, st
 		}
 	}
 }
+
+// End Quorum

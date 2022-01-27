@@ -76,7 +76,8 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
 	// odd parity should be 27 for Homestead
 	signedTx, addr, _ := signTx(k1, homeSinger)
 
-	assert.True(signedTx.data.V.Cmp(big.NewInt(27)) == 0, fmt.Sprintf("v wasn't 27 it was [%v]", signedTx.data.V))
+	v, _, _ := signedTx.RawSignatureValues()
+	assert.True(v.Cmp(big.NewInt(27)) == 0, fmt.Sprintf("v wasn't 27 it was [%v]", v))
 
 	// recover address from signed TX
 	from, _ := Sender(homeSinger, signedTx)
@@ -85,7 +86,8 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
 
 	// even parity should be 28 for Homestead
 	signedTx, addr, _ = signTx(k0, homeSinger)
-	assert.True(signedTx.data.V.Cmp(big.NewInt(28)) == 0, fmt.Sprintf("v wasn't 28 it was [%v]\n", signedTx.data.V))
+	v, _, _ = signedTx.RawSignatureValues()
+	assert.True(v.Cmp(big.NewInt(28)) == 0, fmt.Sprintf("v wasn't 28 it was [%v]\n", v))
 
 	// recover address from signed TX
 	from, _ = Sender(homeSinger, signedTx)
@@ -131,18 +133,20 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 
 	signedTx, addr, _ := signTx(k0, EIPsigner)
 
+	v, _, _ := signedTx.RawSignatureValues()
 	//fmt.Printf("After signing V is [%v] \n", signedTx.data.V)
-	assert.True(signedTx.data.V.Cmp(big.NewInt(v0)) == 0, fmt.Sprintf("v wasn't [%v] it was [%v]\n", v0, signedTx.data.V))
+	assert.True(v.Cmp(big.NewInt(v0)) == 0, fmt.Sprintf("v wasn't [%v] it was [%v]\n", v0, v))
 	from, _ := Sender(EIPsigner, signedTx)
 
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
 
 	// chainId 1 even  EIP155Signer should be 38 conflicts with private transaction
-	assert.False(signedTx.IsPrivate(), fmt.Sprintf("Public transaction is set to a private transition v == [%v]", signedTx.data.V))
+	assert.False(signedTx.IsPrivate(), fmt.Sprintf("Public transaction is set to a private transition v == [%v]", v))
 
 	signedTx, addr, _ = signTx(k1, EIPsigner)
 
-	assert.True(signedTx.data.V.Cmp(big.NewInt(v1)) == 0, fmt.Sprintf("v wasn't [%v], it was [%v]\n", v1, signedTx.data.V))
+	v, _, _ = signedTx.RawSignatureValues()
+	assert.True(v.Cmp(big.NewInt(v1)) == 0, fmt.Sprintf("v wasn't [%v], it was [%v]\n", v1, v))
 	from, _ = Sender(EIPsigner, signedTx)
 
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
@@ -181,9 +185,10 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 
 	signedTx, addr, _ := signTx(k0, EIPsigner)
 
+	v, _, _ := signedTx.RawSignatureValues()
 	// the calculated v value should equal `chainId * 2 + 35 `
-	assert.True(signedTx.data.V.Cmp(big.NewInt(v0)) == 0, fmt.Sprintf("v wasn't [%v] it was "+
-		"[%v]\n", v0, signedTx.data.V))
+	assert.True(v.Cmp(big.NewInt(v0)) == 0, fmt.Sprintf("v wasn't [%v] it was "+
+		"[%v]\n", v0, v))
 	// the sender will not be equal as HomesteadSigner{}.Sender(tx) is used because IsPrivate() will be true
 	// although it is a public tx.
 	// This is test to catch when / if this behavior changes.
@@ -196,9 +201,10 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 
 	signedTx, addr, _ = signTx(k1, EIPsigner)
 
+	v, _, _ = signedTx.RawSignatureValues()
 	// the calculated v value should equal `chainId * 2 + 35`
-	assert.True(signedTx.data.V.Cmp(big.NewInt(v1)) == 0,
-		fmt.Sprintf("v wasn't [%v] it was [%v]", v1, signedTx.data.V))
+	assert.True(v.Cmp(big.NewInt(v1)) == 0,
+		fmt.Sprintf("v wasn't [%v] it was [%v]", v1, v))
 
 	// the sender will not be equal as HomesteadSigner{}.Sender(tx) is used because IsPrivate() will be true
 	// although it is a public tx.

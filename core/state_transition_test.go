@@ -1084,6 +1084,10 @@ func (ss *stubSigner) Equal(types.Signer) bool {
 	panic("implement me")
 }
 
+func (ss *stubSigner) ChainID() *big.Int {
+	panic("implement me")
+}
+
 type mockPrivateTransactionManager struct {
 	notinuse.PrivateTransactionManager
 	returns       map[string][]interface{}
