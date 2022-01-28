@@ -25,10 +25,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
@@ -47,12 +45,12 @@ var (
 		Action:   utils.MigrateFlags(localConsole),
 		Name:     "console",
 		Usage:    "Start an interactive JavaScript environment",
-		Flags:    append(append(append(nodeFlags, rpcFlags...), consoleFlags...), whisperFlags...),
+		Flags:    append(append(nodeFlags, rpcFlags...), consoleFlags...),
 		Category: "CONSOLE COMMANDS",
 		Description: `
 The Geth console is an interactive shell for the JavaScript runtime environment
 which exposes a node admin interface as well as the Ðapp JavaScript API.
-See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
+See https://geth.ethereum.org/docs/interface/javascript-console.`,
 	}
 
 	attachCommand = cli.Command{
@@ -65,7 +63,7 @@ See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
 		Description: `
 The Geth console is an interactive shell for the JavaScript runtime environment
 which exposes a node admin interface as well as the Ðapp JavaScript API.
-See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.
+See https://geth.ethereum.org/docs/interface/javascript-console.
 This command allows to open a console on a running geth node.`,
 	}
 
@@ -78,7 +76,7 @@ This command allows to open a console on a running geth node.`,
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The JavaScript VM exposes a node admin interface as well as the Ðapp
-JavaScript API. See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console`,
+JavaScript API. See https://geth.ethereum.org/docs/interface/javascript-console`,
 	}
 )
 
@@ -200,7 +198,7 @@ func remoteConsole(ctx *cli.Context) error {
 			path = ctx.GlobalString(utils.DataDirFlag.Name)
 		}
 		if path != "" {
-			if ctx.GlobalBool(utils.LegacyTestnetFlag.Name) || ctx.GlobalBool(utils.RopstenFlag.Name) {
+			if ctx.GlobalBool(utils.RopstenFlag.Name) {
 				// Maintain compatibility with older Geth configurations storing the
 				// Ropsten database in `testnet` instead of `ropsten`.
 				legacyPath := filepath.Join(path, "testnet")
@@ -213,8 +211,8 @@ func remoteConsole(ctx *cli.Context) error {
 				path = filepath.Join(path, "rinkeby")
 			} else if ctx.GlobalBool(utils.GoerliFlag.Name) {
 				path = filepath.Join(path, "goerli")
-			} else if ctx.GlobalBool(utils.YoloV2Flag.Name) {
-				path = filepath.Join(path, "yolo-v2")
+			} else if ctx.GlobalBool(utils.YoloV3Flag.Name) {
+				path = filepath.Join(path, "yolo-v3")
 			}
 		}
 		endpoint = fmt.Sprintf("%s/geth.ipc", path)
@@ -344,13 +342,10 @@ func ephemeralConsole(ctx *cli.Context) error {
 			utils.Fatalf("Failed to execute %s: %v", file, err)
 		}
 	}
-	// Wait for pending callbacks, but stop for Ctrl-C.
-	abort := make(chan os.Signal, 1)
-	signal.Notify(abort, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-abort
-		os.Exit(0)
+		stack.Wait()
+		console.Stop(false)
 	}()
 	console.Stop(true)
 

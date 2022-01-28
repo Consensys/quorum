@@ -26,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Quorum
+
 type AccountExtraDataStateGetter interface {
 	// Return nil for public contract
 	GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
@@ -62,10 +64,15 @@ type MinimalApiState interface {
 	SetStorage(addr common.Address, storage map[common.Hash]common.Hash)
 }
 
+// End Quorum
+
 // StateDB is an EVM database for full state querying.
 type StateDB interface {
+	// Quorum
+
 	MinimalApiState
 	AccountExtraDataStateSetter
+	// End Quorum
 
 	CreateAccount(common.Address)
 
@@ -79,6 +86,7 @@ type StateDB interface {
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)
+
 	GetCodeSize(common.Address) int
 
 	AddRefund(uint64)
@@ -99,6 +107,7 @@ type StateDB interface {
 	// is defined according to EIP161 (balance = nonce = code = 0).
 	Empty(common.Address) bool
 
+	PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList)
 	AddressInAccessList(addr common.Address) bool
 	SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool)
 	// AddAddressToAccessList adds the given address to the access list. This operation is safe to perform

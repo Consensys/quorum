@@ -58,7 +58,7 @@ type testBlockChain struct {
 func (bc *testBlockChain) CurrentBlock() *types.Block {
 	return types.NewBlock(&types.Header{
 		GasLimit: bc.gasLimit,
-	}, nil, nil, nil, new(trie.Trie))
+	}, nil, nil, nil, trie.NewStackTrie(nil))
 }
 
 func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
@@ -119,10 +119,11 @@ func validateTxPoolInternals(pool *TxPool) error {
 	if total := pool.all.Count(); total != pending+queued {
 		return fmt.Errorf("total transaction count %d != %d pending + %d queued", total, pending, queued)
 	}
-	if priced := pool.priced.items.Len() - pool.priced.stales; priced != pending+queued {
-		return fmt.Errorf("total priced transaction count %d != %d pending + %d queued", priced, pending, queued)
+	pool.priced.Reheap()
+	priced, remote := pool.priced.remotes.Len(), pool.all.RemoteCount()
+	if priced != remote {
+		return fmt.Errorf("total priced transaction count %d != %d", priced, remote)
 	}
-
 	// Ensure the next nonce to assign is the correct one
 	for addr, txs := range pool.pending {
 		// Find the last transaction
@@ -395,7 +396,7 @@ func TestTransactionQueue(t *testing.T) {
 	pool.currentState.AddBalance(from, big.NewInt(1000))
 	<-pool.requestReset(nil, nil)
 
-	pool.enqueueTx(tx.Hash(), tx)
+	pool.enqueueTx(tx.Hash(), tx, false, true)
 	<-pool.requestPromoteExecutables(newAccountSet(pool.signer, from))
 	if len(pool.pending) != 1 {
 		t.Error("expected valid txs to be 1 is", len(pool.pending))
@@ -404,7 +405,7 @@ func TestTransactionQueue(t *testing.T) {
 	tx = transaction(1, 100, key)
 	from, _ = deriveSender(tx)
 	pool.currentState.SetNonce(from, 2)
-	pool.enqueueTx(tx.Hash(), tx)
+	pool.enqueueTx(tx.Hash(), tx, false, true)
 
 	<-pool.requestPromoteExecutables(newAccountSet(pool.signer, from))
 	if _, ok := pool.pending[from].txs.items[tx.Nonce()]; ok {
@@ -428,9 +429,9 @@ func TestTransactionQueue2(t *testing.T) {
 	pool.currentState.AddBalance(from, big.NewInt(1000))
 	pool.reset(nil, nil)
 
-	pool.enqueueTx(tx1.Hash(), tx1)
-	pool.enqueueTx(tx2.Hash(), tx2)
-	pool.enqueueTx(tx3.Hash(), tx3)
+	pool.enqueueTx(tx1.Hash(), tx1, false, true)
+	pool.enqueueTx(tx2.Hash(), tx2, false, true)
+	pool.enqueueTx(tx3.Hash(), tx3, false, true)
 
 	pool.promoteExecutables([]common.Address{from})
 	if len(pool.pending) != 1 {
@@ -603,12 +604,21 @@ func TestTransactionDropping(t *testing.T) {
 		tx11 = transaction(11, 200, key)
 		tx12 = transaction(12, 300, key)
 	)
+	pool.all.Add(tx0, false)
+	pool.priced.Put(tx0, false)
 	pool.promoteTx(account, tx0.Hash(), tx0)
+
+	pool.all.Add(tx1, false)
+	pool.priced.Put(tx1, false)
 	pool.promoteTx(account, tx1.Hash(), tx1)
+
+	pool.all.Add(tx2, false)
+	pool.priced.Put(tx2, false)
 	pool.promoteTx(account, tx2.Hash(), tx2)
-	pool.enqueueTx(tx10.Hash(), tx10)
-	pool.enqueueTx(tx11.Hash(), tx11)
-	pool.enqueueTx(tx12.Hash(), tx12)
+
+	pool.enqueueTx(tx10.Hash(), tx10, false, true)
+	pool.enqueueTx(tx11.Hash(), tx11, false, true)
+	pool.enqueueTx(tx12.Hash(), tx12, false, true)
 
 	// Check that pre and post validations leave the pool as is
 	if pool.pending[account].Len() != 3 {
@@ -2081,7 +2091,7 @@ func benchmarkFuturePromotion(b *testing.B, size int) {
 
 	for i := 0; i < size; i++ {
 		tx := transaction(uint64(1+i), 100000, key)
-		pool.enqueueTx(tx.Hash(), tx)
+		pool.enqueueTx(tx.Hash(), tx, false, true)
 	}
 	// Benchmark the speed of pool validation
 	b.ResetTimer()
@@ -2125,46 +2135,98 @@ func benchmarkPoolBatchInsert(b *testing.B, size int, local bool) {
 	}
 }
 
-//Checks that the EIP155 signer is assigned to the TxPool no matter the configuration, even invalid config
+func BenchmarkInsertRemoteWithAllLocals(b *testing.B) {
+	// Allocate keys for testing
+	key, _ := crypto.GenerateKey()
+	account := crypto.PubkeyToAddress(key.PublicKey)
+
+	remoteKey, _ := crypto.GenerateKey()
+	remoteAddr := crypto.PubkeyToAddress(remoteKey.PublicKey)
+
+	locals := make([]*types.Transaction, 4096+1024) // Occupy all slots
+	for i := 0; i < len(locals); i++ {
+		locals[i] = transaction(uint64(i), 100000, key)
+	}
+	remotes := make([]*types.Transaction, 1000)
+	for i := 0; i < len(remotes); i++ {
+		remotes[i] = pricedTransaction(uint64(i), 100000, big.NewInt(2), remoteKey) // Higher gasprice
+	}
+	// Benchmark importing the transactions into the queue
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		pool, _ := setupTxPool()
+		pool.currentState.AddBalance(account, big.NewInt(100000000))
+		for _, local := range locals {
+			pool.AddLocal(local)
+		}
+		b.StartTimer()
+		// Assign a high enough balance for testing
+		pool.currentState.AddBalance(remoteAddr, big.NewInt(100000000))
+		for i := 0; i < len(remotes); i++ {
+			pool.AddRemotes([]*types.Transaction{remotes[i]})
+		}
+		pool.Stop()
+	}
+}
+
+// Quorum
+type testPoolConfig struct {
+	name           string
+	homesteadBlock *big.Int
+	eip155Block    *big.Int
+}
+
+func setupNewTxPool(tt testPoolConfig) *TxPool {
+	db := rawdb.NewMemoryDatabase()
+	stateDB, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
+	blockchain := &testBlockChain{stateDB, nil, 1000000, new(event.Feed)}
+	chainConfig := &params.ChainConfig{
+		ChainID:        big.NewInt(10),
+		HomesteadBlock: tt.homesteadBlock,
+		EIP150Block:    big.NewInt(0),
+		EIP155Block:    tt.eip155Block,
+		EIP158Block:    big.NewInt(0),
+		ByzantiumBlock: big.NewInt(0),
+		Ethash:         new(params.EthashConfig),
+	}
+	return NewTxPool(testTxPoolConfig, chainConfig, blockchain)
+}
+
+//Checks that the EIP155 signer is assigned to the TxPool when eip155Block is different then null, even invalid config
 func TestEIP155SignerOnTxPool(t *testing.T) {
-	var flagtests = []struct {
-		name           string
-		homesteadBlock *big.Int
-		eip155Block    *big.Int
-	}{
-		{"hsnileip155nil", nil, nil},
+	var flagtests = []testPoolConfig{
 		{"hsnileip1550", nil, big.NewInt(0)},
 		{"hsnileip155100", nil, big.NewInt(100)},
-		{"hs0eip155nil", big.NewInt(0), nil},
 		{"hs0eip1550", big.NewInt(0), big.NewInt(0)},
 		{"hs0eip155100", big.NewInt(0), big.NewInt(100)},
-		{"hs100eip155nil", big.NewInt(100), nil},
 		{"hs100eip1550", big.NewInt(100), big.NewInt(0)},
 		{"hs100eip155100", big.NewInt(100), big.NewInt(100)},
 	}
-
 	for _, tt := range flagtests {
-		t.Run("", func(t *testing.T) {
-			db := rawdb.NewMemoryDatabase()
-			statedb, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
-			blockchain := &testBlockChain{statedb, nil, 1000000, new(event.Feed)}
-
-			chainconfig := &params.ChainConfig{
-				ChainID:        big.NewInt(10),
-				HomesteadBlock: tt.homesteadBlock,
-				EIP150Block:    big.NewInt(0),
-				EIP155Block:    tt.eip155Block,
-				EIP158Block:    big.NewInt(0),
-				ByzantiumBlock: big.NewInt(0),
-				Ethash:         new(params.EthashConfig),
-			}
-
-			pool := NewTxPool(testTxPoolConfig, chainconfig, blockchain)
-
+		t.Run(tt.name, func(t *testing.T) {
+			pool := setupNewTxPool(tt)
 			if reflect.TypeOf(types.EIP155Signer{}) != reflect.TypeOf(pool.signer) {
 				t.Fail()
 			}
 		})
 	}
-
 }
+
+func TestHomesteadSignerOnTxPool(t *testing.T) {
+	var flagtests = []testPoolConfig{
+		{"hsnileip155nil", nil, nil},
+		{"hs0eip155nil", big.NewInt(0), nil},
+		{"hs100eip155nil", big.NewInt(100), nil},
+	}
+	for _, tt := range flagtests {
+		t.Run(tt.name, func(t *testing.T) {
+			pool := setupNewTxPool(tt)
+			if reflect.TypeOf(types.HomesteadSigner{}) != reflect.TypeOf(pool.signer) {
+				t.Fail()
+			}
+		})
+	}
+}
+
+// End Quorum

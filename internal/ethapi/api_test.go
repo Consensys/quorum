@@ -55,13 +55,15 @@ var (
 	arbitraryZeroGasPrice = big.NewInt(0)
 	arbitraryZeroValue    = big.NewInt(0)
 	arbitraryEmptyData    = new([]byte)
+	arbitraryAccessList   = types.AccessList{}
 	callTxArgs            = CallArgs{
-		From:     &arbitraryFrom,
-		To:       &arbitraryTo,
-		Gas:      (*hexutil.Uint64)(&arbitraryGas),
-		GasPrice: (*hexutil.Big)(arbitraryZeroGasPrice),
-		Value:    (*hexutil.Big)(arbitraryZeroValue),
-		Data:     (*hexutil.Bytes)(arbitraryEmptyData),
+		From:       &arbitraryFrom,
+		To:         &arbitraryTo,
+		Gas:        (*hexutil.Uint64)(&arbitraryGas),
+		GasPrice:   (*hexutil.Big)(arbitraryZeroGasPrice),
+		Value:      (*hexutil.Big)(arbitraryZeroValue),
+		Data:       (*hexutil.Bytes)(arbitraryEmptyData),
+		AccessList: &arbitraryAccessList,
 	}
 
 	arbitrarySimpleStorageContractEncryptedPayloadHash       = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash"))
@@ -904,9 +906,14 @@ type StubBackend struct {
 	accountManager                            *accounts.Manager
 	ks                                        *keystore.KeyStore
 	poolNonce                                 uint64
+	allowUnprotectedTxs                       bool
 
 	IstanbulBlock     *big.Int
 	CurrentHeadNumber *big.Int
+}
+
+func (sb *StubBackend) UnprotectedAllowed() bool {
+	return sb.allowUnprotectedTxs
 }
 
 func (sb *StubBackend) CurrentHeader() *types.Header {

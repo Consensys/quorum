@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -77,10 +78,6 @@ type Engine interface {
 	// VerifyUncles verifies that the given block's uncles conform to the consensus
 	// rules of a given engine.
 	VerifyUncles(chain ChainReader, block *types.Block) error
-
-	// VerifySeal checks whether the crypto seal on a header is valid according to
-	// the consensus rules of the given engine.
-	VerifySeal(chain ChainHeaderReader, header *types.Header) error
 
 	// Prepare initializes the consensus fields of a block header according to the
 	// rules of a particular engine. The changes are executed inline.
@@ -151,7 +148,7 @@ type Istanbul interface {
 	Engine
 
 	// Start starts the engine
-	Start(chain ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error
+	Start(chain ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(db ethdb.Reader, hash common.Hash) bool) error
 
 	// Stop stops the engine
 	Stop() error

@@ -87,10 +87,25 @@ func init() {
 		Period: 10,
 		Epoch:  30000,
 	}
-	tx1, _ := types.SignTx(types.NewTransaction(0, testUserAddress, big.NewInt(1000), params.TxGas, nil, nil), types.HomesteadSigner{}, testBankKey)
+
+	signer := types.LatestSigner(params.TestChainConfig)
+	tx1 := types.MustSignNewTx(testBankKey, signer, &types.AccessListTx{
+		ChainID: params.TestChainConfig.ChainID,
+		Nonce:   0,
+		To:      &testUserAddress,
+		Value:   big.NewInt(1000),
+		Gas:     params.TxGas,
+	})
 	pendingTxs = append(pendingTxs, tx1)
-	tx2, _ := types.SignTx(types.NewTransaction(1, testUserAddress, big.NewInt(1000), params.TxGas, nil, nil), types.HomesteadSigner{}, testBankKey)
+
+	tx2 := types.MustSignNewTx(testBankKey, signer, &types.LegacyTx{
+		Nonce: 1,
+		To:    &testUserAddress,
+		Value: big.NewInt(1000),
+		Gas:   params.TxGas,
+	})
 	newTxs = append(newTxs, tx2)
+
 	rand.Seed(time.Now().UnixNano())
 }
 
@@ -588,9 +603,15 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 		ignored <- struct{}{}
 		return true
 	}
+	timer := time.NewTimer(3 * time.Second)
 	for i := 0; i < 2; i++ {
-		<-ignored
+		select {
+		case <-ignored:
+		case <-timer.C:
+			t.Fatalf("timeout")
+		}
 	}
+	timer.Stop()
 
 	go listenNewBlock()
 

@@ -39,7 +39,6 @@ var (
 		PetersburgBlock:          params.QuorumTestChainConfig.PetersburgBlock,
 		IstanbulBlock:            params.QuorumTestChainConfig.IstanbulBlock,
 		MuirGlacierBlock:         params.QuorumTestChainConfig.MuirGlacierBlock,
-		YoloV2Block:              params.QuorumTestChainConfig.YoloV2Block,
 		EWASMBlock:               params.QuorumTestChainConfig.EWASMBlock,
 		Ethash:                   params.QuorumTestChainConfig.Ethash,
 		Clique:                   params.QuorumTestChainConfig.Clique,

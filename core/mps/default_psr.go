@@ -61,7 +61,6 @@ func (dpsr *DefaultPrivateStateRepository) StatePSI(psi types.PrivateStateIdenti
 }
 
 func (dpsr *DefaultPrivateStateRepository) Reset() error {
-	// TODO - see if we need to  store the original root
 	return dpsr.stateDB.Reset(dpsr.root)
 }
 

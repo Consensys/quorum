@@ -95,7 +95,7 @@ type Backend struct {
 
 	chain        consensus.ChainHeaderReader
 	currentBlock func() *types.Block
-	hasBadBlock  func(hash common.Hash) bool
+	hasBadBlock  func(db ethdb.Reader, hash common.Hash) bool
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -354,7 +354,7 @@ func (sb *Backend) HasBadProposal(hash common.Hash) bool {
 	if sb.hasBadBlock == nil {
 		return false
 	}
-	return sb.hasBadBlock(hash)
+	return sb.hasBadBlock(sb.db, hash)
 }
 
 func (sb *Backend) Close() error {

@@ -38,6 +38,7 @@ const (
 	wsWriteBuffer      = 1024
 	wsPingInterval     = 60 * time.Second
 	wsPingWriteTimeout = 5 * time.Second
+	wsMessageSizeLimit = 15 * 1024 * 1024
 )
 
 var wsBufferPool = new(sync.Pool)
@@ -287,7 +288,7 @@ type websocketCodec struct {
 }
 
 func newWebsocketCodec(conn *websocket.Conn) ServerCodec {
-	conn.SetReadLimit(maxRequestContentLength)
+	conn.SetReadLimit(wsMessageSizeLimit)
 	wc := &websocketCodec{
 		jsonCodec: NewFuncCodec(conn, conn.WriteJSON, conn.ReadJSON).(*jsonCodec),
 		conn:      conn,

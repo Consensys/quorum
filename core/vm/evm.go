@@ -68,8 +68,8 @@ func (evm *EVM) ActivePrecompiles() []common.Address {
 // untouched in a new method should flag any changes from future merges.
 func (evm *EVM) activePrecompiles() []common.Address {
 	switch {
-	case evm.chainRules.IsYoloV2:
-		return PrecompiledAddressesYoloV2
+	case evm.chainRules.IsBerlin:
+		return PrecompiledAddressesBerlin
 	case evm.chainRules.IsIstanbul:
 		return PrecompiledAddressesIstanbul
 	case evm.chainRules.IsByzantium:
@@ -90,8 +90,8 @@ func (evm *EVM) activeQuorumPrecompiles() []common.Address {
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 	var precompiles map[common.Address]PrecompiledContract
 	switch {
-	case evm.chainRules.IsYoloV2:
-		precompiles = PrecompiledContractsYoloV2
+	case evm.chainRules.IsBerlin:
+		precompiles = PrecompiledContractsBerlin
 	case evm.chainRules.IsIstanbul:
 		precompiles = PrecompiledContractsIstanbul
 	case evm.chainRules.IsByzantium:
@@ -286,7 +286,7 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb, privateState StateD
 
 // Reset resets the EVM with a new transaction context.Reset
 // This is not threadsafe and should only be done very cautiously.
-func (evm *EVM) Reset(txCtx TxContext, statedb StateDB) {
+func (evm *EVM) Reset(txCtx TxContext, statedb StateDB, privateStateDB StateDB) {
 	evm.TxContext = txCtx
 	evm.StateDB = statedb
 }
@@ -340,7 +340,11 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 			return nil, gas, nil
 		}
-		evm.StateDB.CreateAccount(addr)
+		// If we are executing the quorum PMT precompile, then don't add it to state.
+		// (When executing the PMT precompile, we are using private state - adding the account can cause differences in private state root when using with MPS.)
+		if !isQuorumPrecompile {
+			evm.StateDB.CreateAccount(addr)
+		}
 	}
 
 	// Quorum
@@ -575,7 +579,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	// We add this to the access list _before_ taking a snapshot. Even if the creation fails,
 	// the access-list change should not be rolled back
-	if evm.chainRules.IsYoloV2 {
+	if evm.chainRules.IsBerlin {
 		evm.StateDB.AddAddressToAccessList(address)
 	}
 

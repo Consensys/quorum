@@ -51,9 +51,10 @@ func TestQuorumSignPrivateQuorum(t *testing.T) {
 		qpPrivateSigner := QuorumPrivateTxSigner{HomesteadSigner{}}
 
 		signedTx, addr, err := signTxWithSigner(qpPrivateSigner, key)
+		v, _, _ := signedTx.RawSignatureValues()
 		assert.Nil(err, err)
 		assert.True(signedTx.IsPrivate(),
-			fmt.Sprintf("The signed transaction is not private, signedTx.data.V is [%v]", signedTx.data.V))
+			fmt.Sprintf("The signed transaction is not private, signedTx.data.V is [%v]", v))
 		from, err := Sender(qpPrivateSigner, signedTx)
 		assert.Nil(err, err)
 		assert.True(from == addr, fmt.Sprintf("Expected from == address, [%x] == [%x]", from, addr))
