@@ -61,6 +61,11 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCTxFeeCap             float64                        `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+
+		RaftMode                     bool
+		EnableNodePermission         bool
+		EVMCallTimeOut               time.Duration
+		PrivateTrieCleanCacheJournal string `toml:",omitempty"`
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -98,6 +103,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TxPool = c.TxPool
 	enc.GPO = c.GPO
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
+	enc.RaftMode = c.RaftMode
+	enc.EnableNodePermission = c.EnableNodePermission
 	enc.Istanbul = c.Istanbul
 	enc.DocRoot = c.DocRoot
 	enc.EWASMInterpreter = c.EWASMInterpreter
@@ -106,6 +113,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.Checkpoint = c.Checkpoint
 	enc.CheckpointOracle = c.CheckpointOracle
+	enc.EVMCallTimeOut = c.EVMCallTimeOut
+	enc.PrivateTrieCleanCacheJournal = c.PrivateTrieCleanCacheJournal
 	return &enc, nil
 }
 
@@ -155,6 +164,11 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCTxFeeCap             *float64                       `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+
+		RaftMode                     *bool
+		EnableNodePermission         *bool
+		EVMCallTimeOut               *time.Duration
+		PrivateTrieCleanCacheJournal *string `toml:",omitempty"`
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -265,6 +279,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.EnablePreimageRecording != nil {
 		c.EnablePreimageRecording = *dec.EnablePreimageRecording
 	}
+	if dec.RaftMode != nil {
+		c.RaftMode = *dec.RaftMode
+	}
+	if dec.EnableNodePermission != nil {
+		c.EnableNodePermission = *dec.EnableNodePermission
+	}
 	if dec.Istanbul != nil {
 		c.Istanbul = *dec.Istanbul
 	}
@@ -288,6 +308,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.CheckpointOracle != nil {
 		c.CheckpointOracle = dec.CheckpointOracle
+	}
+	if dec.EVMCallTimeOut != nil {
+		c.EVMCallTimeOut = *dec.EVMCallTimeOut
+	}
+	if dec.PrivateTrieCleanCacheJournal != nil {
+		c.PrivateTrieCleanCacheJournal = *dec.PrivateTrieCleanCacheJournal
 	}
 	return nil
 }

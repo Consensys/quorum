@@ -19,24 +19,22 @@ package istanbul
 import (
 	"testing"
 
+	"github.com/naoina/toml"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestProposerPolicy_UnmarshalTOML(t *testing.T) {
-	input := []byte(`
-		id = 2
-	`)
+	input := `id = 2
+`
 	expectedId := ProposerPolicyId(2)
-	var p ProposerPolicy
-	assert.NoError(t, p.UnmarshalTOML(input))
-
+	var p proposerPolicyToml
+	assert.NoError(t, toml.Unmarshal([]byte(input), &p))
 	assert.Equal(t, expectedId, p.Id, "ProposerPolicyId mismatch")
 }
 
 func TestProposerPolicy_MarshalTOML(t *testing.T) {
-	output := []byte(
-		`id = 1
-`)
+	output := `id = 1
+`
 	p := &ProposerPolicy{Id: 1}
 	b, err := p.MarshalTOML()
 	if err != nil {
