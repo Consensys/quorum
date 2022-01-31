@@ -2978,7 +2978,17 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 		} else {
 			log.Trace("Simulated execution", "error", err)
 			if len(data) > 0 && errors.Is(err, vm.ErrExecutionReverted) {
-				err = fmt.Errorf("%w: reason: data=%s", err, common.Bytes2Hex(data))
+				reason, errUnpack := abi.UnpackRevert(data)
+
+				reasonError := errors.New("execution reverted")
+				if errUnpack == nil {
+					reasonError = fmt.Errorf("execution reverted: %v", reason)
+				}
+				err = &revertError{
+					error:  reasonError,
+					reason: hexutil.Encode(data),
+				}
+
 			}
 			return nil, common.Hash{}, err
 		}
