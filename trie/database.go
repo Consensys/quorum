@@ -592,7 +592,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 //
 // Note, this method is a non-synchronized mutator. It is unsafe to call this
 // concurrently with other mutators.
-func (db *Database) Cap(limit common.StorageSize) error {
+func (db *Database) Cap(limit common.StorageSize) (bool, []common.Hash, error) {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -605,6 +605,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	// counted.
 	size := db.dirtiesSize + common.StorageSize((len(db.dirties)-1)*cachedNodeSize)
 	size += db.childrenSize - common.StorageSize(len(db.dirties[common.Hash{}].children)*(common.HashLength+2))
+	hashes := make([]common.Hash, 0)
 
 	// If the preimage cache got large enough, push to disk. If it's still small
 	// leave for later to deduplicate writes.
@@ -616,7 +617,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 			rawdb.WritePreimages(batch, db.preimages)
 			if batch.ValueSize() > ethdb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
-					return err
+					return flushPreimages, hashes, err
 				}
 				batch.Reset()
 			}
@@ -627,13 +628,14 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	for size > limit && oldest != (common.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
+		hashes = append(hashes, oldest)
 		rawdb.WriteTrieNode(batch, oldest, node.rlp())
 
 		// If we exceeded the ideal batch size, commit and reset
 		if batch.ValueSize() >= ethdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.Error("Failed to write flush list to disk", "err", err)
-				return err
+				return flushPreimages, hashes, err
 			}
 			batch.Reset()
 		}
@@ -649,7 +651,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	// Flush out any remainder data from the last batch
 	if err := batch.Write(); err != nil {
 		log.Error("Failed to write flush list to disk", "err", err)
-		return err
+		return flushPreimages, hashes, err
 	}
 	// Write successful, clear out the flushed data
 	db.lock.Lock()
@@ -686,6 +688,76 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	log.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
 		"flushnodes", db.flushnodes, "flushsize", db.flushsize, "flushtime", db.flushtime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
 
+	return flushPreimages, hashes, nil
+}
+
+func (db *Database) SyncCap(flushPreimages bool, hashes []common.Hash) error {
+	batch := db.diskdb.NewBatch()
+	if flushPreimages {
+		if db.preimages == nil {
+			log.Error("Attempted to write preimages whilst disabled")
+		} else {
+			rawdb.WritePreimages(batch, db.preimages)
+			if batch.ValueSize() > ethdb.IdealBatchSize {
+				if err := batch.Write(); err != nil {
+					return err
+				}
+				batch.Reset()
+			}
+		}
+	}
+	toRemove := make([]common.Hash, 0, len(hashes))
+	for i := range hashes {
+		oldest := hashes[i]
+		// Fetch the oldest referenced node and push into the batch
+		node, ok := db.dirties[oldest]
+		if !ok {
+			continue
+		}
+		rawdb.WriteTrieNode(batch, oldest, node.rlp())
+		toRemove = append(toRemove, oldest)
+
+		// If we exceeded the ideal batch size, commit and reset
+		if batch.ValueSize() >= ethdb.IdealBatchSize {
+			if err := batch.Write(); err != nil {
+				log.Error("Failed to write flush list to disk", "err", err)
+				return err
+			}
+			batch.Reset()
+		}
+	}
+	// Flush out any remain data from the last batch
+	if err := batch.Write(); err != nil {
+		log.Error("Failed to write flush list to disk", "err", err)
+		return err
+	}
+	// Write successful, clear out the flushed data
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	if flushPreimages {
+		if db.preimages == nil {
+			log.Error("Attempted to reset preimage cache whilst disabled")
+		} else {
+			db.preimages, db.preimagesSize = make(map[common.Hash][]byte), 0
+		}
+	}
+	for _, oldest := range toRemove {
+		node, ok := db.dirties[oldest]
+		if !ok {
+			continue
+		}
+		delete(db.dirties, db.oldest)
+		db.oldest = node.flushNext
+
+		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
+		if node.children != nil {
+			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
+	}
+	if db.oldest != (common.Hash{}) {
+		db.dirties[db.oldest].flushPrev = common.Hash{}
+	}
 	return nil
 }
 

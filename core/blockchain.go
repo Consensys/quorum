@@ -24,6 +24,7 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
+	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -222,6 +223,7 @@ type BlockChain struct {
 
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
+	privateTrieGC       *prque.Prque // Priority queue mapping block numbers to tries to gc
 	// End Quorum
 }
 
@@ -263,7 +265,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		// Quorum
-		quorumConfig: quorumChainConfig,
+		quorumConfig:  quorumChainConfig,
+		privateTrieGC: prque.New(nil),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -338,7 +341,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	// Quorum
 	if err := bc.privateStateManager.CheckAt(head.Root()); err != nil {
 		log.Warn("Head private state missing, resetting chain", "number", head.Number(), "hash", head.Hash())
-		return nil, bc.Reset()
+		bc.Reset()
+		os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
 	}
 	// End Quorum
 
@@ -506,11 +510,13 @@ func (bc *BlockChain) loadLastState() error {
 	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
 		if privateStateRepository == nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
+			bc.Reset()
+			os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
 		}
 		if _, err := privateStateRepository.DefaultState(); err != nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
+			bc.Reset()
+			os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
 		}
 	}
 	// /Quorum
@@ -573,6 +579,9 @@ func (bc *BlockChain) SetHead(head uint64) error {
 func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, error) {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
+	if bc.CurrentBlock() == nil { // TODO: check if needed
+		return 0, nil
+	}
 
 	// Track the block number of the requested root hash
 	var rootNumber uint64 // (no root == always 0)
@@ -650,7 +659,10 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			bc.currentFastBlock.Store(newHeadFastBlock)
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
-		head := bc.CurrentBlock().NumberU64()
+		head := uint64(0) // TODO check if needed
+		if bc.CurrentBlock() != nil {
+			head = bc.CurrentBlock().NumberU64()
+		}
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
@@ -684,7 +696,7 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 	}
 	// If SetHead was only called as a chain reparation method, try to skip
 	// touching the header chain altogether, unless the freezer is broken
-	if block := bc.CurrentBlock(); block.NumberU64() == head {
+	if block := bc.CurrentBlock(); block != nil && block.NumberU64() == head {
 		if target, force := updateFn(bc.db, block.Header()); force {
 			bc.hc.SetHead(target, updateFn, delFn)
 		}
@@ -1174,7 +1186,7 @@ func (bc *BlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !bc.cacheConfig.TrieDirtyDisabled {
 		triedb := bc.stateCache.TrieDB()
-
+		privateTrieDb := bc.PrivateStateManager().TrieDB()
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := bc.CurrentBlock().NumberU64(); number > offset {
 				recent := bc.GetBlockByNumber(number - offset)
@@ -1183,6 +1195,15 @@ func (bc *BlockChain) Stop() {
 				if err := triedb.Commit(recent.Root(), true, nil); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
+				// Quorum
+				privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
+				if len(privateRoot) != 0 && privateRoot != common.HexToHash("0x0") {
+					log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
+					if err := privateTrieDb.Commit(privateRoot, true, nil); err != nil {
+						log.Error("Failed to commit recent private state trie", "err", err)
+					}
+				}
+				// End Quorum
 			}
 		}
 		if snapBase != (common.Hash{}) {
@@ -1194,8 +1215,14 @@ func (bc *BlockChain) Stop() {
 		for !bc.triegc.Empty() {
 			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
 		}
+		for !bc.privateTrieGC.Empty() { // Quorum
+			privateTrieDb.Dereference(bc.privateTrieGC.PopItem().(common.Hash))
+		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
+		}
+		if size, _ := privateTrieDb.Size(); size != 0 { // Quorum
+			log.Error("Dangling private trie nodes after full cleanup")
 		}
 	}
 	// Ensure all live cached entries be saved into disk, so that we can skip
@@ -1699,7 +1726,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
-	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1727,17 +1754,36 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 	triedb := bc.stateCache.TrieDB()
+	// Quorum
+	privateTrieDB := bc.PrivateStateManager().TrieDB()
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.TrieDirtyDisabled {
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
-
+		if len(privateRoot.Bytes()) != 0 {
+			// Quorum commit private root
+			if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
+				return NonStatTy, err
+			}
+		}
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		bc.triegc.Push(root, -int64(block.NumberU64()))
+
+		// Quorum
+		if !bc.chainConfig.IsMPS && len(privateRoot.Bytes()) != 0 {
+			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+			bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
+		} else if len(privateRoot.Bytes()) != 0 {
+			// Quorum commit private root
+			if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
+				return NonStatTy, err
+			}
+		}
+		// End Quorum
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -1746,8 +1792,16 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
-				triedb.Cap(limit - ethdb.IdealBatchSize)
+				flushPreimages, hashes, err := triedb.Cap(limit - ethdb.IdealBatchSize)
+				if err != nil {
+					log.Warn("error occurred while capping public cache (nodes, preimages)", "err", err)
+				}
+				err = privateTrieDB.SyncCap(flushPreimages, hashes)
+				if err != nil {
+					log.Warn("error occurred while capping private cache (nodes, preimages)", "err", err)
+				}
 			}
+
 			// Find the next state trie we need to commit
 			chosen := current - TriesInMemory
 
@@ -1766,6 +1820,12 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					}
 					// Flush an entire trie and restart the counters
 					triedb.Commit(header.Root, true, nil)
+
+					// Quorum
+					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
+					privateTrieDB.Commit(privateroot, true, nil)
+					// End Quorum
+
 					lastWrite = chosen
 					bc.gcproc = 0
 				}
@@ -1779,6 +1839,16 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 				triedb.Dereference(root.(common.Hash))
 			}
+			// Quorum
+			for !bc.privateTrieGC.Empty() {
+				root, number := bc.privateTrieGC.Pop()
+				if uint64(-number) > chosen {
+					bc.privateTrieGC.Push(root, number)
+					break
+				}
+				privateTrieDB.Dereference(root.(common.Hash))
+			}
+			// End Quorum
 		}
 	}
 	// If the total difficulty is higher than our known, add it to the canonical chain

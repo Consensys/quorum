@@ -1,6 +1,7 @@
 package mps
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,6 +31,8 @@ type MultiplePrivateStateRepository struct {
 	// managed states map
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
+
+var _ PrivateStateRepository = (*MultiplePrivateStateRepository)(nil) // MultiplePrivateStateRepository must implement PrivateStateRepository
 
 func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
@@ -76,6 +79,9 @@ func (ms *managedState) calPrivateStateRoot(isEIP158 bool) (common.Hash, error) 
 }
 
 func (mpsr *MultiplePrivateStateRepository) DefaultState() (*state.StateDB, error) {
+	if mpsr == nil {
+		return nil, fmt.Errorf("mpsr not present")
+	}
 	return mpsr.StatePSI(EmptyPrivateStateMetadata.ID)
 }
 
@@ -88,6 +94,9 @@ func (mpsr *MultiplePrivateStateRepository) IsMPS() bool {
 }
 
 func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
+	if mpsr == nil {
+		return nil, fmt.Errorf("mpsr not present")
+	}
 	mpsr.mux.Lock()
 	ms, found := mpsr.managedStates[psi]
 	mpsr.mux.Unlock()
@@ -152,7 +161,7 @@ func (mpsr *MultiplePrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits all private states, updates the trie of private states, writes to disk
-func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
+func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
 	// commit each managed state
@@ -160,25 +169,27 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		// calculate and commit state root if required
 		privateRoot, err := managedState.stateRootProviderFunc(isEIP158)
 		if err != nil {
-			return err
+			return privateRoot, err
 		}
-		// update the managed state root in the trie of state roots
-		if err := mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes()); err != nil {
-			return err
+		// update the managed state root in the trie of states
+		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
+		if err != nil {
+			return privateRoot, err
+		}
+		if managedState.stateCache != nil {
+			err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
+			if err != nil {
+				return privateRoot, err
+			}
 		}
 	}
 	// commit the trie of states
 	mtRoot, err := mpsr.trie.Commit(nil)
 	if err != nil {
-		return err
+		return mtRoot, err
 	}
 	err = rawdb.WritePrivateStatesTrieRoot(mpsr.db, block.Root(), mtRoot)
-	if err != nil {
-		return err
-	}
-	privateTriedb := mpsr.repoCache.TrieDB()
-	err = privateTriedb.Commit(mtRoot, false, nil)
-	return err
+	return mtRoot, err
 }
 
 // Commit commits all private states, updates the trie of private states only
