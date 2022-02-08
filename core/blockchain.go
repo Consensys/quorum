@@ -1774,14 +1774,9 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		bc.triegc.Push(root, -int64(block.NumberU64()))
 
 		// Quorum
-		if !bc.chainConfig.IsMPS && len(privateRoot.Bytes()) != 0 {
+		if len(privateRoot.Bytes()) != 0 {
 			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
 			bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
-		} else if len(privateRoot.Bytes()) != 0 {
-			// Quorum commit private root
-			if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
-				return NonStatTy, err
-			}
 		}
 		// End Quorum
 
@@ -1819,11 +1814,19 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 						log.Info("State in memory for too long, committing", "time", bc.gcproc, "allowance", bc.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/TriesInMemory)
 					}
 					// Flush an entire trie and restart the counters
-					triedb.Commit(header.Root, true, nil)
+					err = triedb.Commit(header.Root, true, nil)
+					if err != nil {
+						return NonStatTy, err
+					}
 
 					// Quorum
 					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
-					privateTrieDB.Commit(privateroot, true, nil)
+					if len(privateRoot.Bytes()) != 0 {
+						err = privateTrieDB.Commit(privateroot, true, nil)
+						if err != nil {
+							return NonStatTy, err
+						}
+					}
 					// End Quorum
 
 					lastWrite = chosen
