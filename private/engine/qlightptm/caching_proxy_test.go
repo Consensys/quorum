@@ -225,8 +225,7 @@ type HasRPCClient interface {
 
 func TestCachingProxy_HasRPCClient(t *testing.T) {
 	assert := assert.New(t)
-	var cpTM interface{}
-	cpTM = New()
+	var cpTM interface{} = New()
 
 	_, ok := cpTM.(HasRPCClient)
 	assert.True(ok)

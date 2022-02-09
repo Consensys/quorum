@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/eth/protocols/qlight"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 )
 
@@ -37,14 +38,11 @@ type ethPeerInfo struct {
 type ethPeer struct {
 	*eth.Peer
 	snapExt *snapPeer // Satellite `snap` connection
+	qlight  *qlight.Peer
 
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 	lock     sync.RWMutex  // Mutex protecting the internal fields
-	// TODO qlight - consider whether it is worth duplicating the peer structure and the surrounding zoo
-	qlightServer bool
-	qlightPSI    string
-	qlightToken  string
 }
 
 // info gathers and returns some `eth` protocol metadata known about a peer.
@@ -76,6 +74,7 @@ func (p *snapPeer) info() *snapPeerInfo {
 	}
 }
 
+// TODO qlight - must delete
 
 // TODO qlight rebase
 //case prop := <-p.queuedBlocks:
@@ -105,78 +104,76 @@ func (p *snapPeer) info() *snapPeerInfo {
 //}
 //}
 
-
 // AsyncSendPooledTransactionHashes queues a list of transactions hashes to eventually
 
-
-func (p *peer) QLightHandshake(server bool, psi string, token string) error {
-	// Send out own handshake in a new thread
-	errc := make(chan error, 2)
-
-	var (
-		status qLightStatusData // safe to read after two values have been received from errc
-	)
-	go func() {
-		errc <- p2p.Send(p.rw, QLightStatusMsg, &qLightStatusData{
-			ProtocolVersion: uint32(p.version),
-			Server:          server,
-			PSI:             psi,
-			Token:           token,
-		})
-	}()
-	go func() {
-		errc <- p.readQLightStatus(&status)
-	}()
-	timeout := time.NewTimer(handshakeTimeout)
-	defer timeout.Stop()
-	for i := 0; i < 2; i++ {
-		select {
-		case err := <-errc:
-			if err != nil {
-				return err
-			}
-		case <-timeout.C:
-			return p2p.DiscReadTimeout
-		}
-	}
-	p.qlightServer, p.qlightPSI, p.qlightToken = status.Server, status.PSI, status.Token
-	return nil
-}
-
-
-func (p *peer) readQLightStatus(qligtStatus *qLightStatusData) error {
-	msg, err := p.rw.ReadMsg()
-	if err != nil {
-		return err
-	}
-	if msg.Code != QLightStatusMsg {
-		return errResp(ErrNoStatusMsg, "second msg has code %x (!= %x)", msg.Code, QLightStatusMsg)
-	}
-	if msg.Size > protocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
-	}
-	// Decode the handshake and make sure everything matches
-	if err := msg.Decode(&qligtStatus); err != nil {
-		return errResp(ErrDecode, "msg %v: %v", msg, err)
-	}
-	if !qligtStatus.Server && len(qligtStatus.PSI) == 0 {
-		return errResp(ErrDecode, "client connected without specifying PSI")
-	}
-	// TODO qlight - check that the PSI exists
-	// TODO qlight - check that if multi tenancy is enabled the token matches the PSI
-	return nil
-}
-
-func (ps *peerSet) RegisterIdlePeer(p *peer, removePeer func(string), protoName string) error {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	if ps.closed {
-		return errClosed
-	}
-	if _, ok := ps.peers[p.id]; ok {
-		return errAlreadyRegistered
-	}
-	ps.peers[p.id] = p
-	return nil
-}
+//func (p *peer) QLightHandshake(server bool, psi string, token string) error {
+//	// Send out own handshake in a new thread
+//	errc := make(chan error, 2)
+//
+//	var (
+//		status qLightStatusData // safe to read after two values have been received from errc
+//	)
+//	go func() {
+//		errc <- p2p.Send(p.rw, QLightStatusMsg, &qLightStatusData{
+//			ProtocolVersion: uint32(p.version),
+//			Server:          server,
+//			PSI:             psi,
+//			Token:           token,
+//		})
+//	}()
+//	go func() {
+//		errc <- p.readQLightStatus(&status)
+//	}()
+//	timeout := time.NewTimer(handshakeTimeout)
+//	defer timeout.Stop()
+//	for i := 0; i < 2; i++ {
+//		select {
+//		case err := <-errc:
+//			if err != nil {
+//				return err
+//			}
+//		case <-timeout.C:
+//			return p2p.DiscReadTimeout
+//		}
+//	}
+//	p.qlightServer, p.qlightPSI, p.qlightToken = status.Server, status.PSI, status.Token
+//	return nil
+//}
+//
+//
+//func (p *peer) readQLightStatus(qligtStatus *qLightStatusData) error {
+//	msg, err := p.rw.ReadMsg()
+//	if err != nil {
+//		return err
+//	}
+//	if msg.Code != QLightStatusMsg {
+//		return errResp(ErrNoStatusMsg, "second msg has code %x (!= %x)", msg.Code, QLightStatusMsg)
+//	}
+//	if msg.Size > protocolMaxMsgSize {
+//		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
+//	}
+//	// Decode the handshake and make sure everything matches
+//	if err := msg.Decode(&qligtStatus); err != nil {
+//		return errResp(ErrDecode, "msg %v: %v", msg, err)
+//	}
+//	if !qligtStatus.Server && len(qligtStatus.PSI) == 0 {
+//		return errResp(ErrDecode, "client connected without specifying PSI")
+//	}
+//	// TODO qlight - check that the PSI exists
+//	// TODO qlight - check that if multi tenancy is enabled the token matches the PSI
+//	return nil
+//}
+//
+//func (ps *peerSet) RegisterIdlePeer(p *peer, removePeer func(string), protoName string) error {
+//	ps.lock.Lock()
+//	defer ps.lock.Unlock()
+//
+//	if ps.closed {
+//		return errClosed
+//	}
+//	if _, ok := ps.peers[p.id]; ok {
+//		return errAlreadyRegistered
+//	}
+//	ps.peers[p.id] = p
+//	return nil
+//}

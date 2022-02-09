@@ -45,6 +45,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	qlightproto "github.com/ethereum/go-ethereum/eth/protocols/qlight"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -77,9 +78,6 @@ type Ethereum struct {
 	ethDialCandidates  enode.Iterator
 	snapDialCandidates enode.Iterator
 
-	qlServerProtocolManager *QLightServerProtocolManager
-	qlClientProtocolManager *QLightClientProtocolManager
-
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
 
@@ -106,6 +104,8 @@ type Ethereum struct {
 
 	// Quorum - consensus as eth-service (e.g. raft)
 	consensusServicePendingLogsFeed *event.Feed
+	qlightServerHandler             *handler
+	qlightP2pServer                 *p2p.Server
 }
 
 // New creates a new Ethereum object (including the
@@ -177,6 +177,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomRequests:                   make(chan chan *bloombits.Retrieval),
 		bloomIndexer:                    core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:                       stack.Server(),
+		qlightP2pServer:                 stack.QServer(),
 		consensusServicePendingLogsFeed: new(event.Feed),
 	}
 
@@ -265,34 +266,45 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
-	if eth.handler, err = newHandler(&handlerConfig{
-		Database:          chainDb,
-		Chain:             eth.blockchain,
-		TxPool:            eth.txPool,
-		Network:           config.NetworkId,
-		Sync:              config.SyncMode,
-		BloomCache:        uint64(cacheLimit),
-		EventMux:          eth.eventMux,
-		Checkpoint:        checkpoint,
-		AuthorizationList: config.AuthorizationList,
-		RaftMode:          config.RaftMode,
-		Engine:            eth.engine,
-	}); err != nil {
-		return nil, err
 
-	// TODO qlight rebase
 	if eth.config.QuorumLightClient {
 		clientCache, err := qlight.NewClientCache(chainDb)
 		if err != nil {
 			return nil, err
 		}
-		if eth.qlClientProtocolManager, err = NewQLightClientProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode, eth.config.QuorumLightClientPSI, eth.config.QuorumLightClientToken, clientCache); err != nil {
+		if eth.handler, err = newQLightClientHandler(&handlerConfig{
+			Database:           chainDb,
+			Chain:              eth.blockchain,
+			TxPool:             eth.txPool,
+			Network:            config.NetworkId,
+			Sync:               config.SyncMode,
+			BloomCache:         uint64(cacheLimit),
+			EventMux:           eth.eventMux,
+			Checkpoint:         checkpoint,
+			AuthorizationList:  config.AuthorizationList,
+			RaftMode:           config.RaftMode,
+			Engine:             eth.engine,
+			psi:                config.QuorumLightClientPSI,
+			token:              config.QuorumLightClientToken,
+			privateClientCache: clientCache,
+		}); err != nil {
 			return nil, err
 		}
-		eth.protocolManager = eth.qlClientProtocolManager.ProtocolManager
 		eth.blockchain.SetPrivateStateRootHashValidator(clientCache)
 	} else {
-		if eth.protocolManager, err = NewProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode); err != nil {
+		if eth.handler, err = newHandler(&handlerConfig{
+			Database:          chainDb,
+			Chain:             eth.blockchain,
+			TxPool:            eth.txPool,
+			Network:           config.NetworkId,
+			Sync:              config.SyncMode,
+			BloomCache:        uint64(cacheLimit),
+			EventMux:          eth.eventMux,
+			Checkpoint:        checkpoint,
+			AuthorizationList: config.AuthorizationList,
+			RaftMode:          config.RaftMode,
+			Engine:            eth.engine,
+		}); err != nil {
 			return nil, err
 		}
 		if eth.config.QuorumLightServer {
@@ -300,9 +312,21 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 				_, authManager, _ := stack.GetSecuritySupports()
 				return authManager
 			}
-			if eth.qlServerProtocolManager, err = NewQLightServerProtocolManager(chainConfig, checkpoint, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb, cacheLimit, config.AuthorizationList, config.RaftMode,
-				qlight.NewAuthProvider(eth.blockchain.PrivateStateManager(), authManProvider),
-				qlight.NewPrivateBlockDataResolver(eth.blockchain.PrivateStateManager(), private.P)); err != nil {
+			if eth.qlightServerHandler, err = newQLightServerHandler(&handlerConfig{
+				Database:                 chainDb,
+				Chain:                    eth.blockchain,
+				TxPool:                   eth.txPool,
+				Network:                  config.NetworkId,
+				Sync:                     config.SyncMode,
+				BloomCache:               uint64(cacheLimit),
+				EventMux:                 eth.eventMux,
+				Checkpoint:               checkpoint,
+				AuthorizationList:        config.AuthorizationList,
+				RaftMode:                 config.RaftMode,
+				Engine:                   eth.engine,
+				authProvider:             qlight.NewAuthProvider(eth.blockchain.PrivateStateManager(), authManProvider),
+				privateBlockDataResolver: qlight.NewPrivateBlockDataResolver(eth.blockchain.PrivateStateManager(), private.P),
+			}); err != nil {
 				return nil, err
 			}
 		}
@@ -311,10 +335,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&stack.GetNodeKey().PublicKey)[1:]) // Quorum
-	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut}
-	if eth.APIBackend.allowUnprotectedTxs {
-		log.Info("Unprotected transactions allowed")
-	}
 	// TODO qlight rebase
 	if eth.config.QuorumLightClient {
 		var (
@@ -360,9 +380,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		if ok {
 			rpcClientSetter.SetRPCClient(proxyClient)
 		}
-		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, proxyClient}
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut, proxyClient}
 	} else {
-		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
+	}
+
+	if eth.APIBackend.allowUnprotectedTxs {
+		log.Info("Unprotected transactions allowed")
 	}
 
 	gpoParams := config.GPO
@@ -664,15 +688,12 @@ func (s *Ethereum) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.config.QuorumLightClient {
-		protos := make([]p2p.Protocol, 1)
-		qls := s.qlClientProtocolManager.makeProtocol(eth65)
-		qls.Name = "qlight"
-		protos[0] = qls
-		protos[0].Attributes = []enr.Entry{s.currentEthEntry()}
+		protos := qlightproto.MakeProtocolsClient((*qlightClientHandler)(s.handler), s.networkID, s.ethDialCandidates)
 		return protos
 	}
+
 	protos := eth.MakeProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
-	if s.config.SnapshotCache > 0{
+	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
 
@@ -688,13 +709,7 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 }
 
 func (s *Ethereum) QProtocols() []p2p.Protocol {
-
-	protos := make([]p2p.Protocol, 1)
-
-	protos[0] = s.qlServerProtocolManager.makeProtocol(eth65)
-	protos[0].Name = "qlight"
-	protos[0].Attributes = []enr.Entry{s.currentEthEntry()}
-
+	protos := qlightproto.MakeProtocolsServer((*qlightServerHandler)(s.qlightServerHandler), s.networkID, s.ethDialCandidates)
 	return protos
 }
 
@@ -715,12 +730,12 @@ func (s *Ethereum) Start() error {
 		maxPeers -= s.config.LightPeers
 	}
 	// Start the networking layer and the light server if requested
-	if s.qlClientProtocolManager != nil {
-		s.qlClientProtocolManager.Start(1)
+	if s.config.QuorumLightClient {
+		s.handler.StartQLightClient()
 	} else {
 		s.handler.Start(maxPeers)
-		if s.qlServerProtocolManager != nil {
-			s.qlServerProtocolManager.Start(maxPeers)
+		if s.qlightServerHandler != nil {
+			s.qlightServerHandler.StartQLightServer(s.qlightP2pServer.MaxPeers)
 		}
 	}
 
@@ -731,11 +746,11 @@ func (s *Ethereum) Start() error {
 // Ethereum protocol.
 func (s *Ethereum) Stop() error {
 	// Stop all the peer-related stuff first.
-	if s.qlClientProtocolManager != nil {
-		s.qlClientProtocolManager.Stop()
+	if s.config.QuorumLightClient {
+		s.handler.StopQLightClient()
 	} else {
-		if s.qlServerProtocolManager != nil {
-			s.qlServerProtocolManager.Stop()
+		if s.qlightServerHandler != nil {
+			s.qlightServerHandler.StopQLightServer()
 		}
 		s.handler.Stop()
 	}

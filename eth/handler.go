@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -97,6 +98,15 @@ type handlerConfig struct {
 	// Quorum
 	Engine   consensus.Engine
 	RaftMode bool
+
+	// Quorum QLight
+	// client
+	psi                string
+	token              string
+	privateClientCache qlight.PrivateClientCache
+	// server
+	authProvider             qlight.AuthProvider
+	privateBlockDataResolver qlight.PrivateBlockDataResolver
 }
 
 type handler struct {
@@ -142,6 +152,15 @@ type handler struct {
 
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
+
+	// Quorum QLight
+	// client
+	psi                string
+	token              string
+	privateClientCache qlight.PrivateClientCache
+	// server
+	authProvider             qlight.AuthProvider
+	privateBlockDataResolver qlight.PrivateBlockDataResolver
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -500,7 +519,7 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		// Send the block to a subset of our peers
 		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range transfer {
-			peer.AsyncSendNewBlock(block, td, nil)
+			peer.AsyncSendNewBlock(block, td)
 		}
 		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 		return
@@ -535,7 +554,6 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 	// indicated that this logic might change in the future to only send to a
 	// subset of peers. If this change occurs upstream, a merge conflict should
 	// arise here, and we should add logic to send to *all* peers in raft mode.
-
 	for _, tx := range txs {
 		peers := h.peers.peersWithoutTransaction(tx.Hash())
 		// Send the tx unconditionally to a subset of our peers
@@ -548,7 +566,6 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		//for _, peer := range peers[numDirect:] {
 		//	annos[peer] = append(annos[peer], tx.Hash())
 		//}
-		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	for peer, hashes := range txset {
 		directPeers++

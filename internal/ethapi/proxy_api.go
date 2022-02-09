@@ -21,6 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -41,8 +42,9 @@ func NewPublicTransactionPoolProxyAPI(b Backend, nonceLock *AddrLocker) interfac
 	apiSupport, ok := b.(ProxyAPISupport)
 	if ok {
 		if apiSupport.ProxyEnabled() {
+			signer := types.LatestSigner(b.ChainConfig())
 			return &PublicTransactionPoolProxyAPI{
-				PublicTransactionPoolAPI{b, nonceLock},
+				PublicTransactionPoolAPI{b, nonceLock, signer},
 				apiSupport.ProxyClient(),
 			}
 
@@ -82,7 +84,7 @@ func (s *PublicTransactionPoolProxyAPI) FillTransaction(ctx context.Context, arg
 func (s *PublicTransactionPoolProxyAPI) DistributePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (string, error) {
 	log.Info("QLight - proxy enabled")
 	var result string
-	err := s.proxyClient.CallContext(ctx, &result, "eth_distributePrivateTransaction", args)
+	err := s.proxyClient.CallContext(ctx, &result, "eth_distributePrivateTransaction", encodedTx, args)
 	return result, err
 }
 
@@ -103,7 +105,7 @@ func (s *PublicTransactionPoolProxyAPI) SendTransactionAsync(ctx context.Context
 func (s *PublicTransactionPoolProxyAPI) Sign(addr common.Address, data hexutil.Bytes) (hexutil.Bytes, error) {
 	log.Info("QLight - proxy enabled")
 	var result hexutil.Bytes
-	err := s.proxyClient.Call(&result, "eth_sign", data)
+	err := s.proxyClient.Call(&result, "eth_sign", addr, data)
 	return result, err
 }
 

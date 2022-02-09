@@ -159,6 +159,7 @@ func NewQLightClientProtocolManager(config *params.ChainConfig, checkpoint *para
 		p := manager.peers.Peer(peer)
 		if p == nil {
 			return errors.New("unknown peer")
+			return errors.New("unknown peer")
 		}
 		return p.RequestTxs(hashes)
 	}
