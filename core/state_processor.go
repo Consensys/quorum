@@ -112,10 +112,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			}
 		}
 
-		if p.config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), ErrInvalidGasPrice)
-		}
-
 		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number))
 		if err != nil {
 			return nil, nil, nil, 0, err
@@ -410,10 +406,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 		if err := core.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
 			return nil, nil, err
 		}
-	}
-
-	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-		return nil, nil, ErrInvalidGasPrice
 	}
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))

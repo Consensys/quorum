@@ -1,3 +1,15 @@
+# dcSpark GoQuorum
+
+This is dcSpark's fork of GoQuorum. We only want one thing from it:
+[nonzero gas prices](https://github.com/ConsenSys/quorum/pull/624).
+
+Once nonzero gas prices exist on GoQuorum, we can close this down, as
+until that time it's only a pest to keep integrating upstream changes here.
+
+Use `docker build --rm -t dcspark/quorum:latest .` to build.
+
+Original README follows.
+
 # <img src="https://raw.githubusercontent.com/consensys/quorum/master/logo.png" width="200" height="35"/>
 
 

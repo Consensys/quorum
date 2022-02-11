@@ -622,10 +622,6 @@ func testTransactionStatus(t *testing.T, protocol int) {
 	}
 	signer := types.HomesteadSigner{}
 
-	// test error status by sending an underpriced transaction
-	tx0, _ := types.SignTx(types.NewTransaction(0, userAddr1, big.NewInt(10000), params.TxGas, nil, nil), signer, bankKey)
-	test(tx0, true, light.TxStatus{Status: core.TxStatusUnknown, Error: core.ErrUnderpriced.Error()})
-
 	tx1, _ := types.SignTx(types.NewTransaction(0, userAddr1, big.NewInt(10000), params.TxGas, big.NewInt(100000000000), nil), signer, bankKey)
 	test(tx1, false, light.TxStatus{Status: core.TxStatusUnknown}) // query before sending, should be unknown
 	test(tx1, true, light.TxStatus{Status: core.TxStatusPending})  // send valid processable tx, should return pending
