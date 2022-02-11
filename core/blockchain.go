@@ -508,6 +508,7 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Quorum
 	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
+		log.Warn("will reset because of private state", "repo", privateStateRepository, "err", err)
 		if privateStateRepository == nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
 			bc.Reset()
@@ -579,9 +580,6 @@ func (bc *BlockChain) SetHead(head uint64) error {
 func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, error) {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
-	if bc.CurrentBlock() == nil { // TODO: check if needed
-		return 0, nil
-	}
 
 	// Track the block number of the requested root hash
 	var rootNumber uint64 // (no root == always 0)
@@ -659,10 +657,7 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			bc.currentFastBlock.Store(newHeadFastBlock)
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
-		head := uint64(0) // TODO check if needed
-		if bc.CurrentBlock() != nil {
-			head = bc.CurrentBlock().NumberU64()
-		}
+		head := bc.CurrentBlock().NumberU64()
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
@@ -1791,7 +1786,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				if err != nil {
 					log.Warn("error occurred while capping public cache (nodes, preimages)", "err", err)
 				}
-				err = privateTrieDB.SyncCap(flushPreimages, hashes)
+				err = privateTrieDB.SyncCap(flushPreimages, hashes, bc.db)
 				if err != nil {
 					log.Warn("error occurred while capping private cache (nodes, preimages)", "err", err)
 				}
@@ -1822,7 +1817,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					// Quorum
 					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
 					if len(privateRoot.Bytes()) != 0 {
-						err = privateTrieDB.Commit(privateroot, true, nil)
+						err = privateTrieDB.Commit(privateroot, false, nil)
 						if err != nil {
 							return NonStatTy, err
 						}

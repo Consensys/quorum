@@ -691,7 +691,7 @@ func (db *Database) Cap(limit common.StorageSize) (bool, []common.Hash, error) {
 	return flushPreimages, hashes, nil
 }
 
-func (db *Database) SyncCap(flushPreimages bool, hashes []common.Hash) error {
+func (db *Database) SyncCap(flushPreimages bool, hashes []common.Hash, ethDB ethdb.Database) error {
 	batch := db.diskdb.NewBatch()
 	if flushPreimages {
 		if db.preimages == nil {
@@ -708,7 +708,7 @@ func (db *Database) SyncCap(flushPreimages bool, hashes []common.Hash) error {
 	}
 	toRemove := make([]common.Hash, 0, len(hashes))
 	for i := range hashes {
-		oldest := hashes[i]
+		oldest := rawdb.GetPrivateStateRoot(ethDB, hashes[i])
 		// Fetch the oldest referenced node and push into the batch
 		node, ok := db.dirties[oldest]
 		if !ok {

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type StateRootProviderFunc func(isEIP158 bool) (common.Hash, error)
@@ -169,27 +170,31 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		// calculate and commit state root if required
 		privateRoot, err := managedState.stateRootProviderFunc(isEIP158)
 		if err != nil {
-			return privateRoot, err
+			return common.Hash{}, err
 		}
 		// update the managed state root in the trie of states
 		err = mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes())
 		if err != nil {
-			return privateRoot, err
+			return common.Hash{}, err
 		}
 		if managedState.stateCache != nil {
 			err = managedState.stateCache.TrieDB().Commit(privateRoot, false, nil)
 			if err != nil {
-				return privateRoot, err
+				return common.Hash{}, err
 			}
 		}
 	}
 	// commit the trie of states
 	mtRoot, err := mpsr.trie.Commit(nil)
 	if err != nil {
-		return mtRoot, err
+		return common.Hash{}, err
 	}
 	err = rawdb.WritePrivateStatesTrieRoot(mpsr.db, block.Root(), mtRoot)
-	return mtRoot, err
+	if err != nil {
+		log.Warn("Failed writing private state trie root", "block", block.Root(), "mt_root", mtRoot, "err", err)
+		return common.Hash{}, err
+	}
+	return mtRoot, nil
 }
 
 // Commit commits all private states, updates the trie of private states only

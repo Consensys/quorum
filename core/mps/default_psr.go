@@ -70,12 +70,13 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
 	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
-		return privateRoot, err
+		return common.Hash{}, err
 	}
 
-	if err := rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot); err != nil {
+	err = rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot)
+	if err != nil {
 		log.Error("Failed writing private state root", "err", err)
-		return privateRoot, err
+		return common.Hash{}, err
 	}
 	return privateRoot, nil
 }
