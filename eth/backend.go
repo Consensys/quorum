@@ -346,6 +346,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
 				InsecureSkipVerify: eth.config.QuorumLightClientRPCTLSInsecureSkipVerify,
 				CACertFileName:     eth.config.QuorumLightClientRPCTLSCACert,
+				CertFileName:       eth.config.QuorumLightClientRPCTLSCert,
+				KeyFileName:        eth.config.QuorumLightClientRPCTLSKey,
 			})
 			if err != nil {
 				return nil, err

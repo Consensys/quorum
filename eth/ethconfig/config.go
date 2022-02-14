@@ -230,6 +230,8 @@ type Config struct {
 	QuorumLightClientRPCTLS                   bool   `toml:",omitempty"`
 	QuorumLightClientRPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
 	QuorumLightClientRPCTLSCACert             string `toml:",omitempty"`
+	QuorumLightClientRPCTLSCert               string `toml:",omitempty"`
+	QuorumLightClientRPCTLSKey                string `toml:",omitempty"`
 	QuorumLightClientServerNode               string `toml:",omitempty"`
 	QuorumLightClientServerNodeRPC            string `toml:",omitempty"`
 }

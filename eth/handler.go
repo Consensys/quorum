@@ -477,9 +477,10 @@ func (h *handler) Start(maxPeers int) {
 }
 
 func (h *handler) Stop() {
-	h.txsSub.Unsubscribe()        // quits txBroadcastLoop
-	h.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
-
+	h.txsSub.Unsubscribe() // quits txBroadcastLoop
+	if h.minedBlockSub != nil {
+		h.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	}
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
 	close(h.quitSync)

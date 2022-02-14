@@ -202,11 +202,17 @@ var (
 		utils.QuorumLightClientRPCTLSFlag,
 		utils.QuorumLightClientRPCTLSInsecureSkipVerifyFlag,
 		utils.QuorumLightClientRPCTLSCACertFlag,
+		utils.QuorumLightClientRPCTLSCertFlag,
+		utils.QuorumLightClientRPCTLSKeyFlag,
 		utils.QuorumLightClientServerNodeFlag,
 		utils.QuorumLightClientServerNodeRPCFlag,
 		utils.QuorumLightTLSFlag,
 		utils.QuorumLightTLSCertFlag,
 		utils.QuorumLightTLSKeyFlag,
+		utils.QuorumLightTLSClientCAFlag,
+		utils.QuorumLightTLSCACertsFlag,
+		utils.QuorumLightTLSClientAuthFlag,
+		utils.QuorumLightTLSCipherSuitesFlag,
 		// End-Quorum
 	}
 

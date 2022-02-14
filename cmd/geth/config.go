@@ -201,12 +201,16 @@ func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
 		return nil
 	}
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
-		utils.Fatalf("QLight tls flag is set but no client certificate has been provided")
+	// TODO - QLight should this be mandatory. Maybe we can default to system ca certs.
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
 	}
 	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
-		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
+		CertFileName:   ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:    ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
 		ServerName:     enode.MustParse(ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)).IP().String(),
+		CipherSuites:   ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
 	})
 
 	if err != nil {
@@ -227,8 +231,11 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 	}
 
 	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
-		CertFileName: ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
-		KeyFileName:  ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSClientCAFlag.Name),
+		ClientAuth:           ctx.GlobalInt(utils.QuorumLightTLSClientAuthFlag.Name),
+		CipherSuites:         ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
 	})
 
 	if err != nil {

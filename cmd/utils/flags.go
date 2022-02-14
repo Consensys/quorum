@@ -986,7 +986,7 @@ var (
 		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
 	}
 	QuorumLightClientPSIFlag = cli.StringFlag{
-		Name:  "qlight.client.PSI",
+		Name:  "qlight.client.psi",
 		Usage: "The PSI this client will use to connect to a server node.",
 	}
 	QuorumLightClientTokenFlag = cli.StringFlag{
@@ -1004,6 +1004,14 @@ var (
 	QuorumLightClientRPCTLSCACertFlag = cli.StringFlag{
 		Name:  "qlight.client.rpc.tls.cacert",
 		Usage: "The quorum light client RPC client certificate authority.",
+	}
+	QuorumLightClientRPCTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cert",
+		Usage: "The quorum light client RPC client certificate.",
+	}
+	QuorumLightClientRPCTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.key",
+		Usage: "The quorum light client RPC client certificate private key.",
 	}
 	QuorumLightClientServerNodeFlag = cli.StringFlag{
 		Name:  "qlight.client.serverNode",
@@ -1024,6 +1032,23 @@ var (
 	QuorumLightTLSKeyFlag = cli.StringFlag{
 		Name:  "qlight.tls.key",
 		Usage: "The key file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSClientCAFlag = cli.StringFlag{
+		Name:  "qlight.tls.clientcacerts",
+		Usage: "The certificate authorities file to use for validating client qlight P2P connections (server configuration parameter)",
+	}
+	QuorumLightTLSCACertsFlag = cli.StringFlag{
+		Name:  "qlight.tls.cacerts",
+		Usage: "The certificate authorities file to use for validating qlight P2P connection (client configuration parameter)",
+	}
+	QuorumLightTLSClientAuthFlag = cli.IntFlag{
+		Name:  "qlight.tls.clientauth",
+		Usage: "The way the client is authenticated. Possible values: 0=NoClientCert(default) 1=tRequestClientCert 2=RequireAnyClientCert 3=VerifyClientCertIfGiven 4=RequireAndVerifyClientCert",
+		Value: 0,
+	}
+	QuorumLightTLSCipherSuitesFlag = cli.StringFlag{
+		Name:  "qlight.tls.ciphersuites",
+		Usage: "The cipher suites to use for the qlight P2P connection",
 	}
 )
 
@@ -2001,6 +2026,15 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
 		cfg.QuorumLightClientRPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		cfg.QuorumLightClientRPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
+		cfg.QuorumLightClientRPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSCertFlag.Name, QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSKeyFlag.Name, QuorumLightClientRPCTLSCertFlag.Name)
 	}
 
 	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
