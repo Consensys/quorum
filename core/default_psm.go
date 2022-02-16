@@ -19,10 +19,10 @@ type DefaultPrivateStateManager struct {
 	repoCache state.Database
 }
 
-func newDefaultPrivateStateManager(db ethdb.Database, config *trie.Config) *DefaultPrivateStateManager {
+func newDefaultPrivateStateManager(db ethdb.Database, cache state.Database, config *trie.Config) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:        db,
-		repoCache: state.NewDatabaseWithConfig(db, config),
+		repoCache: cache,
 	}
 }
 

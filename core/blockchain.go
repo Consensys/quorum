@@ -271,7 +271,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	var err error
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, &trie.Config{
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, bc.stateCache, &trie.Config{
 		Cache:     cacheConfig.TrieCleanLimit,
 		Journal:   cacheConfig.PrivateTrieCleanJournal,
 		Preimages: cacheConfig.Preimages,
@@ -1696,14 +1696,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if ptd == nil {
 		return NonStatTy, consensus.ErrUnknownAncestor
 	}
-	// Make sure no inconsistent state is leaked during insertion
-	// Quorum
-	// Write private state changes to database
-	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
-	if err != nil {
-		return NonStatTy, err
-	}
-	// /Quorum
 
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
@@ -1726,6 +1718,18 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if err != nil {
 		return NonStatTy, err
 	}
+
+	// quorum - moved private state commit after public commit in order for referencing to work (private root now references the public root)
+
+	// Make sure no inconsistent state is leaked during insertion
+	// Quorum
+	// Write private state changes to database
+	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	if err != nil {
+		return NonStatTy, err
+	}
+	// /Quorum
+
 	triedb := bc.stateCache.TrieDB()
 
 	// If we're running an archive node, always flush

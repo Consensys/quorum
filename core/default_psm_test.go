@@ -92,7 +92,7 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	mpsm := newDefaultPrivateStateManager(blockchain.db, &trie.Config{
+	mpsm := newDefaultPrivateStateManager(blockchain.db, nil, &trie.Config{
 		Cache:     defaultCacheConfig.TrieCleanLimit,
 		Journal:   defaultCacheConfig.PrivateTrieCleanJournal,
 		Preimages: defaultCacheConfig.Preimages,
