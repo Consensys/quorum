@@ -69,10 +69,46 @@ jobs:
           tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
+  peeps-tests:
+    name: Run PEEPS tests
+    needs:
+      - docker-build
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker image tag quorumengineering/quorum:pr quorumengineering/quorum:develop
+          docker image ls
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: 11
+          check-latest: true
+      - name: PEEPS
+        run: | 
+          cd build
+          ./run-peeps.sh
+      - name: PEEPS Test Report
+        uses: mikepenz/action-junit-report@v2
+        if: always()
+        with:
+          report_paths: '**/build/test-results/*/TEST-*.xml'
+          check_name: PEEPS test report
+
   acceptance-tests:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
