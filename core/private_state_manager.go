@@ -55,7 +55,7 @@ func newPrivateStateManager(db ethdb.Database, cache state.Database, config *tri
 				}
 			}
 		}
-		return newMultiplePrivateStateManager(db, config, residentGroupByKey, privacyGroupById)
+		return newMultiplePrivateStateManager(db, cache, config, residentGroupByKey, privacyGroupById)
 	} else {
 		return newDefaultPrivateStateManager(db, cache, config), nil
 	}

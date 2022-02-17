@@ -10,6 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
+var (
+	// emptyRoot is the known root hash of an empty trie.
+	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+)
+
 type StateRootProviderFunc func(isEIP158 bool) (common.Hash, error)
 
 // MultiplePrivateStateRepository manages a number of state DB objects
@@ -68,10 +73,10 @@ func (ms *managedState) calPrivateStateRoot(isEIP158 bool) (common.Hash, error) 
 	if err != nil {
 		return common.Hash{}, err
 	}
-	err = ms.stateCache.TrieDB().Commit(privateRoot, false, nil)
-	if err != nil {
-		return common.Hash{}, err
-	}
+	//err = ms.stateCache.TrieDB().Commit(privateRoot, false, nil)
+	//if err != nil {
+	//	return common.Hash{}, err
+	//}
 	return privateRoot, nil
 }
 
@@ -113,7 +118,7 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 		stateDB = emptyState.Copy()
 		stateCache = ms.stateCache
 	} else {
-		stateCache = state.NewDatabase(mpsr.db)
+		stateCache = mpsr.repoCache
 		stateDB, err = state.New(common.BytesToHash(privateStateRoot), stateCache, nil)
 		if err != nil {
 			return nil, err
@@ -168,7 +173,13 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		}
 	}
 	// commit the trie of states
-	mtRoot, err := mpsr.trie.Commit(nil)
+	mtRoot, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
+		privateRoot := common.BytesToHash(leaf)
+		if privateRoot != emptyRoot {
+			mpsr.repoCache.TrieDB().Reference(privateRoot, parent)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -176,9 +187,8 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 	if err != nil {
 		return err
 	}
-	privateTriedb := mpsr.repoCache.TrieDB()
-	err = privateTriedb.Commit(mtRoot, false, nil)
-	return err
+	mpsr.repoCache.TrieDB().Reference(mtRoot, block.Root())
+	return nil
 }
 
 // Commit commits all private states, updates the trie of private states only
@@ -198,7 +208,13 @@ func (mpsr *MultiplePrivateStateRepository) Commit(isEIP158 bool, block *types.B
 		}
 	}
 	// commit the trie of states
-	_, err := mpsr.trie.Commit(nil)
+	_, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
+		privateRoot := common.BytesToHash(leaf)
+		if privateRoot != emptyRoot {
+			mpsr.repoCache.TrieDB().Reference(privateRoot, parent)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}

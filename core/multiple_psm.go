@@ -23,10 +23,10 @@ type MultiplePrivateStateManager struct {
 	privacyGroupById   map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata
 }
 
-func newMultiplePrivateStateManager(db ethdb.Database, config *trie.Config, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
+func newMultiplePrivateStateManager(db ethdb.Database, cache state.Database, config *trie.Config, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
 	return &MultiplePrivateStateManager{
 		db:                     db,
-		privateStatesTrieCache: state.NewDatabaseWithConfig(db, config),
+		privateStatesTrieCache: cache,
 		residentGroupByKey:     residentGroupByKey,
 		privacyGroupById:       privacyGroupById,
 	}, nil
