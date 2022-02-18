@@ -1175,7 +1175,6 @@ func (bc *BlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !bc.cacheConfig.TrieDirtyDisabled {
 		triedb := bc.stateCache.TrieDB()
-		privateTrieDb := bc.PrivateStateManager().TrieDB()
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := bc.CurrentBlock().NumberU64(); number > offset {
 				recent := bc.GetBlockByNumber(number - offset)
@@ -1188,7 +1187,7 @@ func (bc *BlockChain) Stop() {
 				privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
 				if len(privateRoot) != 0 && privateRoot != common.HexToHash("0x0") {
 					log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
-					if err := privateTrieDb.Commit(privateRoot, true, nil); err != nil {
+					if err := triedb.Commit(privateRoot, true, nil); err != nil {
 						log.Error("Failed to commit recent private state trie", "err", err)
 					}
 				}
@@ -1206,9 +1205,6 @@ func (bc *BlockChain) Stop() {
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
-		}
-		if size, _ := privateTrieDb.Size(); size != 0 { // Quorum
-			log.Error("Dangling private trie nodes after full cleanup")
 		}
 	}
 	// Ensure all live cached entries be saved into disk, so that we can skip
@@ -1740,8 +1736,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 	triedb := bc.stateCache.TrieDB()
-	// Quorum
-	privateTrieDB := bc.PrivateStateManager().TrieDB()
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.TrieDirtyDisabled {
@@ -1750,7 +1744,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		}
 		if len(privateRoot.Bytes()) != 0 {
 			// Quorum commit private root
-			if err := privateTrieDB.Commit(privateRoot, false, nil); err != nil {
+			if err := triedb.Commit(privateRoot, false, nil); err != nil {
 				return NonStatTy, err
 			}
 		}
@@ -1761,7 +1755,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 		// Quorum
 		if len(privateRoot.Bytes()) != 0 {
-			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+			triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
 			bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
 		}
 		// End Quorum
@@ -1773,13 +1767,9 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
-				flushPreimages, hashes, err := triedb.Cap(limit - ethdb.IdealBatchSize)
+				err = triedb.Cap(limit-ethdb.IdealBatchSize, bc.db)
 				if err != nil {
 					log.Warn("error occurred while capping public cache (nodes, preimages)", "err", err)
-				}
-				err = privateTrieDB.SyncCap(flushPreimages, hashes, bc.db)
-				if err != nil {
-					log.Warn("error occurred while capping private cache (nodes, preimages)", "err", err)
 				}
 			}
 
@@ -1808,7 +1798,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					// Quorum
 					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
 					if len(privateRoot.Bytes()) != 0 {
-						err = privateTrieDB.Commit(privateroot, false, nil)
+						err := triedb.Commit(privateroot, false, nil)
 						if err != nil {
 							return NonStatTy, err
 						}
