@@ -91,12 +91,13 @@ func TestDefaultResolver(t *testing.T) {
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
-
-	mpsm := newDefaultPrivateStateManager(blockchain.db, &trie.Config{
+	config := &trie.Config{
 		Cache:     defaultCacheConfig.TrieCleanLimit,
 		Journal:   defaultCacheConfig.PrivateTrieCleanJournal,
 		Preimages: defaultCacheConfig.Preimages,
-	})
+	}
+	cache := state.NewDatabaseWithConfig(blockchain.db, config)
+	mpsm := newDefaultPrivateStateManager(blockchain.db, cache)
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, mps.DefaultPrivateStateMetadata)
