@@ -223,7 +223,6 @@ type BlockChain struct {
 
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	privateTrieGC       *prque.Prque // Priority queue mapping block numbers to tries to gc
 	// End Quorum
 }
 
@@ -265,8 +264,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		// Quorum
-		quorumConfig:  quorumChainConfig,
-		privateTrieGC: prque.New(nil),
+		quorumConfig: quorumChainConfig,
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -1210,9 +1208,6 @@ func (bc *BlockChain) Stop() {
 		for !bc.triegc.Empty() {
 			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
 		}
-		for !bc.privateTrieGC.Empty() { // Quorum
-			privateTrieDb.Dereference(bc.privateTrieGC.PopItem().(common.Hash))
-		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
 		}
@@ -1771,7 +1766,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		// Quorum
 		if len(privateRoot.Bytes()) != 0 {
 			privateTrieDB.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
-			bc.privateTrieGC.Push(privateRoot, -int64(block.NumberU64()))
+			bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
 		}
 		// End Quorum
 
@@ -1837,16 +1832,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 				triedb.Dereference(root.(common.Hash))
 			}
-			// Quorum
-			for !bc.privateTrieGC.Empty() {
-				root, number := bc.privateTrieGC.Pop()
-				if uint64(-number) > chosen {
-					bc.privateTrieGC.Push(root, number)
-					break
-				}
-				privateTrieDB.Dereference(root.(common.Hash))
-			}
-			// End Quorum
 		}
 	}
 	// If the total difficulty is higher than our known, add it to the canonical chain
