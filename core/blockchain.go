@@ -24,7 +24,6 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
-	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -223,6 +222,7 @@ type BlockChain struct {
 
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
+	publicToPrivate     map[common.Hash]common.Hash
 	// End Quorum
 }
 
@@ -264,7 +264,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		// Quorum
-		quorumConfig: quorumChainConfig,
+		quorumConfig:    quorumChainConfig,
+		publicToPrivate: make(map[common.Hash]common.Hash),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -335,8 +336,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	// Quorum
 	if err := bc.privateStateManager.CheckAt(head.Root()); err != nil {
 		log.Warn("Head private state missing, resetting chain", "number", head.Number(), "hash", head.Hash())
-		bc.Reset()
-		os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
+		return nil, bc.Reset()
 	}
 	// End Quorum
 
@@ -502,16 +502,13 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Quorum
 	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
-		log.Warn("will reset because of private state", "repo", privateStateRepository, "err", err)
 		if privateStateRepository == nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			bc.Reset()
-			os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
+			return bc.Reset()
 		}
 		if _, err := privateStateRepository.DefaultState(); err != nil {
 			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			bc.Reset()
-			os.Exit(1) // reset on private state is stucking the process, so exit, next restart it will sync
+			return bc.Reset()
 		}
 	}
 	// /Quorum
@@ -652,6 +649,11 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
 		head := bc.CurrentBlock().NumberU64()
+		/*head := uint64(0)
+		block := bc.CurrentBlock()
+		if block != nil {
+			head = block.NumberU64()
+		}*/
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
@@ -685,7 +687,7 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 	}
 	// If SetHead was only called as a chain reparation method, try to skip
 	// touching the header chain altogether, unless the freezer is broken
-	if block := bc.CurrentBlock(); block != nil && block.NumberU64() == head {
+	if block := bc.CurrentBlock(); block.NumberU64() == head {
 		if target, force := updateFn(bc.db, block.Header()); force {
 			bc.hc.SetHead(target, updateFn, delFn)
 		}
@@ -1184,12 +1186,14 @@ func (bc *BlockChain) Stop() {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
 				// Quorum
-				privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
-				if len(privateRoot) != 0 && privateRoot != common.HexToHash("0x0") {
+				//privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
+				privateRoot, ok := bc.publicToPrivate[recent.Root()]
+				if ok {
 					log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
 					if err := triedb.Commit(privateRoot, true, nil); err != nil {
 						log.Error("Failed to commit recent private state trie", "err", err)
 					}
+					delete(bc.publicToPrivate, recent.Root())
 				}
 				// End Quorum
 			}
@@ -1705,14 +1709,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if ptd == nil {
 		return NonStatTy, consensus.ErrUnknownAncestor
 	}
-	// Make sure no inconsistent state is leaked during insertion
-	// Quorum
-	// Write private state changes to database
-	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
-	if err != nil {
-		return NonStatTy, err
-	}
-	// /Quorum
 
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
@@ -1735,6 +1731,16 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if err != nil {
 		return NonStatTy, err
 	}
+
+	// Make sure no inconsistent state is leaked during insertion
+	// Quorum
+	// Write private state changes to database
+	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	if err != nil {
+		return NonStatTy, err
+	}
+	// /Quorum
+
 	triedb := bc.stateCache.TrieDB()
 
 	// If we're running an archive node, always flush
@@ -1757,6 +1763,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if len(privateRoot.Bytes()) != 0 {
 			triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
 			bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
+			bc.publicToPrivate[root] = privateRoot
 		}
 		// End Quorum
 
@@ -1767,7 +1774,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
-				err = triedb.Cap(limit-ethdb.IdealBatchSize, bc.db)
+				err = triedb.Cap(limit - ethdb.IdealBatchSize)
 				if err != nil {
 					log.Warn("error occurred while capping public cache (nodes, preimages)", "err", err)
 				}
@@ -1796,12 +1803,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					}
 
 					// Quorum
-					privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
-					if len(privateRoot.Bytes()) != 0 {
+					//privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
+					privateroot, ok := bc.publicToPrivate[header.Root]
+					if ok {
 						err := triedb.Commit(privateroot, false, nil)
 						if err != nil {
 							return NonStatTy, err
 						}
+						delete(bc.publicToPrivate, header.Root)
 					}
 					// End Quorum
 

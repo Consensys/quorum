@@ -592,7 +592,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 //
 // Note, this method is a non-synchronized mutator. It is unsafe to call this
 // concurrently with other mutators.
-func (db *Database) Cap(limit common.StorageSize, ethDB ethdb.Database) error {
+func (db *Database) Cap(limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -624,7 +624,6 @@ func (db *Database) Cap(limit common.StorageSize, ethDB ethdb.Database) error {
 	}
 	// Keep committing nodes from the flush-list until we're below allowance
 	oldest := db.oldest
-	toRemove := make([]common.Hash, 0, 10)
 	for size > limit && oldest != (common.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
@@ -644,28 +643,6 @@ func (db *Database) Cap(limit common.StorageSize, ethDB ethdb.Database) error {
 		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
 		if node.children != nil {
 			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-
-		// private trie
-		private := rawdb.GetPrivateStateRoot(ethDB, oldest)
-		if node, ok := db.dirties[private]; ok {
-			rawdb.WriteTrieNode(batch, private, node.rlp())
-			// If we exceeded the ideal batch size, commit and reset
-			if batch.ValueSize() >= ethdb.IdealBatchSize {
-				if err := batch.Write(); err != nil {
-					log.Error("Failed to write flush list to disk", "err", err)
-					return err
-				}
-				batch.Reset()
-			}
-			// Iterate to the next flush item, or abort if the size cap was achieved. Size
-			// is the total size, including the useful cached data (hash -> blob), the
-			// cache item metadata, as well as external children mappings.
-			size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
-			if node.children != nil {
-				size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-			}
-			toRemove = append(toRemove, private)
 		}
 		oldest = node.flushNext
 	}
@@ -689,18 +666,6 @@ func (db *Database) Cap(limit common.StorageSize, ethDB ethdb.Database) error {
 		node := db.dirties[db.oldest]
 		delete(db.dirties, db.oldest)
 		db.oldest = node.flushNext
-
-		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
-		if node.children != nil {
-			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-	}
-	for _, private := range toRemove {
-		node, ok := db.dirties[private]
-		if !ok {
-			continue
-		}
-		delete(db.dirties, private)
 
 		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
 		if node.children != nil {
