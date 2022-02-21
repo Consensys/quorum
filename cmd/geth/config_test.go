@@ -481,7 +481,6 @@ RPCTxFeeCap = 1e+00
 RaftMode = true
 EnableNodePermission = true
 EVMCallTimeOut = 3600000000000
-PrivateTrieCleanCacheJournal = "privatetriecache-test"
 
 [Eth.Miner]
 GasFloor = 700000000
