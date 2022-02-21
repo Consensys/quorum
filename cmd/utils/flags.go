@@ -889,6 +889,10 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
+	QuorumEnablePrivateTrieCache = cli.BoolTFlag{
+		Name:  "privatetriecache.enable",
+		Usage: "Enable use of private trie cache for this node.",
+	}
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
 		Name:  "privacymarker.enable",
 		Usage: "Enable use of privacy marker transactions (PMT) for this node.",
@@ -1689,7 +1693,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name))
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name), ctx.GlobalBool(QuorumEnablePrivateTrieCache.Name))
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 	return nil

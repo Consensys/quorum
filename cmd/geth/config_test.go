@@ -185,6 +185,7 @@ func TestFlagsConfig(t *testing.T) {
 		utils.IstanbulBlockPeriodFlag,
 		utils.MultitenancyFlag,
 		utils.RevertReasonFlag,
+		utils.QuorumEnablePrivateTrieCache,
 		utils.QuorumEnablePrivacyMarker,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,

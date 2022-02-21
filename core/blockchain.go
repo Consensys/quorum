@@ -642,11 +642,6 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
 		head := bc.CurrentBlock().NumberU64()
-		/*head := uint64(0)
-		block := bc.CurrentBlock()
-		if block != nil {
-			head = block.NumberU64()
-		}*/
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
@@ -1750,9 +1745,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 		// Quorum
 		if len(privateRoot.Bytes()) != 0 {
-			triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
-			bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
-			bc.publicToPrivate[root] = privateRoot
+			log.Debug("private trie cache", "enabled", bc.QuorumConfig().privateTrieCacheEnabled)
+			if bc.QuorumConfig().privateTrieCacheEnabled {
+				triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+				bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
+				bc.publicToPrivate[root] = privateRoot
+			} else if err := triedb.Commit(privateRoot, false, nil); err != nil {
+				return NonStatTy, err
+			}
 		}
 		// End Quorum
 
