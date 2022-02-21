@@ -114,7 +114,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.Checkpoint = c.Checkpoint
 	enc.CheckpointOracle = c.CheckpointOracle
 	enc.EVMCallTimeOut = c.EVMCallTimeOut
-	enc.PrivateTrieCleanCacheJournal = c.PrivateTrieCleanCacheJournal
 	return &enc, nil
 }
 
@@ -168,7 +167,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RaftMode                     *bool
 		EnableNodePermission         *bool
 		EVMCallTimeOut               *time.Duration
-		PrivateTrieCleanCacheJournal *string `toml:",omitempty"`
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -311,9 +309,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.EVMCallTimeOut != nil {
 		c.EVMCallTimeOut = *dec.EVMCallTimeOut
-	}
-	if dec.PrivateTrieCleanCacheJournal != nil {
-		c.PrivateTrieCleanCacheJournal = *dec.PrivateTrieCleanCacheJournal
 	}
 	return nil
 }

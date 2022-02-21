@@ -58,25 +58,6 @@ func TestAuthorizationList(t *testing.T) {
 	assert.Equal(t, result, arbitraryNodeConfig.AuthorizationList)
 }
 
-func TestPrivateTrieCache(t *testing.T) {
-	arbitraryNodeConfig := &eth.Config{}
-	fs := &flag.FlagSet{}
-	fs.String(PrivateCacheTrieJournalFlag.Name, "test", "")
-	fs.String(CacheTrieJournalFlag.Name, "test", "")
-	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
-	arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "test")
-	arbitraryCLIContext.GlobalSet(CacheTrieJournalFlag.Name, "test")
-	assert.Error(t, setQuorumConfig(arbitraryCLIContext, arbitraryNodeConfig), arbitraryCLIContext)
-
-	fs = &flag.FlagSet{}
-	fs.String(PrivateCacheTrieJournalFlag.Name, "test1", "")
-	fs.String(CacheTrieJournalFlag.Name, "test2", "")
-	arbitraryCLIContext = cli.NewContext(nil, fs, nil)
-	arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "test1")
-	arbitraryCLIContext.GlobalSet(CacheTrieJournalFlag.Name, "test2")
-	assert.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryNodeConfig))
-}
-
 func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
 	arbitraryCLIContext := cli.NewContext(nil, &flag.FlagSet{}, nil)
@@ -210,8 +191,6 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulBlockPeriodFlag.Name, "34"))
 	fs.Bool(RaftModeFlag.Name, false, "")
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
-	fs.String(PrivateCacheTrieJournalFlag.Name, "", "")
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(PrivateCacheTrieJournalFlag.Name, "myprivatetriecache"))
 
 	require.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig))
 
@@ -225,5 +204,4 @@ func TestQuorumConfigFlags(t *testing.T) {
 	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
 	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
-	assert.Equal(t, "myprivatetriecache", arbitraryEthConfig.PrivateTrieCleanCacheJournal, "PrivateTrieCleanCacheJournal value is incorrect")
 }

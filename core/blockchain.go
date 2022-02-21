@@ -134,8 +134,6 @@ type CacheConfig struct {
 	Preimages           bool          // Whether to store preimage of trie key to the disk
 
 	SnapshotWait bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
-
-	PrivateTrieCleanJournal string // Quorum: Disk journal for saving clean private cache entries.
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
@@ -424,15 +422,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			bc.cacheConfig.TrieCleanRejournal = time.Minute
 		}
 		triedb := bc.stateCache.TrieDB()
-		privatetriedb := bc.PrivateStateManager()
-		bc.wg.Add(2)
+		bc.wg.Add(1)
 		go func() {
 			defer bc.wg.Done()
 			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
-		}()
-		go func() {
-			defer bc.wg.Done()
-			privatetriedb.TrieDB().SaveCachePeriodically(bc.cacheConfig.PrivateTrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
 		}()
 	}
 	return bc, nil
@@ -1216,10 +1209,6 @@ func (bc *BlockChain) Stop() {
 	if bc.cacheConfig.TrieCleanJournal != "" {
 		triedb := bc.stateCache.TrieDB()
 		triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
-	}
-	if bc.cacheConfig.PrivateTrieCleanJournal != "" {
-		triedb := bc.privateStateManager.TrieDB()
-		triedb.SaveCache(bc.cacheConfig.PrivateTrieCleanJournal)
 	}
 	log.Info("Blockchain stopped")
 }

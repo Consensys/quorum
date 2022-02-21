@@ -93,7 +93,7 @@ func TestDefaultResolver(t *testing.T) {
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 	config := &trie.Config{
 		Cache:     defaultCacheConfig.TrieCleanLimit,
-		Journal:   defaultCacheConfig.PrivateTrieCleanJournal,
+		Journal:   defaultCacheConfig.TrieCleanJournal,
 		Preimages: defaultCacheConfig.Preimages,
 	}
 	cache := state.NewDatabaseWithConfig(blockchain.db, config)
