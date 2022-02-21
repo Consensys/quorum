@@ -19,6 +19,7 @@ package eth
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -94,7 +95,7 @@ func (p *Peer) readStatus(network uint64, status *StatusPacket, genesis common.H
 	if status.NetworkID != network {
 		return fmt.Errorf("%w: %d (!= %d)", errNetworkIDMismatch, status.NetworkID, network)
 	}
-	if uint(status.ProtocolVersion) != p.version {
+	if uint(status.ProtocolVersion) != p.version && !(strings.HasPrefix(p.Name(), "besu") && status.ProtocolVersion == 99) {
 		return fmt.Errorf("%w: %d (!= %d)", errProtocolVersionMismatch, status.ProtocolVersion, p.version)
 	}
 	if status.Genesis != genesis {
