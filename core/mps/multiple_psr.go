@@ -72,10 +72,6 @@ func (ms *managedState) calPrivateStateRoot(isEIP158 bool) (common.Hash, error) 
 	if err != nil {
 		return common.Hash{}, err
 	}
-	err = ms.stateCache.TrieDB().Commit(privateRoot, false, nil)
-	if err != nil {
-		return common.Hash{}, err
-	}
 	return privateRoot, nil
 }
 

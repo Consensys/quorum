@@ -1174,7 +1174,6 @@ func (bc *BlockChain) Stop() {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
 				// Quorum
-				//privateRoot := rawdb.GetPrivateStateRoot(bc.db, recent.Root())
 				privateRoot, ok := bc.publicToPrivate[recent.Root()]
 				if ok {
 					log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
@@ -1719,6 +1718,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
+	// moved private state commit after public commit in order for referencing to work (private root now references the public root)
 	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
@@ -1792,7 +1792,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					}
 
 					// Quorum
-					//privateroot := rawdb.GetPrivateStateRoot(bc.db, header.Root)
 					privateroot, ok := bc.publicToPrivate[header.Root]
 					if ok {
 						err := triedb.Commit(privateroot, false, nil)
