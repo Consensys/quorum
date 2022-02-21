@@ -1038,6 +1038,13 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		clog.Trace("Wrong devp2p handshake identity", "phsid", hex.EncodeToString(phs.ID))
 		return DiscUnexpectedIdentity
 	}
+	// To continue support of IBFT1.0 with besu
+	if len(phs.Caps) == 1 && phs.Caps[0].Name == "istanbul" && phs.Caps[0].Version == 99 {
+		phs.Caps = []Cap{{
+			Name:    "eth",
+			Version: 64,
+		}}
+	}
 	c.caps, c.name = phs.Caps, phs.Name
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
