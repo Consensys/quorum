@@ -18,6 +18,7 @@ package state
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -38,6 +39,7 @@ type journalEntry interface {
 type journal struct {
 	entries []journalEntry         // Current changes tracked by the journal
 	dirties map[common.Address]int // Dirty accounts and the number of changes
+	mutex   sync.Mutex
 }
 
 // newJournal create a new initialized journal.
@@ -49,6 +51,8 @@ func newJournal() *journal {
 
 // append inserts a new modification entry to the end of the change journal.
 func (j *journal) append(entry journalEntry) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	j.entries = append(j.entries, entry)
 	if addr := entry.dirtied(); addr != nil {
 		j.dirties[*addr]++
@@ -58,6 +62,8 @@ func (j *journal) append(entry journalEntry) {
 // revert undoes a batch of journalled modifications along with any reverted
 // dirty handling too.
 func (j *journal) revert(statedb *StateDB, snapshot int) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	for i := len(j.entries) - 1; i >= snapshot; i-- {
 		// Undo the changes made by the operation
 		j.entries[i].revert(statedb)
@@ -76,6 +82,8 @@ func (j *journal) revert(statedb *StateDB, snapshot int) {
 // otherwise suggest it as clean. This method is an ugly hack to handle the RIPEMD
 // precompile consensus exception.
 func (j *journal) dirty(addr common.Address) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	j.dirties[addr]++
 }
 
@@ -145,6 +153,8 @@ type (
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
+	defer s.mutex.Unlock()
+	s.mutex.Lock()
 	delete(s.stateObjects, *ch.account)
 	delete(s.stateObjectsDirty, *ch.account)
 }
