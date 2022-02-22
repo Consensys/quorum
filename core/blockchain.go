@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -134,8 +135,6 @@ type CacheConfig struct {
 	Preimages           bool          // Whether to store preimage of trie key to the disk
 
 	SnapshotWait bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
-
-	PrivateTrieCleanJournal string // Quorum: Disk journal for saving clean private cache entries.
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
@@ -270,12 +269,9 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
 
 	var err error
+	privateStateCacheProvider := privatecache.NewPrivateCacheProvider(db, bc.stateCache, quorumChainConfig.privateTrieCacheEnabled)
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, bc.stateCache, &trie.Config{
-		Cache:     cacheConfig.TrieCleanLimit,
-		Journal:   cacheConfig.PrivateTrieCleanJournal,
-		Preimages: cacheConfig.Preimages,
-	}, chainConfig.IsMPS); err != nil {
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, privateStateCacheProvider, chainConfig.IsMPS); err != nil {
 		return nil, err
 	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
@@ -426,15 +422,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			bc.cacheConfig.TrieCleanRejournal = time.Minute
 		}
 		triedb := bc.stateCache.TrieDB()
-		privatetriedb := bc.PrivateStateManager()
-		bc.wg.Add(2)
+		bc.wg.Add(1)
 		go func() {
 			defer bc.wg.Done()
 			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
-		}()
-		go func() {
-			defer bc.wg.Done()
-			privatetriedb.TrieDB().SaveCachePeriodically(bc.cacheConfig.PrivateTrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
 		}()
 	}
 	return bc, nil
@@ -1203,10 +1194,6 @@ func (bc *BlockChain) Stop() {
 	if bc.cacheConfig.TrieCleanJournal != "" {
 		triedb := bc.stateCache.TrieDB()
 		triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
-	}
-	if bc.cacheConfig.PrivateTrieCleanJournal != "" {
-		triedb := bc.privateStateManager.TrieDB()
-		triedb.SaveCache(bc.cacheConfig.PrivateTrieCleanJournal)
 	}
 	log.Info("Blockchain stopped")
 }

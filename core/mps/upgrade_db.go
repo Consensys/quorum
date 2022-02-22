@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,7 +29,8 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 	genesisHeader := chain.GetHeaderByNumber(0)
 
 	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, genesisHeader.Root)
-	mpsRepo, err := NewMultiplePrivateStateRepository(db, state.NewDatabase(db), privateStatesTrieRoot)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(db, nil, false)
+	mpsRepo, err := NewMultiplePrivateStateRepository(db, state.NewDatabase(db), privateStatesTrieRoot, privateCacheProvider)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -23,7 +24,8 @@ type StateRootProviderFunc func(isEIP158 bool) (common.Hash, error)
 type MultiplePrivateStateRepository struct {
 	db ethdb.Database
 	// trie of private states cache
-	repoCache state.Database
+	repoCache            state.Database
+	privateCacheProvider privatecache.PrivateCacheProvider
 
 	// the trie of private states
 	// key - the private state identifier
@@ -36,16 +38,17 @@ type MultiplePrivateStateRepository struct {
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
-func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash) (*MultiplePrivateStateRepository, error) {
+func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash, privateCacheProvider privatecache.PrivateCacheProvider) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
 	}
 	repo := &MultiplePrivateStateRepository{
-		db:            db,
-		repoCache:     cache,
-		trie:          tr,
-		managedStates: make(map[types.PrivateStateIdentifier]*managedState),
+		db:                   db,
+		repoCache:            cache,
+		privateCacheProvider: privateCacheProvider,
+		trie:                 tr,
+		managedStates:        make(map[types.PrivateStateIdentifier]*managedState),
 	}
 	return repo, nil
 }
@@ -55,13 +58,15 @@ func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, 
 type managedState struct {
 	stateDb               *state.StateDB
 	stateCache            state.Database
+	privateCacheProvider  privatecache.PrivateCacheProvider
 	stateRootProviderFunc StateRootProviderFunc
 }
 
 func (ms *managedState) Copy() *managedState {
 	copy := &managedState{
-		stateDb:    ms.stateDb.Copy(),
-		stateCache: ms.stateCache,
+		stateDb:              ms.stateDb.Copy(),
+		stateCache:           ms.stateCache,
+		privateCacheProvider: ms.privateCacheProvider,
 	}
 	copy.stateRootProviderFunc = copy.calPrivateStateRoot
 	return copy
@@ -73,10 +78,10 @@ func (ms *managedState) calPrivateStateRoot(isEIP158 bool) (common.Hash, error) 
 	if err != nil {
 		return common.Hash{}, err
 	}
-	//err = ms.stateCache.TrieDB().Commit(privateRoot, false, nil)
-	//if err != nil {
-	//	return common.Hash{}, err
-	//}
+	err = ms.privateCacheProvider.Commit(ms.stateCache, privateRoot)
+	if err != nil {
+		return common.Hash{}, err
+	}
 	return privateRoot, nil
 }
 
@@ -118,7 +123,7 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 		stateDB = emptyState.Copy()
 		stateCache = ms.stateCache
 	} else {
-		stateCache = mpsr.repoCache
+		stateCache = mpsr.privateCacheProvider.GetCache()
 		stateDB, err = state.New(common.BytesToHash(privateStateRoot), stateCache, nil)
 		if err != nil {
 			return nil, err
@@ -127,8 +132,9 @@ func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdent
 	mpsr.mux.Lock()
 	defer mpsr.mux.Unlock()
 	managedState := &managedState{
-		stateCache: stateCache,
-		stateDb:    stateDB,
+		stateCache:           stateCache,
+		privateCacheProvider: mpsr.privateCacheProvider,
+		stateDb:              stateDB,
 	}
 	managedState.stateRootProviderFunc = managedState.calPrivateStateRoot
 	mpsr.managedStates[psi] = managedState
@@ -176,7 +182,7 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 	mtRoot, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
 		privateRoot := common.BytesToHash(leaf)
 		if privateRoot != emptyRoot {
-			mpsr.repoCache.TrieDB().Reference(privateRoot, parent)
+			mpsr.privateCacheProvider.Reference(privateRoot, parent)
 		}
 		return nil
 	})
@@ -187,7 +193,8 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 	if err != nil {
 		return err
 	}
-	mpsr.repoCache.TrieDB().Reference(mtRoot, block.Root())
+	mpsr.privateCacheProvider.Commit(mpsr.repoCache, mtRoot)
+	mpsr.privateCacheProvider.Reference(mtRoot, block.Root())
 	return nil
 }
 
@@ -211,7 +218,7 @@ func (mpsr *MultiplePrivateStateRepository) Commit(isEIP158 bool, block *types.B
 	_, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
 		privateRoot := common.BytesToHash(leaf)
 		if privateRoot != emptyRoot {
-			mpsr.repoCache.TrieDB().Reference(privateRoot, parent)
+			mpsr.privateCacheProvider.Reference(privateRoot, parent)
 		}
 		return nil
 	})
@@ -229,10 +236,11 @@ func (mpsr *MultiplePrivateStateRepository) Copy() PrivateStateRepository {
 		managedStatesCopy[key] = value.Copy()
 	}
 	return &MultiplePrivateStateRepository{
-		db:            mpsr.db,
-		repoCache:     mpsr.repoCache,
-		trie:          mpsr.repoCache.CopyTrie(mpsr.trie),
-		managedStates: managedStatesCopy,
+		db:                   mpsr.db,
+		repoCache:            mpsr.repoCache,
+		privateCacheProvider: mpsr.privateCacheProvider,
+		trie:                 mpsr.repoCache.CopyTrie(mpsr.trie),
+		managedStates:        managedStatesCopy,
 	}
 }
 
