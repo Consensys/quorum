@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -116,7 +117,12 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 		}
 		//CommitAndWrite to db
-		privateStateRepo.CommitAndWrite(false, block)
+		hashes, err := privateStateRepo.CommitAndWrite(false, block)
+		require.NoError(t, err)
+		for _, hash := range hashes {
+			err = cache.TrieDB().Commit(hash, false, nil)
+			require.NoError(t, err)
+		}
 
 		//managed states test
 		for _, privateReceipt := range privateReceipts {

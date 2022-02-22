@@ -1719,7 +1719,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Quorum
 	// Write private state changes to database
 	// moved private state commit after public commit in order for referencing to work (private root now references the public root)
-	privateRoot, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	privateRoots, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1732,10 +1732,13 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
-		if len(privateRoot.Bytes()) != 0 {
-			// Quorum commit private root
-			if err := triedb.Commit(privateRoot, false, nil); err != nil {
-				return NonStatTy, err
+		// Quorum commit private roots
+		for _, privateRoot := range privateRoots {
+			if len(privateRoot.Bytes()) != 0 {
+				err := triedb.Commit(privateRoot, false, nil)
+				if err != nil {
+					return NonStatTy, err
+				}
 			}
 		}
 	} else {
@@ -1743,15 +1746,17 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		bc.triegc.Push(root, -int64(block.NumberU64()))
 
-		// Quorum
-		if len(privateRoot.Bytes()) != 0 {
-			log.Debug("private trie cache", "enabled", bc.QuorumConfig().privateTrieCacheEnabled)
-			if bc.QuorumConfig().privateTrieCacheEnabled {
-				triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
-				bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
-				bc.publicToPrivate[root] = privateRoot
-			} else if err := triedb.Commit(privateRoot, false, nil); err != nil {
-				return NonStatTy, err
+		// Quorum reference private roots
+		log.Debug("private trie cache", "enabled", bc.QuorumConfig().privateTrieCacheEnabled)
+		for _, privateRoot := range privateRoots {
+			if len(privateRoot.Bytes()) != 0 {
+				if bc.QuorumConfig().privateTrieCacheEnabled {
+					triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
+					bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
+					bc.publicToPrivate[root] = privateRoot
+				} else if err := triedb.Commit(privateRoot, false, nil); err != nil {
+					return NonStatTy, err
+				}
 			}
 		}
 		// End Quorum

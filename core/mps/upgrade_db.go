@@ -88,13 +88,17 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 		privateState.stateRootProviderFunc = func(_ bool) (common.Hash, error) {
 			return rawdb.GetPrivateStateRoot(db, header.Root), nil
 		}
-		privateRoot, err := mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
+		privateRoots, err := mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
 		if err != nil {
 			return err
 		}
-		err = mpsRepo.repoCache.TrieDB().Commit(privateRoot, false, nil)
-		if err != nil {
-			return err
+		for _, privateRoot := range privateRoots {
+			if len(privateRoot) != 0 {
+				err = mpsRepo.repoCache.TrieDB().Commit(privateRoot, false, nil)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	// update isMPS in the chain config

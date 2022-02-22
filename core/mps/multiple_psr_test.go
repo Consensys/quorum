@@ -10,10 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// emptyRoot is the known root hash of an empty trie. Duplicate from `trie/trie.go#emptyRoot`
-var emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 //TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
 // the copy and their corresponding managed states independent of each other.
@@ -127,7 +125,12 @@ func TestMultiplePSRReset(t *testing.T) {
 	emptyState.AddBalance(addr, big.NewInt(int64(254)))
 
 	// have something to revert to (rather than the empty trie of private states)
-	psr.CommitAndWrite(false, types.NewBlockWithHeader(&types.Header{Root: common.Hash{}}))
+	hashes, err := psr.CommitAndWrite(false, types.NewBlockWithHeader(&types.Header{Root: common.Hash{}}))
+	require.NoError(t, err)
+	for _, hash := range hashes {
+		err = testCache.TrieDB().Commit(hash, false, nil)
+		require.NoError(t, err)
+	}
 
 	// testState2 should branch from the emptyState - so it should contain the contract with address 254...
 	testState2, _ := psr.StatePSI(types.PrivateStateIdentifier("test2"))

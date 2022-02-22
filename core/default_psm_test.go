@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //Tests DefaultState, StatePSI, CommitAndWrite
@@ -36,7 +37,8 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
-		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
+		cache := blockchain.StateCache()
+		statedb, _ := state.New(parent.Root(), cache, nil)
 		privateStateRepo, _ := blockchain.PrivateStateManager().StateRepository(parent.Root())
 
 		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
@@ -56,7 +58,12 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 		}
 		//CommitAndWrite to db
-		privateStateRepo.CommitAndWrite(false, block)
+		hashes, err := privateStateRepo.CommitAndWrite(false, block)
+		require.NoError(t, err)
+		for _, hash := range hashes {
+			err = cache.TrieDB().Commit(hash, false, nil)
+			require.NoError(t, err)
+		}
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress

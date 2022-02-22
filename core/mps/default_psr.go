@@ -67,18 +67,18 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits the private state and writes to disk
-func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) (common.Hash, error) {
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) ([]common.Hash, error) {
 	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
-		return common.Hash{}, err
+		return nil, err
 	}
 
 	err = rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot)
 	if err != nil {
 		log.Error("Failed writing private state root", "err", err)
-		return common.Hash{}, err
+		return nil, err
 	}
-	return privateRoot, nil
+	return []common.Hash{privateRoot}, nil
 }
 
 // Commit commits the private state only
