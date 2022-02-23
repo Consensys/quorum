@@ -158,7 +158,6 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		// Quorum
-		utils.QuorumEnablePrivateTrieCache,
 		utils.QuorumImmutabilityThreshold,
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
@@ -177,6 +176,7 @@ var (
 		utils.EVMCallTimeOutFlag,
 		utils.MultitenancyFlag,
 		utils.RevertReasonFlag,
+		utils.QuorumEnablePrivateTrieCache,
 		utils.QuorumEnablePrivacyMarker,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,

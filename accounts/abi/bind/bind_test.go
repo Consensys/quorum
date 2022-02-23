@@ -1858,6 +1858,13 @@ func TestGolangBindings(t *testing.T) {
 		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
 	}
 
+	// Quorum - add package github.com/ConsenSys/quorum/crypto/secp256k1 that is defined as a standalone module
+	tidy := exec.Command(gocmd, "mod", "tidy") // Repo root
+	tidy.Dir = pkg
+	if out, err := tidy.CombinedOutput(); err != nil {
+		t.Fatalf("failed to tidy dependencies to current source tree: %v\n%s", err, out)
+	}
+
 	// Test the entire package and report any failures
 	cmd := exec.Command(gocmd, "test", "-v", "-count", "1")
 	cmd.Dir = pkg

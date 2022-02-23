@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,7 +29,8 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 	genesisHeader := chain.GetHeaderByNumber(0)
 
 	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, genesisHeader.Root)
-	mpsRepo, err := NewMultiplePrivateStateRepository(db, state.NewDatabase(db), privateStatesTrieRoot)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(db, nil, false)
+	mpsRepo, err := NewMultiplePrivateStateRepository(db, state.NewDatabase(db), privateStatesTrieRoot, privateCacheProvider)
 	if err != nil {
 		return err
 	}
@@ -88,17 +90,9 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 		privateState.stateRootProviderFunc = func(_ bool) (common.Hash, error) {
 			return rawdb.GetPrivateStateRoot(db, header.Root), nil
 		}
-		privateRoots, err := mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
+		err = mpsRepo.CommitAndWrite(chain.Config().IsEIP158(block.Number()), block)
 		if err != nil {
 			return err
-		}
-		for _, privateRoot := range privateRoots {
-			if len(privateRoot) != 0 {
-				err = mpsRepo.repoCache.TrieDB().Commit(privateRoot, false, nil)
-				if err != nil {
-					return err
-				}
-			}
 		}
 	}
 	// update isMPS in the chain config

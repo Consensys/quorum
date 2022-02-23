@@ -12,10 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 //Tests DefaultState, StatePSI, CommitAndWrite
@@ -37,8 +35,7 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
-		cache := blockchain.StateCache()
-		statedb, _ := state.New(parent.Root(), cache, nil)
+		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
 		privateStateRepo, _ := blockchain.PrivateStateManager().StateRepository(parent.Root())
 
 		_, privateReceipts, _, _, _ := blockchain.Processor().Process(block, statedb, privateStateRepo, vm.Config{})
@@ -58,12 +55,7 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 
 		}
 		//CommitAndWrite to db
-		hashes, err := privateStateRepo.CommitAndWrite(false, block)
-		require.NoError(t, err)
-		for _, hash := range hashes {
-			err = cache.TrieDB().Commit(hash, false, nil)
-			require.NoError(t, err)
-		}
+		privateStateRepo.CommitAndWrite(false, block)
 
 		for _, privateReceipt := range privateReceipts {
 			expectedContractAddress := privateReceipt.ContractAddress
@@ -98,13 +90,8 @@ func TestDefaultResolver(t *testing.T) {
 	mockptm.EXPECT().Receive(common.EncryptedPayloadHash{}).Return("", []string{}, common.EncryptedPayloadHash{}.Bytes(), nil, nil).AnyTimes()
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
-	config := &trie.Config{
-		Cache:     defaultCacheConfig.TrieCleanLimit,
-		Journal:   defaultCacheConfig.TrieCleanJournal,
-		Preimages: defaultCacheConfig.Preimages,
-	}
-	cache := state.NewDatabaseWithConfig(blockchain.db, config)
-	mpsm := newDefaultPrivateStateManager(blockchain.db, cache)
+
+	mpsm := newDefaultPrivateStateManager(blockchain.db, nil)
 
 	psm1, _ := mpsm.ResolveForManagedParty("TEST")
 	assert.Equal(t, psm1, mps.DefaultPrivateStateMetadata)

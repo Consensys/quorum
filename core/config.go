@@ -9,7 +9,7 @@ type QuorumChainConfig struct {
 }
 
 // NewQuorumChainConfig creates new config for Quorum chain
-func NewQuorumChainConfig(multiTenantEnabled, revertReasonEnabled, privacyMarkerEnabled, privateTrieCacheEnabled bool) QuorumChainConfig {
+func NewQuorumChainConfig(multiTenantEnabled, revertReasonEnabled, privacyMarkerEnabled bool, privateTrieCacheEnabled bool) QuorumChainConfig {
 	return QuorumChainConfig{
 		multiTenantEnabled:      multiTenantEnabled,
 		revertReasonEnabled:     revertReasonEnabled,
@@ -31,4 +31,9 @@ func (c QuorumChainConfig) MultiTenantEnabled() bool {
 // PrivacyMarkerEnabled returns true is privacy marker is enabled
 func (c QuorumChainConfig) PrivacyMarkerEnabled() bool {
 	return c.privacyMarkerEnabled
+}
+
+// PrivateTrieCacheEnabled returns true if the private cache is enabled
+func (c QuorumChainConfig) PrivateTrieCacheEnabled() bool {
+	return c.privateTrieCacheEnabled
 }

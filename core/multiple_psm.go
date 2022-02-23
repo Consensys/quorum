@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,15 +19,17 @@ type MultiplePrivateStateManager struct {
 	// Low level persistent database to store final content in
 	db                     ethdb.Database
 	privateStatesTrieCache state.Database
+	privateCacheProvider   privatecache.PrivateCacheProvider
 
 	residentGroupByKey map[string]*mps.PrivateStateMetadata
 	privacyGroupById   map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata
 }
 
-func newMultiplePrivateStateManager(db ethdb.Database, cache state.Database, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
+func newMultiplePrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.PrivateCacheProvider, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
 	return &MultiplePrivateStateManager{
 		db:                     db,
-		privateStatesTrieCache: cache,
+		privateStatesTrieCache: privateCacheProvider.GetCache(),
+		privateCacheProvider:   privateCacheProvider,
 		residentGroupByKey:     residentGroupByKey,
 		privacyGroupById:       privacyGroupById,
 	}, nil
@@ -34,7 +37,7 @@ func newMultiplePrivateStateManager(db ethdb.Database, cache state.Database, res
 
 func (m *MultiplePrivateStateManager) StateRepository(blockHash common.Hash) (mps.PrivateStateRepository, error) {
 	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(m.db, blockHash)
-	return mps.NewMultiplePrivateStateRepository(m.db, m.privateStatesTrieCache, privateStatesTrieRoot)
+	return mps.NewMultiplePrivateStateRepository(m.db, m.privateStatesTrieCache, privateStatesTrieRoot, m.privateCacheProvider)
 }
 
 func (m *MultiplePrivateStateManager) ResolveForManagedParty(managedParty string) (*mps.PrivateStateMetadata, error) {

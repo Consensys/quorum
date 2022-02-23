@@ -42,7 +42,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -636,23 +635,20 @@ func TestPrivatePSMRStateCreated(t *testing.T) {
 
 			latestBlockRoot := b.BlockChain().CurrentBlock().Root()
 			_, privDb, err := b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("empty"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//contract should exist on both psi states and not be empty
-			_, privDb, err = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi1"))
-			require.NoError(t, err)
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi1"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.False(t, privDb.Empty(expectedContractAddress))
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
-			_, privDb, err = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi2"))
-			require.NoError(t, err)
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("psi2"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.False(t, privDb.Empty(expectedContractAddress))
 			assert.NotEqual(t, privDb.GetCodeSize(expectedContractAddress), 0)
 			//contract should exist on random state (delegated to emptystate) but no contract code
-			_, privDb, err = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
-			require.NoError(t, err)
+			_, privDb, _ = b.BlockChain().StateAtPSI(latestBlockRoot, types.ToPrivateStateIdentifier("other"))
 			assert.True(t, privDb.Exist(expectedContractAddress))
 			assert.Equal(t, privDb.GetCodeSize(expectedContractAddress), 0)
 		case <-time.NewTimer(3 * time.Second).C: // Worker needs 1s to include new changes.

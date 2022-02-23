@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -94,7 +94,8 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
+		privateStateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, blockchain.stateCache, false)
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{}, privateStateCacheProvider)).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
@@ -117,12 +118,7 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 		}
 		//CommitAndWrite to db
-		hashes, err := privateStateRepo.CommitAndWrite(false, block)
-		require.NoError(t, err)
-		for _, hash := range hashes {
-			err = cache.TrieDB().Commit(hash, false, nil)
-			require.NoError(t, err)
-		}
+		privateStateRepo.CommitAndWrite(false, block)
 
 		//managed states test
 		for _, privateReceipt := range privateReceipts {
@@ -198,7 +194,8 @@ func TestMPSReset(t *testing.T) {
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
+		privateStateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, blockchain.stateCache, false)
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{}, privateStateCacheProvider)).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)

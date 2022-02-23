@@ -253,6 +253,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.AllowedFutureBlockTimeFlag,
 			utils.MultitenancyFlag,
 			utils.RevertReasonFlag,
+			utils.QuorumEnablePrivateTrieCache,
 			utils.QuorumEnablePrivacyMarker,
 		},
 	},

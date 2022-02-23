@@ -459,6 +459,7 @@ func (h *handler) Start(maxPeers int) {
 
 func (h *handler) Stop() {
 	h.txsSub.Unsubscribe() // quits txBroadcastLoop
+	// quorum - ensure raft stops cleanly
 	if h.minedBlockSub != nil {
 		h.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
 	}

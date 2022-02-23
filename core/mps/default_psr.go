@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,7 +17,8 @@ import (
 type DefaultPrivateStateRepository struct {
 	db ethdb.Database
 	// cache of stateDB
-	stateCache state.Database
+	stateCache           state.Database
+	privateCacheProvider privatecache.PrivateCacheProvider
 	// stateDB gives access to the underlying state
 	stateDB *state.StateDB
 	root    common.Hash
@@ -24,7 +26,7 @@ type DefaultPrivateStateRepository struct {
 
 var _ PrivateStateRepository = (*DefaultPrivateStateRepository)(nil) // DefaultPrivateStateRepository must implement PrivateStateRepository
 
-func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
+func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, privateCacheProvider privatecache.PrivateCacheProvider, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
 
 	statedb, err := state.New(root, cache, nil)
@@ -33,10 +35,11 @@ func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, p
 	}
 
 	return &DefaultPrivateStateRepository{
-		db:         db,
-		stateCache: cache,
-		stateDB:    statedb,
-		root:       root,
+		db:                   db,
+		stateCache:           cache,
+		privateCacheProvider: privateCacheProvider,
+		stateDB:              statedb,
+		root:                 root,
 	}, nil
 }
 
@@ -67,18 +70,19 @@ func (dpsr *DefaultPrivateStateRepository) Reset() error {
 }
 
 // CommitAndWrite commits the private state and writes to disk
-func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) ([]common.Hash, error) {
+func (dpsr *DefaultPrivateStateRepository) CommitAndWrite(isEIP158 bool, block *types.Block) error {
 	privateRoot, err := dpsr.stateDB.Commit(isEIP158)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot)
-	if err != nil {
+	if err := rawdb.WritePrivateStateRoot(dpsr.db, block.Root(), privateRoot); err != nil {
 		log.Error("Failed writing private state root", "err", err)
-		return nil, err
+		return err
 	}
-	return []common.Hash{privateRoot}, nil
+	dpsr.privateCacheProvider.Commit(dpsr.stateCache, privateRoot)
+	dpsr.privateCacheProvider.Reference(privateRoot, block.Root())
+	return nil
 }
 
 // Commit commits the private state only
@@ -90,10 +94,11 @@ func (dpsr *DefaultPrivateStateRepository) Commit(isEIP158 bool, block *types.Bl
 
 func (dpsr *DefaultPrivateStateRepository) Copy() PrivateStateRepository {
 	return &DefaultPrivateStateRepository{
-		db:         dpsr.db,
-		stateCache: dpsr.stateCache,
-		stateDB:    dpsr.stateDB.Copy(),
-		root:       dpsr.root,
+		db:                   dpsr.db,
+		stateCache:           dpsr.stateCache,
+		privateCacheProvider: dpsr.privateCacheProvider,
+		stateDB:              dpsr.stateDB.Copy(),
+		root:                 dpsr.root,
 	}
 }
 

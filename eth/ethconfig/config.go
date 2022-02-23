@@ -90,7 +90,8 @@ var Defaults = Config{
 	RPCTxFeeCap: 1, // 1 ether
 
 	// Quorum
-	Istanbul: *istanbul.DefaultConfig, // Quorum
+	Istanbul:                     *istanbul.DefaultConfig, // Quorum
+	PrivateTrieCleanCacheJournal: "privatetriecache",
 }
 
 func init() {
@@ -220,7 +221,7 @@ type Config struct {
 	core.QuorumChainConfig `toml:"-"`
 
 	// Quorum
-	NoteTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
+	PrivateTrieCleanCacheJournal string `toml:",omitempty"` // Disk journal directory for private trie cache to survive node restarts
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

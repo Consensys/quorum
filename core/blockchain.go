@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -220,7 +221,6 @@ type BlockChain struct {
 
 	// privateStateManager manages private state(s) for this blockchain
 	privateStateManager mps.PrivateStateManager
-	publicToPrivate     map[common.Hash]common.Hash
 	// End Quorum
 }
 
@@ -262,16 +262,16 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		// Quorum
-		quorumConfig:    quorumChainConfig,
-		publicToPrivate: make(map[common.Hash]common.Hash),
+		quorumConfig: quorumChainConfig,
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
 
 	var err error
+	privateStateCacheProvider := privatecache.NewPrivateCacheProvider(db, bc.stateCache, quorumChainConfig.privateTrieCacheEnabled)
 	// Quorum: attempt to initialize PSM
-	if bc.privateStateManager, err = newPrivateStateManager(bc.db, bc.stateCache, chainConfig.IsMPS); err != nil {
+	if bc.privateStateManager, err = newPrivateStateManager(bc.db, privateStateCacheProvider, chainConfig.IsMPS); err != nil {
 		return nil, err
 	}
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
@@ -330,13 +330,6 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			}
 		}
 	}
-
-	// Quorum
-	if err := bc.privateStateManager.CheckAt(head.Root()); err != nil {
-		log.Warn("Head private state missing, resetting chain", "number", head.Number(), "hash", head.Hash())
-		return nil, bc.Reset()
-	}
-	// End Quorum
 
 	// Ensure that a previous crash in SetHead doesn't leave extra ancients
 	if frozen, err := bc.db.Ancients(); err == nil && frozen > 0 {
@@ -492,19 +485,6 @@ func (bc *BlockChain) loadLastState() error {
 		log.Warn("Head block missing, resetting chain", "hash", head)
 		return bc.Reset()
 	}
-
-	// Quorum
-	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
-		if privateStateRepository == nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
-		if _, err := privateStateRepository.DefaultState(); err != nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
-	}
-	// /Quorum
 
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
@@ -1165,6 +1145,7 @@ func (bc *BlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !bc.cacheConfig.TrieDirtyDisabled {
 		triedb := bc.stateCache.TrieDB()
+
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := bc.CurrentBlock().NumberU64(); number > offset {
 				recent := bc.GetBlockByNumber(number - offset)
@@ -1173,16 +1154,6 @@ func (bc *BlockChain) Stop() {
 				if err := triedb.Commit(recent.Root(), true, nil); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
-				// Quorum
-				privateRoot, ok := bc.publicToPrivate[recent.Root()]
-				if ok {
-					log.Info("Writing private cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "privateRoot", privateRoot)
-					if err := triedb.Commit(privateRoot, true, nil); err != nil {
-						log.Error("Failed to commit recent private state trie", "err", err)
-					}
-					delete(bc.publicToPrivate, recent.Root())
-				}
-				// End Quorum
 			}
 		}
 		if snapBase != (common.Hash{}) {
@@ -1715,11 +1686,13 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 
+	// quorum - moved private state commit after public commit in order for referencing to work (private root now references the public root)
+
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
 	// moved private state commit after public commit in order for referencing to work (private root now references the public root)
-	privateRoots, err := psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
+	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
 	}
@@ -1732,34 +1705,10 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
-		// Quorum commit private roots
-		for _, privateRoot := range privateRoots {
-			if len(privateRoot.Bytes()) != 0 {
-				err := triedb.Commit(privateRoot, false, nil)
-				if err != nil {
-					return NonStatTy, err
-				}
-			}
-		}
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		bc.triegc.Push(root, -int64(block.NumberU64()))
-
-		// Quorum reference private roots
-		log.Debug("private trie cache", "enabled", bc.QuorumConfig().privateTrieCacheEnabled)
-		for _, privateRoot := range privateRoots {
-			if len(privateRoot.Bytes()) != 0 {
-				if bc.QuorumConfig().privateTrieCacheEnabled {
-					triedb.Reference(privateRoot, common.Hash{}) // metadata reference to keep private trie alive
-					bc.triegc.Push(privateRoot, -int64(block.NumberU64()))
-					bc.publicToPrivate[root] = privateRoot
-				} else if err := triedb.Commit(privateRoot, false, nil); err != nil {
-					return NonStatTy, err
-				}
-			}
-		}
-		// End Quorum
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -1768,10 +1717,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
-				err = triedb.Cap(limit - ethdb.IdealBatchSize)
-				if err != nil {
-					log.Warn("error occurred while capping public cache (nodes, preimages)", "err", err)
-				}
+				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
 
 			// Find the next state trie we need to commit
@@ -1791,22 +1737,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 						log.Info("State in memory for too long, committing", "time", bc.gcproc, "allowance", bc.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/TriesInMemory)
 					}
 					// Flush an entire trie and restart the counters
-					err = triedb.Commit(header.Root, true, nil)
-					if err != nil {
-						return NonStatTy, err
-					}
-
-					// Quorum
-					privateroot, ok := bc.publicToPrivate[header.Root]
-					if ok {
-						err := triedb.Commit(privateroot, false, nil)
-						if err != nil {
-							return NonStatTy, err
-						}
-						delete(bc.publicToPrivate, header.Root)
-					}
-					// End Quorum
-
+					triedb.Commit(header.Root, true, nil)
 					lastWrite = chosen
 					bc.gcproc = 0
 				}
