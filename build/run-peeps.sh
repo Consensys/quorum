@@ -9,5 +9,5 @@ else
   cd PEEPS
 fi
 
-./gradlew --no-daemon --parallel endToEndTest
+./gradlew --no-daemon endToEndTest
 
