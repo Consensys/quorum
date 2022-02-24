@@ -17,7 +17,7 @@ import (
 //
 // If isMPS is true, it also does the validation to make sure
 // the target private.PrivateTransactionManager supports MPS
-func newPrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.PrivateCacheProvider, isMPS bool) (mps.PrivateStateManager, error) {
+func newPrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.Provider, isMPS bool) (mps.PrivateStateManager, error) {
 	if isMPS {
 		// validation
 		if !private.P.HasFeature(engine.MultiplePrivateStates) {

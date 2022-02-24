@@ -25,7 +25,7 @@ type MultiplePrivateStateRepository struct {
 	db ethdb.Database
 	// trie of private states cache
 	repoCache            state.Database
-	privateCacheProvider privatecache.PrivateCacheProvider
+	privateCacheProvider privatecache.Provider
 
 	// the trie of private states
 	// key - the private state identifier
@@ -38,7 +38,7 @@ type MultiplePrivateStateRepository struct {
 	managedStates map[types.PrivateStateIdentifier]*managedState
 }
 
-func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash, privateCacheProvider privatecache.PrivateCacheProvider) (*MultiplePrivateStateRepository, error) {
+func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, privateStatesTrieRoot common.Hash, privateCacheProvider privatecache.Provider) (*MultiplePrivateStateRepository, error) {
 	tr, err := cache.OpenTrie(privateStatesTrieRoot)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func NewMultiplePrivateStateRepository(db ethdb.Database, cache state.Database, 
 type managedState struct {
 	stateDb               *state.StateDB
 	stateCache            state.Database
-	privateCacheProvider  privatecache.PrivateCacheProvider
+	privateCacheProvider  privatecache.Provider
 	stateRootProviderFunc StateRootProviderFunc
 }
 

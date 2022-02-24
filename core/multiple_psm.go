@@ -19,13 +19,13 @@ type MultiplePrivateStateManager struct {
 	// Low level persistent database to store final content in
 	db                     ethdb.Database
 	privateStatesTrieCache state.Database
-	privateCacheProvider   privatecache.PrivateCacheProvider
+	privateCacheProvider   privatecache.Provider
 
 	residentGroupByKey map[string]*mps.PrivateStateMetadata
 	privacyGroupById   map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata
 }
 
-func newMultiplePrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.PrivateCacheProvider, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
+func newMultiplePrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.Provider, residentGroupByKey map[string]*mps.PrivateStateMetadata, privacyGroupById map[types.PrivateStateIdentifier]*mps.PrivateStateMetadata) (*MultiplePrivateStateManager, error) {
 	return &MultiplePrivateStateManager{
 		db:                     db,
 		privateStatesTrieCache: privateCacheProvider.GetCache(),

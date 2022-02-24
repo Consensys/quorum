@@ -18,13 +18,13 @@ type DefaultPrivateStateRepository struct {
 	db ethdb.Database
 	// cache of stateDB
 	stateCache           state.Database
-	privateCacheProvider privatecache.PrivateCacheProvider
+	privateCacheProvider privatecache.Provider
 	// stateDB gives access to the underlying state
 	stateDB *state.StateDB
 	root    common.Hash
 }
 
-func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, privateCacheProvider privatecache.PrivateCacheProvider, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
+func NewDefaultPrivateStateRepository(db ethdb.Database, cache state.Database, privateCacheProvider privatecache.Provider, previousBlockHash common.Hash) (*DefaultPrivateStateRepository, error) {
 	root := rawdb.GetPrivateStateRoot(db, previousBlockHash)
 
 	statedb, err := state.New(root, cache, nil)

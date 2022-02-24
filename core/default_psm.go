@@ -18,10 +18,10 @@ type DefaultPrivateStateManager struct {
 	// Low level persistent database to store final content in
 	db                   ethdb.Database
 	repoCache            state.Database
-	privateCacheProvider privatecache.PrivateCacheProvider
+	privateCacheProvider privatecache.Provider
 }
 
-func newDefaultPrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.PrivateCacheProvider) *DefaultPrivateStateManager {
+func newDefaultPrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.Provider) *DefaultPrivateStateManager {
 	return &DefaultPrivateStateManager{
 		db:                   db,
 		repoCache:            privateCacheProvider.GetCache(),

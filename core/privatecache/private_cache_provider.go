@@ -7,13 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-type PrivateCacheProvider interface {
+type Provider interface {
 	GetCache() state.Database
 	Commit(db state.Database, hash common.Hash) error
 	Reference(child, parent common.Hash)
 }
 
-func NewPrivateCacheProvider(db ethdb.Database, cache state.Database, privateCacheEnabled bool) PrivateCacheProvider {
+func NewPrivateCacheProvider(db ethdb.Database, cache state.Database, privateCacheEnabled bool) Provider {
 	if privateCacheEnabled {
 		log.Info("Using UnifiedCacheProvider.")
 		return &unifiedCacheProvider{
