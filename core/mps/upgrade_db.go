@@ -29,7 +29,7 @@ func UpgradeDB(db ethdb.Database, chain chainReader) error {
 	genesisHeader := chain.GetHeaderByNumber(0)
 
 	privateStatesTrieRoot := rawdb.GetPrivateStatesTrieRoot(db, genesisHeader.Root)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(db, nil, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(db, nil, nil, false)
 	mpsRepo, err := NewMultiplePrivateStateRepository(db, state.NewDatabase(db), privateStatesTrieRoot, privateCacheProvider)
 	if err != nil {
 		return err

@@ -269,7 +269,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
 
 	var err error
-	privateStateCacheProvider := privatecache.NewPrivateCacheProvider(db, bc.stateCache, quorumChainConfig.privateTrieCacheEnabled)
+	privateStateCacheProvider := privatecache.NewPrivateCacheProvider(db, &trie.Config{Cache: cacheConfig.TrieCleanLimit,
+		Preimages: cacheConfig.Preimages}, bc.stateCache, quorumChainConfig.privateTrieCacheEnabled)
 	// Quorum: attempt to initialize PSM
 	if bc.privateStateManager, err = newPrivateStateManager(bc.db, privateStateCacheProvider, chainConfig.IsMPS); err != nil {
 		return nil, err

@@ -19,7 +19,7 @@ func TestDefaultPSRCopy(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, testCache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
 	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, privateCacheProvider, common.Hash{})
 
 	testState, _ := psr.DefaultState()
@@ -76,7 +76,7 @@ func TestDefaultPSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, testCache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
 	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, privateCacheProvider, common.Hash{})
 
 	testState, _ := psr.DefaultState()
@@ -103,7 +103,7 @@ func TestDefaultPSRReset(t *testing.T) {
 func TestOnlyPrivateStateAccessible(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, testCache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
 	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, privateCacheProvider, common.Hash{})
 
 	privateState, _ := psr.DefaultState()
@@ -118,7 +118,7 @@ func TestOnlyPrivateStateAccessible(t *testing.T) {
 func TestDefaultPSRCommit(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, testCache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
 	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, privateCacheProvider, common.Hash{})
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)
@@ -149,7 +149,7 @@ func TestDefaultPSRCommit(t *testing.T) {
 func TestDefaultPSRCommitAndWrite(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, testCache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
 	psr, _ := NewDefaultPrivateStateRepository(testdb, testCache, privateCacheProvider, common.Hash{})
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)

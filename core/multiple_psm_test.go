@@ -89,7 +89,7 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	cache := state.NewDatabase(blockchain.db)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, cache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, cache, false)
 	blockchain.privateStateManager = mockpsm
 
 	for _, block := range blocks {
@@ -190,7 +190,7 @@ func TestMPSReset(t *testing.T) {
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	blockchain.privateStateManager = mockpsm
 	cache := state.NewDatabase(blockchain.db)
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, cache, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, cache, false)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]

@@ -92,7 +92,7 @@ func TestDefaultResolver(t *testing.T) {
 
 	_, _, blockchain := buildTestChain(1, params.QuorumTestChainConfig)
 
-	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, false)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, nil, false)
 
 	mpsm := newDefaultPrivateStateManager(blockchain.db, privateCacheProvider)
 
