@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -73,6 +74,9 @@ type StateDB struct {
 	snapDestructs map[common.Hash]struct{}
 	snapAccounts  map[common.Hash][]byte
 	snapStorage   map[common.Hash]map[common.Hash][]byte
+
+	mutex        sync.Mutex
+	journalMutex sync.Mutex
 
 	// Quorum - a trie to hold extra account information that cannot be stored in the accounts trie
 	accountExtraDataTrie Trie
@@ -332,9 +336,11 @@ func (s *StateDB) Reset(root common.Hash) error {
 		return err
 	}
 	s.trie = tr
+	s.mutex.Lock()
 	s.stateObjects = make(map[common.Address]*stateObject)
 	s.stateObjectsPending = make(map[common.Address]struct{})
 	s.stateObjectsDirty = make(map[common.Address]struct{})
+	s.mutex.Unlock()
 	s.thash = common.Hash{}
 	s.bhash = common.Hash{}
 	s.txIndex = 0
@@ -710,6 +716,8 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 }
 
 func (s *StateDB) setStateObject(object *stateObject) {
+	defer s.mutex.Unlock()
+	s.mutex.Lock()
 	s.stateObjects[object.Address()] = object
 }
 
@@ -797,15 +805,27 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 // Copy creates a deep, independent copy of the state.
 // Snapshots of the copied state cannot be applied to the copy.
 func (s *StateDB) Copy() *StateDB {
+	s.journalMutex.Lock()
+	journal := s.journal
+	s.journalMutex.Unlock()
+
+	journal.mutex.Lock()
+	size := len(journal.dirties)
+	dirties := make([]common.Address, 0, size)
+	for addr := range journal.dirties {
+		dirties = append(dirties, addr)
+	}
+	journal.mutex.Unlock()
+
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
 		db:   s.db,
 		trie: s.db.CopyTrie(s.trie),
 		// Quorum - Privacy Enhancements
 		accountExtraDataTrie: s.db.CopyTrie(s.accountExtraDataTrie),
-		stateObjects:         make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjects:         make(map[common.Address]*stateObject, size),
 		stateObjectsPending:  make(map[common.Address]struct{}, len(s.stateObjectsPending)),
-		stateObjectsDirty:    make(map[common.Address]struct{}, len(s.journal.dirties)),
+		stateObjectsDirty:    make(map[common.Address]struct{}, size),
 		refund:               s.refund,
 		logs:                 make(map[common.Hash][]*types.Log, len(s.logs)),
 		logSize:              s.logSize,
@@ -813,8 +833,10 @@ func (s *StateDB) Copy() *StateDB {
 		journal:              newJournal(),
 		hasher:               crypto.NewKeccakState(),
 	}
+
+	s.mutex.Lock()
 	// Copy the dirty states, logs, and preimages
-	for addr := range s.journal.dirties {
+	for _, addr := range dirties {
 		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
 		// and in the Finalise-method, there is a case where an object is in the journal but not
 		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
@@ -844,6 +866,7 @@ func (s *StateDB) Copy() *StateDB {
 		}
 		state.stateObjectsDirty[addr] = struct{}{}
 	}
+	s.mutex.Unlock()
 	for hash, logs := range s.logs {
 		cpy := make([]*types.Log, len(logs))
 		for i, l := range logs {
@@ -930,7 +953,13 @@ func (s *StateDB) GetRefund() uint64 {
 // into the tries just yet. Only IntermediateRoot or Commit will do that.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 	addressesToPrefetch := make([][]byte, 0, len(s.journal.dirties))
+	s.journal.mutex.Lock()
+	dirties := make([]common.Address, 0, len(s.journal.dirties))
 	for addr := range s.journal.dirties {
+		dirties = append(dirties, addr)
+	}
+	s.journal.mutex.Unlock()
+	for _, addr := range dirties {
 		obj, exist := s.stateObjects[addr]
 		if !exist {
 			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
@@ -956,8 +985,10 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 		} else {
 			obj.finalise(true) // Prefetch slots in the background
 		}
+		s.mutex.Lock()
 		s.stateObjectsPending[addr] = struct{}{}
 		s.stateObjectsDirty[addr] = struct{}{}
+		s.mutex.Unlock()
 
 		// At this point, also ship the address off to the precacher. The precacher
 		// will start loading tries, and when the change is eventually committed,
@@ -978,6 +1009,8 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// Finalise all the dirty storage states and write them into the tries
 	s.Finalise(deleteEmptyObjects)
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	// If there was a trie prefetcher operating, it gets aborted and irrevocably
 	// modified after we start retrieving tries. Remove it from the statedb after
 	// this round of use.
@@ -1042,6 +1075,8 @@ func (s *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 }
 
 func (s *StateDB) clearJournalAndRefund() {
+	defer s.journalMutex.Unlock()
+	s.journalMutex.Lock()
 	if len(s.journal.entries) > 0 {
 		s.journal = newJournal()
 		s.refund = 0
@@ -1059,6 +1094,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	// Finalize any pending changes and merge everything into the tries
 	s.IntermediateRoot(deleteEmptyObjects)
 
+	s.mutex.Lock()
 	// Commit objects to the trie, measuring the elapsed time
 	codeWriter := s.db.TrieDB().DiskDB().NewBatch()
 	for addr := range s.stateObjectsDirty {
@@ -1077,6 +1113,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if len(s.stateObjectsDirty) > 0 {
 		s.stateObjectsDirty = make(map[common.Address]struct{})
 	}
+	s.mutex.Unlock()
 	if codeWriter.ValueSize() > 0 {
 		if err := codeWriter.Write(); err != nil {
 			log.Crit("Failed to commit dirty codes", "error", err)

@@ -20,7 +20,7 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea
-	github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf
+	github.com/docker/docker v20.10.12+incompatible
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/eapache/channels v1.1.0
 	github.com/eapache/queue v1.1.0 // indirect
@@ -34,8 +34,8 @@ require (
 	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
 	github.com/google/uuid v1.1.5
-	github.com/gorilla/websocket v1.4.2
-	github.com/graph-gophers/graphql-go v0.0.0-20191115155744-f33e81362277
+	github.com/gorilla/websocket v1.5.0
+	github.com/graph-gophers/graphql-go v1.3.0
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-plugin v1.2.2
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
@@ -54,6 +54,7 @@ require (
 	github.com/mattn/go-isatty v0.0.10
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
 	github.com/olekukonko/tablewriter v0.0.2-0.20190409134802-7e037d187b0c
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pborman/uuid v0.0.0-20170112150404-1b00554d8222
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
@@ -77,4 +78,5 @@ require (
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6
 	gopkg.in/oleiade/lane.v1 v1.0.0
 	gopkg.in/urfave/cli.v1 v1.20.0
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

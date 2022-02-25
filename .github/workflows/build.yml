@@ -9,7 +9,7 @@ on:
     branches:
       - master
 env:
-  GO_VERSION: 1.15.6
+  GO_VERSION: 1.16
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
@@ -69,14 +69,13 @@ jobs:
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
-  acceptance-tests-1:
+  acceptance-tests-basic:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
       - docker-build
     if: success()
     strategy:
       fail-fast: false
-      max-parallel: 6
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
@@ -91,6 +90,8 @@ jobs:
           - 'learner-peer-management || raftdnsenable && networks/template::raft-3plus1'
           - 'validator-management && networks/template::qbft-3plus1'
           - 'validator-management && networks/template::istanbul-3plus1'
+          - 'hybrid-validator-management-manage-besu && networks/typical-hybrid::hybrid-template-q2b1'
+          - 'hybrid-validator-management-manage-quorum && networks/typical-hybrid::hybrid-template-q1b2'
           - 'qbft-transition-network && networks/template::qbft-4nodes-transition'
           - 'basic || basic-raft || (advanced && raft) || networks/plugins::raft'
           - 'basic || basic-istanbul || (advanced && istanbul) || networks/plugins::qbft'
@@ -102,77 +103,6 @@ jobs:
           - 'basic-rpc-security || networks/plugins::qbft-rpc-security'
           - 'basic-rpc-security || networks/plugins::istanbul-rpc-security'
           - 'migration && networks/template::raft-4nodes'
-          #- 'migration && networks/template::istanbul-4nodes'
-          #- 'migration && networks/template::raft-4nodes-ancientdb'
-          #- 'migration && networks/template::istanbul-4nodes-ancientdb'
-          #- 'permissions-v1 && networks/template::raft-3plus1'
-          #- 'permissions-v2 && networks/template::raft-3plus1'
-          #- 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
-          #- 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
-          #- 'multitenancy && networks/plugins::raft-multitenancy'
-          #- 'basic || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
-          #- 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft-simple-mps'
-          #- 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
-          #- 'basic || networks/typical::raftmps'
-          #- 'basic || networks/typical::qbftmps'
-          #- 'basic || networks/typical::istanbulmps'
-          #- 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
-          #- 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
-          #- '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
-          #- '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
-        privacy-enhancements:
-          - 'false'
-        #include:
-        #  - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
-        #    privacy-enhancements: 'true'
-        #  - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
-        #    privacy-enhancements: 'true'
-    runs-on: ubuntu-18.04
-    steps:
-      - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
-        with:
-          name: docker-image
-      - name: 'Load Docker image'
-        id: setup
-        run: |
-          tar xfvz docker-image/quorum-pr.tar.gz
-          docker load --input quorum-pr.tar
-          docker_env_file="${{ runner.temp }}/env.list"
-          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
-          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
-          echo "::set-output name=outputDir::${{ runner.temp }}"
-          echo "::set-output name=dockerEnvFile::$docker_env_file"
-      - name: 'Run acceptance tests'
-        run: |
-          cat ${{ steps.setup.outputs.dockerEnvFile }}
-          docker run --rm \
-            --network host \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
-            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
-            quorumengineering/acctests:latest test \
-              -Pauto \
-              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
-              -Dtags="${{ matrix.tag }}"
-      - name: 'Debug'
-        run: |
-          docker images
-          docker ps -a
-  acceptance-tests-2:
-    name: Acceptance tests (${{ matrix.tag }})
-    needs:
-      - docker-build
-      - acceptance-tests-1
-    if: success()
-    strategy:
-      fail-fast: false
-      max-parallel: 6
-      matrix:
-        # list of tag expression being executed in parallel
-        # for PR, only selective tests are run.
-        # More comprehensive suites are scheduled to run in master
-        tag:
           - 'migration && networks/template::istanbul-4nodes'
           - 'migration && networks/template::raft-4nodes-ancientdb'
           - 'migration && networks/template::istanbul-4nodes-ancientdb'
@@ -189,15 +119,10 @@ jobs:
           - 'basic || networks/typical::istanbulmps'
           - 'mps-upgrade-txtrace || networks/template::raft-4nodes-mps'
           - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
+          - 'mps-mixed-network-psr-check || networks/template::raft-4nodes-mps-mixed'
+          - 'mps-mixed-network-psr-check || networks/template::istanbul-4nodes-mps-mixed'
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
-        privacy-enhancements:
-          - 'false'
-        include:
-          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-raft || (advanced && raft) || networks/typical::raft'
-            privacy-enhancements: 'true'
-          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
-            privacy-enhancements: 'true'
     runs-on: ubuntu-18.04
     steps:
       - name: 'Download workflow artifact - Docker image'
@@ -211,7 +136,6 @@ jobs:
           docker load --input quorum-pr.tar
           docker_env_file="${{ runner.temp }}/env.list"
           echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
-          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
           echo "::set-output name=outputDir::${{ runner.temp }}"
           echo "::set-output name=dockerEnvFile::$docker_env_file"
       - name: 'Run acceptance tests'
@@ -230,11 +154,165 @@ jobs:
         run: |
           docker images
           docker ps -a
+  acceptance-tests-extra:
+    name: Acceptance tests (${{ matrix.tag }})
+    needs:
+      - docker-build
+    if: success()
+    strategy:
+      fail-fast: false
+      matrix:
+        # list of tag expression being executed in parallel
+        include:
+          # privacy enhancements tests
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || mandatory-recipients || basic-raft || (advanced && raft) || networks/typical::raft'
+            privacy-enhancements: true
+            privacy-precompile: false
+            privacy-marker-transactions: false
+          - tag: '(basic && !privacy-enhancements-disabled) || privacy-enhancements || mandatory-recipients || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+            privacy-enhancements: true
+            privacy-precompile: false
+            privacy-marker-transactions: false
+          # privacy precompile/privacy marker transaction tests
+          - tag: 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: false
+          - tag: 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: false
+          - tag: 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: false
+          - tag: '(multitenancy || privacy-precompile-enabled) && networks/plugins::raft-multitenancy'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || basic-raft || (advanced && raft) || networks/typical::raft-simple-mps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul-simple-mps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || basic-istanbul || (advanced && istanbul) || networks/typical::qbft-simple-mps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || networks/typical::raftmps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || networks/typical::istanbulmps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-precompile-disabled) || networks/typical::qbftmps'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          # privacy enhancements + privacy precompile/privacy marker transaction tests
+          - tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || mandatory-recipients || privacy-precompile-enabled || basic-raft || (advanced && raft) || networks/typical::raft'
+            privacy-enhancements: true
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || mandatory-recipients || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
+            privacy-enhancements: true
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: '(basic && !privacy-enhancements-disabled && !privacy-precompile-disabled) || privacy-enhancements || mandatory-recipients || privacy-precompile-enabled || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+            privacy-enhancements: true
+            privacy-precompile: true
+            privacy-marker-transactions: true
+          - tag: 'privacy-precompile-compatibility && networks/template::raft-4nodes'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: false # do not enable pmts as the test will do this on the necessary nodes
+          - tag: 'privacy-precompile-compatibility && networks/template::istanbul-4nodes'
+            privacy-enhancements: false
+            privacy-precompile: true
+            privacy-marker-transactions: false # do not enable pmts as the test will do this on the necessary nodes
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker_env_file="${{ runner.temp }}/env.list"
+          echo "TF_VAR_quorum_docker_image={ name = \"quorumengineering/quorum:pr\", local = true }" >> $docker_env_file
+          echo "TF_VAR_privacy_enhancements={block=0, enabled=${{ matrix.privacy-enhancements}}}" >> $docker_env_file
+          echo "TF_VAR_privacy_precompile={block=0, enabled=${{ matrix.privacy-precompile}}}" >> $docker_env_file
+          echo "TF_VAR_privacy_marker_transactions=${{ matrix.privacy-marker-transactions}}" >> $docker_env_file
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+          echo "::set-output name=dockerEnvFile::$docker_env_file"
+      - name: 'Run extra acceptance tests'
+        run: |
+          cat ${{ steps.setup.outputs.dockerEnvFile }}
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            --env-file ${{ steps.setup.outputs.dockerEnvFile }} \
+            quorumengineering/acctests:latest test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
+
+  peeps-tests:
+    name: Run PEEPS tests
+    needs:
+      - docker-build
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker image tag quorumengineering/quorum:pr quorumengineering/quorum:develop
+          docker image ls
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: 11
+          check-latest: true
+      - name: PEEPS
+        run: |
+          cd build
+          ./run-peeps.sh
+      - name: PEEPS Test Report
+        uses: mikepenz/action-junit-report@v2
+        if: always()
+        with:
+          report_paths: '**/build/test-results/*/TEST-*.xml'
+          check_name: PEEPS test report
+
+
   publish-docker:
     name: Publish Docker Image
     needs:
       - build
-      - acceptance-tests-2
+      - acceptance-tests-basic
+      - acceptance-tests-extra
     runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
@@ -453,13 +531,14 @@ jobs:
             curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -H "Content-type: application/json" --data "@${1}"
           }
           _post "long_message.json" || _post "short_message.json"
+
   build-sentinel:
     if: always()
     needs:
       - build
       - docker-build
-      - acceptance-tests-1
-      - acceptance-tests-2
+      - acceptance-tests-basic
+      - acceptance-tests-extra
       - publish-docker
     runs-on: ubuntu-18.04
     steps:
