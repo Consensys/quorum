@@ -9,7 +9,7 @@ on:
     branches:
       - master
 env:
-  GO_VERSION: 1.15.6
+  GO_VERSION: 1.16
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
