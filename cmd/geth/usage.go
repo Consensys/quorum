@@ -255,6 +255,11 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.RevertReasonFlag,
 			utils.PrivateCacheTrieJournalFlag,
 			utils.QuorumEnablePrivacyMarker,
+		},
+	},
+	{
+		Name: "QUORUM LIGHT CLIENT/SERVER",
+		Flags: []cli.Flag{
 			utils.QuorumLightServerFlag,
 			utils.QuorumLightServerP2PListenPortFlag,
 			utils.QuorumLightServerP2PMaxPeersFlag,
