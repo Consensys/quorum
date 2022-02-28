@@ -889,7 +889,7 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
-	QuorumEnablePrivateTrieCache = cli.BoolTFlag{
+	QuorumEnablePrivateTrieCache = cli.BoolFlag{
 		Name:  "privatetriecache.enable",
 		Usage: "Enable use of private trie cache for this node.",
 	}
