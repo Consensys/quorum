@@ -966,8 +966,8 @@ var (
 	}
 	QuorumLightServerP2PMaxPeersFlag = cli.IntFlag{
 		Name:  "qlight.server.p2p.maxpeers",
-		Usage: "QLight Network listening port",
-		Value: 30305,
+		Usage: "Maximum number of qlight peers",
+		Value: 10,
 	}
 	QuorumLightServerP2PNetrestrictFlag = cli.StringFlag{
 		Name:  "qlight.server.p2p.netrestrict",
