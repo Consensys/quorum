@@ -3,6 +3,7 @@
 package ethconfig
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TxPool                  core.TxPoolConfig
 		GPO                     gasprice.Config
 		EnablePreimageRecording bool
+		RaftMode                bool
+		EnableNodePermission    bool
 		Istanbul                istanbul.Config
 		DocRoot                 string `toml:"-"`
 		EWASMInterpreter        string
@@ -61,11 +64,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCTxFeeCap             float64                        `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
-
-		RaftMode                     bool
-		EnableNodePermission         bool
-		EVMCallTimeOut               time.Duration
-		PrivateTrieCleanCacheJournal string `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
+		EVMCallTimeOut          time.Duration
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -113,8 +113,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.Checkpoint = c.Checkpoint
 	enc.CheckpointOracle = c.CheckpointOracle
+	enc.OverrideBerlin = c.OverrideBerlin
 	enc.EVMCallTimeOut = c.EVMCallTimeOut
-	enc.PrivateTrieCleanCacheJournal = c.PrivateTrieCleanCacheJournal
 	return &enc, nil
 }
 
@@ -156,6 +156,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TxPool                  *core.TxPoolConfig
 		GPO                     *gasprice.Config
 		EnablePreimageRecording *bool
+		RaftMode                *bool
+		EnableNodePermission    *bool
 		Istanbul                *istanbul.Config
 		DocRoot                 *string `toml:"-"`
 		EWASMInterpreter        *string
@@ -164,11 +166,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCTxFeeCap             *float64                       `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
-
-		RaftMode                     *bool
-		EnableNodePermission         *bool
-		EVMCallTimeOut               *time.Duration
-		PrivateTrieCleanCacheJournal *string `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
+		EVMCallTimeOut          *time.Duration
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -309,11 +308,11 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.CheckpointOracle != nil {
 		c.CheckpointOracle = dec.CheckpointOracle
 	}
+	if dec.OverrideBerlin != nil {
+		c.OverrideBerlin = dec.OverrideBerlin
+	}
 	if dec.EVMCallTimeOut != nil {
 		c.EVMCallTimeOut = *dec.EVMCallTimeOut
-	}
-	if dec.PrivateTrieCleanCacheJournal != nil {
-		c.PrivateTrieCleanCacheJournal = *dec.PrivateTrieCleanCacheJournal
 	}
 	return nil
 }
