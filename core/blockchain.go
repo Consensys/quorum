@@ -1707,7 +1707,9 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 
-	// quorum - moved private state commit after public commit in order for referencing to work (private root now references the public root)
+	// quorum - private state commit must come after public state commit. If the private state is being cached then the
+	// private state root will reference the public state root, hence the need for public state trie to have already
+	// been committed.
 
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
