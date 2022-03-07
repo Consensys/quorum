@@ -102,6 +102,7 @@ jobs:
         run: | 
           cd build
           ./run-peeps.sh
+          docker image ls
       - name: PEEPS Test Report
         uses: mikepenz/action-junit-report@v2
         if: always()
