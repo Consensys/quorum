@@ -227,8 +227,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 			SnapshotLimit:       config.SnapshotCache,
 			Preimages:           config.Preimages,
-			// Quorum
-			PrivateTrieCleanJournal: stack.ResolvePath(config.PrivateTrieCleanCacheJournal),
 		}
 	)
 	newBlockChainFunc := core.NewBlockChain
