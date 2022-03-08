@@ -869,12 +869,12 @@ var (
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
-		Usage: "Timeout for each Istanbul round in milliseconds",
+		Usage: "[Deprecated] Timeout for each Istanbul round in milliseconds",
 		Value: ethconfig.Defaults.Istanbul.RequestTimeout,
 	}
 	IstanbulBlockPeriodFlag = cli.Uint64Flag{
 		Name:  "istanbul.blockperiod",
-		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Usage: "[Deprecated] Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
 	}
 	// Multitenancy setting
@@ -1683,9 +1683,11 @@ func setAuthorizationList(ctx *cli.Context, cfg *eth.Config) {
 // Quorum
 func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		log.Warn("The flag --istanbul.requesttimeout is deprecated and will be removed in the future, please use ibft.requesttimeoutseconds on genesis file")
 		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
 	}
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		log.Warn("The flag --istanbul.blockperiod is deprecated and will be removed in the future, please use ibft.blockperiodseconds on genesis file")
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
 	}
 }
@@ -2214,10 +2216,14 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		}
 	}
 
+	consensusCount := uint8(0)
 	var engine consensus.Engine
 	if config.Clique != nil {
+		consensusCount++
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
+		consensusCount++
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		// for IBFT
 		istanbulConfig := istanbul.DefaultConfig
 		if config.Istanbul.Epoch != 0 {
@@ -2227,6 +2233,18 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IBFT != nil {
+		consensusCount++
+		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
+		//TODO: @achraf to remove
+		log.Debug("AAAAAAAAAAAAAAAA IBFT", "ibftConfig", ibftConfig)
+		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
+	} else if config.QBFT != nil {
+		consensusCount++
+		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		// TODO: @achraf to remove
+		log.Debug("AAAAAAAAAAAAAAAA QBFT", "qbftConfig", qbftConfig)
+		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft
 		engine = ethash.NewFullFaker()
@@ -2244,6 +2262,9 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 				DatasetsLockMmap: ethconfig.Defaults.Ethash.DatasetsLockMmap,
 			}, nil, false)
 		}
+	}
+	if consensusCount > 1 {
+		Fatalf("Too many consensus algorithms specified please review genesis.json")
 	}
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
@@ -2282,6 +2303,26 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		Fatalf("Can't create BlockChain: %v", err)
 	}
 	return chain, chainDb
+}
+
+func setBFTConfig(bftConfig *params.BFTConfig) *istanbul.Config {
+	istanbulConfig := istanbul.DefaultConfig
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
+	}
+	return istanbulConfig
 }
 
 // MakeConsolePreloads retrieves the absolute paths for the console JavaScript
