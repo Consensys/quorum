@@ -478,9 +478,11 @@ func (h *handler) Start(maxPeers int) {
 
 func (h *handler) Stop() {
 	h.txsSub.Unsubscribe() // quits txBroadcastLoop
+	// quorum - ensure raft stops cleanly
 	if h.minedBlockSub != nil {
 		h.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
 	}
+
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
 	close(h.quitSync)
@@ -555,6 +557,7 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 	// indicated that this logic might change in the future to only send to a
 	// subset of peers. If this change occurs upstream, a merge conflict should
 	// arise here, and we should add logic to send to *all* peers in raft mode.
+
 	for _, tx := range txs {
 		peers := h.peers.peersWithoutTransaction(tx.Hash())
 		// Send the tx unconditionally to a subset of our peers
@@ -567,6 +570,7 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		//for _, peer := range peers[numDirect:] {
 		//	annos[peer] = append(annos[peer], tx.Hash())
 		//}
+		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	for peer, hashes := range txset {
 		directPeers++

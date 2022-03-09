@@ -3,6 +3,7 @@
 package ethconfig
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TxPool                  core.TxPoolConfig
 		GPO                     gasprice.Config
 		EnablePreimageRecording bool
+		RaftMode                bool
+		EnableNodePermission    bool
 		Istanbul                istanbul.Config
 		DocRoot                 string `toml:"-"`
 		EWASMInterpreter        string
@@ -61,6 +64,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCTxFeeCap             float64                        `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
+		EVMCallTimeOut          time.Duration
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -98,6 +103,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TxPool = c.TxPool
 	enc.GPO = c.GPO
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
+	enc.RaftMode = c.RaftMode
+	enc.EnableNodePermission = c.EnableNodePermission
 	enc.Istanbul = c.Istanbul
 	enc.DocRoot = c.DocRoot
 	enc.EWASMInterpreter = c.EWASMInterpreter
@@ -106,6 +113,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.Checkpoint = c.Checkpoint
 	enc.CheckpointOracle = c.CheckpointOracle
+	enc.OverrideBerlin = c.OverrideBerlin
+	enc.EVMCallTimeOut = c.EVMCallTimeOut
 	return &enc, nil
 }
 
@@ -147,6 +156,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TxPool                  *core.TxPoolConfig
 		GPO                     *gasprice.Config
 		EnablePreimageRecording *bool
+		RaftMode                *bool
+		EnableNodePermission    *bool
 		Istanbul                *istanbul.Config
 		DocRoot                 *string `toml:"-"`
 		EWASMInterpreter        *string
@@ -155,6 +166,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCTxFeeCap             *float64                       `toml:",omitempty"`
 		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
 		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
+		EVMCallTimeOut          *time.Duration
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -265,6 +278,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.EnablePreimageRecording != nil {
 		c.EnablePreimageRecording = *dec.EnablePreimageRecording
 	}
+	if dec.RaftMode != nil {
+		c.RaftMode = *dec.RaftMode
+	}
+	if dec.EnableNodePermission != nil {
+		c.EnableNodePermission = *dec.EnableNodePermission
+	}
 	if dec.Istanbul != nil {
 		c.Istanbul = *dec.Istanbul
 	}
@@ -288,6 +307,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.CheckpointOracle != nil {
 		c.CheckpointOracle = dec.CheckpointOracle
+	}
+	if dec.OverrideBerlin != nil {
+		c.OverrideBerlin = dec.OverrideBerlin
+	}
+	if dec.EVMCallTimeOut != nil {
+		c.EVMCallTimeOut = *dec.EVMCallTimeOut
 	}
 	return nil
 }

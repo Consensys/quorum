@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -88,12 +89,13 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	cache := state.NewDatabase(blockchain.db)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, cache, false)
 	blockchain.privateStateManager = mockpsm
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{}, privateCacheProvider)).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)
@@ -188,11 +190,12 @@ func TestMPSReset(t *testing.T) {
 	blocks, blockmap, blockchain := buildTestChain(2, params.QuorumMPSTestChainConfig)
 	blockchain.privateStateManager = mockpsm
 	cache := state.NewDatabase(blockchain.db)
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(blockchain.db, nil, cache, false)
 
 	for _, block := range blocks {
 		parent := blockmap[block.ParentHash()]
 		statedb, _ := state.New(parent.Root(), blockchain.StateCache(), nil)
-		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{})).AnyTimes()
+		mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mps.NewMultiplePrivateStateRepository(blockchain.db, cache, common.Hash{}, privateCacheProvider)).AnyTimes()
 
 		privateStateRepo, err := blockchain.PrivateStateManager().StateRepository(parent.Root())
 		assert.NoError(t, err)

@@ -4,13 +4,13 @@ on:
     tags:
       - 'v*'
 env:
-  GO_VERSION: 1.15.6
+  GO_VERSION: 1.16
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
   publish-docker:
     name: Publish Docker Image
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -19,7 +19,7 @@ jobs:
         run: |
           REF=${{ github.ref }}
           echo ::set-output name=image_tag::$(echo $REF | sed 's/refs\/tags\/v//g')
-          echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/') 
+          echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/')
       - name: 'Build and publish to Docker Hub'
         uses: docker/build-push-action@v1
         with:
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-18.04", "macos-latest" ]
+        os: [ "ubuntu-20.04", "macos-latest" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
@@ -122,11 +122,12 @@ jobs:
           description: "See https://github.com/ConsenSys/quorum/"
           version: "${{ steps.env.outputs.version }}"
   draft-release:
+    if: always()
     name: 'Draft Github release'
     needs:
       - deploy-cloudsmith
       - publish-docker
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
@@ -179,7 +180,7 @@ jobs:
       - deploy-cloudsmith
       - publish-docker
       - draft-release
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Setup metadata'
         id: setup
