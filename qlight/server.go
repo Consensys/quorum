@@ -60,15 +60,16 @@ func (p *privateBlockDataResolverImpl) PrepareBlockPrivateData(block *types.Bloc
 		return nil, nil
 	}
 
-	// TODO - once private state optimisations are implemented it is very likely that we won't have public <-> private block mappings
-	// for each block anymore (they would only be written for the actually stored blocks)
+	var privateStateRoot = common.Hash{}
+
 	stateRepo, err := p.privateStateManager.StateRepository(block.Root())
 	if err != nil {
-		return nil, err
-	}
-	privateStateRoot, err := stateRepo.PrivateStateRoot(PSI)
-	if err != nil {
-		return nil, err
+		log.Debug("Unable to retrieve private state repo while preparing the private block data", "block.No", block.Number(), "psi", psi, "err", err)
+	} else {
+		privateStateRoot, err = stateRepo.PrivateStateRoot(PSI)
+		if err != nil {
+			log.Debug("Unable to retrieve private state root while preparing the private block data", "block.No", block.Number(), "psi", psi, "err", err)
+		}
 	}
 
 	return &BlockPrivateData{

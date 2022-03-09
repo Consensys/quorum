@@ -42,7 +42,10 @@ func (c *clientCache) AddPrivateBlock(blockPrivateData BlockPrivateData) error {
 			return err
 		}
 	}
-	return c.privateBlockCache.Add(blockPrivateData.BlockHash.ToBase64(), blockPrivateData.PrivateStateRoot.ToBase64(), gocache.DefaultExpiration)
+	if !common.EmptyHash(blockPrivateData.PrivateStateRoot) {
+		return c.privateBlockCache.Add(blockPrivateData.BlockHash.ToBase64(), blockPrivateData.PrivateStateRoot.ToBase64(), gocache.DefaultExpiration)
+	}
+	return nil
 }
 
 func (c *clientCache) CheckAndAddEmptyEntry(hash common.EncryptedPayloadHash) {
@@ -54,7 +57,8 @@ func (c *clientCache) ValidatePrivateStateRoot(blockHash common.Hash, publicStat
 
 	cachePrivateStateRootStr, found := c.privateBlockCache.Get(blockHash.ToBase64())
 	if !found {
-		// this means that we don't have any private data for this block thus the private state should not have changed
+		// this means that we don't have private data for this block or that the server does not have the corresponding
+		// private state root (which can happen when caching is enabled on the server side)
 		return nil
 	}
 	cachePrivateStateRootB64, ok := cachePrivateStateRootStr.(string)
