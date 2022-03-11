@@ -1,11 +1,12 @@
 package ethconfig
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 func TestSetBFT(t *testing.T) {
