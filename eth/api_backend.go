@@ -173,6 +173,9 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 			return EthAPIState{publicState, privateState}, header, err
 		}
 		block, publicState, privateState := b.eth.miner.Pending(psm.ID)
+		if block == nil || publicState == nil || privateState == nil {
+			return nil, nil, fmt.Errorf("Unable to retrieve the pending state from the miner.")
+		}
 		return EthAPIState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state

@@ -6,14 +6,12 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 )
-
-// emptyRoot is the known root hash of an empty trie. Duplicate from `trie/trie.go#emptyRoot`
-var emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 //TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
 // the copy and their corresponding managed states independent of each other.
@@ -21,7 +19,8 @@ func TestMultiplePSRCopy(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 
 	testState, _ := psr.StatePSI(types.PrivateStateIdentifier("test"))
 	privState, _ := psr.StatePSI(types.DefaultPrivateStateIdentifier)
@@ -117,7 +116,8 @@ func TestMultiplePSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 
 	testState, _ := psr.StatePSI(types.PrivateStateIdentifier("test"))
 	emptyState, _ := psr.StatePSI(types.EmptyPrivateStateIdentifier)
@@ -170,7 +170,8 @@ func TestMultiplePSRReset(t *testing.T) {
 func TestCreatingManagedStates(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 
 	//create some managed states
 	psr.DefaultState()
@@ -188,7 +189,8 @@ func TestCreatingManagedStates(t *testing.T) {
 func TestMultiplePSRCommit(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)
 
@@ -236,7 +238,8 @@ func TestMultiplePSRCommit(t *testing.T) {
 func TestMultiplePSRCommitAndWrite(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 	header := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block := types.NewBlockWithHeader(header)
 
@@ -287,7 +290,8 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 	testPS2 := types.PrivateStateIdentifier("PS2")
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 	header1 := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block1 := types.NewBlockWithHeader(header1)
 
@@ -333,7 +337,7 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 	assert.NotEqual(t, emptyStateRoot, emptyRoot)
 
 	// begin adding state at block2
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()), privateCacheProvider)
 
 	testState1, _ = psr.StatePSI(testPS1)
 	testState2, _ := psr.StatePSI(testPS2)
@@ -349,7 +353,7 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 
 	psr.CommitAndWrite(false, block2)
 
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()), privateCacheProvider)
 
 	testState1, _ = psr.StatePSI(testPS1)
 	testState2, _ = psr.StatePSI(testPS2)
@@ -364,7 +368,7 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 	}
 
 	// check that PS2 does not exist in the PSR at block1 height
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()), privateCacheProvider)
 
 	emptyStateRootHash, _ = psr.trie.TryGet([]byte(types.EmptyPrivateStateIdentifier))
 	assert.NotEqual(t, len(emptyStateRootHash), 0)
@@ -374,7 +378,7 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 	assert.Equal(t, len(ps2RootHash), 0)
 
 	// check that PS2 does exist in the PSR at block2 height
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()), privateCacheProvider)
 
 	emptyStateRootHash, _ = psr.trie.TryGet([]byte(types.EmptyPrivateStateIdentifier))
 	assert.NotEqual(t, len(emptyStateRootHash), 0)
@@ -390,7 +394,8 @@ func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
 	testPS1 := types.PrivateStateIdentifier("PS1")
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
-	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{})
+	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
+	psr, _ := NewMultiplePrivateStateRepository(testdb, testCache, common.Hash{}, privateCacheProvider)
 	header1 := &types.Header{Number: big.NewInt(int64(1)), Root: common.Hash{123}}
 	block1 := types.NewBlockWithHeader(header1)
 
@@ -411,7 +416,7 @@ func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
 
 	psr.CommitAndWrite(false, block1)
 
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()), privateCacheProvider)
 
 	testState1, _ = psr.StatePSI(testPS1)
 	emptyState, _ = psr.StatePSI(types.EmptyPrivateStateIdentifier)
@@ -421,7 +426,7 @@ func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
 
 	psr.CommitAndWrite(false, block2)
 
-	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()))
+	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block2.Root()), privateCacheProvider)
 	testState1, _ = psr.StatePSI(testPS1)
 	emptyState, _ = psr.StatePSI(types.EmptyPrivateStateIdentifier)
 

@@ -889,11 +889,9 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
-	// Private state cache
-	PrivateCacheTrieJournalFlag = cli.StringFlag{
-		Name:  "private.cache.trie.journal",
-		Usage: "Disk journal directory for private trie cache to survive node restarts",
-		Value: ethconfig.Defaults.PrivateTrieCleanCacheJournal,
+	QuorumEnablePrivateTrieCache = cli.BoolFlag{
+		Name:  "privatetriecache.enable",
+		Usage: "Enable use of private trie cache for this node.",
 	}
 
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
@@ -1698,15 +1696,11 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name))
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name),
+		ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name),
+		ctx.GlobalBool(QuorumEnablePrivateTrieCache.Name))
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
-	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
-		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
-	}
-	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
-		return fmt.Errorf("configuration collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
-	}
 	return nil
 }
 
