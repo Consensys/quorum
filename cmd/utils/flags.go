@@ -2210,13 +2210,10 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		}
 	}
 
-	consensusCount := uint8(0)
 	var engine consensus.Engine
 	if config.Clique != nil {
-		consensusCount++
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
-		consensusCount++
 		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		// for IBFT
 		istanbulConfig := istanbul.DefaultConfig
@@ -2228,12 +2225,10 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
-		consensusCount++
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
 		ibftConfig.TestQBFTBlock = nil
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
-		consensusCount++
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
@@ -2254,9 +2249,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 				DatasetsLockMmap: ethconfig.Defaults.Ethash.DatasetsLockMmap,
 			}, nil, false)
 		}
-	}
-	if consensusCount > 1 {
-		Fatalf("Too many consensus algorithms specified please review genesis.json")
 	}
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
