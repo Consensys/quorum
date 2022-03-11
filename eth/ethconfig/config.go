@@ -233,6 +233,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	}
 	// If Istanbul is requested, set it up
 	if chainConfig.Istanbul != nil {
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		if chainConfig.Istanbul.Epoch != 0 {
 			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
 		}
@@ -241,6 +242,16 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
 
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.IBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = nil
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.QBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = big.NewInt(0)
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// Otherwise assume proof-of-work
@@ -260,5 +271,23 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		// use the consensus with the lightest overhead
 		log.Warn("Ethash used in full fake mode")
 		return ethash.NewFullFaker()
+	}
+}
+
+func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) {
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
 	}
 }

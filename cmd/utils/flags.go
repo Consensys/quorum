@@ -1683,11 +1683,11 @@ func setAuthorizationList(ctx *cli.Context, cfg *eth.Config) {
 // Quorum
 func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
-		log.Warn("The flag --istanbul.requesttimeout is deprecated and will be removed in the future, please use ibft.requesttimeoutseconds on genesis file")
+		log.Warn("WARNING: The flag --istanbul.requesttimeout is deprecated and will be removed in the future, please use ibft.requesttimeoutseconds on genesis file")
 		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
 	}
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
-		log.Warn("The flag --istanbul.blockperiod is deprecated and will be removed in the future, please use ibft.blockperiodseconds on genesis file")
+		log.Warn("WARNING: The flag --istanbul.blockperiod is deprecated and will be removed in the future, please use ibft.blockperiodseconds on genesis file")
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
 	}
 }
@@ -2236,14 +2236,12 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 	} else if config.IBFT != nil {
 		consensusCount++
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
-		//TODO: @achraf to remove
-		log.Debug("AAAAAAAAAAAAAAAA IBFT", "ibftConfig", ibftConfig)
+		ibftConfig.TestQBFTBlock = nil
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		consensusCount++
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
-		// TODO: @achraf to remove
-		log.Debug("AAAAAAAAAAAAAAAA QBFT", "qbftConfig", qbftConfig)
+		qbftConfig.TestQBFTBlock = big.NewInt(0)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft
