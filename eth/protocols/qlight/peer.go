@@ -46,6 +46,8 @@ type Peer struct {
 	qlightServer bool
 	qlightPSI    string
 	qlightToken  string
+
+	QLightPeriodicAuthFunc func() error
 }
 
 // newPeer create a wrapper for a network connection and negotiated  protocol

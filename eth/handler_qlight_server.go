@@ -133,6 +133,12 @@ func (h *handler) runQLightServerPeer(peer *qlightproto.Peer, handler qlightprot
 	}
 	peer.Log().Debug("Ethereum peer connected", "name", peer.Name())
 
+	err := h.authProvider.Authorize(peer.QLightToken(), peer.QLightPSI())
+	if err != nil {
+		peer.Log().Error("Auth error", "err", err)
+		return p2p.DiscAuthError
+	}
+
 	// Register the peer locally
 	if err := h.peers.registerQPeer(peer); err != nil {
 		peer.Log().Error("Ethereum peer registration failed", "err", err)
@@ -146,10 +152,9 @@ func (h *handler) runQLightServerPeer(peer *qlightproto.Peer, handler qlightprot
 	}
 	defer h.removeQLightServerPeer(peer.ID())
 
-	err := h.authProvider.Authorize(peer.QLightToken(), peer.QLightPSI())
-	if err != nil {
-		return err
-	}
+	// start periodic auth checks
+	peer.QLightPeriodicAuthFunc = func() error { return h.authProvider.Authorize(peer.QLightToken(), peer.QLightPSI()) }
+	go peer.PeriodicAuthCheck()
 
 	p := h.peers.peer(peer.ID())
 	if p == nil {
