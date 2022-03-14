@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/privatecache"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 // newPrivateStateManager instantiates an instance of mps.PrivateStateManager based on
@@ -17,7 +17,7 @@ import (
 //
 // If isMPS is true, it also does the validation to make sure
 // the target private.PrivateTransactionManager supports MPS
-func newPrivateStateManager(db ethdb.Database, config *trie.Config, isMPS bool) (mps.PrivateStateManager, error) {
+func newPrivateStateManager(db ethdb.Database, privateCacheProvider privatecache.Provider, isMPS bool) (mps.PrivateStateManager, error) {
 	if isMPS {
 		// validation
 		if !private.P.HasFeature(engine.MultiplePrivateStates) {
@@ -54,9 +54,9 @@ func newPrivateStateManager(db ethdb.Database, config *trie.Config, isMPS bool) 
 				}
 			}
 		}
-		return newMultiplePrivateStateManager(db, config, residentGroupByKey, privacyGroupById)
+		return newMultiplePrivateStateManager(db, privateCacheProvider, residentGroupByKey, privacyGroupById)
 	} else {
-		return newDefaultPrivateStateManager(db, config), nil
+		return newDefaultPrivateStateManager(db, privateCacheProvider), nil
 	}
 }
 

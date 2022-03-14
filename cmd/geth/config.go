@@ -272,7 +272,7 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
 func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
-	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().Clique == nil {
+	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().IBFT == nil && ethereum.BlockChain().Config().QBFT == nil && ethereum.BlockChain().Config().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
 }

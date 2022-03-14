@@ -869,12 +869,12 @@ var (
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
-		Usage: "Timeout for each Istanbul round in milliseconds",
+		Usage: "[Deprecated] Timeout for each Istanbul round in milliseconds",
 		Value: ethconfig.Defaults.Istanbul.RequestTimeout,
 	}
 	IstanbulBlockPeriodFlag = cli.Uint64Flag{
 		Name:  "istanbul.blockperiod",
-		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Usage: "[Deprecated] Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
 	}
 	// Multitenancy setting
@@ -889,11 +889,9 @@ var (
 		Usage: "Enable saving revert reason in the transaction receipts for this node.",
 	}
 
-	// Private state cache
-	PrivateCacheTrieJournalFlag = cli.StringFlag{
-		Name:  "private.cache.trie.journal",
-		Usage: "Disk journal directory for private trie cache to survive node restarts",
-		Value: ethconfig.Defaults.PrivateTrieCleanCacheJournal,
+	QuorumEnablePrivateTrieCache = cli.BoolFlag{
+		Name:  "privatetriecache.enable",
+		Usage: "Enable use of private trie cache for this node.",
 	}
 
 	QuorumEnablePrivacyMarker = cli.BoolFlag{
@@ -1683,9 +1681,11 @@ func setAuthorizationList(ctx *cli.Context, cfg *eth.Config) {
 // Quorum
 func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		log.Warn("WARNING: The flag --istanbul.requesttimeout is deprecated and will be removed in the future, please use ibft.requesttimeoutseconds on genesis file")
 		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
 	}
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		log.Warn("WARNING: The flag --istanbul.blockperiod is deprecated and will be removed in the future, please use ibft.blockperiodseconds on genesis file")
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
 	}
 }
@@ -1696,15 +1696,11 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
 	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
-	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name), ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name))
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name),
+		ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name),
+		ctx.GlobalBool(QuorumEnablePrivateTrieCache.Name))
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
-	if ctx.GlobalIsSet(PrivateCacheTrieJournalFlag.Name) {
-		cfg.PrivateTrieCleanCacheJournal = ctx.GlobalString(PrivateCacheTrieJournalFlag.Name)
-	}
-	if ctx.GlobalString(CacheTrieJournalFlag.Name) == cfg.PrivateTrieCleanCacheJournal {
-		return fmt.Errorf("configuration collision with '%s' and '%s' that must be different", CacheTrieJournalFlag.Name, PrivateCacheTrieJournalFlag.Name)
-	}
 	return nil
 }
 
@@ -2218,6 +2214,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		// for IBFT
 		istanbulConfig := istanbul.DefaultConfig
 		if config.Istanbul.Epoch != 0 {
@@ -2227,6 +2224,14 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IBFT != nil {
+		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
+		ibftConfig.TestQBFTBlock = nil
+		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
+	} else if config.QBFT != nil {
+		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		qbftConfig.TestQBFTBlock = big.NewInt(0)
+		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft
 		engine = ethash.NewFullFaker()
@@ -2282,6 +2287,26 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		Fatalf("Can't create BlockChain: %v", err)
 	}
 	return chain, chainDb
+}
+
+func setBFTConfig(bftConfig *params.BFTConfig) *istanbul.Config {
+	istanbulConfig := istanbul.DefaultConfig
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
+	}
+	return istanbulConfig
 }
 
 // MakeConsolePreloads retrieves the absolute paths for the console JavaScript

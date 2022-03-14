@@ -19,7 +19,7 @@ jobs:
         run: |
           REF=${{ github.ref }}
           echo ::set-output name=image_tag::$(echo $REF | sed 's/refs\/tags\/v//g')
-          echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/') 
+          echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/')
       - name: 'Build and publish to Docker Hub'
         uses: docker/build-push-action@v1
         with:
@@ -122,6 +122,7 @@ jobs:
           description: "See https://github.com/ConsenSys/quorum/"
           version: "${{ steps.env.outputs.version }}"
   draft-release:
+    if: always()
     name: 'Draft Github release'
     needs:
       - deploy-cloudsmith

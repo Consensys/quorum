@@ -185,7 +185,6 @@ func TestFlagsConfig(t *testing.T) {
 		utils.IstanbulBlockPeriodFlag,
 		utils.MultitenancyFlag,
 		utils.RevertReasonFlag,
-		utils.PrivateCacheTrieJournalFlag,
 		utils.QuorumEnablePrivacyMarker,
 		utils.QuorumPTMUnixSocketFlag,
 		utils.QuorumPTMUrlFlag,
@@ -315,7 +314,6 @@ func TestFlagsConfig(t *testing.T) {
 	assert.Equal(t, float64(1), eth.RPCTxFeeCap)
 	// Quorum
 	assert.Equal(t, time.Duration(15000000000), eth.EVMCallTimeOut)
-	assert.Equal(t, "privatetriecache", eth.PrivateTrieCleanCacheJournal)
 	// End Quorum
 
 	// [Eth.Miner]
@@ -482,7 +480,6 @@ RPCTxFeeCap = 1e+00
 RaftMode = true
 EnableNodePermission = true
 EVMCallTimeOut = 3600000000000
-PrivateTrieCleanCacheJournal = "privatetriecache-test"
 
 [Eth.Miner]
 GasFloor = 700000000
@@ -613,7 +610,6 @@ func testConfig(t *testing.T, cfg *gethConfig) {
 	assert.Equal(t, float64(1), eth.RPCTxFeeCap)
 	// Quorum
 	assert.Equal(t, time.Duration(3600000000000), eth.EVMCallTimeOut)
-	assert.Equal(t, "privatetriecache-test", eth.PrivateTrieCleanCacheJournal)
 	assert.Equal(t, true, eth.EnableNodePermission)
 	// End Quorum
 
