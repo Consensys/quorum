@@ -79,7 +79,7 @@ type Config struct {
 
 	// Configuration of peer-to-peer networking.
 	P2P  p2p.Config
-	QP2P *p2p.Config
+	QP2P *p2p.Config `toml:",omitempty"`
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
