@@ -150,6 +150,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		if config.QuorumChainConfig.PrivacyMarkerEnabled() && chainConfig.PrivacyPrecompileBlock == nil {
 			return nil, errors.New("Privacy marker transactions require privacyPrecompileBlock to be set in genesis.json")
 		}
+		if chainConfig.Istanbul != nil && (chainConfig.IBFT != nil || chainConfig.QBFT != nil) {
+			return nil, errors.New("the attributes config.Istanbul and config.[IBFT|QBFT] are mutually exclusive on the genesis file")
+		}
+		if chainConfig.IBFT != nil && chainConfig.QBFT != nil {
+			return nil, errors.New("the attributes config.IBFT and config.QBFT are mutually exclusive on the genesis file")
+		}
 	}
 
 	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {
