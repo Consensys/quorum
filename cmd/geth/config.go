@@ -137,36 +137,11 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 			utils.Fatalf("%v", err)
 		}
 	}
-	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
-		cfg.Node.QP2P = &p2p.Config{
-			ListenAddr:  ":30305",
-			MaxPeers:    10,
-			NAT:         nil,
-			NoDial:      true,
-			NoDiscovery: true,
-		}
-	}
-	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
-		cfg.Node.QP2P = &p2p.Config{
-			ListenAddr:  ":30305",
-			MaxPeers:    10,
-			NAT:         nil,
-			NoDial:      true,
-			NoDiscovery: true,
-		}
-	}
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	// TODO QLight - until DialCandidates is sorted add the server node url as a static node
-	if ctx.GlobalIsSet(utils.QuorumLightClientServerNodeFlag.Name) {
-		serverUrl := ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)
-		cfg.Node.P2P.StaticNodes = append(cfg.Node.P2P.StaticNodes, enode.MustParse(serverUrl))
-		// TODO QLight - must devise a way to warn that qlight client overrides settings like port/peers config
-		cfg.Node.P2P.MaxPeers = 1
-		// force the qlight client node to disable the local P2P listener
-		cfg.Node.P2P.ListenAddr = ""
-	}
+	utils.SetQLightConfig(ctx, &cfg.Node, &cfg.Eth)
+
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
@@ -176,7 +151,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
-	if ctx.GlobalIsSet(utils.QuorumLightServerFlag.Name) {
+	if cfg.Eth.QuorumLightServer {
 		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
 		// permissioning for the qlight P2P server
 		stack.QServer().SetNewTransportFunc(p2p.NewQlightServerTransport)
@@ -189,7 +164,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 			stack.QServer().SetIsNodePermissioned(fbp.IsNodePermissionedEnode)
 		}
 	}
-	if ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name) {
+	if cfg.Eth.QuorumLightClient {
 		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))
 		stack.Server().SetNewTransportFunc(p2p.NewQlightClientTransport)
 	}
@@ -201,7 +176,6 @@ func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
 		return nil
 	}
-	// TODO - QLight should this be mandatory. Maybe we can default to system ca certs.
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
 		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
 	}
@@ -271,7 +245,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name), backend.ChainConfig().ChainID)
 	}
 
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !ctx.GlobalBool(utils.QuorumLightClientFlag.Name) {
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !cfg.Eth.QuorumLightClient {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 

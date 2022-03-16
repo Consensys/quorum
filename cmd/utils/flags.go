@@ -1041,7 +1041,7 @@ var (
 	}
 	QuorumLightTLSClientAuthFlag = cli.IntFlag{
 		Name:  "qlight.tls.clientauth",
-		Usage: "The way the client is authenticated. Possible values: 0=NoClientCert(default) 1=tRequestClientCert 2=RequireAnyClientCert 3=VerifyClientCertIfGiven 4=RequireAndVerifyClientCert",
+		Usage: "The way the client is authenticated. Possible values: 0=NoClientCert(default) 1=RequestClientCert 2=RequireAnyClientCert 3=VerifyClientCertIfGiven 4=RequireAndVerifyClientCert",
 		Value: 0,
 	}
 	QuorumLightTLSCipherSuitesFlag = cli.StringFlag{
@@ -1872,6 +1872,87 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 	}
 }
 
+func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.Config) {
+	if ctx.GlobalIsSet(QuorumLightServerFlag.Name) {
+		ethCfg.QuorumLightServer = ctx.GlobalBool(QuorumLightServerFlag.Name)
+	}
+
+	if ethCfg.QuorumLightServer {
+		if nodeCfg.QP2P == nil {
+			nodeCfg.QP2P = &p2p.Config{
+				ListenAddr:  ":30305",
+				MaxPeers:    10,
+				NAT:         nil,
+				NoDial:      true,
+				NoDiscovery: true,
+			}
+			SetQP2PConfig(ctx, nodeCfg.QP2P)
+		}
+	} else {
+		nodeCfg.QP2P = nil
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientFlag.Name) {
+		ethCfg.QuorumLightClient = ctx.GlobalBool(QuorumLightClientFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClientPSI) == 0 {
+		ethCfg.QuorumLightClientPSI = "private"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
+		ethCfg.QuorumLightClientPSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenFlag.Name) {
+		ethCfg.QuorumLightClientToken = ctx.GlobalString(QuorumLightClientTokenFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
+		ethCfg.QuorumLightClientRPCTLS = ctx.GlobalBool(QuorumLightClientRPCTLSFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
+		ethCfg.QuorumLightClientRPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		ethCfg.QuorumLightClientRPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
+		ethCfg.QuorumLightClientRPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSCertFlag.Name, QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSKeyFlag.Name, QuorumLightClientRPCTLSCertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
+		ethCfg.QuorumLightClientServerNodeRPC = ctx.GlobalString(QuorumLightClientServerNodeRPCFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
+		ethCfg.QuorumLightClientServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
+		// This is already done in geth/config - before the node.New invocation (at which point the StaticNodes is already copied)
+		//stack.Config().P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClientServerNode)}
+	}
+
+	if ethCfg.QuorumLightClient {
+		if ctx.GlobalBool(MiningEnabledFlag.Name) {
+			Fatalf("QLight clients do not support mining")
+		}
+		if len(ethCfg.QuorumLightClientServerNode) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeFlag.Name)
+		}
+		if len(ethCfg.QuorumLightClientServerNodeRPC) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeRPCFlag.Name)
+		}
+
+		nodeCfg.P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClientServerNode)}
+		log.Info("The node is configured to run as a qlight client. 'maxpeers' is overridden to `1` and the P2P listener is disabled.")
+		nodeCfg.P2P.MaxPeers = 1
+		// force the qlight client node to disable the local P2P listener
+		nodeCfg.P2P.ListenAddr = ""
+	}
+}
+
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
@@ -1906,6 +1987,13 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
+
+	// Quorum
+	if cfg.QuorumLightClient && cfg.SyncMode != downloader.FullSync {
+		Fatalf("Only the 'full' syncmode is supported for the qlight client.")
+	}
+	// End Quorum
+
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
 	}
@@ -1994,52 +2082,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		} else {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
-	}
-
-	cfg.QuorumLightServer = false
-	if ctx.GlobalIsSet(QuorumLightServerFlag.Name) {
-		cfg.QuorumLightServer = ctx.GlobalBool(QuorumLightServerFlag.Name)
-	}
-
-	cfg.QuorumLightClient = false
-	if ctx.GlobalIsSet(QuorumLightClientFlag.Name) {
-		cfg.QuorumLightClient = ctx.GlobalBool(QuorumLightClientFlag.Name)
-	}
-
-	// TODO qlight - maybe we should panic if any of these is missing
-	cfg.QuorumLightClientPSI = "private"
-	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
-		cfg.QuorumLightClientPSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientTokenFlag.Name) {
-		cfg.QuorumLightClientToken = ctx.GlobalString(QuorumLightClientTokenFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
-		cfg.QuorumLightClientRPCTLS = ctx.GlobalBool(QuorumLightClientRPCTLSFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
-		cfg.QuorumLightClientRPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
-		cfg.QuorumLightClientRPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
-		cfg.QuorumLightClientRPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
-	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) {
-		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSCertFlag.Name, QuorumLightClientRPCTLSKeyFlag.Name)
-	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
-		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSKeyFlag.Name, QuorumLightClientRPCTLSCertFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
-		cfg.QuorumLightClientServerNodeRPC = ctx.GlobalString(QuorumLightClientServerNodeRPCFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
-		cfg.QuorumLightClientServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
-		stack.Config().P2P.StaticNodes = append(stack.Config().P2P.StaticNodes, enode.MustParse(cfg.QuorumLightClientServerNode))
 	}
 
 	// set immutability threshold in config
