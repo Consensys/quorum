@@ -18,6 +18,7 @@ package state
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -38,6 +39,7 @@ type journalEntry interface {
 type journal struct {
 	entries []journalEntry         // Current changes tracked by the journal
 	dirties map[common.Address]int // Dirty accounts and the number of changes
+	mutex   sync.Mutex
 }
 
 // newJournal create a new initialized journal.
@@ -49,6 +51,8 @@ func newJournal() *journal {
 
 // append inserts a new modification entry to the end of the change journal.
 func (j *journal) append(entry journalEntry) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	j.entries = append(j.entries, entry)
 	if addr := entry.dirtied(); addr != nil {
 		j.dirties[*addr]++
@@ -58,6 +62,8 @@ func (j *journal) append(entry journalEntry) {
 // revert undoes a batch of journalled modifications along with any reverted
 // dirty handling too.
 func (j *journal) revert(statedb *StateDB, snapshot int) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	for i := len(j.entries) - 1; i >= snapshot; i-- {
 		// Undo the changes made by the operation
 		j.entries[i].revert(statedb)
@@ -76,6 +82,8 @@ func (j *journal) revert(statedb *StateDB, snapshot int) {
 // otherwise suggest it as clean. This method is an ugly hack to handle the RIPEMD
 // precompile consensus exception.
 func (j *journal) dirty(addr common.Address) {
+	defer j.mutex.Unlock()
+	j.mutex.Lock()
 	j.dirties[addr]++
 }
 
@@ -90,7 +98,8 @@ type (
 		account *common.Address
 	}
 	resetObjectChange struct {
-		prev *stateObject
+		prev         *stateObject
+		prevdestruct bool
 	}
 	suicideChange struct {
 		account     *common.Address
@@ -115,7 +124,11 @@ type (
 		account            *common.Address
 		prevcode, prevhash []byte
 	}
-
+	// Quorum - changes to AccountExtraData
+	accountExtraDataChange struct {
+		account *common.Address
+		prev    *AccountExtraData
+	}
 	// Changes to other state values.
 	refundChange struct {
 		prev uint64
@@ -127,13 +140,21 @@ type (
 		hash common.Hash
 	}
 	touchChange struct {
-		account   *common.Address
-		prev      bool
-		prevDirty bool
+		account *common.Address
+	}
+	// Changes to the access list
+	accessListAddAccountChange struct {
+		address *common.Address
+	}
+	accessListAddSlotChange struct {
+		address *common.Address
+		slot    *common.Hash
 	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
+	defer s.mutex.Unlock()
+	s.mutex.Lock()
 	delete(s.stateObjects, *ch.account)
 	delete(s.stateObjectsDirty, *ch.account)
 }
@@ -144,6 +165,9 @@ func (ch createObjectChange) dirtied() *common.Address {
 
 func (ch resetObjectChange) revert(s *StateDB) {
 	s.setStateObject(ch.prev)
+	if !ch.prevdestruct && s.snap != nil {
+		delete(s.snapDestructs, ch.prev.addrHash)
+	}
 }
 
 func (ch resetObjectChange) dirtied() *common.Address {
@@ -195,6 +219,17 @@ func (ch codeChange) dirtied() *common.Address {
 	return ch.account
 }
 
+// Quorum
+func (ch accountExtraDataChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setAccountExtraData(ch.prev)
+}
+
+func (ch accountExtraDataChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// End Quorum - Privacy Enhancements
+
 func (ch storageChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setState(ch.key, ch.prevalue)
 }
@@ -230,5 +265,30 @@ func (ch addPreimageChange) revert(s *StateDB) {
 }
 
 func (ch addPreimageChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch accessListAddAccountChange) revert(s *StateDB) {
+	/*
+		One important invariant here, is that whenever a (addr, slot) is added, if the
+		addr is not already present, the add causes two journal entries:
+		- one for the address,
+		- one for the (address,slot)
+		Therefore, when unrolling the change, we can always blindly delete the
+		(addr) at this point, since no storage adds can remain when come upon
+		a single (addr) change.
+	*/
+	s.accessList.DeleteAddress(*ch.address)
+}
+
+func (ch accessListAddAccountChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch accessListAddSlotChange) revert(s *StateDB) {
+	s.accessList.DeleteSlot(*ch.address, *ch.slot)
+}
+
+func (ch accessListAddSlotChange) dirtied() *common.Address {
 	return nil
 }

@@ -6,17 +6,19 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // callmsg is the message type used for call transactions in the private state test
 type callmsg struct {
-	addr     common.Address
-	to       *common.Address
-	gas      uint64
-	gasPrice *big.Int
-	value    *big.Int
-	data     []byte
+	addr       common.Address
+	to         *common.Address
+	gas        uint64
+	gasPrice   *big.Int
+	value      *big.Int
+	data       []byte
+	accessList types.AccessList // EIP-2930 access list.
 }
 
 // accessor boilerplate to implement core.Message
@@ -29,6 +31,7 @@ func (m callmsg) Gas() uint64                  { return m.gas }
 func (m callmsg) Value() *big.Int              { return m.value }
 func (m callmsg) Data() []byte                 { return m.data }
 func (m callmsg) CheckNonce() bool             { return true }
+func (m callmsg) AccessList() types.AccessList { return m.accessList }
 
 func ExampleMakeCallHelper() {
 	var (
@@ -131,7 +134,7 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 
 	// Private transaction 2
-	err = helper.MakeCall(true, key, prvContractAddr, nil)
+	helper.MakeCall(true, key, prvContractAddr, nil)
 	stateEntry = privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)

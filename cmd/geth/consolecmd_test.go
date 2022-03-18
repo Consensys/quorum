@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 shh:1.0 txpool:1.0 web3:1.0"
+	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
 	httpAPIs = "admin:1.0 eth:1.0 net:1.0 rpc:1.0 web3:1.0"
 	nodeKey  = "b68c0338aa4b266bf38ebe84c6199ae9fac8b29f32998b3ed2fbeafebe8d65c9"
 )
@@ -72,6 +72,18 @@ var genesis = `{
 }
 `
 
+// spawns geth with the given command line args, using a set of flags to minimise
+// memory and disk IO. If the args don't set --datadir, the
+// child g gets a temporary data directory.
+func runMinimalGeth(t *testing.T, args ...string) *testgeth {
+	// --ropsten to make the 'writing genesis to disk' faster (no accounts): it is disabled for Quorum compatibility purpose
+	// --networkid=1337 to avoid cache bump
+	// --syncmode=full to avoid allocating fast sync bloom
+	allArgs := []string{ /*"--ropsten",*/ "--networkid", "1337", "--syncmode=full", "--port", "0",
+		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64"}
+	return runGeth(t, append(allArgs, args...)...)
+}
+
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
@@ -82,10 +94,7 @@ func TestConsoleWelcome(t *testing.T) {
 	defer os.RemoveAll(datadir)
 
 	// Start a geth console, make sure it's cleaned up and terminate the console
-	geth := runGeth(t,
-		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh",
-		"console")
+	geth := runMinimalGeth(t, "--datadir", datadir, "--miner.etherbase", coinbase, "console")
 
 	// Gather all the infos the welcome message needs to contain
 	geth.SetTemplateFunc("goos", func() string { return runtime.GOOS })
@@ -93,7 +102,9 @@ func TestConsoleWelcome(t *testing.T) {
 	geth.SetTemplateFunc("gover", runtime.Version)
 	geth.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	geth.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
-	geth.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
+	geth.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
 	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
@@ -106,38 +117,52 @@ at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
  modules: {{apis}}
 
+To exit, press ctrl-d
 > {{.InputLine "exit"}}
 `)
 	geth.ExpectExit()
 }
 
 // Tests that a console can be attached to a running node via various means.
-func TestIPCAttachWelcome(t *testing.T) {
+func TestAttachWelcome(t *testing.T) {
+	var (
+		ipc      string
+		httpPort string
+		wsPort   string
+	)
 	defer SetResetPrivateConfig("ignore")()
-	// Configure the instance for IPC attachement
+	// Configure the instance for IPC attachment
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
-	var ipc string
 
 	datadir := setupIstanbul(t)
 	defer os.RemoveAll(datadir)
-
 	if runtime.GOOS == "windows" {
 		ipc = `\\.\pipe\geth` + strconv.Itoa(trulyRandInt(100000, 999999))
 	} else {
 		ipc = filepath.Join(datadir, "geth.ipc")
 	}
-
-	// Note: we need --shh because testAttachWelcome checks for default
-	// list of ipc modules and shh is included there.
-	geth := runGeth(t,
-		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--shh", "--ipcpath", ipc)
-
-	waitForEndpoint(t, ipc, 3*time.Second)
-	testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
+	// And HTTP + WS attachment
+	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
+	httpPort = strconv.Itoa(p)
+	wsPort = strconv.Itoa(p + 1)
+	geth := runMinimalGeth(t, "--datadir", datadir, "--miner.etherbase", coinbase,
+		"--ipcpath", ipc,
+		"--http", "--http.port", httpPort, "--http.api", "admin,eth,net,web3",
+		"--ws", "--ws.port", wsPort, "--ws.api", "admin,eth,net,web3")
+	t.Run("ipc", func(t *testing.T) {
+		waitForEndpoint(t, ipc, 3*time.Second)
+		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
+	})
+	t.Run("http", func(t *testing.T) {
+		endpoint := "http://127.0.0.1:" + httpPort
+		waitForEndpoint(t, endpoint, 3*time.Second)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
+	})
+	t.Run("ws", func(t *testing.T) {
+		endpoint := "ws://127.0.0.1:" + wsPort
+		waitForEndpoint(t, endpoint, 3*time.Second)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
+	})
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
@@ -150,14 +175,11 @@ func TestHTTPAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--rpc", "--rpcport", port, "--rpcapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--http", "--http.port", port, "--http.api", "admin,eth,net,web3")
 
 	endpoint := "http://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func TestWSAttachWelcome(t *testing.T) {
@@ -170,14 +192,11 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	geth := runGeth(t,
 		"--datadir", datadir, "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--etherbase", coinbase, "--ws", "--wsport", port, "--wsapi", "admin,eth,net,web3")
+		"--miner.etherbase", coinbase, "--ws", "--ws.port", port, "--ws.api", "admin,eth,net,web3")
 
 	endpoint := "ws://127.0.0.1:" + port
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
-
-	geth.Interrupt()
-	geth.ExpectExit()
 }
 
 func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
@@ -193,8 +212,12 @@ func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
 	attach.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	attach.SetTemplateFunc("quorumver", func() string { return params.QuorumVersion })
 	attach.SetTemplateFunc("etherbase", func() string { return geth.Etherbase })
-	attach.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
-	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin") })
+	attach.SetTemplateFunc("niltime", func() string {
+		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	})
+	attach.SetTemplateFunc("ipc", func() bool {
+		return strings.HasPrefix(endpoint, "ipc") || strings.Contains(apis, "admin")
+	})
 	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
 
@@ -208,6 +231,7 @@ at block: 0 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}
  modules: {{apis}}
 
+To exit, press ctrl-d
 > {{.InputLine "exit" }}
 `)
 	attach.ExpectExit()

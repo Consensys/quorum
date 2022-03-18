@@ -25,7 +25,11 @@ func TestBlockchain(t *testing.T) {
 
 	bt := new(testMatcher)
 	// General state tests are 'exported' as blockchain tests, but we can run them natively.
-	bt.skipLoad(`^GeneralStateTests/`)
+	// For speedier CI-runs, the line below can be uncommented, so those are skipped.
+	// For now, in hardfork-times (Berlin), we run the tests both as StateTests and
+	// as blockchain tests, since the latter also covers things like receipt root
+	//bt.skipLoad(`^GeneralStateTests/`)
+
 	// Skip random failures due to selfish mining test
 	bt.skipLoad(`.*bcForgedTest/bcForkUncle\.json`)
 
@@ -51,11 +55,13 @@ func TestBlockchain(t *testing.T) {
 	bt.skipLoad(`.*bcUncleSpecialTests/futureUncleTimestampDifficultyDrop\.json`)
 
 	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
-		if err := bt.checkFailure(t, name, test.Run()); err != nil {
-			t.Error(err)
+		if err := bt.checkFailure(t, name+"/trie", test.Run(false)); err != nil {
+			t.Errorf("test without snapshotter failed: %v", err)
+		}
+		if err := bt.checkFailure(t, name+"/snap", test.Run(true)); err != nil {
+			t.Errorf("test with snapshotter failed: %v", err)
 		}
 	})
-
 	// There is also a LegacyTests folder, containing blockchain tests generated
 	// prior to Istanbul. However, they are all derived from GeneralStateTests,
 	// which run natively, so there's no reason to run them here.

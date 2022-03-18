@@ -21,17 +21,20 @@ import (
 	"io/ioutil"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
-	_, backend := newBlockChain(1)
+	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 
 	// generate one msg
 	data := []byte("data1")
@@ -75,14 +78,25 @@ func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
 	return p2p.Msg{Code: msgcode, Size: uint32(size), Payload: r}
 }
 
+func tryUntilMessageIsHandled(backend *Backend, arbitraryAddress common.Address, arbitraryP2PMessage p2p.Msg) (handled bool, err error) {
+	for i := 0; i < 5; i++ { // make 5 tries if a little wait
+		handled, err = backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+		if handled && err == nil {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	return
+}
+
 func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
-	_, backend := newBlockChain(1)
+	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, arbitraryBlock, t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	handled, err := tryUntilMessageIsHandled(backend, arbitraryAddress, arbitraryP2PMessage)
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
@@ -95,7 +109,8 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 }
 
 func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
-	_, backend := newBlockChain(1)
+	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, types.NewBlock(&types.Header{
@@ -103,10 +118,9 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 		Root:      common.StringToHash("someroot"),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	handled, err := tryUntilMessageIsHandled(backend, arbitraryAddress, arbitraryP2PMessage)
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
@@ -119,17 +133,17 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 }
 
 func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
-	_, backend := newBlockChain(1)
+	_, backend := newBlockChain(1, nil)
+	defer backend.Stop()
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
 	postAndWait(backend, types.NewBlock(&types.Header{
 		Number:    big.NewInt(1),
 		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil), t)
+	}, nil, nil, nil, new(trie.Trie)), t)
 
-	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
-
+	handled, err := tryUntilMessageIsHandled(backend, arbitraryAddress, arbitraryP2PMessage)
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
@@ -141,7 +155,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	}
 }
 
-func postAndWait(backend *backend, block *types.Block, t *testing.T) {
+func postAndWait(backend *Backend, block *types.Block, t *testing.T) {
 	eventSub := backend.EventMux().Subscribe(istanbul.RequestEvent{})
 	defer eventSub.Unsubscribe()
 	stop := make(chan struct{}, 1)
@@ -163,7 +177,7 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 		Number:    big.NewInt(1),
 		GasLimit:  0,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil)
+	}, nil, nil, nil, new(trie.Trie))
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
 	if invalidMsg {
 		request = []interface{}{"invalid msg"}

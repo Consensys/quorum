@@ -29,8 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func makeReceipt(addr common.Address) *types.Receipt {
@@ -50,18 +50,13 @@ func BenchmarkFilters(b *testing.B) {
 	defer os.RemoveAll(dir)
 
 	var (
-		db, _      = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
-		mux        = new(event.TypeMux)
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		key1, _    = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-		addr1      = crypto.PubkeyToAddress(key1.PublicKey)
-		addr2      = common.BytesToAddress([]byte("jeff"))
-		addr3      = common.BytesToAddress([]byte("ethereum"))
-		addr4      = common.BytesToAddress([]byte("random addresses please"))
+		db, _   = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
+		backend = &testBackend{db: db}
+		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+		addr1   = crypto.PubkeyToAddress(key1.PublicKey)
+		addr2   = common.BytesToAddress([]byte("jeff"))
+		addr3   = common.BytesToAddress([]byte("ethereum"))
+		addr4   = common.BytesToAddress([]byte("random addresses please"))
 	)
 	defer db.Close()
 
@@ -91,7 +86,7 @@ func BenchmarkFilters(b *testing.B) {
 	}
 	b.ResetTimer()
 
-	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr1, addr2, addr3, addr4}, nil)
+	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr1, addr2, addr3, addr4}, nil, "")
 
 	for i := 0; i < b.N; i++ {
 		logs, _ := filter.Logs(context.Background())
@@ -109,15 +104,10 @@ func TestFilters(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	var (
-		db, _      = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
-		mux        = new(event.TypeMux)
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		key1, _    = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-		addr       = crypto.PubkeyToAddress(key1.PublicKey)
+		db, _   = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
+		backend = &testBackend{db: db}
+		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+		addr    = crypto.PubkeyToAddress(key1.PublicKey)
 
 		hash1 = common.BytesToHash([]byte("topic1"))
 		hash2 = common.BytesToHash([]byte("topic2"))
@@ -193,14 +183,14 @@ func TestFilters(t *testing.T) {
 		rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), receipts[i])
 	}
 
-	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1, hash2, hash3, hash4}})
+	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1, hash2, hash3, hash4}}, "")
 
 	logs, _ := filter.Logs(context.Background())
 	if len(logs) != 4 {
 		t.Error("expected 4 log, got", len(logs))
 	}
 
-	filter = NewRangeFilter(backend, 900, 999, []common.Address{addr}, [][]common.Hash{{hash3}})
+	filter = NewRangeFilter(backend, 900, 999, []common.Address{addr}, [][]common.Hash{{hash3}}, "")
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 1 {
 		t.Error("expected 1 log, got", len(logs))
@@ -209,7 +199,7 @@ func TestFilters(t *testing.T) {
 		t.Errorf("expected log[0].Topics[0] to be %x, got %x", hash3, logs[0].Topics[0])
 	}
 
-	filter = NewRangeFilter(backend, 990, -1, []common.Address{addr}, [][]common.Hash{{hash3}})
+	filter = NewRangeFilter(backend, 990, -1, []common.Address{addr}, [][]common.Hash{{hash3}}, "")
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 1 {
 		t.Error("expected 1 log, got", len(logs))
@@ -218,7 +208,7 @@ func TestFilters(t *testing.T) {
 		t.Errorf("expected log[0].Topics[0] to be %x, got %x", hash3, logs[0].Topics[0])
 	}
 
-	filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
+	filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}}, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 2 {
@@ -226,7 +216,7 @@ func TestFilters(t *testing.T) {
 	}
 
 	failHash := common.BytesToHash([]byte("fail"))
-	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}})
+	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}}, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 0 {
@@ -234,14 +224,14 @@ func TestFilters(t *testing.T) {
 	}
 
 	failAddr := common.BytesToAddress([]byte("failmenow"))
-	filter = NewRangeFilter(backend, 0, -1, []common.Address{failAddr}, nil)
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{failAddr}, nil, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 0 {
 		t.Error("expected 0 log, got", len(logs))
 	}
 
-	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}, {hash1}})
+	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}, {hash1}}, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 0 {
@@ -251,7 +241,7 @@ func TestFilters(t *testing.T) {
 	// Quorum
 
 	// Test individual private log with NewBlockFilter (query filter with block hash)
-	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash5}})
+	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash5}}, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 1 {
@@ -262,11 +252,143 @@ func TestFilters(t *testing.T) {
 	}
 
 	// Test a mix of public and private logs with NewBlockFilter (query filter with block hash)
-	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash3, hash5}})
+	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash3, hash5}}, "")
 
 	logs, _ = filter.Logs(context.Background())
 	if len(logs) != 2 {
 		t.Error("expected 2 log, got", len(logs))
 	}
 
+}
+
+func TestMPSFilters(t *testing.T) {
+	dir, err := ioutil.TempDir("", "filtermpstest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	var (
+		db, _   = rawdb.NewLevelDBDatabase(dir, 0, 0, "")
+		backend = &testBackend{db: db}
+		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+		addr    = crypto.PubkeyToAddress(key1.PublicKey)
+		hash1   = common.BytesToHash([]byte("topic1"))
+	)
+	defer db.Close()
+
+	noPSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+		},
+	}
+
+	psi2PSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+			PSI:     types.PrivateStateIdentifier("psi2"),
+		},
+	}
+	psi1PSILog := []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash1},
+			PSI:     types.PrivateStateIdentifier("psi1"),
+		},
+	}
+
+	genesis := core.GenesisBlockForTesting(db, addr, big.NewInt(1000000))
+	chain, receipts := core.GenerateChain(params.QuorumMPSTestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
+		switch i {
+		case 1:
+			//log on private transaction
+			//has "private" psi receipt
+			tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.Logs = noPSILog
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
+			if err := rawdb.WritePrivateBlockBloom(db, 2, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 2:
+			//no log on private transaction
+			//has "psi1" receipt
+			tx := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi1PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi1")] = psiReceipt
+			if err := rawdb.WritePrivateBlockBloom(db, 3, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 998:
+			//no log on private transaction
+			//has "psi2" psi receipt
+			tx := types.NewTransaction(998, common.HexToAddress("0x998"), big.NewInt(998), 998, big.NewInt(998), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.PSReceipts = make(map[types.PrivateStateIdentifier]*types.Receipt)
+			psiReceipt := types.NewReceipt(nil, false, 0)
+			psiReceipt.Logs = psi2PSILog
+			privateReceipt.PSReceipts[types.PrivateStateIdentifier("psi2")] = psiReceipt
+			if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		case 999:
+			//log on private transaction
+			//no psi receipt
+			tx := types.NewTransaction(999, common.HexToAddress("0x999"), big.NewInt(999), 999, big.NewInt(999), nil)
+			tx.SetPrivate()
+			privateReceipt := types.NewReceipt(nil, false, 0)
+			privateReceipt.Logs = noPSILog
+			if err := rawdb.WritePrivateBlockBloom(db, 1000, []*types.Receipt{privateReceipt}); err != nil {
+				t.Fatal(err)
+			}
+			gen.AddUncheckedReceipt(privateReceipt)
+			gen.AddUncheckedTx(tx)
+		}
+	})
+	for i, block := range chain {
+		rawdb.WriteBlock(db, block)
+		rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+		rawdb.WriteHeadBlockHash(db, block.Hash())
+		rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), receipts[i])
+	}
+
+	//no psi filter: but only gets top level private receipt logs(no psi)
+	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, "")
+	logs, _ := filter.Logs(context.Background())
+	if len(logs) != 2 {
+		t.Error("expected 2 logs, got", len(logs))
+	}
+
+	//test filtering "psi2" logs: gets psi2 logs and top level private receipt logs(no psi)
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.ToPrivateStateIdentifier("psi2"))
+	ctx := rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("psi2"))
+	logs, _ = filter.Logs(ctx)
+	if len(logs) != 3 {
+		t.Error("expected 3 logs, got", len(logs))
+	}
+
+	//test filtering "psi1" logs: gets psi1 logs and top level private receipt logs(no psi)
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1}}, types.PrivateStateIdentifier("psi1"))
+	ctx = rpc.WithPrivateStateIdentifier(context.Background(), types.ToPrivateStateIdentifier("psi1"))
+	logs, _ = filter.Logs(ctx)
+	if len(logs) != 3 {
+		t.Error("expected 3 logs, got", len(logs))
+	}
 }

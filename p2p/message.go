@@ -70,6 +70,10 @@ func (msg Msg) Discard() error {
 	return err
 }
 
+func (msg Msg) Time() time.Time {
+	return msg.ReceivedAt
+}
+
 type MsgReader interface {
 	ReadMsg() (Msg, error)
 }
@@ -99,6 +103,12 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 		return err
 	}
 	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
+}
+
+// SendWithNoEncoding writes an RLP-encoded message with the given code.
+// It does not re-encode the message
+func SendWithNoEncoding(w MsgWriter, msgcode uint64, payload []byte) error {
+	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(len(payload)), Payload: bytes.NewReader(payload)})
 }
 
 // SendItems writes an RLP with the given code and data elements.

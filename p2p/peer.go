@@ -116,6 +116,10 @@ type Peer struct {
 
 	// events receives message send / receive events if set
 	events *event.Feed
+
+	// Quorum
+	EthPeerRegistered   chan struct{}
+	EthPeerDisconnected chan struct{}
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -138,8 +142,17 @@ func (p *Peer) Node() *enode.Node {
 	return p.rw.node
 }
 
-// Name returns the node name that the remote node advertised.
+// Name returns an abbreviated form of the name
 func (p *Peer) Name() string {
+	s := p.rw.name
+	if len(s) > 20 {
+		return s[:20] + "..."
+	}
+	return s
+}
+
+// Fullname returns the node name that the remote node advertised.
+func (p *Peer) Fullname() string {
 	return p.rw.name
 }
 
@@ -147,6 +160,20 @@ func (p *Peer) Name() string {
 func (p *Peer) Caps() []Cap {
 	// TODO: maybe return copy
 	return p.rw.caps
+}
+
+// RunningCap returns true if the peer is actively connected using any of the
+// enumerated versions of a specific protocol, meaning that at least one of the
+// versions is supported by both this node and the peer p.
+func (p *Peer) RunningCap(protocol string, versions []uint) bool {
+	if proto, ok := p.running[protocol]; ok {
+		for _, ver := range versions {
+			if proto.Version == ver {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // RemoteAddr returns the remote address of the network connection.
@@ -166,6 +193,14 @@ func (p *Peer) Disconnect(reason DiscReason) {
 	case p.disc <- reason:
 	case <-p.closed:
 	}
+
+	// Quorum
+	// if a quorum eth service subprotocol is waiting on EthPeerRegistered, notify the peer that it was not registered.
+	select {
+	case p.EthPeerDisconnected <- struct{}{}:
+	default:
+	}
+	// Quorum
 }
 
 // String implements fmt.Stringer.
@@ -189,6 +224,9 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
+		// Quorum
+		EthPeerRegistered:   make(chan struct{}, 1),
+		EthPeerDisconnected: make(chan struct{}, 1),
 	}
 	return p
 }
@@ -302,7 +340,9 @@ func (p *Peer) handle(msg Msg) error {
 			return fmt.Errorf("msg code out of range: %v", msg.Code)
 		}
 		if metrics.Enabled {
-			metrics.GetOrRegisterMeter(fmt.Sprintf("%s/%s/%d/%#02x", MetricsInboundTraffic, proto.Name, proto.Version, msg.Code-proto.offset), nil).Mark(int64(msg.meterSize))
+			m := fmt.Sprintf("%s/%s/%d/%#02x", ingressMeterName, proto.Name, proto.Version, msg.Code-proto.offset)
+			metrics.GetOrRegisterMeter(m, nil).Mark(int64(msg.meterSize))
+			metrics.GetOrRegisterMeter(m+"/packets", nil).Mark(1)
 		}
 		select {
 		case proto.in <- msg:
@@ -364,6 +404,7 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		}
 		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version))
 		go func() {
+			defer p.wg.Done()
 			err := proto.Run(p, rw)
 			if err == nil {
 				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version))
@@ -372,7 +413,6 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 				p.log.Trace(fmt.Sprintf("Protocol %s/%d failed", proto.Name, proto.Version), "err", err)
 			}
 			p.protoErr <- err
-			p.wg.Done()
 		}()
 	}
 }
@@ -461,7 +501,7 @@ func (p *Peer) Info() *PeerInfo {
 	info := &PeerInfo{
 		Enode:     p.Node().URLv4(),
 		ID:        p.ID().String(),
-		Name:      p.Name(),
+		Name:      p.Fullname(),
 		Caps:      caps,
 		Protocols: make(map[string]interface{}),
 	}

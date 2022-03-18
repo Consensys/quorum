@@ -20,11 +20,14 @@ package ethapi
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -32,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -39,26 +43,29 @@ import (
 type Backend interface {
 	// General Ethereum API
 	Downloader() *downloader.Downloader
-	ProtocolVersion() int
 	SuggestPrice(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
-	EventMux() *event.TypeMux
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
-	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
+	CallTimeOut() time.Duration // Quorum
+	RPCGasCap() uint64          // global gas cap for eth_call over rpc: DoS protection
+	RPCTxFeeCap() float64       // global tx fee cap for all transaction related APIs
+	UnprotectedAllowed() bool   // allows only for EIP155 transactions.
 
 	// Blockchain API
 	SetHead(number uint64)
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+	CurrentHeader() *types.Header
+	CurrentBlock() *types.Block
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error)
 	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
-	GetTd(hash common.Hash) *big.Int
+	GetTd(ctx context.Context, hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error)
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
@@ -79,10 +86,19 @@ type Backend interface {
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 
 	ChainConfig() *params.ChainConfig
-	CurrentBlock() *types.Block
+	Engine() consensus.Engine
+
+	// Quorum
+	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
+	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+	PSMR() mps.PrivateStateMetadataResolver
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
+	// IsPrivacyMarkerTransactionCreationEnabled returns true if privacy marker transactions are enabled and should be created
+	IsPrivacyMarkerTransactionCreationEnabled() bool
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

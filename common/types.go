@@ -17,10 +17,12 @@
 package common
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -42,6 +44,9 @@ const (
 )
 
 var (
+	ErrNotPrivateContract = errors.New("the provided address is not a private contract")
+	ErrNoAccountExtraData = errors.New("no account extra data found")
+
 	hashT    = reflect.TypeOf(Hash{})
 	addressT = reflect.TypeOf(Address{})
 )
@@ -63,7 +68,7 @@ func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
 func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
 	bytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return EncryptedPayloadHash{}, err
+		return EncryptedPayloadHash{}, fmt.Errorf("unable to convert base64 string %s to EncryptedPayloadHash. Cause: %v", b64, err)
 	}
 	return BytesToEncryptedPayloadHash(bytes), nil
 }
@@ -147,10 +152,34 @@ func (h Hash) String() string {
 	return h.Hex()
 }
 
-// Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
-// without going through the stringer interface used for logging.
+// Format implements fmt.Formatter.
+// Hash supports the %v, %s, %v, %x, %X and %d format verbs.
 func (h Hash) Format(s fmt.State, c rune) {
-	fmt.Fprintf(s, "%"+string(c), h[:])
+	hexb := make([]byte, 2+len(h)*2)
+	copy(hexb, "0x")
+	hex.Encode(hexb[2:], h[:])
+
+	switch c {
+	case 'x', 'X':
+		if !s.Flag('#') {
+			hexb = hexb[2:]
+		}
+		if c == 'X' {
+			hexb = bytes.ToUpper(hexb)
+		}
+		fallthrough
+	case 'v', 's':
+		s.Write(hexb)
+	case 'q':
+		q := []byte{'"'}
+		s.Write(q)
+		s.Write(hexb)
+		s.Write(q)
+	case 'd':
+		fmt.Fprint(s, ([len(h)]byte)(h))
+	default:
+		fmt.Fprintf(s, "%%!%c(hash=%x)", c, h)
+	}
 }
 
 // UnmarshalText parses a hash in hex syntax.
@@ -191,6 +220,23 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(h)
 }
 
+func (h Hash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(h.Bytes())
+}
+
+// Decode base64 string to Hash
+// if String is empty then return empty hash
+func Base64ToHash(b64 string) (Hash, error) {
+	if b64 == "" {
+		return Hash{}, nil
+	}
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return Hash{}, fmt.Errorf("unable to convert base64 string %s to Hash. Cause: %v", b64, err)
+	}
+	return BytesToHash(bytes), nil
+}
+
 // Scan implements Scanner for database/sql.
 func (h *Hash) Scan(src interface{}) error {
 	srcB, ok := src.([]byte)
@@ -210,7 +256,7 @@ func (h Hash) Value() (driver.Value, error) {
 }
 
 // ImplementsGraphQLType returns true if Hash implements the specified GraphQL type.
-func (_ Hash) ImplementsGraphQLType(name string) bool { return name == "Bytes32" }
+func (Hash) ImplementsGraphQLType(name string) bool { return name == "Bytes32" }
 
 // UnmarshalGraphQL unmarshals the provided GraphQL query data.
 func (h *Hash) UnmarshalGraphQL(input interface{}) error {
@@ -219,7 +265,7 @@ func (h *Hash) UnmarshalGraphQL(input interface{}) error {
 	case string:
 		err = h.UnmarshalText([]byte(input))
 	default:
-		err = fmt.Errorf("Unexpected type for Bytes32: %v", input)
+		err = fmt.Errorf("unexpected type %T for Hash", input)
 	}
 	return err
 }
@@ -235,6 +281,48 @@ func (h *UnprefixedHash) UnmarshalText(input []byte) error {
 // MarshalText encodes the hash as hex.
 func (h UnprefixedHash) MarshalText() ([]byte, error) {
 	return []byte(hex.EncodeToString(h[:])), nil
+}
+
+func (ephs EncryptedPayloadHashes) ToBase64s() []string {
+	a := make([]string, 0, len(ephs))
+	for eph := range ephs {
+		a = append(a, eph.ToBase64())
+	}
+	return a
+}
+
+func (ephs EncryptedPayloadHashes) NotExist(eph EncryptedPayloadHash) bool {
+	_, ok := ephs[eph]
+	return !ok
+}
+
+func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
+	ephs[eph] = struct{}{}
+}
+
+func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {
+	ephs := make(EncryptedPayloadHashes)
+	for _, b64 := range b64s {
+		data, err := Base64ToEncryptedPayloadHash(b64)
+		if err != nil {
+			return nil, err
+		}
+		ephs.Add(data)
+	}
+	return ephs, nil
+}
+
+// Print hex but only first 3 and last 3 bytes
+func FormatTerminalString(data []byte) string {
+	l := len(data)
+	if l > 0 {
+		if l > 6 {
+			return fmt.Sprintf("%x…%x", data[:3], data[l-3:])
+		} else {
+			return fmt.Sprintf("%x", data[:])
+		}
+	}
+	return ""
 }
 
 /////////// Address
@@ -277,24 +365,7 @@ func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
-	unchecksummed := hex.EncodeToString(a[:])
-	sha := sha3.NewLegacyKeccak256()
-	sha.Write([]byte(unchecksummed))
-	hash := sha.Sum(nil)
-
-	result := []byte(unchecksummed)
-	for i := 0; i < len(result); i++ {
-		hashByte := hash[i/2]
-		if i%2 == 0 {
-			hashByte = hashByte >> 4
-		} else {
-			hashByte &= 0xf
-		}
-		if result[i] > '9' && hashByte > 7 {
-			result[i] -= 32
-		}
-	}
-	return "0x" + string(result)
+	return string(a.checksumHex())
 }
 
 // String implements fmt.Stringer.
@@ -302,14 +373,64 @@ func (a Address) String() string {
 	return a.Hex()
 }
 
-// Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
-// without going through the stringer interface used for logging.
+func (a *Address) checksumHex() []byte {
+	buf := a.hex()
+
+	// compute checksum
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write(buf[2:])
+	hash := sha.Sum(nil)
+	for i := 2; i < len(buf); i++ {
+		hashByte := hash[(i-2)/2]
+		if i%2 == 0 {
+			hashByte = hashByte >> 4
+		} else {
+			hashByte &= 0xf
+		}
+		if buf[i] > '9' && hashByte > 7 {
+			buf[i] -= 32
+		}
+	}
+	return buf[:]
+}
+
+func (a Address) hex() []byte {
+	var buf [len(a)*2 + 2]byte
+	copy(buf[:2], "0x")
+	hex.Encode(buf[2:], a[:])
+	return buf[:]
+}
+
+// Format implements fmt.Formatter.
+// Address supports the %v, %s, %v, %x, %X and %d format verbs.
 func (a Address) Format(s fmt.State, c rune) {
-	fmt.Fprintf(s, "%"+string(c), a[:])
+	switch c {
+	case 'v', 's':
+		s.Write(a.checksumHex())
+	case 'q':
+		q := []byte{'"'}
+		s.Write(q)
+		s.Write(a.checksumHex())
+		s.Write(q)
+	case 'x', 'X':
+		// %x disables the checksum.
+		hex := a.hex()
+		if !s.Flag('#') {
+			hex = hex[2:]
+		}
+		if c == 'X' {
+			hex = bytes.ToUpper(hex)
+		}
+		s.Write(hex)
+	case 'd':
+		fmt.Fprint(s, ([len(a)]byte)(a))
+	default:
+		fmt.Fprintf(s, "%%!%c(address=%x)", c, a)
+	}
 }
 
 // SetBytes sets the address to the value of b.
-// If b is larger than len(a) it will panic.
+// If b is larger than len(a), b will be cropped from the left.
 func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-AddressLength:]
@@ -360,7 +481,7 @@ func (a *Address) UnmarshalGraphQL(input interface{}) error {
 	case string:
 		err = a.UnmarshalText([]byte(input))
 	default:
-		err = fmt.Errorf("Unexpected type for Address: %v", input)
+		err = fmt.Errorf("unexpected type %T for Address", input)
 	}
 	return err
 }
@@ -393,7 +514,7 @@ func NewMixedcaseAddress(addr Address) MixedcaseAddress {
 // NewMixedcaseAddressFromString is mainly meant for unit-testing
 func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 	if !IsHexAddress(hexaddr) {
-		return nil, fmt.Errorf("Invalid address")
+		return nil, errors.New("invalid address")
 	}
 	a := FromHex(hexaddr)
 	return &MixedcaseAddress{addr: BytesToAddress(a), original: hexaddr}, nil
@@ -436,4 +557,13 @@ func (ma *MixedcaseAddress) ValidChecksum() bool {
 // Original returns the mixed-case input string
 func (ma *MixedcaseAddress) Original() string {
 	return ma.original
+}
+
+type DecryptRequest struct {
+	SenderKey       []byte   `json:"senderKey"`
+	CipherText      []byte   `json:"cipherText"`
+	CipherTextNonce []byte   `json:"cipherTextNonce"`
+	RecipientBoxes  []string `json:"recipientBoxes"`
+	RecipientNonce  []byte   `json:"recipientNonce"`
+	RecipientKeys   []string `json:"recipientKeys"`
 }

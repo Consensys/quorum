@@ -18,18 +18,18 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
-)
-
-var (
-	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
 )
 
 /*
@@ -64,7 +64,6 @@ type StateTransition struct {
 // Message represents a message sent to a contract.
 type Message interface {
 	From() common.Address
-	//FromFrontier() (common.Address, error)
 	To() *common.Address
 
 	GasPrice() *big.Int
@@ -74,6 +73,42 @@ type Message interface {
 	Nonce() uint64
 	CheckNonce() bool
 	Data() []byte
+	AccessList() types.AccessList
+}
+
+// ExecutionResult includes all output after executing given evm
+// message no matter the execution itself is successful or not.
+type ExecutionResult struct {
+	UsedGas    uint64 // Total used gas but include the refunded gas
+	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
+}
+
+// Unwrap returns the internal evm error which allows us for further
+// analysis outside.
+func (result *ExecutionResult) Unwrap() error {
+	return result.Err
+}
+
+// Failed returns the indicator whether the execution is successful or not
+func (result *ExecutionResult) Failed() bool { return result.Err != nil }
+
+// Return is a helper function to help caller distinguish between revert reason
+// and function return. Return returns the data after execution if no error occurs.
+func (result *ExecutionResult) Return() []byte {
+	if result.Err != nil {
+		return nil
+	}
+	return common.CopyBytes(result.ReturnData)
+}
+
+// Revert returns the concrete revert reason if the execution is aborted by `REVERT`
+// opcode. Note the reason can be nil if no data supplied with revert opcode.
+func (result *ExecutionResult) Revert() []byte {
+	if result.Err != vm.ErrExecutionReverted {
+		return nil
+	}
+	return common.CopyBytes(result.ReturnData)
 }
 
 // PrivateMessage implements a private message
@@ -83,10 +118,10 @@ type PrivateMessage interface {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation, isEIP155 bool, isEIP2028 bool) (uint64, error) {
+func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool, isHomestead, isEIP2028 bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
-	if contractCreation && isEIP155 {
+	if isContractCreation && isHomestead {
 		gas = params.TxGasContractCreation
 	} else {
 		gas = params.TxGas
@@ -106,15 +141,19 @@ func IntrinsicGas(data []byte, contractCreation, isEIP155 bool, isEIP2028 bool) 
 			nonZeroGas = params.TxDataNonZeroGasEIP2028
 		}
 		if (math.MaxUint64-gas)/nonZeroGas < nz {
-			return 0, vm.ErrOutOfGas
+			return 0, ErrGasUintOverflow
 		}
 		gas += nz * nonZeroGas
 
 		z := uint64(len(data)) - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
-			return 0, vm.ErrOutOfGas
+			return 0, ErrGasUintOverflow
 		}
 		gas += z * params.TxDataZeroGas
+	}
+	if accessList != nil {
+		gas += uint64(len(accessList)) * params.TxAccessListAddressGas
+		gas += uint64(accessList.StorageKeys()) * params.TxAccessListStorageKeyGas
 	}
 	return gas, nil
 }
@@ -139,8 +178,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) (*ExecutionResult, error) {
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -152,19 +190,10 @@ func (st *StateTransition) to() common.Address {
 	return *st.msg.To()
 }
 
-func (st *StateTransition) useGas(amount uint64) error {
-	if st.gas < amount {
-		return vm.ErrOutOfGas
-	}
-	st.gas -= amount
-
-	return nil
-}
-
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
-	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
-		return errInsufficientBalanceForGas
+	if have, want := st.state.GetBalance(st.msg.From()), mgval; have.Cmp(want) < 0 {
+		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
@@ -179,51 +208,98 @@ func (st *StateTransition) buyGas() error {
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
-		nonce := st.state.GetNonce(st.msg.From())
-		if nonce < st.msg.Nonce() {
-			return ErrNonceTooHigh
-		} else if nonce > st.msg.Nonce() {
-			return ErrNonceTooLow
+		stNonce := st.state.GetNonce(st.msg.From())
+		if msgNonce := st.msg.Nonce(); stNonce < msgNonce {
+			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooHigh,
+				st.msg.From().Hex(), msgNonce, stNonce)
+		} else if stNonce > msgNonce {
+			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooLow,
+				st.msg.From().Hex(), msgNonce, stNonce)
 		}
 	}
 	return st.buyGas()
 }
 
 // TransitionDb will transition the state by applying the current message and
-// returning the result including the used gas. It returns an error if failed.
-// An error indicates a consensus issue.
+// returning the evm execution result with following fields.
+//
+// - used gas:
+//      total gas used (including gas being refunded)
+// - returndata:
+//      the returned data from evm
+// - concrete execution error:
+//      various **EVM** error which aborts the execution,
+//      e.g. ErrOutOfGas, ErrExecutionReverted
+//
+// However if any consensus issue encountered, return the error directly with
+// nil evm execution result.
 //
 // Quorum:
 // 1. Intrinsic gas is calculated based on the encrypted payload hash
-//    and NOT the actual private payload
+//    and NOT the actual private payload.
 // 2. For private transactions, we only deduct intrinsic gas from the gas pool
-//    regardless the current node is party to the transaction or not
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
+//    regardless the current node is party to the transaction or not.
+// 3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
+//    for the internal private transaction, regardless of whether the current node is a party.
+// 4. With multitenancy support, we enforce the party set in the contract index must contain all
+//    parties from the transaction. This is to detect unauthorized access from a legit proxy contract
+//    to an unauthorized contract.
+func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+	// First check this message satisfies all consensus rules before
+	// applying the message. The rules include these clauses
+	//
+	// 1. the nonce of the message caller is correct
+	// 2. caller has enough balance to cover transaction fee(gaslimit * gasprice)
+	// 3. the amount of gas required is available in the block
+	// 4. the purchased gas is enough to cover intrinsic usage
+	// 5. there is no overflow when calculating intrinsic gas
+	// 6. caller has enough balance to cover asset transfer for **topmost** call
+
+	// Check clauses 1-3, buy gas if everything is correct
+	var err error
 	if err = st.preCheck(); err != nil {
-		return
+		return nil, err
 	}
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
-	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
-	istanbul := st.evm.ChainConfig().IsIstanbul(st.evm.BlockNumber)
+	homestead := st.evm.ChainConfig().IsHomestead(st.evm.Context.BlockNumber)
+	istanbul := st.evm.ChainConfig().IsIstanbul(st.evm.Context.BlockNumber)
 	contractCreation := msg.To() == nil
 	isQuorum := st.evm.ChainConfig().IsQuorum
+	snapshot := st.evm.StateDB.Snapshot()
 
 	var data []byte
 	isPrivate := false
 	publicState := st.state
+	pmh := newPMH(st)
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		pmh.snapshot = snapshot
+		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
+		_, _, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
 		if err != nil || !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
-
 		if err != nil {
-			return nil, 0, false, nil
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        nil,
+				ReturnData: nil,
+			}, nil
+		}
+
+		pmh.hasPrivatePayload = data != nil
+
+		vmErr, consensusErr := pmh.prepare()
+		if consensusErr != nil || vmErr != nil {
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        vmErr,
+				ReturnData: nil,
+			}, consensusErr
 		}
 	} else {
 		data = st.data
@@ -232,17 +308,30 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	// Pay intrinsic gas. For a private contract this is done using the public hash passed in,
 	// not the private data retrieved above. This is because we need any (participant) validator
 	// node to get the same result as a (non-participant) minter node, to avoid out-of-gas issues.
-	gas, err := IntrinsicGas(st.data, contractCreation, homestead, istanbul)
+	// Check clauses 4-5, subtract intrinsic gas if everything is correct
+	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
 	if err != nil {
-		return nil, 0, false, err
+		return nil, err
 	}
-	if err = st.useGas(gas); err != nil {
-		return nil, 0, false, err
+	if st.gas < gas {
+		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+	}
+	st.gas -= gas
+
+	// Check clause 6
+	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
+		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+	}
+
+	// Set up the initial access list.
+	if st.evm.ChainConfig().IsBerlin(st.evm.Context.BlockNumber) {
+		st.state.PrepareAccessList(msg.From(), msg.To(), st.evm.ActivePrecompiles(), msg.AccessList())
 	}
 
 	var (
 		leftoverGas uint64
 		evm         = st.evm
+		ret         []byte
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.
@@ -266,8 +355,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		//if input is empty for the smart contract call, return
 		if len(data) == 0 && isPrivate {
 			st.refundGas()
-			st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-			return nil, 0, false, nil
+			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        nil,
+				ReturnData: nil,
+			}, nil
 		}
 
 		ret, leftoverGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
@@ -278,9 +371,27 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
 		if vmerr == vm.ErrInsufficientBalance {
-			return nil, 0, false, vmerr
+			return nil, vmerr
+		}
+		if errors.Is(vmerr, multitenancy.ErrNotAuthorized) {
+			return nil, vmerr
 		}
 	}
+
+	// Quorum - Privacy Enhancements
+	// perform privacy enhancements checks
+	if pmh.mustVerify() {
+		var exitEarly bool
+		exitEarly, err = pmh.verify(vmerr)
+		if exitEarly {
+			return &ExecutionResult{
+				UsedGas:    0,
+				Err:        ErrPrivateContractInteractionVerificationFailed,
+				ReturnData: nil,
+			}, err
+		}
+	}
+	// End Quorum - Privacy Enhancements
 
 	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
 	// However, if private contract then we don't want to do this else we can get
@@ -289,14 +400,25 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if !isPrivate {
 		st.gas = leftoverGas
 	}
+	// End Quorum
 
 	st.refundGas()
-	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	if isPrivate {
-		return ret, 0, vmerr != nil, err
+		return &ExecutionResult{
+			UsedGas:    0,
+			Err:        vmerr,
+			ReturnData: ret,
+		}, err
 	}
-	return ret, st.gasUsed(), vmerr != nil, err
+	// End Quorum
+
+	return &ExecutionResult{
+		UsedGas:    st.gasUsed(),
+		Err:        vmerr,
+		ReturnData: ret,
+	}, nil
 }
 
 func (st *StateTransition) refundGas() {
@@ -320,3 +442,25 @@ func (st *StateTransition) refundGas() {
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
+
+// Quorum - Privacy Enhancements - implement the pmcStateTransitionAPI interface
+func (st *StateTransition) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	st.evm.SetTxPrivacyMetadata(pm)
+}
+func (st *StateTransition) IsPrivacyEnhancementsEnabled() bool {
+	return st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.Context.BlockNumber)
+}
+func (st *StateTransition) RevertToSnapshot(snapshot int) {
+	st.evm.StateDB.RevertToSnapshot(snapshot)
+}
+func (st *StateTransition) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	return st.evm.StateDB.GetPrivacyMetadata(addr)
+}
+func (st *StateTransition) CalculateMerkleRoot() (common.Hash, error) {
+	return st.evm.CalculateMerkleRoot()
+}
+func (st *StateTransition) AffectedContracts() []common.Address {
+	return st.evm.AffectedContracts()
+}
+
+// End Quorum - Privacy Enhancements

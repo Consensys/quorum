@@ -21,13 +21,24 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestDecodeEmptyTypedReceipt(t *testing.T) {
+	input := []byte{0x80}
+	var r Receipt
+	err := rlp.DecodeBytes(input, &r)
+	if err != errEmptyTypedReceipt {
+		t.Fatal("wrong error:", err)
+	}
+}
 
 func TestLegacyReceiptDecoding(t *testing.T) {
 	tests := []struct {
@@ -81,43 +92,98 @@ func TestLegacyReceiptDecoding(t *testing.T) {
 				t.Fatalf("Error decoding RLP receipt: %v", err)
 			}
 			// Check whether all consensus fields are correct.
-			if dec.Status != receipt.Status {
-				t.Fatalf("Receipt status mismatch, want %v, have %v", receipt.Status, dec.Status)
-			}
-			if dec.CumulativeGasUsed != receipt.CumulativeGasUsed {
-				t.Fatalf("Receipt CumulativeGasUsed mismatch, want %v, have %v", receipt.CumulativeGasUsed, dec.CumulativeGasUsed)
-			}
-			if dec.Bloom != receipt.Bloom {
-				t.Fatalf("Bloom data mismatch, want %v, have %v", receipt.Bloom, dec.Bloom)
-			}
-			if len(dec.Logs) != len(receipt.Logs) {
-				t.Fatalf("Receipt log number mismatch, want %v, have %v", len(receipt.Logs), len(dec.Logs))
-			}
-			for i := 0; i < len(dec.Logs); i++ {
-				if dec.Logs[i].Address != receipt.Logs[i].Address {
-					t.Fatalf("Receipt log %d address mismatch, want %v, have %v", i, receipt.Logs[i].Address, dec.Logs[i].Address)
-				}
-				if !reflect.DeepEqual(dec.Logs[i].Topics, receipt.Logs[i].Topics) {
-					t.Fatalf("Receipt log %d topics mismatch, want %v, have %v", i, receipt.Logs[i].Topics, dec.Logs[i].Topics)
-				}
-				if !bytes.Equal(dec.Logs[i].Data, receipt.Logs[i].Data) {
-					t.Fatalf("Receipt log %d data mismatch, want %v, have %v", i, receipt.Logs[i].Data, dec.Logs[i].Data)
-				}
-			}
+			testConsensusFields(t, dec, receipt, false, false, false)
 		})
 	}
 }
 
+func testConsensusFields(t *testing.T, decReceipt ReceiptForStorage, encReceipt *Receipt, expectRevertReason bool, expectPSReceipts bool, supportPTM bool) {
+	if encReceipt.Status != decReceipt.Status {
+		t.Errorf("Status mismatch, want %v, have %v", encReceipt.Status, decReceipt.Status)
+	}
+	if encReceipt.CumulativeGasUsed != decReceipt.CumulativeGasUsed {
+		t.Errorf("CumulativeGasUsed mismatch, want %v, have %v", encReceipt.CumulativeGasUsed, decReceipt.CumulativeGasUsed)
+	}
+	if encReceipt.Bloom != decReceipt.Bloom {
+		t.Errorf("Bloom mismatch, want %v, have %v", encReceipt.Bloom, decReceipt.Bloom)
+	}
+
+	if !bytes.Equal(encReceipt.PostState, decReceipt.PostState) {
+		t.Errorf("PostState mismatch, want %v, have %v", encReceipt.PostState, decReceipt.PostState)
+	}
+	compareLogsConsensusFields(t, encReceipt.Logs, decReceipt.Logs)
+
+	if expectRevertReason {
+		if !bytes.Equal(encReceipt.RevertReason, decReceipt.RevertReason) {
+			t.Errorf("RevertReason mismatch, want %v, have %v", encReceipt.RevertReason, decReceipt.RevertReason)
+		}
+	} else if decReceipt.RevertReason != nil {
+		t.Errorf("RevertReason mismatch, expecting nil, have %v", decReceipt.RevertReason)
+	}
+
+	if expectPSReceipts {
+		comparePSReceipts(t, encReceipt.PSReceipts, decReceipt.PSReceipts, supportPTM)
+	} else if decReceipt.PSReceipts != nil {
+		t.Errorf("PSReceipts mismatch, expecting nil, have %v", decReceipt.PSReceipts)
+	}
+}
+
+func compareLogsConsensusFields(t *testing.T, encLogs []*Log, decLogs []*Log) {
+	if len(encLogs) != len(encLogs) {
+		t.Fatalf("Logs[] length mismatch, want %v, have %v", len(encLogs), len(encLogs))
+	}
+
+	for i := 0; i < len(encLogs); i++ {
+		if encLogs[i].Address != decLogs[i].Address {
+			t.Errorf("Logs[%d].Address mismatch, want %v, have %v", i, encLogs[i].Address, decLogs[i].Address)
+		}
+		if !reflect.DeepEqual(encLogs[i].Topics, decLogs[i].Topics) {
+			t.Errorf("Logs[%d].Topics mismatch, want %v, have %v", i, encLogs[i].Topics, decLogs[i].Topics)
+		}
+		if !bytes.Equal(encLogs[i].Data, decLogs[i].Data) {
+			t.Errorf("Logs[%d].Data mismatch, want %v, have %v", i, encLogs[i].Data, decLogs[i].Data)
+		}
+	}
+}
+
+func comparePSReceipts(t *testing.T, encPSReceipts map[PrivateStateIdentifier]*Receipt, decPSReceipts map[PrivateStateIdentifier]*Receipt, supportPTM bool) {
+	if encPSReceipts == nil {
+		t.Fatalf("Receipt is missing the expected psReceipts[]")
+	}
+	if len(encPSReceipts) != len(decPSReceipts) {
+		t.Fatalf("Receipt psi number mismatch, want %v, have %v", len(encPSReceipts), len(decPSReceipts))
+	}
+
+	for psi, decPsiReceipt := range decPSReceipts {
+		wantedPsiReceipt := encPSReceipts[psi]
+		if decPsiReceipt.Status != wantedPsiReceipt.Status {
+			t.Errorf("PSReceipts[%s].Status mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.Status, decPsiReceipt.Status)
+		}
+		if decPsiReceipt.CumulativeGasUsed != wantedPsiReceipt.CumulativeGasUsed {
+			t.Errorf("PSReceipts[%s].CumulativeGasUsed mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.CumulativeGasUsed, decPsiReceipt.CumulativeGasUsed)
+		}
+		if decPsiReceipt.Bloom != wantedPsiReceipt.Bloom {
+			t.Errorf("PSReceipts[%s].Bloom mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.Bloom, decPsiReceipt.Bloom)
+		}
+		if len(decPsiReceipt.Logs) != len(wantedPsiReceipt.Logs) {
+			t.Errorf("PSReceipts[%s].Logs mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.Logs, decPsiReceipt.Logs)
+		}
+		if supportPTM {
+			// TxHash & ContractAddress are only encoded/decoded if PTM support is enabled
+			if decPsiReceipt.TxHash != wantedPsiReceipt.TxHash {
+				t.Errorf("PSReceipts[%s].TxHash mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.TxHash, decPsiReceipt.TxHash)
+			}
+			if decPsiReceipt.ContractAddress != wantedPsiReceipt.ContractAddress {
+				t.Errorf("PSReceipts[%s].ContractAddress mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.ContractAddress, decPsiReceipt.ContractAddress)
+			}
+		}
+
+	}
+}
+
 func encodeAsStoredReceiptRLP(want *Receipt) ([]byte, error) {
-	stored := &storedReceiptRLP{
-		PostStateOrStatus: want.statusEncoding(),
-		CumulativeGasUsed: want.CumulativeGasUsed,
-		Logs:              make([]*LogForStorage, len(want.Logs)),
-	}
-	for i, log := range want.Logs {
-		stored.Logs[i] = (*LogForStorage)(log)
-	}
-	return rlp.EncodeToBytes(stored)
+	receiptForStorage := (*ReceiptForStorage)(want)
+	return rlp.EncodeToBytes(receiptForStorage)
 }
 
 func encodeAsV4StoredReceiptRLP(want *Receipt) ([]byte, error) {
@@ -151,12 +217,157 @@ func encodeAsV3StoredReceiptRLP(want *Receipt) ([]byte, error) {
 	return rlp.EncodeToBytes(stored)
 }
 
+func TestReceiptForStorage_OnlySubsetOfFieldsPreservedDuringSerialisation(t *testing.T) {
+
+	fullReceipt := newFullReceipt(false, false, false)
+
+	buf := new(bytes.Buffer)
+	if err := rlp.Encode(buf, fullReceipt); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	got := new(ReceiptForStorage)
+	if err := rlp.Decode(buf, got); err != nil {
+		t.Fatalf("Error RLP encoding receipt: %v", err)
+	}
+
+	// only a subset of fields are to be encoded, the rest are derived after decoding
+	want := &ReceiptForStorage{
+		Status:            ReceiptStatusSuccessful,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Bloom: fullReceipt.Bloom,
+	}
+
+	assert.Equal(t, want, got)
+}
+
+var (
+	stubHash = common.HexToHash("0xabcdef")
+)
+
+// newFullReceipt returns a new receipt with non-zero values in all fields to test field preservation during encode/decode
+func newFullReceipt(withPSReceipts, withTopLevelReceiptRevertReason, withPSReceiptRevertReason bool) *ReceiptForStorage {
+	fullReceipt := &ReceiptForStorage{
+		Status:            ReceiptStatusSuccessful,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+				// log fields that shouldn't be encoded/decoded
+				BlockNumber: uint64(5),
+				TxHash:      stubHash,
+				TxIndex:     uint(3),
+				BlockHash:   stubHash,
+				Index:       uint(54),
+				Removed:     true,
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+				// log fields that shouldn't be encoded/decoded
+				BlockNumber: uint64(5),
+				TxHash:      stubHash,
+				TxIndex:     uint(3),
+				BlockHash:   stubHash,
+				Index:       uint(54),
+				Removed:     true,
+			},
+		},
+		// receipt fields that shouldn't be encoded/decoded
+		TxHash:           stubHash,
+		ContractAddress:  common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:          111111,
+		BlockHash:        stubHash,
+		BlockNumber:      big.NewInt(14),
+		TransactionIndex: uint(4),
+	}
+	topLevelReceiptBloom := CreateBloom(Receipts{(*Receipt)(fullReceipt)})
+	fullReceipt.Bloom = topLevelReceiptBloom
+
+	if withTopLevelReceiptRevertReason {
+		fullReceipt.RevertReason = []byte{0x01, 0x00, 0xff}
+	}
+
+	if withPSReceipts {
+		fullReceipt.PSReceipts = map[PrivateStateIdentifier]*Receipt{
+			"myPSI": {
+				Status:            ReceiptStatusSuccessful,
+				CumulativeGasUsed: 1,
+				Logs: []*Log{
+					{
+						Address: common.BytesToAddress([]byte{0x11}),
+						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+						Data:    []byte{0x01, 0x00, 0xff},
+						// log fields that shouldn't be encoded/decoded
+						BlockNumber: uint64(5),
+						TxHash:      stubHash,
+						TxIndex:     uint(3),
+						BlockHash:   stubHash,
+						Index:       uint(54),
+						Removed:     true,
+					},
+				},
+				// txhash and contractAddress should be encoded/decoded for PSReceipts only
+				TxHash:          stubHash,
+				ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+				// psReceipt fields that shouldn't be encoded/decoded
+				GasUsed:          111111,
+				BlockHash:        stubHash,
+				BlockNumber:      big.NewInt(14),
+				TransactionIndex: uint(4),
+			},
+		}
+		psReceiptBloom := CreateBloom(Receipts{(fullReceipt.PSReceipts["myPSI"])})
+		fullReceipt.PSReceipts["myPSI"].Bloom = psReceiptBloom
+
+		if withPSReceiptRevertReason {
+			fullReceipt.PSReceipts["myPSI"].RevertReason = []byte{0x01, 0x00, 0xff}
+		}
+	}
+	return fullReceipt
+}
+
 // Tests that receipt data can be correctly derived from the contextual infos
 func TestDeriveFields(t *testing.T) {
 	// Create a few transactions to have receipts for
+	to2 := common.HexToAddress("0x2")
+	to3 := common.HexToAddress("0x3")
 	txs := Transactions{
-		NewContractCreation(1, big.NewInt(1), 1, big.NewInt(1), nil),
-		NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil),
+		NewTx(&LegacyTx{
+			Nonce:    1,
+			Value:    big.NewInt(1),
+			Gas:      1,
+			GasPrice: big.NewInt(1),
+		}),
+		NewTx(&LegacyTx{
+			To:       &to2,
+			Nonce:    2,
+			Value:    big.NewInt(2),
+			Gas:      2,
+			GasPrice: big.NewInt(2),
+		}),
+		NewTx(&AccessListTx{
+			To:       &to3,
+			Nonce:    3,
+			Value:    big.NewInt(3),
+			Gas:      3,
+			GasPrice: big.NewInt(3),
+		}),
 	}
 	// Create the corresponding receipts
 	receipts := Receipts{
@@ -182,6 +393,18 @@ func TestDeriveFields(t *testing.T) {
 			ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
 			GasUsed:         2,
 		},
+		&Receipt{
+			Type:              AccessListTxType,
+			PostState:         common.Hash{3}.Bytes(),
+			CumulativeGasUsed: 6,
+			Logs: []*Log{
+				{Address: common.BytesToAddress([]byte{0x33})},
+				{Address: common.BytesToAddress([]byte{0x03, 0x33})},
+			},
+			TxHash:          txs[2].Hash(),
+			ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
+			GasUsed:         3,
+		},
 	}
 	// Clear all the computed fields and re-derive them
 	number := big.NewInt(1)
@@ -194,52 +417,182 @@ func TestDeriveFields(t *testing.T) {
 	// Iterate over all the computed fields and check that they're correct
 	signer := MakeSigner(params.TestChainConfig, number)
 
-	logIndex := uint(0)
 	for i := range receipts {
-		if receipts[i].TxHash != txs[i].Hash() {
-			t.Errorf("receipts[%d].TxHash = %s, want %s", i, receipts[i].TxHash.String(), txs[i].Hash().String())
+		testReceiptFields(t, receipts[i], txs, i, "receipt"+strconv.Itoa(i), hash, number, signer)
+	}
+}
+
+// Tests that receipt data can be correctly derived from the contextual infos
+// Tests public, private, and private mps txs/receipts
+func TestDeriveFieldsMPS(t *testing.T) {
+	// Create a public tx, private tx, psi tx
+	pubT := NewContractCreation(1, big.NewInt(1), 1, big.NewInt(1), nil)
+	privT := NewContractCreation(2, big.NewInt(2), 2, big.NewInt(2), nil)
+	privT.SetPrivate()
+	psiT := NewTransaction(3, common.HexToAddress("0x3"), big.NewInt(3), 3, big.NewInt(3), nil)
+	psiT.SetPrivate()
+	//3 transactions: public, private, and private with mps
+	txs := Transactions{
+		pubT,
+		privT,
+		psiT,
+	}
+	publicReceipt := &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{Address: common.BytesToAddress([]byte{0x11})},
+			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
+		},
+		TxHash:          txs[0].Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:         1,
+	}
+	innerPrivateReceipt := &Receipt{
+		PostState:         common.Hash{2}.Bytes(),
+		CumulativeGasUsed: 3,
+		Logs: []*Log{
+			{Address: common.BytesToAddress([]byte{0x22})},
+			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
+		},
+		TxHash:          txs[1].Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		GasUsed:         2,
+	}
+	innerPSIReceipt := &Receipt{
+		PostState:         common.Hash{3}.Bytes(),
+		CumulativeGasUsed: 6,
+		Logs: []*Log{
+			{Address: common.BytesToAddress([]byte{0x33})},
+			{Address: common.BytesToAddress([]byte{0x03, 0x33})},
+		},
+		TxHash:          txs[2].Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
+		GasUsed:         1,
+	}
+	psiReceipt := innerPSIReceipt
+	psiReceipt.PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
+	psiReceipt.PSReceipts[PrivateStateIdentifier("psi1")] = innerPSIReceipt
+	psiReceipt.PSReceipts[EmptyPrivateStateIdentifier] = innerPSIReceipt
+
+	privateReceipt := innerPrivateReceipt
+	privateReceipt.PSReceipts = make(map[PrivateStateIdentifier]*Receipt)
+	privateReceipt.PSReceipts[EmptyPrivateStateIdentifier] = innerPrivateReceipt
+	// Create the corresponding receipts: public, private, psi
+	receipts := Receipts{
+		publicReceipt,
+		privateReceipt,
+		psiReceipt,
+	}
+	// Clear all the computed fields and re-derive them
+	number := big.NewInt(1)
+	hash := common.BytesToHash([]byte{0x03, 0x14})
+
+	clearComputedFieldsOnReceipts(t, receipts)
+	if err := receipts.DeriveFields(params.QuorumMPSTestChainConfig, hash, number.Uint64(), txs); err != nil {
+		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
+	}
+	// Iterate over all the computed fields and check that they're correct
+	signer := MakeSigner(params.QuorumMPSTestChainConfig, number)
+
+	for i := range receipts {
+		testReceiptFields(t, receipts[i], txs, i, "receipt"+strconv.Itoa(i), hash, number, signer)
+	}
+	//check psi info on public and private receipt
+	assert.Empty(t, receipts[0].PSReceipts)
+	privRec := receipts[1]
+	assert.Equal(t, 1, len(privRec.PSReceipts))
+	assert.Contains(t, privRec.PSReceipts, EmptyPrivateStateIdentifier)
+	for _, pR := range privRec.PSReceipts {
+		testReceiptFields(t, pR, txs, 1, "privateReceipt", hash, number, signer)
+	}
+
+	//check psi info on private mps receipt
+	psiRec := receipts[2]
+	assert.Equal(t, 2, len(psiRec.PSReceipts))
+	assert.Contains(t, psiRec.PSReceipts, EmptyPrivateStateIdentifier)
+	assert.Contains(t, psiRec.PSReceipts, PrivateStateIdentifier("psi1"))
+	for _, pR := range psiRec.PSReceipts {
+		testReceiptFields(t, pR, txs, 2, "psiReceipt", hash, number, signer)
+	}
+}
+
+func testReceiptFields(t *testing.T, receipt *Receipt, txs Transactions, txIndex int, receiptName string, blockHash common.Hash, blockNumber *big.Int, signer Signer) {
+	if receipt.Type != txs[txIndex].Type() {
+		t.Errorf("%s.Type = %d, want %d", receiptName, receipt.Type, txs[txIndex].Type())
+	}
+	if receipt.TxHash != txs[txIndex].Hash() {
+		t.Errorf("%s.TxHash = %s, want %s", receiptName, receipt.TxHash.String(), txs[txIndex].Hash().String())
+	}
+	if receipt.BlockHash != blockHash {
+		t.Errorf("%s.BlockHash = %s, want %s", receiptName, receipt.BlockHash.String(), blockHash.String())
+	}
+	if receipt.BlockNumber.Cmp(blockNumber) != 0 {
+		t.Errorf("%s.BlockNumber = %s, want %s", receiptName, receipt.BlockNumber.String(), blockNumber.String())
+	}
+	if receipt.TransactionIndex != uint(txIndex) {
+		t.Errorf("%s.TransactionIndex = %d, want %d", receiptName, receipt.TransactionIndex, txIndex)
+	}
+	if receipt.GasUsed != txs[txIndex].Gas() {
+		t.Errorf("%s.GasUsed = %d, want %d", receiptName, receipt.GasUsed, txs[txIndex].Gas())
+	}
+	if txs[txIndex].To() != nil && receipt.ContractAddress != (common.Address{}) {
+		t.Errorf("%s.ContractAddress = %s, want %s", receiptName, receipt.ContractAddress.String(), (common.Address{}).String())
+	}
+	from, _ := Sender(signer, txs[txIndex])
+	contractAddress := crypto.CreateAddress(from, txs[txIndex].Nonce())
+	if txs[txIndex].To() == nil && receipt.ContractAddress != contractAddress {
+		t.Errorf("%s.ContractAddress = %s, want %s", receiptName, receipt.ContractAddress.String(), contractAddress.String())
+	}
+	for j := range receipt.Logs {
+		if receipt.Logs[j].BlockNumber != blockNumber.Uint64() {
+			t.Errorf("%s.Logs[%d].BlockNumber = %d, want %d", receiptName, j, receipt.Logs[j].BlockNumber, blockNumber.Uint64())
 		}
-		if receipts[i].BlockHash != hash {
-			t.Errorf("receipts[%d].BlockHash = %s, want %s", i, receipts[i].BlockHash.String(), hash.String())
+		if receipt.Logs[j].BlockHash != blockHash {
+			t.Errorf("%s.Logs[%d].BlockHash = %s, want %s", receiptName, j, receipt.Logs[j].BlockHash.String(), blockHash.String())
 		}
-		if receipts[i].BlockNumber.Cmp(number) != 0 {
-			t.Errorf("receipts[%c].BlockNumber = %s, want %s", i, receipts[i].BlockNumber.String(), number.String())
+		if receipt.Logs[j].TxHash != txs[txIndex].Hash() {
+			t.Errorf("%s.Logs[%d].TxHash = %s, want %s", receiptName, j, receipt.Logs[j].TxHash.String(), txs[txIndex].Hash().String())
 		}
-		if receipts[i].TransactionIndex != uint(i) {
-			t.Errorf("receipts[%d].TransactionIndex = %d, want %d", i, receipts[i].TransactionIndex, i)
+		if receipt.Logs[j].TxHash != txs[txIndex].Hash() {
+			t.Errorf("%s.Logs[%d].TxHash = %s, want %s", receiptName, j, receipt.Logs[j].TxHash.String(), txs[txIndex].Hash().String())
 		}
-		if receipts[i].GasUsed != txs[i].Gas() {
-			t.Errorf("receipts[%d].GasUsed = %d, want %d", i, receipts[i].GasUsed, txs[i].Gas())
+		if receipt.Logs[j].TxIndex != uint(txIndex) {
+			t.Errorf("%s.Logs[%d].TransactionIndex = %d, want %d", receiptName, j, receipt.Logs[j].TxIndex, txIndex)
 		}
-		if txs[i].To() != nil && receipts[i].ContractAddress != (common.Address{}) {
-			t.Errorf("receipts[%d].ContractAddress = %s, want %s", i, receipts[i].ContractAddress.String(), (common.Address{}).String())
-		}
-		from, _ := Sender(signer, txs[i])
-		contractAddress := crypto.CreateAddress(from, txs[i].Nonce())
-		if txs[i].To() == nil && receipts[i].ContractAddress != contractAddress {
-			t.Errorf("receipts[%d].ContractAddress = %s, want %s", i, receipts[i].ContractAddress.String(), contractAddress.String())
-		}
-		for j := range receipts[i].Logs {
-			if receipts[i].Logs[j].BlockNumber != number.Uint64() {
-				t.Errorf("receipts[%d].Logs[%d].BlockNumber = %d, want %d", i, j, receipts[i].Logs[j].BlockNumber, number.Uint64())
+		// TODO: @achraf have a look how to include this
+		//if receipts[i].Logs[j].Index != logIndex {
+		//	t.Errorf("receipts[%d].Logs[%d].Index = %d, want %d", i, j, receipts[i].Logs[j].Index, logIndex)
+		//}
+		//logIndex++
+	}
+}
+
+// TestTypedReceiptEncodingDecoding reproduces a flaw that existed in the receipt
+// rlp decoder, which failed due to a shadowing error.
+func TestTypedReceiptEncodingDecoding(t *testing.T) {
+	var payload = common.FromHex("f9043eb9010c01f90108018262d4b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0b9010c01f901080182cd14b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0b9010d01f901090183013754b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0b9010d01f90109018301a194b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0")
+	check := func(bundle []*Receipt) {
+		t.Helper()
+		for i, receipt := range bundle {
+			if got, want := receipt.Type, uint8(1); got != want {
+				t.Fatalf("bundle %d: got %x, want %x", i, got, want)
 			}
-			if receipts[i].Logs[j].BlockHash != hash {
-				t.Errorf("receipts[%d].Logs[%d].BlockHash = %s, want %s", i, j, receipts[i].Logs[j].BlockHash.String(), hash.String())
-			}
-			if receipts[i].Logs[j].TxHash != txs[i].Hash() {
-				t.Errorf("receipts[%d].Logs[%d].TxHash = %s, want %s", i, j, receipts[i].Logs[j].TxHash.String(), txs[i].Hash().String())
-			}
-			if receipts[i].Logs[j].TxHash != txs[i].Hash() {
-				t.Errorf("receipts[%d].Logs[%d].TxHash = %s, want %s", i, j, receipts[i].Logs[j].TxHash.String(), txs[i].Hash().String())
-			}
-			if receipts[i].Logs[j].TxIndex != uint(i) {
-				t.Errorf("receipts[%d].Logs[%d].TransactionIndex = %d, want %d", i, j, receipts[i].Logs[j].TxIndex, i)
-			}
-			if receipts[i].Logs[j].Index != logIndex {
-				t.Errorf("receipts[%d].Logs[%d].Index = %d, want %d", i, j, receipts[i].Logs[j].Index, logIndex)
-			}
-			logIndex++
 		}
+	}
+	{
+		var bundle []*Receipt
+		rlp.DecodeBytes(payload, &bundle)
+		check(bundle)
+	}
+	{
+		var bundle []*Receipt
+		r := bytes.NewReader(payload)
+		s := rlp.NewStream(r, uint64(len(payload)))
+		if err := s.Decode(&bundle); err != nil {
+			t.Fatal(err)
+		}
+		check(bundle)
 	}
 }
 
@@ -280,4 +633,62 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 	log.TxHash = common.Hash{}
 	log.TxIndex = math.MaxUint32
 	log.Index = math.MaxUint32
+}
+
+func TestQuorumReceiptExtraDataDecodingSuccess(t *testing.T) {
+	tx := NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
+	ps1Receipt := &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		TxHash:          tx.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:         111111,
+	}
+	ps1Receipt.Bloom = CreateBloom(Receipts{ps1Receipt})
+
+	extraData := &QuorumReceiptExtraData{
+		RevertReason: []byte("arbitrary reason"),
+		PSReceipts:   map[PrivateStateIdentifier]*Receipt{PrivateStateIdentifier("psi1"): ps1Receipt},
+	}
+	rlpData, err := rlp.EncodeToBytes(extraData)
+	assert.Nil(t, err)
+	var decodedExtraData QuorumReceiptExtraData
+	err = rlp.DecodeBytes(rlpData, &decodedExtraData)
+	assert.Nil(t, err)
+	assert.Equal(t, decodedExtraData.RevertReason, []byte("arbitrary reason"))
+	assert.Contains(t, decodedExtraData.PSReceipts, PrivateStateIdentifier("psi1"))
+	decodedReceipt := decodedExtraData.PSReceipts[PrivateStateIdentifier("psi1")]
+	assert.NotNil(t, decodedReceipt)
+	comparePSReceipts(t, decodedExtraData.PSReceipts, extraData.PSReceipts, true)
+}
+
+func TestQuorumReceiptExtraDataDecodingFailDueToUnknownVersion(t *testing.T) {
+	rlpData, err := rlp.EncodeToBytes(&storedQuorumReceiptExtraDataV1RLP{
+		Version:      2,
+		RevertReason: []byte("arbitrary reason"),
+	})
+	assert.Nil(t, err)
+	var decodedExtraData QuorumReceiptExtraData
+	err = rlp.DecodeBytes(rlpData, &decodedExtraData)
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "unknown version 2")
+}
+
+func TestQuorumReceiptExtraDataDecodingFailDueToGarbageData(t *testing.T) {
+	var decodedExtraData QuorumReceiptExtraData
+	err := rlp.DecodeBytes([]byte("arbitrary data"), &decodedExtraData)
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "unexpected content type (expecting list) 0")
 }

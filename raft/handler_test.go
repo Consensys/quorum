@@ -7,10 +7,8 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"reflect"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
@@ -18,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -139,11 +136,11 @@ func nextPort(t *testing.T) uint16 {
 	return uint16(listener.Addr().(*net.TCPAddr).Port)
 }
 
-func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg *node.Config, err error) {
+func prepareServiceContext(key *ecdsa.PrivateKey) (stack *node.Node, cfg *node.Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%s", r)
-			ctx = nil
+			stack = nil
 			cfg = nil
 		}
 	}()
@@ -152,26 +149,20 @@ func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg
 			PrivateKey: key,
 		},
 	}
-	ctx = &node.ServiceContext{
-		EventMux: new(event.TypeMux),
-	}
-	// config is private field so we need some workaround to set the value
-	configField := reflect.ValueOf(ctx).Elem().FieldByName("config")
-	configField = reflect.NewAt(configField.Type(), unsafe.Pointer(configField.UnsafeAddr())).Elem()
-	configField.Set(reflect.ValueOf(cfg))
+	stack, _ = node.New(cfg)
 	return
 }
 
 func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey, nodes []*enode.Node) (*RaftService, error) {
-	datadir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
+	raftlogdir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
 
-	ctx, _, err := prepareServiceContext(key)
+	stack, _, err := prepareServiceContext(key)
 	if err != nil {
 		return nil, err
 	}
 
 	const testAddress = "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"
-	e, err := eth.New(ctx, &eth.Config{
+	e, err := eth.New(stack, &eth.Config{
 		Genesis: &core.Genesis{Config: params.QuorumTestChainConfig},
 		Miner:   miner.Config{Etherbase: common.HexToAddress(testAddress)},
 	})
@@ -179,20 +170,15 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 		return nil, err
 	}
 
-	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir, false)
+	s, err := New(stack, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, raftlogdir, false)
 	if err != nil {
 		return nil, err
 	}
 
-	srv := &p2p.Server{
-		Config: p2p.Config{
-			PrivateKey: key,
-		},
-	}
-	if err := srv.Start(); err != nil {
+	if err := stack.Server().Start(); err != nil {
 		return nil, fmt.Errorf("could not start: %v", err)
 	}
-	if err := s.Start(srv); err != nil {
+	if err := s.Start(); err != nil {
 		return nil, err
 	}
 

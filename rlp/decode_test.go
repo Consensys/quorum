@@ -354,7 +354,7 @@ type tailUint struct {
 type tailPrivateFields struct {
 	A    uint
 	Tail []uint `rlp:"tail"`
-	x, y bool
+	x, y bool   //lint:ignore U1000 unused fields required for testing purposes.
 }
 
 type nilListUint struct {
@@ -665,6 +665,26 @@ func TestDecodeWithByteReader(t *testing.T) {
 	})
 }
 
+func testDecodeWithEncReader(t *testing.T, n int) {
+	s := strings.Repeat("0", n)
+	_, r, _ := EncodeToReader(s)
+	var decoded string
+	err := Decode(r, &decoded)
+	if err != nil {
+		t.Errorf("Unexpected decode error with n=%v: %v", n, err)
+	}
+	if decoded != s {
+		t.Errorf("Decode mismatch with n=%v", n)
+	}
+}
+
+// This is a regression test checking that decoding from encReader
+// works for RLP values of size 8192 bytes or more.
+func TestDecodeWithEncReader(t *testing.T) {
+	testDecodeWithEncReader(t, 8188) // length with header is 8191
+	testDecodeWithEncReader(t, 8189) // length with header is 8192
+}
+
 // plainReader reads from a byte slice but does not
 // implement ReadByte. It is also not recognized by the
 // size validation. This is useful to test how the decoder
@@ -806,9 +826,8 @@ func ExampleDecode() {
 	input, _ := hex.DecodeString("C90A1486666F6F626172")
 
 	type example struct {
-		A, B    uint
-		private uint // private fields are ignored
-		String  string
+		A, B   uint
+		String string
 	}
 
 	var s example
@@ -819,7 +838,7 @@ func ExampleDecode() {
 		fmt.Printf("Decoded value: %#v\n", s)
 	}
 	// Output:
-	// Decoded value: rlp.example{A:0xa, B:0x14, private:0x0, String:"foobar"}
+	// Decoded value: rlp.example{A:0xa, B:0x14, String:"foobar"}
 }
 
 func ExampleDecode_structTagNil() {

@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//go:generate mockgen -source interface.go -destination mock_interface.go -package vm
+
 package vm
 
 import (
@@ -24,9 +26,24 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Quorum
+
+type AccountExtraDataStateGetter interface {
+	// Return nil for public contract
+	GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
+	GetManagedParties(addr common.Address) ([]string, error)
+}
+
+type AccountExtraDataStateSetter interface {
+	SetPrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata)
+	SetManagedParties(addr common.Address, managedParties []string)
+}
+
 // Quorum uses a cut-down StateDB, MinimalApiState. We leave the methods in StateDB commented out so they'll produce a
 // conflict when upstream changes.
 type MinimalApiState interface {
+	AccountExtraDataStateGetter
+
 	GetBalance(addr common.Address) *big.Int
 	SetBalance(addr common.Address, balance *big.Int)
 	GetCode(addr common.Address) []byte
@@ -34,6 +51,10 @@ type MinimalApiState interface {
 	GetNonce(addr common.Address) uint64
 	SetNonce(addr common.Address, nonce uint64)
 	SetCode(common.Address, []byte)
+
+	// RLP-encoded of the state object in a given address
+	// Throw error if no state object is found
+	GetRLPEncodedStateObject(addr common.Address) ([]byte, error)
 	GetProof(common.Address) ([][]byte, error)
 	GetStorageProof(common.Address, common.Hash) ([][]byte, error)
 	StorageTrie(addr common.Address) state.Trie
@@ -43,9 +64,16 @@ type MinimalApiState interface {
 	SetStorage(addr common.Address, storage map[common.Hash]common.Hash)
 }
 
+// End Quorum
+
 // StateDB is an EVM database for full state querying.
 type StateDB interface {
+	// Quorum
+
 	MinimalApiState
+	AccountExtraDataStateSetter
+	// End Quorum
+
 	CreateAccount(common.Address)
 
 	SubBalance(common.Address, *big.Int)
@@ -58,6 +86,7 @@ type StateDB interface {
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)
+
 	GetCodeSize(common.Address) int
 
 	AddRefund(uint64)
@@ -77,6 +106,16 @@ type StateDB interface {
 	// Empty returns whether the given account is empty. Empty
 	// is defined according to EIP161 (balance = nonce = code = 0).
 	Empty(common.Address) bool
+
+	PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList)
+	AddressInAccessList(addr common.Address) bool
+	SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool)
+	// AddAddressToAccessList adds the given address to the access list. This operation is safe to perform
+	// even if the feature/fork is not active yet
+	AddAddressToAccessList(addr common.Address)
+	// AddSlotToAccessList adds the given (address,slot) to the access list. This operation is safe to perform
+	// even if the feature/fork is not active yet
+	AddSlotToAccessList(addr common.Address, slot common.Hash)
 
 	RevertToSnapshot(int)
 	Snapshot() int

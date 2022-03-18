@@ -27,10 +27,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	duktape "gopkg.in/olebedev/go-duktape.v3"
+	"gopkg.in/olebedev/go-duktape.v3"
 )
 
 // bigIntegerJS is the minified version of https://github.com/peterolson/BigInteger.js.
@@ -93,6 +94,15 @@ type memoryWrapper struct {
 
 // slice returns the requested range of memory as a byte slice.
 func (mw *memoryWrapper) slice(begin, end int64) []byte {
+	if end == begin {
+		return []byte{}
+	}
+	if end < begin || begin < 0 {
+		// TODO(karalabe): We can't js-throw from Go inside duktape inside Go. The Go
+		// runtime goes belly up https://github.com/golang/go/issues/15639.
+		log.Warn("Tracer accessed out of bound memory", "offset", begin, "end", end)
+		return nil
+	}
 	if mw.memory.Len() < int(end) {
 		// TODO(karalabe): We can't js-throw from Go inside duktape inside Go. The Go
 		// runtime goes belly up https://github.com/golang/go/issues/15639.
@@ -104,7 +114,7 @@ func (mw *memoryWrapper) slice(begin, end int64) []byte {
 
 // getUint returns the 32 bytes at the specified address interpreted as a uint.
 func (mw *memoryWrapper) getUint(addr int64) *big.Int {
-	if mw.memory.Len() < int(addr)+32 {
+	if mw.memory.Len() < int(addr)+32 || addr < 0 {
 		// TODO(karalabe): We can't js-throw from Go inside duktape inside Go. The Go
 		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound memory", "available", mw.memory.Len(), "offset", addr, "size", 32)
@@ -147,13 +157,13 @@ type stackWrapper struct {
 
 // peek returns the nth-from-the-top element of the stack.
 func (sw *stackWrapper) peek(idx int) *big.Int {
-	if len(sw.stack.Data()) <= idx {
+	if len(sw.stack.Data()) <= idx || idx < 0 {
 		// TODO(karalabe): We can't js-throw from Go inside duktape inside Go. The Go
 		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound stack", "size", len(sw.stack.Data()), "index", idx)
 		return new(big.Int)
 	}
-	return sw.stack.Data()[len(sw.stack.Data())-idx-1]
+	return sw.stack.Back(idx).ToBig()
 }
 
 // pushObject assembles a JSVM object wrapping a swappable stack and pushes it
@@ -307,7 +317,7 @@ type Tracer struct {
 // New instantiates a new tracer instance. code specifies a Javascript snippet,
 // which must evaluate to an expression returning an object with 'step', 'fault'
 // and 'result' functions.
-func New(code string) (*Tracer, error) {
+func New(code string, txCtx vm.TxContext) (*Tracer, error) {
 	// Resolve any tracers by name and assemble the tracer object
 	if tracer, ok := tracer(code); ok {
 		code = tracer
@@ -326,6 +336,8 @@ func New(code string) (*Tracer, error) {
 		depthValue:      new(uint),
 		refundValue:     new(uint),
 	}
+	tracer.ctx["gasPrice"] = txCtx.GasPrice
+
 	// Set up builtins for this environment
 	tracer.vm.PushGlobalGoFunction("toHex", func(ctx *duktape.Context) int {
 		ctx.PushString(hexutil.Encode(popSlice(ctx)))
@@ -419,17 +431,17 @@ func New(code string) (*Tracer, error) {
 	tracer.tracerObject = 0 // yeah, nice, eval can't return the index itself
 
 	if !tracer.vm.GetPropString(tracer.tracerObject, "step") {
-		return nil, fmt.Errorf("Trace object must expose a function step()")
+		return nil, fmt.Errorf("trace object must expose a function step()")
 	}
 	tracer.vm.Pop()
 
 	if !tracer.vm.GetPropString(tracer.tracerObject, "fault") {
-		return nil, fmt.Errorf("Trace object must expose a function fault()")
+		return nil, fmt.Errorf("trace object must expose a function fault()")
 	}
 	tracer.vm.Pop()
 
 	if !tracer.vm.GetPropString(tracer.tracerObject, "result") {
-		return nil, fmt.Errorf("Trace object must expose a function result()")
+		return nil, fmt.Errorf("trace object must expose a function result()")
 	}
 	tracer.vm.Pop()
 
@@ -532,11 +544,23 @@ func (jst *Tracer) CaptureStart(from common.Address, to common.Address, create b
 }
 
 // CaptureState implements the Tracer interface to trace a single step of VM execution.
-func (jst *Tracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (jst *Tracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, rStack *vm.ReturnStack, rdata []byte, contract *vm.Contract, depth int, err error) error {
 	if jst.err == nil {
 		// Initialize the context if it wasn't done yet
 		if !jst.inited {
-			jst.ctx["block"] = env.BlockNumber.Uint64()
+			jst.ctx["block"] = env.Context.BlockNumber.Uint64()
+			// Compute intrinsic gas
+			isHomestead := env.ChainConfig().IsHomestead(env.Context.BlockNumber)
+			isIstanbul := env.ChainConfig().IsIstanbul(env.Context.BlockNumber)
+			var input []byte
+			if data, ok := jst.ctx["input"].([]byte); ok {
+				input = data
+			}
+			intrinsicGas, err := core.IntrinsicGas(input, nil, jst.ctx["type"] == "CREATE", isHomestead, isIstanbul)
+			if err != nil {
+				return err
+			}
+			jst.ctx["intrinsicGas"] = intrinsicGas
 			jst.inited = true
 		}
 		// If tracing was interrupted, set the error and stop
@@ -571,7 +595,7 @@ func (jst *Tracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost 
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.
-func (jst *Tracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (jst *Tracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, rStack *vm.ReturnStack, contract *vm.Contract, depth int, err error) error {
 	if jst.err == nil {
 		// Apart from the error, everything matches the previous invocation
 		jst.errorValue = new(string)
@@ -588,8 +612,8 @@ func (jst *Tracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost 
 // CaptureEnd is called after the call finishes to finalize the tracing.
 func (jst *Tracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) error {
 	jst.ctx["output"] = output
-	jst.ctx["gasUsed"] = gasUsed
 	jst.ctx["time"] = t.String()
+	jst.ctx["gasUsed"] = gasUsed
 
 	if err != nil {
 		jst.ctx["error"] = err.Error()

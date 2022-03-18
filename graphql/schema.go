@@ -115,13 +115,16 @@ const schema string = `
         # Logs is a list of log entries emitted by this transaction. If the
         # transaction has not yet been mined, this field will be null.
         logs: [Log!]
-		r: BigInt!
-        s: BigInt!
-        v: BigInt!
 		# IsPrivate is an indicator of Quorum private transaction
 		isPrivate: Boolean
 		# PrivateInputData is the actual payload of Quorum private transaction
 		privateInputData: Bytes
+		# PrivateTransaction is the internal private transaction of a public 
+        # marker transaction when privacy precompile is enabled
+		privateTransaction: Transaction
+        r: BigInt!
+        s: BigInt!
+        v: BigInt!
     }
 
     # BlockFilterCriteria encapsulates log filter criteria for a filter applied
@@ -304,7 +307,7 @@ const schema string = `
         block(number: Long, hash: Bytes32): Block
         # Blocks returns all the blocks between two numbers, inclusive. If
         # to is not supplied, it defaults to the most recent known block.
-        blocks(from: Long!, to: Long): [Block!]!
+        blocks(from: Long, to: Long): [Block!]!
         # Pending returns the current pending state.
         pending: Pending!
         # Transaction returns a transaction specified by its hash.
@@ -314,10 +317,10 @@ const schema string = `
         # GasPrice returns the node's estimate of a gas price sufficient to
         # ensure a transaction is mined in a timely fashion.
         gasPrice: BigInt!
-        # ProtocolVersion returns the current wire protocol version number.
-        protocolVersion: Int!
         # Syncing returns information on the current synchronisation state.
         syncing: SyncState
+        # ChainID returns the current chain ID for transaction replay protection.
+        chainID: BigInt!
     }
 
     type Mutation {

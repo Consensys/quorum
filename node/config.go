@@ -73,6 +73,10 @@ type Config struct {
 	// in memory.
 	DataDir string
 
+	// RaftLogDir is the file system folder the node use for raft-state, raft-snap and
+	// raft-wal folders.
+	RaftLogDir string
+
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
 
@@ -86,7 +90,7 @@ type Config struct {
 	KeyStoreDir string `toml:",omitempty"`
 
 	// ExternalSigner specifies an external URI for a clef-type signer
-	ExternalSigner string `toml:"omitempty"`
+	ExternalSigner string `toml:",omitempty"`
 
 	// UseLightweightKDF lowers the memory and CPU requirements of the key store
 	// scrypt KDF at the expense of security.
@@ -98,6 +102,9 @@ type Config struct {
 	// NoUSB disables hardware wallet monitoring and connectivity.
 	NoUSB bool `toml:",omitempty"`
 
+	// USB enables hardware wallet monitoring and connectivity.
+	USB bool `toml:",omitempty"`
+
 	// SmartCardDaemonPath is the path to the smartcard daemon's socket
 	SmartCardDaemonPath string `toml:",omitempty"`
 
@@ -105,11 +112,11 @@ type Config struct {
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
-	IPCPath string `toml:",omitempty"`
+	IPCPath string
 
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
 	// field is empty, no HTTP API endpoint will be started.
-	HTTPHost string `toml:",omitempty"`
+	HTTPHost string
 
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful
@@ -133,20 +140,26 @@ type Config struct {
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	HTTPModules []string `toml:",omitempty"`
+	HTTPModules []string
 
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.
 	HTTPTimeouts rpc.HTTPTimeouts
 
+	// HTTPPathPrefix specifies a path prefix on which http-rpc is to be served.
+	HTTPPathPrefix string `toml:",omitempty"`
+
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
-	WSHost string `toml:",omitempty"`
+	WSHost string
 
 	// WSPort is the TCP port number on which to start the websocket RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful for
 	// ephemeral nodes).
 	WSPort int `toml:",omitempty"`
+
+	// WSPathPrefix specifies a path prefix on which ws-rpc is to be served.
+	WSPathPrefix string `toml:",omitempty"`
 
 	// WSOrigins is the list of domain to accept websocket requests from. Please be
 	// aware that the server can only act upon the HTTP request the client sends and
@@ -156,7 +169,7 @@ type Config struct {
 	// WSModules is a list of API modules to expose via the websocket RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	WSModules []string `toml:",omitempty"`
+	WSModules []string
 
 	// WSExposeAll exposes all API modules via the WebSocket RPC interface rather
 	// than just the public ones.
@@ -164,15 +177,6 @@ type Config struct {
 	// *WARNING* Only set this if the node is running in a trusted network, exposing
 	// private APIs to untrusted users is a major security risk.
 	WSExposeAll bool `toml:",omitempty"`
-
-	// GraphQLHost is the host interface on which to start the GraphQL server. If this
-	// field is empty, no GraphQL API endpoint will be started.
-	GraphQLHost string `toml:",omitempty"`
-
-	// GraphQLPort is the TCP port number on which to start the GraphQL server. The
-	// default zero value is/ valid and will pick a port number randomly (useful
-	// for ephemeral nodes).
-	GraphQLPort int `toml:",omitempty"`
 
 	// GraphQLCors is the Cross-Origin Resource Sharing header to send to requesting
 	// clients. Please be aware that CORS is a browser enforced security, it's fully
@@ -194,9 +198,13 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
-	Plugins                *plugin.Settings `toml:",omitempty"`
+
+	// AllowUnprotectedTxs allows non EIP-155 protected transactions to be send over RPC.
+	AllowUnprotectedTxs bool             `toml:",omitempty"`
+	Plugins             *plugin.Settings `toml:",omitempty"`
 	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
 	EnableNodePermission bool `toml:",omitempty"`
+	EnableMultitenancy   bool `toml:",omitempty"` // comes from MultitenancyFlag flag
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -253,15 +261,6 @@ func (c *Config) HTTPEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
 }
 
-// GraphQLEndpoint resolves a GraphQL endpoint based on the configured host interface
-// and port parameters.
-func (c *Config) GraphQLEndpoint() string {
-	if c.GraphQLHost == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s:%d", c.GraphQLHost, c.GraphQLPort)
-}
-
 // DefaultHTTPEndpoint returns the HTTP endpoint used by default.
 func DefaultHTTPEndpoint() string {
 	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
@@ -286,7 +285,7 @@ func DefaultWSEndpoint() string {
 // ExtRPCEnabled returns the indicator whether node enables the external
 // RPC(http, ws or graphql).
 func (c *Config) ExtRPCEnabled() bool {
-	return c.HTTPHost != "" || c.WSHost != "" || c.GraphQLHost != ""
+	return c.HTTPHost != "" || c.WSHost != ""
 }
 
 // NodeName returns the devp2p node identifier.
@@ -495,15 +494,12 @@ func (c *Config) ResolvePluginBaseDir() error {
 
 // check if smart-contract-based permissioning is enabled by reading `--permissioned` flag and checking permission config file
 func (c *Config) IsPermissionEnabled() bool {
-	if c.EnableNodePermission {
-		fullPath := filepath.Join(c.DataDir, params.PERMISSION_MODEL_CONFIG)
-		if _, err := os.Stat(fullPath); err != nil {
-			log.Warn(fmt.Sprintf("%s file is missing. Smart-contract-based permission service will be disabled", params.PERMISSION_MODEL_CONFIG), "error", err)
-			return false
-		}
-		return true
+	fullPath := filepath.Join(c.DataDir, params.PERMISSION_MODEL_CONFIG)
+	if _, err := os.Stat(fullPath); err != nil {
+		log.Warn(fmt.Sprintf("%s file is missing. Smart-contract-based permission service will be disabled", params.PERMISSION_MODEL_CONFIG), "error", err)
+		return false
 	}
-	return false
+	return true
 }
 
 func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
@@ -537,7 +533,7 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 		// we can have both, but it's very confusing for the user to see the same
 		// accounts in both externally and locally, plus very racey.
 		backends = append(backends, keystore.NewKeyStore(keydir, scryptN, scryptP))
-		if !conf.NoUSB {
+		if conf.USB {
 			// Start a USB hub for Ledger hardware wallets
 			if ledgerhub, err := usbwallet.NewLedgerHub(); err != nil {
 				log.Warn(fmt.Sprintf("Failed to start Ledger hub, disabling: %v", err))

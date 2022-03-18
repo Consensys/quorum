@@ -37,10 +37,10 @@ func TestDualStatePrivateToPublicCall(t *testing.T) {
 	callAddr := common.Address{1}
 
 	db := rawdb.NewMemoryDatabase()
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	privateState.SetCode(callAddr, common.Hex2Bytes("60016000600060006000730200000000000000000000000000000000000000620186a0f160005160005500"))
 
 	author := common.Address{}
@@ -53,8 +53,9 @@ func TestDualStatePrivateToPublicCall(t *testing.T) {
 		data:     nil,
 	}
 
-	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
-	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
+	ctx := NewEVMBlockContext(&dualStateTestHeader, nil, &author)
+	txCtx := NewEVMTxContext(msg)
+	env := vm.NewEVM(ctx, txCtx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
 	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := privateState.GetState(callAddr, common.Hash{}); value != (common.Hash{10}) {
@@ -66,10 +67,10 @@ func TestDualStatePublicToPrivateCall(t *testing.T) {
 	callAddr := common.Address{1}
 
 	db := rawdb.NewMemoryDatabase()
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	privateState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(callAddr, common.Hex2Bytes("60016000600060006000730200000000000000000000000000000000000000620186a0f160005160005500"))
 
 	author := common.Address{}
@@ -82,8 +83,9 @@ func TestDualStatePublicToPrivateCall(t *testing.T) {
 		data:     nil,
 	}
 
-	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
-	env := vm.NewEVM(ctx, publicState, publicState, &params.ChainConfig{}, vm.Config{})
+	ctx := NewEVMBlockContext(&dualStateTestHeader, nil, &author)
+	txCtx := NewEVMTxContext(msg)
+	env := vm.NewEVM(ctx, txCtx, publicState, publicState, &params.ChainConfig{}, vm.Config{})
 	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := publicState.GetState(callAddr, common.Hash{}); value != (common.Hash{}) {
@@ -95,10 +97,10 @@ func TestDualStateReadOnly(t *testing.T) {
 	callAddr := common.Address{1}
 
 	db := rawdb.NewMemoryDatabase()
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a60005500"))
 
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	privateState.SetCode(callAddr, common.Hex2Bytes("60016000600060006000730200000000000000000000000000000000000000620186a0f160005160005500"))
 
 	author := common.Address{}
@@ -111,8 +113,9 @@ func TestDualStateReadOnly(t *testing.T) {
 		data:     nil,
 	}
 
-	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
-	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
+	ctx := NewEVMBlockContext(&dualStateTestHeader, nil, &author)
+	txCtx := NewEVMTxContext(msg)
+	env := vm.NewEVM(ctx, txCtx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
 	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := publicState.GetState(common.Address{2}, common.Hash{}); value != (common.Hash{0}) {
@@ -150,8 +153,9 @@ func verifyStaticCall(t *testing.T, privateState *state.StateDB, publicState *st
 		data:     nil,
 	}
 
-	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
-	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{
+	ctx := NewEVMBlockContext(&dualStateTestHeader, nil, &author)
+	txCtx := NewEVMTxContext(msg)
+	env := vm.NewEVM(ctx, txCtx, publicState, privateState, &params.ChainConfig{
 		ByzantiumBlock: new(big.Int),
 	}, vm.Config{})
 
@@ -169,7 +173,7 @@ func verifyStaticCall(t *testing.T, privateState *state.StateDB, publicState *st
 func TestStaticCall_whenPublicToPublic(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
 	publicState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
 
@@ -179,10 +183,10 @@ func TestStaticCall_whenPublicToPublic(t *testing.T) {
 func TestStaticCall_whenPublicToPrivateInTheParty(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	privateState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
 
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
 
 	verifyStaticCall(t, privateState, publicState, common.Hash{10})
@@ -192,9 +196,9 @@ func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
 
 	db := rawdb.NewMemoryDatabase()
 
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
 
 	verifyStaticCall(t, privateState, publicState, common.Hash{0})
@@ -203,10 +207,10 @@ func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
 func TestStaticCall_whenPrivateToPublic(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	privateState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
 
-	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	publicState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
 
 	verifyStaticCall(t, privateState, publicState, common.Hash{10})

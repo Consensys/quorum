@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var (
@@ -268,15 +269,19 @@ func (minter *minter) createWork() *work {
 		Time:       uint64(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAt(parent.Root())
+	publicState, privateStateManager, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
+	}
+	defaultPrivateState, err := privateStateManager.DefaultState()
+	if err != nil {
+		panic(fmt.Sprint("failed to get default private state: ", err))
 	}
 
 	return &work{
 		config:       minter.config,
 		publicState:  publicState,
-		privateState: privateState,
+		privateState: defaultPrivateState,
 		header:       header,
 	}
 }
@@ -301,7 +306,7 @@ func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 	}
 
 	go func() {
-		minter.mux.Post(core.PendingLogsEvent{Logs: copiedLogs})
+		minter.eth.pendingLogsFeed.Send(copiedLogs)
 		minter.mux.Post(core.PendingStateEvent{})
 	}()
 }
@@ -344,7 +349,7 @@ func (minter *minter) mintNewBlock() {
 	header.Extra = make([]byte, extraVanity+len(extraSealBytes))
 	copy(header.Extra[extraVanity:], extraSealBytes)
 
-	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
+	block := types.NewBlock(header, committedTxes, nil, publicReceipts, new(trie.Trie))
 
 	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 
@@ -409,7 +414,8 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	var author *common.Address
 	var vmConf vm.Config
 	txnStart := time.Now()
-	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf)
+	// Note that raft minter doesn't care about private state etc, hence can pass forceNonParty=true and privateStateRepo=nil
+	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, true, nil)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)

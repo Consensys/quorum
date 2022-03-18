@@ -33,6 +33,7 @@ var Modules = map[string]string{
 	"swarmfs":          SwarmfsJs,
 	"txpool":           TxpoolJs,
 	"les":              LESJs,
+	"vflux":            VfluxJs,
 	"raft":             Raft_JS,
 	"istanbul":         Istanbul_JS,
 	"quorumPermission": QUORUM_NODE_JS,
@@ -79,7 +80,7 @@ web3._extend({
 			name: 'getSnapshot',
 			call: 'clique_getSnapshot',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getSnapshotAtHash',
@@ -90,7 +91,7 @@ web3._extend({
 			name: 'getSigners',
 			call: 'clique_getSigners',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getSignersAtHash',
@@ -106,6 +107,12 @@ web3._extend({
 			name: 'discard',
 			call: 'clique_discard',
 			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'status',
+			call: 'clique_status',
+			params: 2,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 	],
 	properties: [
@@ -177,8 +184,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'exportChain',
 			call: 'admin_exportChain',
-			params: 1,
-			inputFormatter: [null]
+			params: 3,
+			inputFormatter: [null, null, null]
 		}),
 		new web3._extend.Method({
 			name: 'importChain',
@@ -235,12 +242,14 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'accountRange',
 			call: 'debug_accountRange',
-			params: 2
+			params: 6,
+			inputFormatter: [web3._extend.formatters.inputDefaultBlockNumberFormatter, null, null, null, null, null],
 		}),
 		new web3._extend.Method({
 			name: 'printBlock',
 			call: 'debug_printBlock',
-			params: 1
+			params: 1,
+			outputFormatter: console.log
 		}),
 		new web3._extend.Method({
 			name: 'getBlockRlp',
@@ -251,7 +260,7 @@ web3._extend({
 			name: 'testSignCliqueBlock',
 			call: 'debug_testSignCliqueBlock',
 			params: 2,
-			inputFormatters: [web3._extend.formatters.inputAddressFormatter, null],
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null],
 		}),
 		new web3._extend.Method({
 			name: 'setHead',
@@ -267,7 +276,25 @@ web3._extend({
 			name: 'dumpBlock',
 			call: 'debug_dumpBlock',
 			params: 2,
-			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, ""]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, null]
+		}),
+		new web3._extend.Method({
+			name: 'privateStateRoot',
+			call: 'debug_privateStateRoot',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'defaultStateRoot',
+			call: 'debug_defaultStateRoot',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'dumpAddress',
+			call: 'debug_dumpAddress',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'chaindbProperty',
@@ -419,7 +446,7 @@ web3._extend({
 			name: 'traceBlockByNumber',
 			call: 'debug_traceBlockByNumber',
 			params: 2,
-			inputFormatter: [null, null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, null]
 		}),
 		new web3._extend.Method({
 			name: 'traceBlockByHash',
@@ -432,6 +459,12 @@ web3._extend({
 			call: 'debug_traceTransaction',
 			params: 2,
 			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
+			name: 'traceCall',
+			call: 'debug_traceCall',
+			params: 3,
+			inputFormatter: [null, null, null]
 		}),
 		new web3._extend.Method({
 			name: 'preimage',
@@ -461,6 +494,11 @@ web3._extend({
 			params: 2,
 			inputFormatter:[null, null],
 		}),
+		new web3._extend.Method({
+			name: 'freezeClient',
+			call: 'debug_freezeClient',
+			params: 1,
+		}),
 	],
 	properties: []
 });
@@ -475,6 +513,22 @@ web3._extend({
 			call: 'eth_sendRawPrivateTransaction',
 			params: 2,
 			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
+			name: 'distributePrivateTransaction',
+			call: 'eth_distributePrivateTransaction',
+			params: 2,
+			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
+			name: 'getPrivacyPrecompileAddress',
+			call: 'eth_getPrivacyPrecompileAddress',
+			params: 0,
+		}),
+		new web3._extend.Method({
+			name: 'getContractPrivacyMetadata',
+			call: 'eth_getContractPrivacyMetadata',
+			params: 1
 		}),
 		new web3._extend.Method({
 			name: 'chainId',
@@ -500,6 +554,13 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
+			name: 'estimateGas',
+			call: 'eth_estimateGas',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputCallFormatter, web3._extend.formatters.inputBlockNumberFormatter],
+			outputFormatter: web3._extend.utils.toDecimal
+		}),
+		new web3._extend.Method({
 			name: 'submitTransaction',
 			call: 'eth_submitTransaction',
 			params: 1,
@@ -514,7 +575,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'getHeaderByNumber',
 			call: 'eth_getHeaderByNumber',
-			params: 1
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getHeaderByHash',
@@ -524,12 +586,14 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'getBlockByNumber',
 			call: 'eth_getBlockByNumber',
-			params: 2
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, function (val) { return !!val; }]
 		}),
 		new web3._extend.Method({
 			name: 'getBlockByHash',
 			call: 'eth_getBlockByHash',
-			params: 2
+			params: 2,
+			inputFormatter: [null, function (val) { return !!val; }]
 		}),
 		new web3._extend.Method({
 			name: 'getRawTransaction',
@@ -569,6 +633,23 @@ web3._extend({
 			params: 1,
 			inputFormatter: [null]
 		}),
+		new web3._extend.Method({
+			name: 'getPSI',
+			call: 'eth_getPSI',
+			params: 0
+		}),
+		new web3._extend.Method({
+            name: 'getPrivateTransaction',
+            call: 'eth_getPrivateTransactionByHash',
+            params: 1,
+            outputFormatter: web3._extend.formatters.outputTransactionFormatter
+        }),
+		new web3._extend.Method({
+            name: 'getPrivateTransactionReceipt',
+            call: 'eth_getPrivateTransactionReceipt',
+            params: 1,
+            outputFormatter: web3._extend.formatters.outputTransactionReceiptFormatter
+        }),
 		// END-QUORUM
 	],
 	properties: [
@@ -949,6 +1030,18 @@ web3._extend({
                        params: 1,
                        inputFormatter: [null]
                }),
+               new web3._extend.Method({
+                       name: 'transactionAllowed',
+                       call: 'quorumPermission_transactionAllowed',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'connectionAllowed',
+                       call: 'quorumPermission_connectionAllowed',
+                       params: 4,
+                       inputFormatter: [null, null, null, null]
+               }),
 
        ],
        properties:
@@ -1022,6 +1115,19 @@ web3._extend({
 			call: 'istanbul_getSignersFromBlockByHash',
 			params: 1
 		}),
+		new web3._extend.Method({
+			name: 'status',
+			call: 'istanbul_status',
+			params: 2,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'isValidator',
+			call: 'istanbul_isValidator',
+			params: 1,
+            inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+
 	],
 	properties:
 	[
@@ -1130,6 +1236,11 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
+			name: 'addBalance',
+			call: 'les_addBalance',
+			params: 2
+		}),
+		new web3._extend.Method({
 			name: 'getExtensionStatus',
 			call: 'quorumExtension_getExtensionStatus',
 			params: 1,
@@ -1162,6 +1273,37 @@ web3._extend({
 			call: 'plugin@account_importRawKey',
 			params: 2
 		})
+	]
+});
+`
+
+const VfluxJs = `
+web3._extend({
+	property: 'vflux',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'distribution',
+			call: 'vflux_distribution',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'timeout',
+			call: 'vflux_timeout',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'value',
+			call: 'vflux_value',
+			params: 2
+		}),
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'requestStats',
+			getter: 'vflux_requestStats'
+		}),
 	]
 });
 `

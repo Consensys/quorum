@@ -46,9 +46,9 @@ var (
 )
 
 type LesOdrRequest interface {
-	GetCost(*peer) uint64
-	CanSend(*peer) bool
-	Request(uint64, *peer) error
+	GetCost(*serverPeer) uint64
+	CanSend(*serverPeer) bool
+	Request(uint64, *serverPeer) error
 	Validate(ethdb.Database, *Msg) error
 }
 
@@ -78,19 +78,19 @@ type BlockRequest light.BlockRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *BlockRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetBlockBodiesMsg, 1)
+func (r *BlockRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetBlockBodiesMsg, 1)
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *BlockRequest) CanSend(peer *peer) bool {
+func (r *BlockRequest) CanSend(peer *serverPeer) bool {
 	return peer.HasBlock(r.Hash, r.Number, false)
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *BlockRequest) Request(reqID uint64, peer *peer) error {
+func (r *BlockRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting block body", "hash", r.Hash)
-	return peer.RequestBodies(reqID, r.GetCost(peer), []common.Hash{r.Hash})
+	return peer.requestBodies(reqID, []common.Hash{r.Hash})
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -110,14 +110,16 @@ func (r *BlockRequest) Validate(db ethdb.Database, msg *Msg) error {
 	body := bodies[0]
 
 	// Retrieve our stored header and validate block content against it
-	header := rawdb.ReadHeader(db, r.Hash, r.Number)
-	if header == nil {
+	if r.Header == nil {
+		r.Header = rawdb.ReadHeader(db, r.Hash, r.Number)
+	}
+	if r.Header == nil {
 		return errHeaderUnavailable
 	}
-	if header.TxHash != types.DeriveSha(types.Transactions(body.Transactions)) {
+	if r.Header.TxHash != types.DeriveSha(types.Transactions(body.Transactions), trie.NewStackTrie(nil)) {
 		return errTxHashMismatch
 	}
-	if header.UncleHash != types.CalcUncleHash(body.Uncles) {
+	if r.Header.UncleHash != types.CalcUncleHash(body.Uncles) {
 		return errUncleHashMismatch
 	}
 	// Validations passed, encode and store RLP
@@ -134,19 +136,19 @@ type ReceiptsRequest light.ReceiptsRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *ReceiptsRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetReceiptsMsg, 1)
+func (r *ReceiptsRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetReceiptsMsg, 1)
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *ReceiptsRequest) CanSend(peer *peer) bool {
+func (r *ReceiptsRequest) CanSend(peer *serverPeer) bool {
 	return peer.HasBlock(r.Hash, r.Number, false)
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *ReceiptsRequest) Request(reqID uint64, peer *peer) error {
+func (r *ReceiptsRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting block receipts", "hash", r.Hash)
-	return peer.RequestReceipts(reqID, r.GetCost(peer), []common.Hash{r.Hash})
+	return peer.requestReceipts(reqID, []common.Hash{r.Hash})
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -172,7 +174,7 @@ func (r *ReceiptsRequest) Validate(db ethdb.Database, msg *Msg) error {
 	if r.Header == nil {
 		return errHeaderUnavailable
 	}
-	if r.Header.ReceiptHash != types.DeriveSha(receipt) {
+	if r.Header.ReceiptHash != types.DeriveSha(receipt, trie.NewStackTrie(nil)) {
 		return errReceiptHashMismatch
 	}
 	// Validations passed, store and return
@@ -191,24 +193,24 @@ type TrieRequest light.TrieRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *TrieRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetProofsV2Msg, 1)
+func (r *TrieRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetProofsV2Msg, 1)
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *TrieRequest) CanSend(peer *peer) bool {
+func (r *TrieRequest) CanSend(peer *serverPeer) bool {
 	return peer.HasBlock(r.Id.BlockHash, r.Id.BlockNumber, true)
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *TrieRequest) Request(reqID uint64, peer *peer) error {
+func (r *TrieRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting trie proof", "root", r.Id.Root, "key", r.Key)
 	req := ProofReq{
 		BHash:  r.Id.BlockHash,
 		AccKey: r.Id.AccKey,
 		Key:    r.Key,
 	}
-	return peer.RequestProofs(reqID, r.GetCost(peer), []ProofReq{req})
+	return peer.requestProofs(reqID, []ProofReq{req})
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -224,7 +226,7 @@ func (r *TrieRequest) Validate(db ethdb.Database, msg *Msg) error {
 	// Verify the proof and store if checks out
 	nodeSet := proofs.NodeSet()
 	reads := &readTraceDB{db: nodeSet}
-	if _, _, err := trie.VerifyProof(r.Id.Root, r.Key, reads); err != nil {
+	if _, err := trie.VerifyProof(r.Id.Root, r.Key, reads); err != nil {
 		return fmt.Errorf("merkle proof verification failed: %v", err)
 	}
 	// check if all nodes have been read by VerifyProof
@@ -245,23 +247,23 @@ type CodeRequest light.CodeRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *CodeRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetCodeMsg, 1)
+func (r *CodeRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetCodeMsg, 1)
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *CodeRequest) CanSend(peer *peer) bool {
+func (r *CodeRequest) CanSend(peer *serverPeer) bool {
 	return peer.HasBlock(r.Id.BlockHash, r.Id.BlockNumber, true)
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *CodeRequest) Request(reqID uint64, peer *peer) error {
+func (r *CodeRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting code data", "hash", r.Hash)
 	req := CodeReq{
 		BHash:  r.Id.BlockHash,
 		AccKey: r.Id.AccKey,
 	}
-	return peer.RequestCode(reqID, r.GetCost(peer), []CodeReq{req})
+	return peer.requestCode(reqID, []CodeReq{req})
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -293,10 +295,9 @@ const (
 	htCanonical = iota // Canonical hash trie
 	htBloomBits        // BloomBits trie
 
-	// applicable for all helper trie requests
-	auxRoot = 1
-	// applicable for htCanonical
-	auxHeader = 2
+	// helper trie auxiliary types
+	// htAuxNone = 1 ; deprecated number, used in les2/3 previously.
+	htAuxHeader = 2 // applicable for htCanonical, requests for relevant headers
 )
 
 type HelperTrieReq struct {
@@ -316,24 +317,20 @@ type ChtRequest light.ChtRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *ChtRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetHelperTrieProofsMsg, 1)
+func (r *ChtRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetHelperTrieProofsMsg, 1)
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *ChtRequest) CanSend(peer *peer) bool {
+func (r *ChtRequest) CanSend(peer *serverPeer) bool {
 	peer.lock.RLock()
 	defer peer.lock.RUnlock()
 
-	if r.Untrusted {
-		return peer.headInfo.Number >= r.BlockNum && peer.id == r.PeerId
-	} else {
-		return peer.headInfo.Number >= r.Config.ChtConfirms && r.ChtNum <= (peer.headInfo.Number-r.Config.ChtConfirms)/r.Config.ChtSize
-	}
+	return peer.headInfo.Number >= r.Config.ChtConfirms && r.ChtNum <= (peer.headInfo.Number-r.Config.ChtConfirms)/r.Config.ChtSize
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *ChtRequest) Request(reqID uint64, peer *peer) error {
+func (r *ChtRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting CHT", "cht", r.ChtNum, "block", r.BlockNum)
 	var encNum [8]byte
 	binary.BigEndian.PutUint64(encNum[:], r.BlockNum)
@@ -341,9 +338,9 @@ func (r *ChtRequest) Request(reqID uint64, peer *peer) error {
 		Type:    htCanonical,
 		TrieIdx: r.ChtNum,
 		Key:     encNum[:],
-		AuxReq:  auxHeader,
+		AuxReq:  htAuxHeader,
 	}
-	return peer.RequestHelperTrieProofs(reqID, r.GetCost(peer), []HelperTrieReq{req})
+	return peer.requestHelperTrieProofs(reqID, []HelperTrieReq{req})
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -368,39 +365,34 @@ func (r *ChtRequest) Validate(db ethdb.Database, msg *Msg) error {
 	if err := rlp.DecodeBytes(headerEnc, header); err != nil {
 		return errHeaderUnavailable
 	}
-
 	// Verify the CHT
-	// Note: For untrusted CHT request, there is no proof response but
-	// header data.
-	var node light.ChtNode
-	if !r.Untrusted {
-		var encNumber [8]byte
-		binary.BigEndian.PutUint64(encNumber[:], r.BlockNum)
+	var (
+		node      light.ChtNode
+		encNumber [8]byte
+	)
+	binary.BigEndian.PutUint64(encNumber[:], r.BlockNum)
 
-		reads := &readTraceDB{db: nodeSet}
-		value, _, err := trie.VerifyProof(r.ChtRoot, encNumber[:], reads)
-		if err != nil {
-			return fmt.Errorf("merkle proof verification failed: %v", err)
-		}
-		if len(reads.reads) != nodeSet.KeyCount() {
-			return errUselessNodes
-		}
-
-		if err := rlp.DecodeBytes(value, &node); err != nil {
-			return err
-		}
-		if node.Hash != header.Hash() {
-			return errCHTHashMismatch
-		}
-		if r.BlockNum != header.Number.Uint64() {
-			return errCHTNumberMismatch
-		}
+	reads := &readTraceDB{db: nodeSet}
+	value, err := trie.VerifyProof(r.ChtRoot, encNumber[:], reads)
+	if err != nil {
+		return fmt.Errorf("merkle proof verification failed: %v", err)
+	}
+	if len(reads.reads) != nodeSet.KeyCount() {
+		return errUselessNodes
+	}
+	if err := rlp.DecodeBytes(value, &node); err != nil {
+		return err
+	}
+	if node.Hash != header.Hash() {
+		return errCHTHashMismatch
+	}
+	if r.BlockNum != header.Number.Uint64() {
+		return errCHTNumberMismatch
 	}
 	// Verifications passed, store and return
 	r.Header = header
 	r.Proof = nodeSet
-	r.Td = node.Td // For untrusted request, td here is nil, todo improve the les/2 protocol
-
+	r.Td = node.Td
 	return nil
 }
 
@@ -413,12 +405,12 @@ type BloomRequest light.BloomRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *BloomRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetHelperTrieProofsMsg, len(r.SectionIndexList))
+func (r *BloomRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetHelperTrieProofsMsg, len(r.SectionIndexList))
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *BloomRequest) CanSend(peer *peer) bool {
+func (r *BloomRequest) CanSend(peer *serverPeer) bool {
 	peer.lock.RLock()
 	defer peer.lock.RUnlock()
 
@@ -429,7 +421,7 @@ func (r *BloomRequest) CanSend(peer *peer) bool {
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *BloomRequest) Request(reqID uint64, peer *peer) error {
+func (r *BloomRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting BloomBits", "bloomTrie", r.BloomTrieNum, "bitIdx", r.BitIdx, "sections", r.SectionIndexList)
 	reqs := make([]HelperTrieReq, len(r.SectionIndexList))
 
@@ -444,7 +436,7 @@ func (r *BloomRequest) Request(reqID uint64, peer *peer) error {
 			Key:     common.CopyBytes(encNumber[:]),
 		}
 	}
-	return peer.RequestHelperTrieProofs(reqID, r.GetCost(peer), reqs)
+	return peer.requestHelperTrieProofs(reqID, reqs)
 }
 
 // Valid processes an ODR request reply message from the LES network
@@ -470,7 +462,7 @@ func (r *BloomRequest) Validate(db ethdb.Database, msg *Msg) error {
 
 	for i, idx := range r.SectionIndexList {
 		binary.BigEndian.PutUint64(encNumber[2:], idx)
-		value, _, err := trie.VerifyProof(r.BloomTrieRoot, encNumber[:], reads)
+		value, err := trie.VerifyProof(r.BloomTrieRoot, encNumber[:], reads)
 		if err != nil {
 			return err
 		}
@@ -489,28 +481,27 @@ type TxStatusRequest light.TxStatusRequest
 
 // GetCost returns the cost of the given ODR request according to the serving
 // peer's cost table (implementation of LesOdrRequest)
-func (r *TxStatusRequest) GetCost(peer *peer) uint64 {
-	return peer.GetRequestCost(GetTxStatusMsg, len(r.Hashes))
+func (r *TxStatusRequest) GetCost(peer *serverPeer) uint64 {
+	return peer.getRequestCost(GetTxStatusMsg, len(r.Hashes))
 }
 
 // CanSend tells if a certain peer is suitable for serving the given request
-func (r *TxStatusRequest) CanSend(peer *peer) bool {
-	return peer.version >= lpv2
+func (r *TxStatusRequest) CanSend(peer *serverPeer) bool {
+	return peer.txHistory != txIndexDisabled
 }
 
 // Request sends an ODR request to the LES network (implementation of LesOdrRequest)
-func (r *TxStatusRequest) Request(reqID uint64, peer *peer) error {
+func (r *TxStatusRequest) Request(reqID uint64, peer *serverPeer) error {
 	peer.Log().Debug("Requesting transaction status", "count", len(r.Hashes))
-	return peer.RequestTxStatus(reqID, r.GetCost(peer), r.Hashes)
+	return peer.requestTxStatus(reqID, r.Hashes)
 }
 
-// Valid processes an ODR request reply message from the LES network
+// Validate processes an ODR request reply message from the LES network
 // returns true and stores results in memory if the message was a valid reply
 // to the request (implementation of LesOdrRequest)
 func (r *TxStatusRequest) Validate(db ethdb.Database, msg *Msg) error {
 	log.Debug("Validating transaction status", "count", len(r.Hashes))
 
-	// Ensure we have a correct message with a single block body
 	if msg.MsgType != MsgTxStatus {
 		return errInvalidMessageType
 	}

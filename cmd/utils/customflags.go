@@ -185,28 +185,6 @@ func GlobalBig(ctx *cli.Context, name string) *big.Int {
 	return (*big.Int)(val.(*bigValue))
 }
 
-func prefixFor(name string) (prefix string) {
-	if len(name) == 1 {
-		prefix = "-"
-	} else {
-		prefix = "--"
-	}
-
-	return
-}
-
-func prefixedNames(fullName string) (prefixed string) {
-	parts := strings.Split(fullName, ",")
-	for i, name := range parts {
-		name = strings.Trim(name, " ")
-		prefixed += prefixFor(name) + name
-		if i < len(parts)-1 {
-			prefixed += ", "
-		}
-	}
-	return
-}
-
 // Expands a file path
 // 1. replace tilde with users home dir
 // 2. expands embedded environment variables
@@ -214,14 +192,14 @@ func prefixedNames(fullName string) (prefixed string) {
 // Note, it has limitations, e.g. ~someuser/tmp will not be expanded
 func expandPath(p string) string {
 	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {
-		if home := homeDir(); home != "" {
+		if home := HomeDir(); home != "" {
 			p = home + p[1:]
 		}
 	}
 	return path.Clean(os.ExpandEnv(p))
 }
 
-func homeDir() string {
+func HomeDir() string {
 	if home := os.Getenv("HOME"); home != "" {
 		return home
 	}

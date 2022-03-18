@@ -87,7 +87,7 @@ func (odr *testOdr) Retrieve(ctx context.Context, req OdrRequest) error {
 		t.Prove(req.Key, 0, nodes)
 		req.Proof = nodes
 	case *CodeRequest:
-		req.Data, _ = odr.sdb.Get(req.Hash[:])
+		req.Data = rawdb.ReadCode(odr.sdb, req.Hash)
 	}
 	req.StoreResult(odr.ldb)
 	return nil
@@ -149,7 +149,7 @@ func odrAccounts(ctx context.Context, db ethdb.Database, bc *core.BlockChain, lc
 		st = NewState(ctx, header, lc.Odr())
 	} else {
 		header := bc.GetHeaderByHash(bhash)
-		st, _ = state.New(header.Root, state.NewDatabase(db))
+		st, _ = state.New(header.Root, state.NewDatabase(db), nil)
 	}
 
 	var res []byte
@@ -189,17 +189,18 @@ func odrContractCall(ctx context.Context, db ethdb.Database, bc *core.BlockChain
 		} else {
 			chain = bc
 			header = bc.GetHeaderByHash(bhash)
-			st, _ = state.New(header.Root, state.NewDatabase(db))
+			st, _ = state.New(header.Root, state.NewDatabase(db), nil)
 		}
 
 		// Perform read-only call.
 		st.SetBalance(testBankAddress, math.MaxBig256)
-		msg := callmsg{types.NewMessage(testBankAddress, &testContractAddr, 0, new(big.Int), 1000000, new(big.Int), data, false)}
-		context := core.NewEVMContext(msg, header, chain, nil)
-		vmenv := vm.NewEVM(context, st, st, config, vm.Config{})
+		msg := callmsg{types.NewMessage(testBankAddress, &testContractAddr, 0, new(big.Int), 1000000, new(big.Int), data, nil, false)}
+		txContext := core.NewEVMTxContext(msg)
+		context := core.NewEVMBlockContext(header, chain, nil)
+		vmenv := vm.NewEVM(context, txContext, st, st, config, vm.Config{})
 		gp := new(core.GasPool).AddGas(math.MaxUint64)
-		ret, _, _, _ := core.ApplyMessage(vmenv, msg, gp)
-		res = append(res, ret...)
+		result, _ := core.ApplyMessage(vmenv, msg, gp)
+		res = append(res, result.Return()...)
 		if st.Error() != nil {
 			return res, st.Error()
 		}
@@ -257,7 +258,7 @@ func testChainOdr(t *testing.T, protocol int, fn odrTestFn) {
 	)
 	gspec.MustCommit(ldb)
 	// Assemble the test environment
-	blockchain, _ := core.NewBlockChain(sdb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil)
+	blockchain, _ := core.NewBlockChain(sdb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil, nil, nil)
 	gchain, _ := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), sdb, 4, testChainGen)
 	if _, err := blockchain.InsertChain(gchain); err != nil {
 		t.Fatal(err)

@@ -110,8 +110,8 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// if no services are configured, use the default service
-	if len(conf.Services) == 0 {
-		conf.Services = []string{net.DefaultService}
+	if len(conf.Lifecycles) == 0 {
+		conf.Lifecycles = []string{net.DefaultService}
 	}
 
 	// use the NodeAdapter to create the node
@@ -119,10 +119,7 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	if err != nil {
 		return nil, err
 	}
-	node := &Node{
-		Node:   adapterNode,
-		Config: conf,
-	}
+	node := newNode(adapterNode, conf, false)
 	log.Trace("Node created", "id", conf.ID)
 
 	nodeIndex := len(net.Nodes)
@@ -448,7 +445,7 @@ func (net *Network) GetNodeIDs(excludeIDs ...enode.ID) []enode.ID {
 }
 
 func (net *Network) getNodeIDs(excludeIDs []enode.ID) []enode.ID {
-	// Get all curent nodeIDs
+	// Get all current nodeIDs
 	nodeIDs := make([]enode.ID, 0, len(net.nodeMap))
 	for id := range net.nodeMap {
 		nodeIDs = append(nodeIDs, id)
@@ -457,9 +454,8 @@ func (net *Network) getNodeIDs(excludeIDs []enode.ID) []enode.ID {
 	if len(excludeIDs) > 0 {
 		// Return the difference of nodeIDs and excludeIDs
 		return filterIDs(nodeIDs, excludeIDs)
-	} else {
-		return nodeIDs
 	}
+	return nodeIDs
 }
 
 // GetNodes returns the existing nodes.
@@ -475,9 +471,8 @@ func (net *Network) getNodes(excludeIDs []enode.ID) []*Node {
 	if len(excludeIDs) > 0 {
 		nodeIDs := net.getNodeIDs(excludeIDs)
 		return net.getNodesByID(nodeIDs)
-	} else {
-		return net.Nodes
 	}
+	return net.Nodes
 }
 
 // GetNodesByID returns existing nodes with the given enode.IDs.
@@ -735,7 +730,16 @@ type Node struct {
 
 	// up tracks whether or not the node is running
 	up   bool
-	upMu sync.RWMutex
+	upMu *sync.RWMutex
+}
+
+func newNode(an adapters.Node, ac *adapters.NodeConfig, up bool) *Node {
+	return &Node{Node: an, Config: ac, up: up, upMu: new(sync.RWMutex)}
+}
+
+func (n *Node) copy() *Node {
+	configCpy := *n.Config
+	return newNode(n.Node, &configCpy, n.Up())
 }
 
 // Up returns whether the node is currently up (online)
@@ -787,22 +791,19 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface so that we don't lose
-// Node.up status. IMPORTANT: The implementation is incomplete; we lose
-// p2p.NodeInfo.
+// UnmarshalJSON implements json.Unmarshaler interface so that we don't lose Node.up
+// status. IMPORTANT: The implementation is incomplete; we lose p2p.NodeInfo.
 func (n *Node) UnmarshalJSON(raw []byte) error {
 	// TODO: How should we turn back NodeInfo into n.Node?
 	// Ticket: https://github.com/ethersphere/go-ethereum/issues/1177
-	node := struct {
+	var node struct {
 		Config *adapters.NodeConfig `json:"config,omitempty"`
 		Up     bool                 `json:"up"`
-	}{}
+	}
 	if err := json.Unmarshal(raw, &node); err != nil {
 		return err
 	}
-
-	n.SetUp(node.Up)
-	n.Config = node.Config
+	*n = *newNode(nil, node.Config, node.Up)
 	return nil
 }
 
@@ -899,7 +900,7 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 		Nodes: make([]NodeSnapshot, len(net.Nodes)),
 	}
 	for i, node := range net.Nodes {
-		snap.Nodes[i] = NodeSnapshot{Node: *node}
+		snap.Nodes[i] = NodeSnapshot{Node: *node.copy()}
 		if !node.Up() {
 			continue
 		}
@@ -910,19 +911,19 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 		snap.Nodes[i].Snapshots = snapshots
 		for _, addSvc := range addServices {
 			haveSvc := false
-			for _, svc := range snap.Nodes[i].Node.Config.Services {
+			for _, svc := range snap.Nodes[i].Node.Config.Lifecycles {
 				if svc == addSvc {
 					haveSvc = true
 					break
 				}
 			}
 			if !haveSvc {
-				snap.Nodes[i].Node.Config.Services = append(snap.Nodes[i].Node.Config.Services, addSvc)
+				snap.Nodes[i].Node.Config.Lifecycles = append(snap.Nodes[i].Node.Config.Lifecycles, addSvc)
 			}
 		}
 		if len(removeServices) > 0 {
 			var cleanedServices []string
-			for _, svc := range snap.Nodes[i].Node.Config.Services {
+			for _, svc := range snap.Nodes[i].Node.Config.Lifecycles {
 				haveSvc := false
 				for _, rmSvc := range removeServices {
 					if rmSvc == svc {
@@ -935,7 +936,7 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 				}
 
 			}
-			snap.Nodes[i].Node.Config.Services = cleanedServices
+			snap.Nodes[i].Node.Config.Lifecycles = cleanedServices
 		}
 	}
 	for _, conn := range net.Conns {
@@ -1095,7 +1096,6 @@ func (net *Network) executeNodeEvent(e *Event) error {
 func (net *Network) executeConnEvent(e *Event) error {
 	if e.Conn.Up {
 		return net.Connect(e.Conn.One, e.Conn.Other)
-	} else {
-		return net.Disconnect(e.Conn.One, e.Conn.Other)
 	}
+	return net.Disconnect(e.Conn.One, e.Conn.Other)
 }

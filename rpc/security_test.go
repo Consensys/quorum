@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	testifyassert "github.com/stretchr/testify/assert"
@@ -129,7 +132,7 @@ func TestSecureCall_whenThereIsAuthenticationError(t *testing.T) {
 		{ctxAuthenticationError, arbitraryError},
 	})
 
-	err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{})
+	_, err := SecureCall(stubSecurityContextResolver, "")
 
 	assert.EqualError(err, arbitraryError.Error())
 }
@@ -143,7 +146,7 @@ func TestSecureCall_whenTokenExpired(t *testing.T) {
 		}},
 	})
 
-	err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{})
+	_, err := SecureCall(stubSecurityContextResolver, "")
 
 	assert.EqualError(err, "token expired")
 }
@@ -163,7 +166,7 @@ func TestSecureCall_whenTypical(t *testing.T) {
 		}},
 	})
 
-	err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "eth_blockNumber"})
+	_, err := SecureCall(stubSecurityContextResolver, "eth_blockNumber")
 
 	assert.NoError(err)
 }
@@ -183,7 +186,7 @@ func TestSecureCall_whenAccessDenied(t *testing.T) {
 		}},
 	})
 
-	err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "eth_someMethod"})
+	_, err := SecureCall(stubSecurityContextResolver, "eth_someMethod")
 
 	assert.EqualError(err, "eth_someMethod - access denied")
 }
@@ -197,23 +200,111 @@ func TestSecureCall_whenMethodInJSONMessageIsNotSupported(t *testing.T) {
 		}},
 	})
 
-	err := secureCall(stubSecurityContextResolver, &jsonrpcMessage{Method: "arbitrary method"})
+	_, err := SecureCall(stubSecurityContextResolver, "arbitrary method")
 
 	assert.NoError(err)
 }
 
 type stubSecurityContextResolver struct {
-	ctx securityContext
+	ctx SecurityContext
 }
 
 func newStubSecurityContextResolver(ctx []struct{ k, v interface{} }) *stubSecurityContextResolver {
-	sc := securityContext(context.Background())
+	sc := SecurityContext(context.Background())
 	for _, kv := range ctx {
 		sc = context.WithValue(sc, kv.k, kv.v)
 	}
 	return &stubSecurityContextResolver{sc}
 }
 
-func (sr *stubSecurityContextResolver) Resolve() securityContext {
+func (sr *stubSecurityContextResolver) Resolve() SecurityContext {
 	return sr.ctx
+}
+
+func TestResolvePSIProvider_whenTypicalEndpoints(t *testing.T) {
+	testCases := []struct {
+		endpoint    string
+		expectedPSI types.PrivateStateIdentifier
+	}{
+		{
+			endpoint:    "http://aritraryhost?PSI=PS1",
+			expectedPSI: types.ToPrivateStateIdentifier("PS1"),
+		},
+		{
+			endpoint:    "https://aritraryhost?PSI=PS2",
+			expectedPSI: types.ToPrivateStateIdentifier("PS2"),
+		},
+		{
+			endpoint:    "ws://aritraryhost?PSI=PS3",
+			expectedPSI: types.ToPrivateStateIdentifier("PS3"),
+		},
+		{
+			endpoint:    "wss://aritraryhost?PSI=PS4",
+			expectedPSI: types.ToPrivateStateIdentifier("PS4"),
+		},
+	}
+	for _, tc := range testCases {
+		actualCtx := resolvePSIProvider(context.Background(), tc.endpoint)
+
+		f := PSIProviderFromContext(actualCtx)
+		testifyassert.NotNil(t, f)
+		actualPSI, err := f(context.Background())
+		testifyassert.NoError(t, err)
+		testifyassert.Equal(t, tc.expectedPSI, actualPSI)
+	}
+}
+
+func TestResolvePSIProvider_whenEnvVariableTakesPrecedence(t *testing.T) {
+	_ = os.Setenv(EnvVarPrivateStateIdentifier, "ENV_PS1")
+	defer func() { _ = os.Unsetenv(EnvVarPrivateStateIdentifier) }()
+
+	endpoint := "http://aritraryhost?PSI=PS1"
+	actualCtx := resolvePSIProvider(context.Background(), endpoint)
+
+	f := PSIProviderFromContext(actualCtx)
+	testifyassert.NotNil(t, f)
+	actualPSI, err := f(context.Background())
+	testifyassert.NoError(t, err)
+	testifyassert.Equal(t, types.ToPrivateStateIdentifier("ENV_PS1"), actualPSI)
+}
+
+func TestResolvePSIProvider_whenNoPSI(t *testing.T) {
+	endpoint := "data/geth.ipc"
+	actualCtx := resolvePSIProvider(context.Background(), endpoint)
+
+	testifyassert.Nil(t, PSIProviderFromContext(actualCtx))
+}
+
+func TestEncodePSI_whenTypical(t *testing.T) {
+	actual := encodePSI(strconv.AppendUint(nil, 32, 10), "ARBITRARY")
+
+	testifyassert.Equal(t, "\"ARBITRARY/32\"", string(actual))
+}
+
+func TestEncodePSI_whenNoPSI(t *testing.T) {
+	actual := encodePSI(strconv.AppendUint(nil, 32, 10), "")
+
+	testifyassert.Equal(t, "32", string(actual))
+}
+
+func TestDecodePSI_whenTypical(t *testing.T) {
+	input := "\"ARBITRARY/1\""
+
+	psi := decodePSI([]byte(input))
+
+	testifyassert.Equal(t, types.PrivateStateIdentifier("ARBITRARY"), psi)
+}
+
+func TestDecodePSI_whenNoPSI(t *testing.T) {
+	inputs := []string{
+		"1",
+		"\"1",
+		"1\"",
+		"\"xyz\"",
+	}
+	for _, input := range inputs {
+		psi := decodePSI([]byte(input))
+
+		testifyassert.Equal(t, types.DefaultPrivateStateIdentifier, psi, "input: %s", input)
+	}
 }

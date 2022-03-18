@@ -20,12 +20,14 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -37,16 +39,22 @@ import (
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type LesApiBackend struct {
-	extRPCEnabled bool
-	eth           *LightEthereum
-	gpo           *gasprice.Oracle
+	extRPCEnabled       bool
+	allowUnprotectedTxs bool
+	eth                 *LightEthereum
+	gpo                 *gasprice.Oracle
 }
 
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
+}
+
+func (b *LesApiBackend) PSMR() mps.PrivateStateMetadataResolver {
+	panic("not supported")
 }
 
 func (b *LesApiBackend) CurrentBlock() *types.Block {
@@ -163,15 +171,18 @@ func (b *LesApiBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 	return nil, nil
 }
 
-func (b *LesApiBackend) GetTd(hash common.Hash) *big.Int {
-	return b.eth.blockchain.GetTdByHash(hash)
+func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
+	if number := rawdb.ReadHeaderNumber(b.eth.chainDb, hash); number != nil {
+		return b.eth.blockchain.GetTdOdr(ctx, hash, *number)
+	}
+	return nil
 }
 
 func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	statedb := apiState.(*state.StateDB)
-	statedb.SetBalance(msg.From(), math.MaxBig256)
-	context := core.NewEVMContext(msg, header, b.eth.blockchain, nil)
-	return vm.NewEVM(context, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
+	context := core.NewEVMBlockContext(header, b.eth.blockchain, nil)
+	txContext := core.NewEVMTxContext(msg)
+	return vm.NewEVM(context, txContext, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
 }
 
 func (b *LesApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -226,6 +237,13 @@ func (b *LesApiBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return b.eth.blockchain.SubscribeLogsEvent(ch)
 }
 
+func (b *LesApiBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		<-quit
+		return nil
+	})
+}
+
 func (b *LesApiBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
 	return b.eth.blockchain.SubscribeRemovedLogsEvent(ch)
 }
@@ -250,10 +268,6 @@ func (b *LesApiBackend) ChainDb() ethdb.Database {
 	return b.eth.chainDb
 }
 
-func (b *LesApiBackend) EventMux() *event.TypeMux {
-	return b.eth.eventMux
-}
-
 func (b *LesApiBackend) AccountManager() *accounts.Manager {
 	return b.eth.accountManager
 }
@@ -262,8 +276,23 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
-func (b *LesApiBackend) RPCGasCap() *big.Int {
+func (b *LesApiBackend) UnprotectedAllowed() bool {
+	return b.allowUnprotectedTxs
+}
+
+// Quorum
+func (b *LesApiBackend) CallTimeOut() time.Duration {
+	return b.eth.config.EVMCallTimeOut
+}
+
+// End Quorum
+
+func (b *LesApiBackend) RPCGasCap() uint64 {
 	return b.eth.config.RPCGasCap
+}
+
+func (b *LesApiBackend) RPCTxFeeCap() float64 {
+	return b.eth.config.RPCTxFeeCap
 }
 
 func (b *LesApiBackend) BloomStatus() (uint64, uint64) {
@@ -279,3 +308,48 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
 	}
 }
+
+func (b *LesApiBackend) Engine() consensus.Engine {
+	return b.eth.engine
+}
+
+func (b *LesApiBackend) CurrentHeader() *types.Header {
+	return b.eth.blockchain.CurrentHeader()
+}
+
+func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtBlock(ctx, block, reexec)
+}
+
+func (b *LesApiBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
+	return b.eth.statesInRange(ctx, fromBlock, toBlock, reexec)
+}
+
+func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
+}
+
+// Quorum
+
+func (b *LesApiBackend) GetBlockchain() *core.BlockChain {
+	return nil
+}
+
+func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	authToken := rpc.PreauthenticatedTokenFromContext(rpcCtx)
+	if authToken != nil && b.eth.config.MultiTenantEnabled() {
+		return authToken, true
+	}
+	return nil, false
+}
+
+func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error) {
+	s, _, err := b.StateAndHeaderByNumber(ctx, number)
+	return s, err
+}
+
+func (b *LesApiBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
+	return b.eth.config.QuorumChainConfig.PrivacyMarkerEnabled()
+}
+
+// End Quorum

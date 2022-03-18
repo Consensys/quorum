@@ -13,13 +13,13 @@ import (
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
 	mapset "github.com/deckarep/golang-set"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -336,7 +336,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
 	} else {
 		// added for permissions changes to indicate node sync up has started
-		types.SetSyncStatus()
+		core.SetSyncStatus()
 		log.Info("blockchain is caught up; no need to synchronize")
 	}
 
@@ -360,9 +360,8 @@ func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
 			log.Info("synchronizing with peer", "peer id", peerId, "hash", hash)
 
 			peerId := peer.p2pNode.ID().String()
-			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID().Bytes()[:8])
 
-			if err := pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
+			if err := pm.downloader.Synchronise(peerId, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
 				log.Info("failed to synchronize with peer", "peer id", peerId)
 
 				time.Sleep(500 * time.Millisecond)

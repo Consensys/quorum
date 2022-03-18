@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of go-ethereum.
 //
 // go-ethereum is free software: you can redistribute it and/or modify
@@ -25,11 +25,38 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
 )
+
+func TestAuthorizationList(t *testing.T) {
+	value := "1=" + common.HexToHash("0xfa").Hex() + ",2=" + common.HexToHash("0x12").Hex()
+	result := map[uint64]common.Hash{
+		1: common.HexToHash("0xfa"),
+		2: common.HexToHash("0x12"),
+	}
+
+	arbitraryNodeConfig := &eth.Config{}
+	fs := &flag.FlagSet{}
+	fs.String(AuthorizationListFlag.Name, value, "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(AuthorizationListFlag.Name, value)
+	setAuthorizationList(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.Equal(t, result, arbitraryNodeConfig.AuthorizationList)
+
+	fs = &flag.FlagSet{}
+	fs.String(AuthorizationListFlag.Name, value, "")
+	arbitraryCLIContext = cli.NewContext(nil, fs, nil)
+	arbitraryCLIContext.GlobalSet(DeprecatedAuthorizationListFlag.Name, value) // old wlist flag
+	setAuthorizationList(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.Equal(t, result, arbitraryNodeConfig.AuthorizationList)
+}
 
 func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
@@ -54,7 +81,7 @@ func TestSetPlugins_whenInvalidFlagsCombination(t *testing.T) {
 
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSkipVerifyFlag.Name, "false"))
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginLocalVerifyFlag.Name, "false"))
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitry value"))
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitrary value"))
 
 	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "--plugins.localverify is required for setting --plugins.publickey")
 }
@@ -145,4 +172,36 @@ func Test_SplitTagsFlag(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuorumConfigFlags(t *testing.T) {
+	fs := &flag.FlagSet{}
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	arbitraryEthConfig := &eth.Config{}
+
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(12)))
+	fs.Bool(MultitenancyFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(MultitenancyFlag.Name, "true"))
+	fs.Bool(QuorumEnablePrivacyMarker.Name, true, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumEnablePrivacyMarker.Name, "true"))
+	fs.Uint64(IstanbulRequestTimeoutFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulRequestTimeoutFlag.Name, "23"))
+	fs.Uint64(IstanbulBlockPeriodFlag.Name, 0, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(IstanbulBlockPeriodFlag.Name, "34"))
+	fs.Bool(RaftModeFlag.Name, false, "")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(RaftModeFlag.Name, "true"))
+
+	require.NoError(t, setQuorumConfig(arbitraryCLIContext, arbitraryEthConfig))
+
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "EVMCallTimeOutFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(MultitenancyFlag.Name), "MultitenancyFlag not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(RaftModeFlag.Name), "RaftModeFlag not set")
+
+	assert.Equal(t, 12*time.Second, arbitraryEthConfig.EVMCallTimeOut, "EVMCallTimeOut value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.QuorumChainConfig.MultiTenantEnabled(), "MultitenancyFlag value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.QuorumChainConfig.PrivacyMarkerEnabled(), "QuorumEnablePrivacyMarker value is incorrect")
+	assert.Equal(t, uint64(23), arbitraryEthConfig.Istanbul.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
+	assert.Equal(t, uint64(34), arbitraryEthConfig.Istanbul.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
+	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
 }

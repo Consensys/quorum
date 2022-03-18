@@ -296,7 +296,14 @@ func TestWallet_SignTx(t *testing.T) {
 
 			gotV, gotR, gotS := got.RawSignatureValues()
 
-			wantR, wantS, wantV, err := tt.signer.SignatureValues(&types.Transaction{}, mockSig) // tx param is unused by method
+			wantR, wantS, wantV, err := tt.signer.SignatureValues(types.NewTransaction(
+				0,
+				common.Address{},
+				nil,
+				0,
+				nil,
+				nil,
+			), mockSig) // tx param is unused by method
 			require.NoError(t, err)
 
 			// assert the correct signature is added to the tx
@@ -377,7 +384,14 @@ func TestWallet_SignTxWithPassphrase(t *testing.T) {
 
 			gotV, gotR, gotS := got.RawSignatureValues()
 
-			wantR, wantS, wantV, err := tt.signer.SignatureValues(&types.Transaction{}, mockSig) // tx param is unused by method
+			wantR, wantS, wantV, err := tt.signer.SignatureValues(types.NewTransaction(
+				0,
+				common.Address{},
+				nil,
+				0,
+				nil,
+				nil,
+			), mockSig) // tx param is unused by method
 			require.NoError(t, err)
 
 			// assert the correct signature is added to the tx

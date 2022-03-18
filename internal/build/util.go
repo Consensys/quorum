@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"log"
@@ -49,15 +51,6 @@ func MustRun(cmd *exec.Cmd) {
 
 func MustRunCommand(cmd string, args ...string) {
 	MustRun(exec.Command(cmd, args...))
-}
-
-// GOPATH returns the value that the GOPATH environment
-// variable should be set to.
-func GOPATH() string {
-	if os.Getenv("GOPATH") == "" {
-		log.Fatal("GOPATH is not set")
-	}
-	return os.Getenv("GOPATH")
 }
 
 var warnedAboutGit bool
@@ -118,28 +111,6 @@ func render(tpl *template.Template, outputFile string, outputPerm os.FileMode, x
 	}
 }
 
-// CopyFile copies a file.
-func CopyFile(dst, src string, mode os.FileMode) {
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		log.Fatal(err)
-	}
-	destFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer destFile.Close()
-
-	srcFile, err := os.Open(src)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer srcFile.Close()
-
-	if _, err := io.Copy(destFile, srcFile); err != nil {
-		log.Fatal(err)
-	}
-}
-
 // GoTool returns the command that runs a go tool. This uses go from GOROOT instead of PATH
 // so that go commands executed by build use the same version of Go as the 'host' that runs
 // build code. e.g.
@@ -184,6 +155,31 @@ func UploadSFTP(identityFile, host, dir string, files []string) error {
 	return sftp.Wait()
 }
 
+// FindMainPackages finds all 'main' packages in the given directory and returns their
+// package paths.
+func FindMainPackages(dir string) []string {
+	var commands []string
+	cmds, err := ioutil.ReadDir(dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, cmd := range cmds {
+		pkgdir := filepath.Join(dir, cmd.Name())
+		pkgs, err := parser.ParseDir(token.NewFileSet(), pkgdir, nil, parser.PackageClauseOnly)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for name := range pkgs {
+			if name == "main" {
+				path := "./" + filepath.ToSlash(pkgdir)
+				commands = append(commands, path)
+				break
+			}
+		}
+	}
+	return commands
+}
+
 // ExpandPackagesNoVendor expands a cmd/go import path pattern, skipping
 // vendored packages.
 func ExpandPackagesNoVendor(patterns []string) []string {
@@ -201,7 +197,7 @@ func ExpandPackagesNoVendor(patterns []string) []string {
 		}
 		var packages []string
 		for _, line := range strings.Split(string(out), "\n") {
-			if !strings.Contains(line, "/vendor/") {
+			if !strings.Contains(line, "/vendor/") && !strings.Contains(line, "go: downloading") { // Quorum
 				packages = append(packages, strings.TrimSpace(line))
 			}
 		}

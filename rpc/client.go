@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -85,7 +86,7 @@ type Client struct {
 
 	// writeConn is used for writing to the connection on the caller's goroutine. It should
 	// only be accessed outside of dispatch, with the write lock held. The write lock is
-	// taken by sending on requestOp and released by sending on sendDone.
+	// taken by sending on reqInit and released by sending on reqSent.
 	writeConn jsonWriter
 
 	// for dispatch
@@ -117,7 +118,7 @@ func (c *Client) newClientConn(conn ServerCodec) *clientConn {
 
 func (cc *clientConn) close(err error, inflightReq *requestOp) {
 	cc.handler.close(err, inflightReq)
-	cc.codec.Close()
+	cc.codec.close()
 }
 
 type readOp struct {
@@ -192,6 +193,8 @@ func ClientFromContext(ctx context.Context) (*Client, bool) {
 	return client, ok
 }
 
+// Quorum
+//   1. Enrich client with PSIProviderFunc if found in the init context
 func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) {
 	conn, err := connect(initctx)
 	if err != nil {
@@ -199,6 +202,9 @@ func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) 
 	}
 	c := initClient(conn, randomIDGenerator(), new(serviceRegistry))
 	c.reconnectFunc = connect
+	if providerFunc := PSIProviderFromContext(initctx); providerFunc != nil {
+		c = c.WithPSIProvider(providerFunc)
+	}
 	return c, nil
 }
 
@@ -235,7 +241,18 @@ func (c *Client) RegisterName(name string, receiver interface{}) error {
 
 func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
-	return strconv.AppendUint(nil, uint64(id), 10)
+	idBytes := strconv.AppendUint(nil, uint64(id), 10)
+	if conn, ok := c.writeConn.(securityContextSupport); ok {
+		if providerFunc := PSIProviderFromContext(conn.Resolve()); providerFunc != nil {
+			psi, err := providerFunc(context.Background())
+			if err != nil {
+				log.Warn("Generate regular ID without PSI", "err", err)
+				return idBytes
+			}
+			idBytes = encodePSI(idBytes, psi)
+		}
+	}
+	return idBytes
 }
 
 // SupportedModules calls the rpc_modules method, retrieving the list of
@@ -260,6 +277,19 @@ func (c *Client) Close() {
 	}
 }
 
+// SetHeader adds a custom HTTP header to the client's requests.
+// This method only works for clients using HTTP, it doesn't have
+// any effect for clients using another transport.
+func (c *Client) SetHeader(key, value string) {
+	if !c.isHTTP {
+		return
+	}
+	conn := c.writeConn.(*httpConn)
+	conn.mu.Lock()
+	conn.headers.Set(key, value)
+	conn.mu.Unlock()
+}
+
 // Call performs a JSON-RPC call with the given arguments and unmarshals into
 // result if no error occurred.
 //
@@ -276,6 +306,9 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	if result != nil && reflect.TypeOf(result).Kind() != reflect.Ptr {
+		return fmt.Errorf("call result parameter must be pointer or nil interface: %v", result)
+	}
 	msg, err := c.newMessage(method, args...)
 	if err != nil {
 		return err
@@ -388,9 +421,8 @@ func (c *Client) Notify(ctx context.Context, method string, args ...interface{})
 
 	if c.isHTTP {
 		return c.sendHTTP(ctx, op, msg)
-	} else {
-		return c.send(ctx, op, msg)
 	}
+	return c.send(ctx, op, msg)
 }
 
 // EthSubscribe registers a subscripion under the "eth" namespace.
@@ -399,6 +431,7 @@ func (c *Client) EthSubscribe(ctx context.Context, channel interface{}, args ...
 }
 
 // ShhSubscribe registers a subscripion under the "shh" namespace.
+// Deprecated: use Subscribe(ctx, "shh", ...).
 func (c *Client) ShhSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
 	return c.Subscribe(ctx, "shh", channel, args...)
 }
@@ -484,7 +517,7 @@ func (c *Client) write(ctx context.Context, msg interface{}, retry bool) error {
 			return err
 		}
 	}
-	err := c.writeConn.Write(ctx, msg)
+	err := c.writeConn.writeJSON(ctx, msg)
 	if err != nil {
 		c.writeConn = nil
 		if !retry {
@@ -514,7 +547,7 @@ func (c *Client) reconnect(ctx context.Context) error {
 		c.writeConn = newconn
 		return nil
 	case <-c.didClose:
-		newconn.Close()
+		newconn.close()
 		return ErrClientQuit
 	}
 }
@@ -558,10 +591,11 @@ func (c *Client) dispatch(codec ServerCodec) {
 			conn.handler.log.Debug("RPC connection read error", "err", err)
 			conn.close(err, lastOp)
 			reading = false
+			c.writeConn = nil
 
 		// Reconnect:
 		case newcodec := <-c.reconnected:
-			log.Debug("RPC client reconnected", "reading", reading, "conn", newcodec.RemoteAddr())
+			log.Debug("RPC client reconnected", "reading", reading, "conn", newcodec.remoteAddr())
 			if reading {
 				// Wait for the previous read loop to exit. This is a rare case which
 				// happens if this loop isn't notified in time after the connection breaks.
@@ -615,9 +649,9 @@ func (c *Client) drainRead() {
 // read decodes RPC messages from a codec, feeding them into dispatch.
 func (c *Client) read(codec ServerCodec) {
 	for {
-		msgs, batch, err := codec.Read()
+		msgs, batch, err := codec.readBatch()
 		if _, ok := err.(*json.SyntaxError); ok {
-			codec.Write(context.Background(), errorMessage(&parseError{err.Error()}))
+			codec.writeJSON(context.Background(), errorMessage(&parseError{err.Error()}))
 		}
 		if err != nil {
 			c.readErr <- err
@@ -631,13 +665,39 @@ func (c *Client) read(codec ServerCodec) {
 //
 // Secure HTTP requests with authorization header
 // Do nothing if transport is not HTTP
-func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) (*Client, error) {
+func (c *Client) WithHTTPCredentials(providerFunc HttpCredentialsProviderFunc) *Client {
 	if !c.isHTTP {
-		return c, nil
+		return c
 	}
 	// usually c.isHTTP check is sufficient, the below enforces the defensive check
 	if conn, ok := c.writeConn.(*httpConn); ok {
 		conn.credentialsProvider = providerFunc
 	}
-	return c, nil
+	return c
+}
+
+// Quorum
+// WithPSIProvider enriches the writeConn with PSIProviderFunc in order to obtain
+// PSI value before making call
+func (c *Client) WithPSIProvider(providerFunc PSIProviderFunc) *Client {
+	// for HTTP transport
+	if conn, ok := c.writeConn.(*httpConn); ok {
+		conn.psiProvider = providerFunc
+	}
+	// for non-http transport, writeConn must be a codec
+	// which implements securityContextSupport
+	// This is a defensive check
+	if r, ok := c.writeConn.(securityContextSupport); ok {
+		r.Configure(WithPSIProvider(r.Resolve(), providerFunc))
+	}
+	return c
+}
+
+// Quorum
+// WithPSI enriches the writeConn with a given PSI value. For more dynamic way of
+// providing PSI, use WithPSIProvider instead
+func (c *Client) WithPSI(psi types.PrivateStateIdentifier) *Client {
+	return c.WithPSIProvider(func(_ context.Context) (types.PrivateStateIdentifier, error) {
+		return psi, nil
+	})
 }

@@ -20,7 +20,8 @@ package graphql
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,13 +32,43 @@ import (
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
 	errBlockInvariant = errors.New("block objects must be instantiated with at least one of num or hash")
 )
+
+type Long int64
+
+// ImplementsGraphQLType returns true if Long implements the provided GraphQL type.
+func (b Long) ImplementsGraphQLType(name string) bool { return name == "Long" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (b *Long) UnmarshalGraphQL(input interface{}) error {
+	var err error
+	switch input := input.(type) {
+	case string:
+		// uncomment to support hex values
+		//if strings.HasPrefix(input, "0x") {
+		//	// apply leniency and support hex representations of longs.
+		//	value, err := hexutil.DecodeUint64(input)
+		//	*b = Long(value)
+		//	return err
+		//} else {
+		value, err := strconv.ParseInt(input, 10, 64)
+		*b = Long(value)
+		return err
+		//}
+	case int32:
+		*b = Long(input)
+	case int64:
+		*b = Long(input)
+	default:
+		err = fmt.Errorf("unexpected type %T for Long", input)
+	}
+	return err
+}
 
 // Account represents an Ethereum account at a particular block.
 type Account struct {
@@ -77,7 +108,7 @@ func (a *Account) Code(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(state.GetCode(a.address)), nil
+	return state.GetCode(a.address), nil
 }
 
 func (a *Account) Storage(ctx context.Context, args struct{ Slot common.Hash }) (common.Hash, error) {
@@ -116,17 +147,18 @@ func (l *Log) Topics(ctx context.Context) []common.Hash {
 }
 
 func (l *Log) Data(ctx context.Context) hexutil.Bytes {
-	return hexutil.Bytes(l.log.Data)
+	return l.log.Data
 }
 
 // Transaction represents an Ethereum transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	backend ethapi.Backend
-	hash    common.Hash
-	tx      *types.Transaction
-	block   *Block
-	index   uint64
+	backend       ethapi.Backend
+	hash          common.Hash
+	tx            *types.Transaction
+	block         *Block
+	index         uint64
+	receiptGetter receiptGetter
 }
 
 // resolve returns the internal transaction object, fetching it if needed.
@@ -157,7 +189,7 @@ func (t *Transaction) InputData(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil || tx == nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(tx.Data()), nil
+	return tx.Data(), nil
 }
 
 func (t *Transaction) Gas(ctx context.Context) (hexutil.Uint64, error) {
@@ -213,12 +245,8 @@ func (t *Transaction) From(ctx context.Context, args BlockNumberArgs) (*Account,
 	if err != nil || tx == nil {
 		return nil, err
 	}
-	var signer types.Signer = types.HomesteadSigner{}
-	if tx.Protected() {
-		signer = types.NewEIP155Signer(tx.ChainId())
-	}
+	signer := types.LatestSigner(t.backend.ChainConfig())
 	from, _ := types.Sender(signer, tx)
-
 	return &Account{
 		backend:       t.backend,
 		address:       from,
@@ -244,45 +272,97 @@ func (t *Transaction) Index(ctx context.Context) (*int32, error) {
 	return &index, nil
 }
 
-// getReceipt returns the receipt associated with this transaction, if any.
-func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
-	if _, err := t.resolve(ctx); err != nil {
+// (Quorum) receiptGetter allows Transaction to have different behaviours for getting transaction receipts
+// (e.g. getting standard receipts or privacy precompile receipts from the db)
+type receiptGetter interface {
+	get(ctx context.Context) (*types.Receipt, error)
+}
+
+// (Quorum) transactionReceiptGetter implements receiptGetter and provides the standard behaviour for getting transaction
+// receipts from the db
+type transactionReceiptGetter struct {
+	tx *Transaction
+}
+
+func (g *transactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.tx.resolve(ctx); err != nil {
 		return nil, err
 	}
-	if t.block == nil {
+	if g.tx.block == nil {
 		return nil, nil
 	}
-	receipts, err := t.block.resolveReceipts(ctx)
+	receipts, err := g.tx.block.resolveReceipts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return receipts[t.index], nil
+	return receipts[g.tx.index], nil
 }
 
-func (t *Transaction) Status(ctx context.Context) (*hexutil.Uint64, error) {
+// (Quorum) privateTransactionReceiptGetter implements receiptGetter and gets privacy precompile transaction receipts
+// from the the db
+type privateTransactionReceiptGetter struct {
+	pmt *Transaction
+}
+
+func (g *privateTransactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.pmt.resolve(ctx); err != nil {
+		return nil, err
+	}
+	if g.pmt.block == nil {
+		return nil, nil
+	}
+	receipts, err := g.pmt.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := receipts[g.pmt.index]
+
+	psm, err := g.pmt.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	privateReceipt := receipt.PSReceipts[psm.ID]
+	if privateReceipt == nil {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+
+	return privateReceipt, nil
+}
+
+// getReceipt returns the receipt associated with this transaction, if any.
+func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
+	// default to standard receipt getter if one is not set
+	if t.receiptGetter == nil {
+		t.receiptGetter = &transactionReceiptGetter{tx: t}
+	}
+	return t.receiptGetter.get(ctx)
+}
+
+func (t *Transaction) Status(ctx context.Context) (*Long, error) {
 	receipt, err := t.getReceipt(ctx)
 	if err != nil || receipt == nil {
 		return nil, err
 	}
-	ret := hexutil.Uint64(receipt.Status)
+	ret := Long(receipt.Status)
 	return &ret, nil
 }
 
-func (t *Transaction) GasUsed(ctx context.Context) (*hexutil.Uint64, error) {
+func (t *Transaction) GasUsed(ctx context.Context) (*Long, error) {
 	receipt, err := t.getReceipt(ctx)
 	if err != nil || receipt == nil {
 		return nil, err
 	}
-	ret := hexutil.Uint64(receipt.GasUsed)
+	ret := Long(receipt.GasUsed)
 	return &ret, nil
 }
 
-func (t *Transaction) CumulativeGasUsed(ctx context.Context) (*hexutil.Uint64, error) {
+func (t *Transaction) CumulativeGasUsed(ctx context.Context) (*Long, error) {
 	receipt, err := t.getReceipt(ctx)
 	if err != nil || receipt == nil {
 		return nil, err
 	}
-	ret := hexutil.Uint64(receipt.CumulativeGasUsed)
+	ret := Long(receipt.CumulativeGasUsed)
 	return &ret, nil
 }
 
@@ -314,6 +394,74 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	return &ret, nil
 }
 
+// Quorum
+
+// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
+func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	if !tx.IsPrivacyMarker() {
+		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
+		return nil, nil
+	}
+
+	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
+	if err != nil {
+		return nil, err
+	}
+
+	if pvtTx == nil {
+		return nil, nil
+	}
+
+	return &Transaction{
+		backend:       t.backend,
+		hash:          t.hash,
+		tx:            pvtTx,
+		block:         t.block,
+		index:         t.index,
+		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
+	}, nil
+}
+
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	if tx.IsPrivate() {
+		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return &hexutil.Bytes{}, err
+		}
+		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if err != nil || tx == nil {
+			return &hexutil.Bytes{}, err
+		}
+		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
+			return &hexutil.Bytes{}, nil
+		}
+		ret := hexutil.Bytes(privateInputData)
+		return &ret, nil
+	}
+	return &hexutil.Bytes{}, nil
+}
+
+// END QUORUM
+
 func (t *Transaction) R(ctx context.Context) (hexutil.Big, error) {
 	tx, err := t.resolve(ctx)
 	if err != nil || tx == nil {
@@ -340,35 +488,6 @@ func (t *Transaction) V(ctx context.Context) (hexutil.Big, error) {
 	v, _, _ := tx.RawSignatureValues()
 	return hexutil.Big(*v), nil
 }
-
-// Quorum
-func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
-	ret := false
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return &ret, err
-	}
-	ret = tx.IsPrivate()
-	return &ret, nil
-}
-
-func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return &hexutil.Bytes{}, err
-	}
-	if tx.IsPrivate() {
-		privateInputData, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
-		if err != nil || tx == nil {
-			return &hexutil.Bytes{}, err
-		}
-		ret := hexutil.Bytes(privateInputData)
-		return &ret, nil
-	}
-	return &hexutil.Bytes{}, nil
-}
-
-// END QUORUM
 
 type BlockType int
 
@@ -439,18 +558,18 @@ func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
 		if err != nil {
 			return nil, err
 		}
-		b.receipts = []*types.Receipt(receipts)
+		b.receipts = receipts
 	}
 	return b.receipts, nil
 }
 
-func (b *Block) Number(ctx context.Context) (hexutil.Uint64, error) {
+func (b *Block) Number(ctx context.Context) (Long, error) {
 	header, err := b.resolveHeader(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return hexutil.Uint64(header.Number.Uint64()), nil
+	return Long(header.Number.Uint64()), nil
 }
 
 func (b *Block) Hash(ctx context.Context) (common.Hash, error) {
@@ -464,20 +583,20 @@ func (b *Block) Hash(ctx context.Context) (common.Hash, error) {
 	return b.hash, nil
 }
 
-func (b *Block) GasLimit(ctx context.Context) (hexutil.Uint64, error) {
+func (b *Block) GasLimit(ctx context.Context) (Long, error) {
 	header, err := b.resolveHeader(ctx)
 	if err != nil {
 		return 0, err
 	}
-	return hexutil.Uint64(header.GasLimit), nil
+	return Long(header.GasLimit), nil
 }
 
-func (b *Block) GasUsed(ctx context.Context) (hexutil.Uint64, error) {
+func (b *Block) GasUsed(ctx context.Context) (Long, error) {
 	header, err := b.resolveHeader(ctx)
 	if err != nil {
 		return 0, err
 	}
-	return hexutil.Uint64(header.GasUsed), nil
+	return Long(header.GasUsed), nil
 }
 
 func (b *Block) Parent(ctx context.Context) (*Block, error) {
@@ -519,7 +638,7 @@ func (b *Block) Nonce(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Nonce[:]), nil
+	return header.Nonce[:], nil
 }
 
 func (b *Block) MixHash(ctx context.Context) (common.Hash, error) {
@@ -593,7 +712,7 @@ func (b *Block) ExtraData(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Extra), nil
+	return header.Extra, nil
 }
 
 func (b *Block) LogsBloom(ctx context.Context) (hexutil.Bytes, error) {
@@ -601,7 +720,7 @@ func (b *Block) LogsBloom(ctx context.Context) (hexutil.Bytes, error) {
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	return hexutil.Bytes(header.Bloom.Bytes()), nil
+	return header.Bloom.Bytes(), nil
 }
 
 func (b *Block) TotalDifficulty(ctx context.Context) (hexutil.Big, error) {
@@ -613,7 +732,7 @@ func (b *Block) TotalDifficulty(ctx context.Context) (hexutil.Big, error) {
 		}
 		h = header.Hash()
 	}
-	return hexutil.Big(*b.backend.GetTd(h)), nil
+	return hexutil.Big(*b.backend.GetTd(ctx, h)), nil
 }
 
 // BlockNumberArgs encapsulates arguments to accessors that specify a block number.
@@ -771,7 +890,11 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 		hash = header.Hash()
 	}
 	// Construct the range filter
-	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics)
+	psm, err := b.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, psm.ID)
 
 	// Run the filter and return all the logs
 	return runFilter(ctx, b.backend, filter)
@@ -806,20 +929,20 @@ type CallData struct {
 
 // CallResult encapsulates the result of an invocation of the `call` accessor.
 type CallResult struct {
-	data    hexutil.Bytes  // The return data from the call
-	gasUsed hexutil.Uint64 // The amount of gas used
-	status  hexutil.Uint64 // The return status of the call - 0 for failure or 1 for success.
+	data    hexutil.Bytes // The return data from the call
+	gasUsed Long          // The amount of gas used
+	status  Long          // The return status of the call - 0 for failure or 1 for success.
 }
 
 func (c *CallResult) Data() hexutil.Bytes {
 	return c.data
 }
 
-func (c *CallResult) GasUsed() hexutil.Uint64 {
+func (c *CallResult) GasUsed() Long {
 	return c.gasUsed
 }
 
-func (c *CallResult) Status() hexutil.Uint64 {
+func (c *CallResult) Status() Long {
 	return c.status
 }
 
@@ -832,29 +955,35 @@ func (b *Block) Call(ctx context.Context, args struct {
 			return nil, err
 		}
 	}
-	result, gas, failed, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, 5*time.Second, b.backend.RPCGasCap())
-	status := hexutil.Uint64(1)
-	if failed {
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
+	status := Long(1)
+	if result.Failed() {
 		status = 0
 	}
+
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.ReturnData,
+		gasUsed: Long(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (b *Block) EstimateGas(ctx context.Context, args struct {
 	Data ethapi.CallArgs
-}) (hexutil.Uint64, error) {
+}) (Long, error) {
 	if b.numberOrHash == nil {
 		_, err := b.resolveHeader(ctx)
 		if err != nil {
-			return hexutil.Uint64(0), err
+			return 0, err
 		}
 	}
 	gas, err := ethapi.DoEstimateGas(ctx, b.backend, args.Data, *b.numberOrHash, b.backend.RPCGasCap())
-	return gas, err
+	return Long(gas), err
 }
 
 type Pending struct {
@@ -898,23 +1027,30 @@ func (p *Pending) Call(ctx context.Context, args struct {
 	Data ethapi.CallArgs
 }) (*CallResult, error) {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	result, gas, failed, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, 5*time.Second, p.backend.RPCGasCap())
-	status := hexutil.Uint64(1)
-	if failed {
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
+	status := Long(1)
+	if result.Failed() {
 		status = 0
 	}
+
 	return &CallResult{
-		data:    hexutil.Bytes(result),
-		gasUsed: hexutil.Uint64(gas),
+		data:    result.ReturnData,
+		gasUsed: Long(result.UsedGas),
 		status:  status,
-	}, err
+	}, nil
 }
 
 func (p *Pending) EstimateGas(ctx context.Context, args struct {
 	Data ethapi.CallArgs
-}) (hexutil.Uint64, error) {
+}) (Long, error) {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	return ethapi.DoEstimateGas(ctx, p.backend, args.Data, pendingBlockNr, p.backend.RPCGasCap())
+	gas, err := ethapi.DoEstimateGas(ctx, p.backend, args.Data, pendingBlockNr, p.backend.RPCGasCap())
+	return Long(gas), err
 }
 
 // Resolver is the top-level object in the GraphQL hierarchy.
@@ -923,12 +1059,15 @@ type Resolver struct {
 }
 
 func (r *Resolver) Block(ctx context.Context, args struct {
-	Number *hexutil.Uint64
+	Number *Long
 	Hash   *common.Hash
 }) (*Block, error) {
 	var block *Block
 	if args.Number != nil {
-		number := rpc.BlockNumber(uint64(*args.Number))
+		if *args.Number < 0 {
+			return nil, nil
+		}
+		number := rpc.BlockNumber(*args.Number)
 		numberOrHash := rpc.BlockNumberOrHashWithNumber(number)
 		block = &Block{
 			backend:      r.backend,
@@ -960,10 +1099,10 @@ func (r *Resolver) Block(ctx context.Context, args struct {
 }
 
 func (r *Resolver) Blocks(ctx context.Context, args struct {
-	From hexutil.Uint64
-	To   *hexutil.Uint64
+	From *Long
+	To   *Long
 }) ([]*Block, error) {
-	from := rpc.BlockNumber(args.From)
+	from := rpc.BlockNumber(*args.From)
 
 	var to rpc.BlockNumber
 	if args.To != nil {
@@ -1006,10 +1145,10 @@ func (r *Resolver) Transaction(ctx context.Context, args struct{ Hash common.Has
 
 func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hexutil.Bytes }) (common.Hash, error) {
 	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
+	if err := tx.UnmarshalBinary(args.Data); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", true)
 	return hash, err
 }
 
@@ -1052,7 +1191,11 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 	// Construct the range filter
-	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics)
+	psm, err := r.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, psm.ID)
 	return runFilter(ctx, r.backend, filter)
 }
 
@@ -1061,8 +1204,8 @@ func (r *Resolver) GasPrice(ctx context.Context) (hexutil.Big, error) {
 	return hexutil.Big(*price), err
 }
 
-func (r *Resolver) ProtocolVersion(ctx context.Context) (int32, error) {
-	return int32(r.backend.ProtocolVersion()), nil
+func (r *Resolver) ChainID(ctx context.Context) (hexutil.Big, error) {
+	return hexutil.Big(*r.backend.ChainConfig().ChainID), nil
 }
 
 // SyncState represents the synchronisation status returned from the `syncing` accessor.

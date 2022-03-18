@@ -2911,7 +2911,15 @@ var checkForContractAddress = function(contract, callback){
 
                 contract._eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
                     if(receipt && !callbackFired) {
-
+                        // (Quorum) if receipt has no contractAddress and is a Quorum privacy marker transaction
+                        // then check if there is a transaction receipt for the internal private transaction
+                        if(!receipt.contractAddress && receipt.isPrivacyMarkerTransaction) {
+                            contract._eth.getPrivateTransactionReceipt(contract.transactionHash, function(e, privateReceipt){
+                                if(privateReceipt.contractAddress) {
+                                    receipt = privateReceipt
+                                }
+                            })
+                        }
                         contract._eth.getCode(receipt.contractAddress, function(e, code){
                             /*jshint maxcomplexity: 6 */
 
@@ -3056,7 +3064,7 @@ ContractFactory.prototype.at = function (address, callback) {
     var contract = new Contract(this.eth, this.abi, address);
 
     // this functions are not part of prototype,
-    // because we dont want to spoil the interface
+    // because we don't want to spoil the interface
     addFunctionsToContract(contract);
     addEventsToContract(contract);
 
@@ -13617,7 +13625,7 @@ module.exports = BigNumber; // jshint ignore:line
 },{}],"web3":[function(require,module,exports){
 var Web3 = require('./lib/web3');
 
-// dont override global variable
+// don't override global variable
 if (typeof window !== 'undefined' && typeof window.Web3 === 'undefined') {
     window.Web3 = Web3;
 }

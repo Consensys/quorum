@@ -60,7 +60,7 @@ func (v *ValidationMessages) getWarnings() error {
 		}
 	}
 	if len(messages) > 0 {
-		return fmt.Errorf("Validation failed: %s", strings.Join(messages, ","))
+		return fmt.Errorf("validation failed: %s", strings.Join(messages, ","))
 	}
 	return nil
 }
@@ -105,4 +105,9 @@ func (args *SendTxArgs) toTransaction() (tx *types.Transaction) {
 		tx.SetPrivate()
 	}
 	return
+}
+
+// Quorum
+func (args SendTxArgs) isPrivacyMarker() bool {
+	return args.To != nil && args.To.Address() == common.QuorumPrivacyPrecompileContractAddress()
 }

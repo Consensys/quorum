@@ -115,6 +115,10 @@ func errorMessage(err error) *jsonrpcMessage {
 	if ok {
 		msg.Error.Code = ec.ErrorCode()
 	}
+	de, ok := err.(DataError)
+	if ok {
+		msg.Error.Data = de.ErrorData()
+	}
 	return msg
 }
 
@@ -135,6 +139,10 @@ func (err *jsonError) ErrorCode() int {
 	return err.Code
 }
 
+func (err *jsonError) ErrorData() interface{} {
+	return err.Data
+}
+
 // Conn is a subset of the methods of net.Conn which are sufficient for ServerCodec.
 type Conn interface {
 	io.ReadWriteCloser
@@ -153,71 +161,71 @@ type ConnRemoteAddr interface {
 	RemoteAddr() string
 }
 
-// connWithRemoteAddr overrides the remote address of a connection.
-type connWithRemoteAddr struct {
-	Conn
-	addr string
-}
-
-func (c connWithRemoteAddr) RemoteAddr() string { return c.addr }
-
 // jsonCodec reads and writes JSON-RPC messages to the underlying connection. It also has
 // support for parsing arguments and serializing (result) objects.
 type jsonCodec struct {
-	remoteAddr string
-	closer     sync.Once                 // close closed channel once
-	closed     chan interface{}          // closed on Close
-	decode     func(v interface{}) error // decoder to allow multiple transports
-	encMu      sync.Mutex                // guards the encoder
-	encode     func(v interface{}) error // encoder to allow multiple transports
-	conn       deadlineCloser
+	remote  string
+	closer  sync.Once                 // close closed channel once
+	closeCh chan interface{}          // closed on Close
+	decode  func(v interface{}) error // decoder to allow multiple transports
+	encMu   sync.Mutex                // guards the encoder
+	encode  func(v interface{}) error // encoder to allow multiple transports
+	conn    deadlineCloser
 
 	// Quorum
 	// holding the security context for underlying connection
-	secCtx securityContext
+	secCtx SecurityContext
 }
 
-func newCodec(conn deadlineCloser, encode, decode func(v interface{}) error) ServerCodec {
+// NewFuncCodec creates a codec which uses the given functions to read and write. If conn
+// implements ConnRemoteAddr, log messages will use it to include the remote address of
+// the connection.
+func NewFuncCodec(conn deadlineCloser, encode, decode func(v interface{}) error) ServerCodec {
 	codec := &jsonCodec{
-		closed: make(chan interface{}),
-		encode: encode,
-		decode: decode,
-		conn:   conn,
-		secCtx: context.Background(),
+		closeCh: make(chan interface{}),
+		encode:  encode,
+		decode:  decode,
+		conn:    conn,
+		secCtx:  context.Background(),
 	}
 	if ra, ok := conn.(ConnRemoteAddr); ok {
-		codec.remoteAddr = ra.RemoteAddr()
+		codec.remote = ra.RemoteAddr()
 	}
 	return codec
 }
 
-// NewJSONCodec creates a codec that reads from the given connection. If conn implements
-// ConnRemoteAddr, log messages will use it to include the remote address of the
-// connection.
-func NewJSONCodec(conn Conn) ServerCodec {
+// NewCodec creates a codec on the given connection. If conn implements ConnRemoteAddr, log
+// messages will use it to include the remote address of the connection.
+func NewCodec(conn Conn) ServerCodec {
 	enc := json.NewEncoder(conn)
 	dec := json.NewDecoder(conn)
 	dec.UseNumber()
-	return newCodec(conn, enc.Encode, dec.Decode)
+	return NewFuncCodec(conn, enc.Encode, dec.Decode)
 }
 
-func (c *jsonCodec) RemoteAddr() string {
-	return c.remoteAddr
+func (c *jsonCodec) remoteAddr() string {
+	return c.remote
 }
 
-func (c *jsonCodec) Read() (msg []*jsonrpcMessage, batch bool, err error) {
+func (c *jsonCodec) readBatch() (messages []*jsonrpcMessage, batch bool, err error) {
 	// Decode the next JSON object in the input stream.
 	// This verifies basic syntax, etc.
 	var rawmsg json.RawMessage
 	if err := c.decode(&rawmsg); err != nil {
 		return nil, false, err
 	}
-	msg, batch = parseMessage(rawmsg)
-	return msg, batch, nil
+	messages, batch = parseMessage(rawmsg)
+	for i, msg := range messages {
+		if msg == nil {
+			// Message is JSON 'null'. Replace with zero value so it
+			// will be treated like any other invalid message.
+			messages[i] = new(jsonrpcMessage)
+		}
+	}
+	return messages, batch, nil
 }
 
-// Write sends a message to client.
-func (c *jsonCodec) Write(ctx context.Context, v interface{}) error {
+func (c *jsonCodec) writeJSON(ctx context.Context, v interface{}) error {
 	c.encMu.Lock()
 	defer c.encMu.Unlock()
 
@@ -229,24 +237,23 @@ func (c *jsonCodec) Write(ctx context.Context, v interface{}) error {
 	return c.encode(v)
 }
 
-// Close the underlying connection
-func (c *jsonCodec) Close() {
+func (c *jsonCodec) close() {
 	c.closer.Do(func() {
-		close(c.closed)
+		close(c.closeCh)
 		c.conn.Close()
 	})
 }
 
 // Closed returns a channel which will be closed when Close is called
-func (c *jsonCodec) Closed() <-chan interface{} {
-	return c.closed
+func (c *jsonCodec) closed() <-chan interface{} {
+	return c.closeCh
 }
 
-func (c *jsonCodec) Configure(secCtx securityContext) {
+func (c *jsonCodec) Configure(secCtx SecurityContext) {
 	c.secCtx = secCtx
 }
 
-func (c *jsonCodec) Resolve() securityContext {
+func (c *jsonCodec) Resolve() SecurityContext {
 	return c.secCtx
 }
 
