@@ -492,7 +492,7 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 // Quorum: method now has a return value
 func (s *Ethereum) SetEtherbase(etherbase common.Address) bool {
 	//Quorum
-	consensusAlgo := s.protocolManager.getConsensusAlgorithm()
+	consensusAlgo := s.handler.getConsensusAlgorithm()
 	if consensusAlgo == "istanbul" || consensusAlgo == "clique" || consensusAlgo == "raft" {
 		log.Error("Cannot set etherbase with selected consensus mechanism")
 		return false
