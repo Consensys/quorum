@@ -1915,6 +1915,10 @@ func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.C
 		ethCfg.QuorumLightClientRPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
 	}
 
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name) {
+		ethCfg.QuorumLightClientRPCTLSInsecureSkipVerify = ctx.GlobalBool(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name)
+	}
+
 	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
 		ethCfg.QuorumLightClientRPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
 		ethCfg.QuorumLightClientRPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
