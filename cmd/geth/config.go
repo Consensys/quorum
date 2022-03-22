@@ -207,7 +207,7 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
 		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
 		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
-		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSClientCAFlag.Name),
+		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
 		ClientAuth:           ctx.GlobalInt(utils.QuorumLightTLSClientAuthFlag.Name),
 		CipherSuites:         ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
 	})

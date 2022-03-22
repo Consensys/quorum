@@ -1031,13 +1031,9 @@ var (
 		Name:  "qlight.tls.key",
 		Usage: "The key file to use for the qlight P2P connection",
 	}
-	QuorumLightTLSClientCAFlag = cli.StringFlag{
-		Name:  "qlight.tls.clientcacerts",
-		Usage: "The certificate authorities file to use for validating client qlight P2P connections (server configuration parameter)",
-	}
 	QuorumLightTLSCACertsFlag = cli.StringFlag{
 		Name:  "qlight.tls.cacerts",
-		Usage: "The certificate authorities file to use for validating qlight P2P connection (client configuration parameter)",
+		Usage: "The certificate authorities file to use for validating P2P connection",
 	}
 	QuorumLightTLSClientAuthFlag = cli.IntFlag{
 		Name:  "qlight.tls.clientauth",

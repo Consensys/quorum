@@ -209,7 +209,6 @@ var (
 		utils.QuorumLightTLSFlag,
 		utils.QuorumLightTLSCertFlag,
 		utils.QuorumLightTLSKeyFlag,
-		utils.QuorumLightTLSClientCAFlag,
 		utils.QuorumLightTLSCACertsFlag,
 		utils.QuorumLightTLSClientAuthFlag,
 		utils.QuorumLightTLSCipherSuitesFlag,
