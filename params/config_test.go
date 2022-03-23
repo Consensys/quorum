@@ -321,3 +321,89 @@ func TestCheckCompatible(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckTransitionsData(t *testing.T) {
+	type test struct {
+		stored  *ChainConfig
+		wantErr error
+	}
+	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
+	tranI0 := Transition{big.NewInt(0), IBFT}
+	tranQ5 := Transition{big.NewInt(5), QBFT}
+	tranI10 := Transition{big.NewInt(10), IBFT}
+	tranQ8 := Transition{big.NewInt(8), QBFT}
+
+	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
+	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
+
+	invalidTransition = append(invalidTransition, tranI0, tranQ5, tranI10)
+	invalidBlockOrder = append(invalidBlockOrder, tranQ8, tranQ5)
+
+	tests := []test{
+		{stored: MainnetChainConfig, wantErr: nil},
+		{stored: RopstenChainConfig, wantErr: nil},
+		{stored: RinkebyChainConfig, wantErr: nil},
+		{stored: GoerliChainConfig, wantErr: nil},
+		{stored: YoloV3ChainConfig, wantErr: nil},
+		{stored: AllEthashProtocolChanges, wantErr: nil},
+		{stored: AllCliqueProtocolChanges, wantErr: nil},
+		{stored: TestChainConfig, wantErr: nil},
+		{stored: QuorumTestChainConfig, wantErr: nil},
+		{stored: QuorumMPSTestChainConfig, wantErr: nil},
+		{
+			stored:  &ChainConfig{IBFT: &IBFTConfig{}},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{IBFT: &IBFTConfig{}, Transitions: ibftTransitionsConfig},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{QBFT: &QBFTConfig{}},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{QBFT: &QBFTConfig{}, Transitions: qbftTransitionsConfig},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{IBFT: &IBFTConfig{}, Transitions: qbftTransitionsConfig},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{Transitions: ibftTransitionsConfig},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{Transitions: qbftTransitionsConfig},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{IBFT: &IBFTConfig{}, Transitions: invalidTransition},
+			wantErr: ErrTransition,
+		},
+		{
+			stored:  &ChainConfig{QBFT: &QBFTConfig{}, Transitions: ibftTransitionsConfig},
+			wantErr: ErrTransition,
+		},
+		{
+			stored:  &ChainConfig{Transitions: invalidBlockOrder},
+			wantErr: ErrBlockOrder,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT}}},
+			wantErr: ErrBlockNumberMissing,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{big.NewInt(0), ""}}},
+			wantErr: ErrTransitionAlgorithm,
+		},
+	}
+
+	for _, test := range tests {
+		err := test.stored.CheckTransitionsData()
+		if !reflect.DeepEqual(err, test.wantErr) {
+			t.Errorf("error mismatch:\nstored: %v\nerr: %v\nwant: %v", test.stored, err, test.wantErr)
+		}
+	}
+}
