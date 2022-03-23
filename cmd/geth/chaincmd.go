@@ -254,6 +254,12 @@ func initGenesis(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("maxCodeSize data invalid: %v", err)
 	}
+	if genesis.Config.IsQuorum {
+		err = genesis.Config.CheckTransitionsData()
+		if err != nil {
+			utils.Fatalf("transitions data invalid: %v", err)
+		}
+	}
 	// End Quorum
 
 	// Open and initialise both full and light databases
