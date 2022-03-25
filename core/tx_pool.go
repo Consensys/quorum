@@ -226,6 +226,10 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 		log.Warn("Sanitizing invalid txpool lifetime", "provided", conf.Lifetime, "updated", DefaultTxPoolConfig.Lifetime)
 		conf.Lifetime = DefaultTxPoolConfig.Lifetime
 	}
+	if conf.TransactionSizeLimit < 32 || conf.TransactionSizeLimit > 128 {
+		log.Warn("Sanitizing invalid txpool txsizelimit", "provided", conf.TransactionSizeLimit, "updated", DefaultTxPoolConfig.TransactionSizeLimit)
+		conf.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
+	}
 	return conf
 }
 
@@ -546,7 +550,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrTxTypeNotSupported
 	}
 	// Quorum
-	sizeLimit := pool.chainconfig.TransactionSizeLimit
+	sizeLimit := pool.config.TransactionSizeLimit
 	if sizeLimit == 0 {
 		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 	}

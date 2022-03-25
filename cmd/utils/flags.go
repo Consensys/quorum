@@ -389,6 +389,11 @@ var (
 		Usage: "Maximum amount of time non-executable transaction are queued",
 		Value: ethconfig.Defaults.TxPool.Lifetime,
 	}
+	TxPoolTransactionSizeLimitFlag = cli.Uint64Flag{
+		Name:  "txpool.txsizelimit",
+		Usage: "Maximum size of transaction in KB",
+		Value: ethconfig.Defaults.TxPool.TransactionSizeLimit,
+	}
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
@@ -1592,6 +1597,9 @@ func setTxPool(ctx *cli.Context, cfg *core.TxPoolConfig) {
 	}
 	if ctx.GlobalIsSet(TxPoolLifetimeFlag.Name) {
 		cfg.Lifetime = ctx.GlobalDuration(TxPoolLifetimeFlag.Name)
+	}
+	if ctx.GlobalIsSet(TxPoolTransactionSizeLimitFlag.Name) {
+		cfg.TransactionSizeLimit = ctx.GlobalUint64(TxPoolTransactionSizeLimitFlag.Name)
 	}
 }
 
