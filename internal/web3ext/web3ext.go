@@ -39,6 +39,7 @@ var Modules = map[string]string{
 	"quorumPermission": QUORUM_NODE_JS,
 	"quorumExtension":  Extension_JS,
 	"plugin_account":   Account_Plugin_Js,
+	"qlight":           QLight_JS,
 }
 
 const ChequebookJs = `
@@ -1273,6 +1274,33 @@ web3._extend({
 		new web3._extend.Property({
 			name: 'activeExtensionContracts',
 			getter: 'quorumExtension_activeExtensionContracts'
+		})
+	]
+});
+`
+
+const QLight_JS = `
+web3._extend({
+	property: 'qlight',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'getCurrentToken',
+			call: 'qlight_getCurrentToken',
+			params: 0
+		}),
+		new web3._extend.Method({
+			name: 'setCurrentToken',
+			call: 'qlight_setCurrentToken',
+			params: 1,
+			inputFormatter: [null]
+		}),
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'token',
+			getter: 'qlight_getCurrentToken'
 		})
 	]
 });

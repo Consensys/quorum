@@ -13,12 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
-	"github.com/ethereum/go-ethereum/eth/protocols/qlight"
+	qlightproto "github.com/ethereum/go-ethereum/eth/protocols/qlight"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -35,7 +36,7 @@ func (h *qlightClientHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	return (*ethHandler)(h).Handle(peer, packet)
 }
 
-func (h *qlightClientHandler) RunQPeer(peer *qlight.Peer, hand qlight.Handler) error {
+func (h *qlightClientHandler) RunQPeer(peer *qlightproto.Peer, hand qlightproto.Handler) error {
 	return (*handler)(h).runQLightClientPeer(peer, hand)
 }
 
@@ -73,7 +74,6 @@ func newQLightClientHandler(config *handlerConfig) (*handler, error) {
 		raftMode:           config.RaftMode,
 		engine:             config.Engine,
 		psi:                config.psi,
-		token:              config.token,
 		privateClientCache: config.privateClientCache,
 	}
 
@@ -165,7 +165,7 @@ func newQLightClientHandler(config *handlerConfig) (*handler, error) {
 
 // runEthPeer registers an eth peer into the joint eth/snap peerset, adds it to
 // various subsistems and starts handling messages.
-func (h *handler) runQLightClientPeer(peer *qlight.Peer, handler qlight.Handler) error {
+func (h *handler) runQLightClientPeer(peer *qlightproto.Peer, handler qlightproto.Handler) error {
 	// If the peer has a `snap` extension, wait for it to connect so we can have
 	// a uniform initialization/teardown mechanism
 	snap, err := h.peers.waitSnapExtension(peer.EthPeer)
@@ -200,7 +200,7 @@ func (h *handler) runQLightClientPeer(peer *qlight.Peer, handler qlight.Handler)
 	}
 
 	log.Info("QLight attempting handshake")
-	if err := peer.QLightHandshake(false, h.psi, h.token); err != nil {
+	if err := peer.QLightHandshake(false, h.psi, qlight.GetCurrentToken()); err != nil {
 		peer.Log().Debug("QLight handshake failed", "err", err)
 		log.Info("QLight handshake failed", "err", err)
 
@@ -354,7 +354,7 @@ func (h *handler) BroadcastBlockQLightClient(block *types.Block, propagate bool)
 
 // Handle is invoked from a peer's message handler when it receives a new remote
 // message that the handler couldn't consume and serve itself.
-func (h *qlightClientHandler) QHandle(peer *qlight.Peer, packet eth.Packet) error {
+func (h *qlightClientHandler) QHandle(peer *qlightproto.Peer, packet eth.Packet) error {
 	// Consume any broadcasts and announces, forwarding the rest to the downloader
 	switch packet := packet.(type) {
 	case *eth.BlockHeadersPacket:
@@ -371,7 +371,7 @@ func (h *qlightClientHandler) QHandle(peer *qlight.Peer, packet eth.Packet) erro
 	case *eth.NewBlockPacket:
 		h.updateCacheWithNonPartyTxData(packet.Block.Transactions())
 		return (*ethHandler)(h).handleBlockBroadcast(peer.EthPeer, packet.Block, packet.TD)
-	case *qlight.BlockPrivateDataPacket:
+	case *qlightproto.BlockPrivateDataPacket:
 		return h.handleBlockPrivateData(packet)
 	case *eth.NewPooledTransactionHashesPacket:
 		return (*ethHandler)(h).Handle(peer.EthPeer, packet)
@@ -403,7 +403,7 @@ func (h *qlightClientHandler) updateCacheWithNonPartyTxData(transactions []*type
 	}
 }
 
-func (h *qlightClientHandler) handleBlockPrivateData(blockPrivateData *qlight.BlockPrivateDataPacket) error {
+func (h *qlightClientHandler) handleBlockPrivateData(blockPrivateData *qlightproto.BlockPrivateDataPacket) error {
 	for _, b := range *blockPrivateData {
 		if err := h.privateClientCache.AddPrivateBlock(b); err != nil {
 			return fmt.Errorf("Unable to handle private block data: %v", err)

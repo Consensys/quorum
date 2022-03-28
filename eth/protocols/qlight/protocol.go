@@ -8,10 +8,11 @@ import (
 
 const (
 	QLightStatusMsg              = 0x11
-	QLightNewBlockPrivateDataMsg = 0x12
+	QLightTokenUpdateMsg         = 0x12
+	QLightNewBlockPrivateDataMsg = 0x13
 )
 
-const QLightProtocolLength = 19
+const QLightProtocolLength = 20
 
 const QLIGHT65 = 65
 const ProtocolName = "qlight"
@@ -31,6 +32,10 @@ type qLightStatusData struct {
 	Server          bool
 	PSI             string
 	Token           string
+}
+
+type qLightTokenUpdateData struct {
+	Token string
 }
 
 type BlockPrivateDataPacket []qlight.BlockPrivateData

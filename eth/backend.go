@@ -18,7 +18,6 @@
 package eth
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -284,6 +283,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	if eth.config.QuorumLightClient {
 		clientCache, err := qlight.NewClientCache(chainDb)
+		qlight.SetCurrentToken(eth.config.QuorumLightClientToken)
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +300,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			RaftMode:           config.RaftMode,
 			Engine:             eth.engine,
 			psi:                config.QuorumLightClientPSI,
-			token:              config.QuorumLightClientToken,
 			privateClientCache: clientCache,
 		}); err != nil {
 			return nil, err
@@ -382,10 +381,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		}
 
 		if len(eth.config.QuorumLightClientToken) > 0 {
-			var f rpc.HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
-				return eth.config.QuorumLightClientToken, nil
-			}
-			proxyClient = proxyClient.WithHTTPCredentials(f)
+			proxyClient = proxyClient.WithHTTPCredentials(qlight.TokenCredentialsProvider)
 		}
 
 		if len(eth.config.QuorumLightClientPSI) > 0 {
@@ -423,6 +419,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// Register the backend on the node
 	stack.RegisterAPIs(eth.APIs())
+	if eth.config.QuorumLightClient {
+		stack.RegisterAPIs(eth.QLightClientAPIs())
+	}
 	stack.RegisterProtocols(eth.Protocols())
 	if eth.config.QuorumLightServer {
 		stack.RegisterQProtocols(eth.QProtocols())
@@ -459,6 +458,17 @@ func makeExtraData(extra []byte, isQuorum bool) []byte {
 		extra = nil
 	}
 	return extra
+}
+
+func (s *Ethereum) QLightClientAPIs() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "qlight",
+			Version:   "1.0",
+			Service:   qlight.NewPrivateQLightAPI(s.handler.peers, s.APIBackend.proxyClient),
+			Public:    false,
+		},
+	}
 }
 
 // APIs return the collection of RPC services the ethereum package offers.
