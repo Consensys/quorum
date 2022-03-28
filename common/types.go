@@ -65,7 +65,10 @@ func (h *EncryptedPayloadHash) MarshalJSON() (j []byte, err error) {
 
 func (h *EncryptedPayloadHash) UnmarshalJSON(j []byte) (err error) {
 	var ephStr string
-	json.Unmarshal(j, &ephStr)
+	err = json.Unmarshal(j, &ephStr)
+	if err != nil {
+		return err
+	}
 	eph, err := Base64ToEncryptedPayloadHash(ephStr)
 	if err != nil {
 		return err
@@ -80,7 +83,10 @@ func (h *EncryptedPayloadHashes) MarshalJSON() (j []byte, err error) {
 
 func (h *EncryptedPayloadHashes) UnmarshalJSON(j []byte) (err error) {
 	var ephStrArray []string
-	json.Unmarshal(j, &ephStrArray)
+	err = json.Unmarshal(j, &ephStrArray)
+	if err != nil {
+		return err
+	}
 	for _, str := range ephStrArray {
 		eph, err := Base64ToEncryptedPayloadHash(str)
 		if err != nil {
@@ -341,8 +347,7 @@ func (ephs EncryptedPayloadHashes) EncodeRLP(writer io.Writer) error {
 		encryptedPayloadHashesArray[idx] = key
 		idx++
 	}
-	rlp.Encode(writer, encryptedPayloadHashesArray)
-	return nil
+	return rlp.Encode(writer, encryptedPayloadHashesArray)
 }
 
 func (ephs EncryptedPayloadHashes) DecodeRLP(stream *rlp.Stream) error {

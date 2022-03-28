@@ -12,10 +12,10 @@ import (
 // MakeProtocols constructs the P2P protocol definitions for `eth`.
 func MakeProtocolsClient(backend Backend, network uint64, dnsdisc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, 1)
-	version := uint(65)
+	version := uint(QLIGHT65)
 	protocols[0] = p2p.Protocol{
-		Name:    "qlight",
-		Version: 65,
+		Name:    ProtocolName,
+		Version: QLIGHT65,
 		Length:  QLightProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			ethPeer := eth.NewPeerNoBroadcast(version, p, rw, backend.TxPool())

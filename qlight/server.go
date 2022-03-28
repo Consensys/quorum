@@ -104,7 +104,10 @@ func (p *privateBlockDataResolverImpl) fetchPrivateData(encryptedPayloadHash []b
 	}
 	if len(psm.Addresses) == 0 {
 		// this is not an MPS node so we have to ask tessera
-		ptd.IsSender, _ = p.ptm.IsSender(txHash)
+		ptd.IsSender, err = p.ptm.IsSender(txHash)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		// this is an MPS node so we can speed up the IsSender logic by checking the addresses in the private state metadata
 		ptd.IsSender = !psm.NotIncludeAny(extra.Sender)
@@ -162,7 +165,6 @@ func (a *authProviderImpl) Authorize(token string, psi string) error {
 		return fmt.Errorf("PSI not authorized")
 	}
 	// check that we have access to  qlight://p2p , rpc://eth_*
-	// TODO figure out what other entitlements we want to check here
 	qlightP2P := false
 	rpcETH := false
 	for _, ga := range authToken.GetAuthorities() {
@@ -180,7 +182,7 @@ func (a *authProviderImpl) Authorize(token string, psi string) error {
 	// try to resolve the PSI
 	_, err = a.privateStateManager.ResolveForUserContext(rpc.WithPrivateStateIdentifier(context.Background(), PSI))
 	if err != nil {
-		return err
+		return fmt.Errorf("QLight auth error: %w", err)
 	}
 	return nil
 }

@@ -13,6 +13,9 @@ const (
 
 const QLightProtocolLength = 19
 
+const QLIGHT65 = 65
+const ProtocolName = "qlight"
+
 // maxMessageSize is the maximum cap on the size of a protocol message.
 const maxMessageSize = 10 * 1024 * 1024
 
