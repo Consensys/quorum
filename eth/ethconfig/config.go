@@ -223,7 +223,9 @@ type Config struct {
 	QuorumLightServer                         bool   `toml:",omitempty"`
 	QuorumLightClient                         bool   `toml:",omitempty"`
 	QuorumLightClientPSI                      string `toml:",omitempty"`
-	QuorumLightClientToken                    string `toml:",omitempty"`
+	QuorumLightClientTokenEnabled             bool   `toml:",omitempty"`
+	QuorumLightClientTokenValue               string `toml:",omitempty"`
+	QuorumLightClientTokenManagement          string `toml:",omitempty"`
 	QuorumLightClientRPCTLS                   bool   `toml:",omitempty"`
 	QuorumLightClientRPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
 	QuorumLightClientRPCTLSCACert             string `toml:",omitempty"`

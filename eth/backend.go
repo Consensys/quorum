@@ -283,7 +283,22 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	if eth.config.QuorumLightClient {
 		clientCache, err := qlight.NewClientCache(chainDb)
-		qlight.SetCurrentToken(eth.config.QuorumLightClientToken)
+		if eth.config.QuorumLightClientTokenEnabled {
+			qlight.SetCurrentToken(eth.config.QuorumLightClientTokenValue)
+			switch eth.config.QuorumLightClientTokenManagement {
+			case "client-security-plugin":
+				// TODO QLight - when hte client-security-plugin is implemented this may be a good place to initialize it
+				return nil, fmt.Errorf("The client-scurity-plugin token management is not implemented")
+			case "none":
+				log.Warn("Starting qlight client with auth token enabled but without a token management strategy. This is for development purposes only.")
+				break
+			case "external":
+				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
+				break
+			default:
+				return nil, fmt.Errorf("Invalid value %s for `qlight.client.token.management`", eth.config.QuorumLightClientTokenManagement)
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -380,7 +395,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			}
 		}
 
-		if len(eth.config.QuorumLightClientToken) > 0 {
+		if eth.config.QuorumLightClientTokenEnabled {
 			proxyClient = proxyClient.WithHTTPCredentials(qlight.TokenCredentialsProvider)
 		}
 
@@ -419,7 +434,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// Register the backend on the node
 	stack.RegisterAPIs(eth.APIs())
-	if eth.config.QuorumLightClient {
+	if eth.config.QuorumLightClient && eth.config.QuorumLightClientTokenEnabled &&
+		eth.config.QuorumLightClientTokenManagement == "external" {
 		stack.RegisterAPIs(eth.QLightClientAPIs())
 	}
 	stack.RegisterProtocols(eth.Protocols())
