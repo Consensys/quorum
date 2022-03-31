@@ -282,7 +282,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 
-	if eth.config.QuorumLightClient {
+	if eth.config.QuorumLightClient.Enabled() {
 		clientCache, err := qlight.NewClientCache(chainDb)
 		if err != nil {
 			return nil, err
@@ -299,8 +299,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			AuthorizationList:  config.AuthorizationList,
 			RaftMode:           config.RaftMode,
 			Engine:             eth.engine,
-			psi:                config.QuorumLightClientPSI,
-			token:              config.QuorumLightClientToken,
+			psi:                config.QuorumLightClient.PSI,
+			token:              config.QuorumLightClient.Token,
 			privateClientCache: clientCache,
 		}); err != nil {
 			return nil, err
@@ -350,18 +350,18 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&stack.GetNodeKey().PublicKey)[1:]) // Quorum
-	if eth.config.QuorumLightClient {
+	if eth.config.QuorumLightClient.Enabled() {
 		var (
 			proxyClient *rpc.Client
 			err         error
 		)
 		// setup rpc client TLS context
-		if eth.config.QuorumLightClientRPCTLS {
+		if eth.config.QuorumLightClient.RPCTLS {
 			tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
-				InsecureSkipVerify: eth.config.QuorumLightClientRPCTLSInsecureSkipVerify,
-				CACertFileName:     eth.config.QuorumLightClientRPCTLSCACert,
-				CertFileName:       eth.config.QuorumLightClientRPCTLSCert,
-				KeyFileName:        eth.config.QuorumLightClientRPCTLSKey,
+				InsecureSkipVerify: eth.config.QuorumLightClient.RPCTLSInsecureSkipVerify,
+				CACertFileName:     eth.config.QuorumLightClient.RPCTLSCACert,
+				CertFileName:       eth.config.QuorumLightClient.RPCTLSCert,
+				KeyFileName:        eth.config.QuorumLightClient.RPCTLSKey,
 			})
 			if err != nil {
 				return nil, err
@@ -370,26 +370,26 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 				Transport: http.DefaultTransport,
 			}
 			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
-			proxyClient, err = rpc.DialHTTPWithClient(eth.config.QuorumLightClientServerNodeRPC, customHttpClient)
+			proxyClient, err = rpc.DialHTTPWithClient(eth.config.QuorumLightClient.ServerNodeRPC, customHttpClient)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			proxyClient, err = rpc.Dial(eth.config.QuorumLightClientServerNodeRPC)
+			proxyClient, err = rpc.Dial(eth.config.QuorumLightClient.ServerNodeRPC)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		if len(eth.config.QuorumLightClientToken) > 0 {
+		if len(eth.config.QuorumLightClient.Token) > 0 {
 			var f rpc.HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
-				return eth.config.QuorumLightClientToken, nil
+				return eth.config.QuorumLightClient.Token, nil
 			}
 			proxyClient = proxyClient.WithHTTPCredentials(f)
 		}
 
-		if len(eth.config.QuorumLightClientPSI) > 0 {
-			proxyClient = proxyClient.WithPSI(types.PrivateStateIdentifier(eth.config.QuorumLightClientPSI))
+		if len(eth.config.QuorumLightClient.PSI) > 0 {
+			proxyClient = proxyClient.WithPSI(types.PrivateStateIdentifier(eth.config.QuorumLightClient.PSI))
 		}
 		// TODO qlight - need to find a better way to inject the rpc client into the tx manager
 		rpcClientSetter, ok := private.P.(private.HasRPCClient)
@@ -702,7 +702,7 @@ func (s *Ethereum) BloomIndexer() *core.ChainIndexer   { return s.bloomIndexer }
 // Protocols returns all the currently configured
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
-	if s.config.QuorumLightClient {
+	if s.config.QuorumLightClient.Enabled() {
 		protos := qlightproto.MakeProtocolsClient((*qlightClientHandler)(s.handler), s.networkID, s.ethDialCandidates)
 		return protos
 	}
@@ -745,7 +745,7 @@ func (s *Ethereum) Start() error {
 		maxPeers -= s.config.LightPeers
 	}
 	// Start the networking layer and the light server if requested
-	if s.config.QuorumLightClient {
+	if s.config.QuorumLightClient.Enabled() {
 		s.handler.StartQLightClient()
 	} else {
 		s.handler.Start(maxPeers)
@@ -761,7 +761,7 @@ func (s *Ethereum) Start() error {
 // Ethereum protocol.
 func (s *Ethereum) Stop() error {
 	// Stop all the peer-related stuff first.
-	if s.config.QuorumLightClient {
+	if s.config.QuorumLightClient.Enabled() {
 		s.handler.StopQLightClient()
 	} else {
 		if s.qlightServerHandler != nil {
