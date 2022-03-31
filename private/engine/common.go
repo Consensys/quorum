@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -131,4 +132,16 @@ func NewFeatureSet(features ...PrivateTransactionManagerFeature) *FeatureSet {
 
 func (p *FeatureSet) HasFeature(feature PrivateTransactionManagerFeature) bool {
 	return uint64(feature)&p.features != 0
+}
+
+type ExtraMetaDataRLP ExtraMetadata
+
+func (emd *ExtraMetadata) DecodeRLP(stream *rlp.Stream) error {
+	// initialize the ACHashes map before passing it into the rlp decoder
+	emd.ACHashes = make(map[common.EncryptedPayloadHash]struct{})
+	emdRLP := (*ExtraMetaDataRLP)(emd)
+	if err := stream.Decode(emdRLP); err != nil {
+		return err
+	}
+	return nil
 }
