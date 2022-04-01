@@ -977,7 +977,7 @@ var (
 	}
 	QuorumLightServerP2PPermissioningPrefixFlag = cli.StringFlag{
 		Name:  "qlight.server.p2p.permissioning.prefix",
-		Usage: "The prefix for the permissioned-nodes.json and dissallowed-nodes.json files.",
+		Usage: "The prefix for the permissioned-nodes.json and disallowed-nodes.json files.",
 	}
 	QuorumLightClientFlag = cli.BoolFlag{
 		Name:  "qlight.client",

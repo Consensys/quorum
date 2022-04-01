@@ -14,19 +14,19 @@ import (
 )
 
 type FileBasedPermissioning struct {
-	PermissionFile  string
-	DissallowedFile string
+	PermissionFile string
+	DisallowedFile string
 }
 
 var defaultFileBasedPermissioning = FileBasedPermissioning{
-	PermissionFile:  params.PERMISSIONED_CONFIG,
-	DissallowedFile: params.BLACKLIST_CONFIG,
+	PermissionFile: params.PERMISSIONED_CONFIG,
+	DisallowedFile: params.DISALLOWED_CONFIG,
 }
 
 func NewFileBasedPermissoningWithPrefix(prefix string) FileBasedPermissioning {
 	return FileBasedPermissioning{
-		PermissionFile:  prefix + "-" + params.PERMISSIONED_CONFIG,
-		DissallowedFile: prefix + "-" + params.BLACKLIST_CONFIG,
+		PermissionFile: prefix + "-" + params.PERMISSIONED_CONFIG,
+		DisallowedFile: prefix + "-" + params.DISALLOWED_CONFIG,
 	}
 }
 
@@ -105,11 +105,11 @@ func (fbp *FileBasedPermissioning) ParsePermissionedNodes(DataDir string) []*eno
 
 // This function checks if the node is black-listed
 func (fbp *FileBasedPermissioning) isNodeBlackListed(nodeName, dataDir string) bool {
-	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", fbp.DissallowedFile)
+	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", fbp.DisallowedFile)
 
-	path := filepath.Join(dataDir, fbp.DissallowedFile)
+	path := filepath.Join(dataDir, fbp.DisallowedFile)
 	if _, err := os.Stat(path); err != nil {
-		log.Debug("Read Error for disallowed-nodes file. disallowed-nodes file is not present.", "fileName", fbp.DissallowedFile, "err", err)
+		log.Debug("Read Error for disallowed-nodes file. disallowed-nodes file is not present.", "fileName", fbp.DisallowedFile, "err", err)
 		return false
 	}
 	// Load the nodes from the config file
