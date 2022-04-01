@@ -1922,8 +1922,8 @@ func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.C
 	if ctx.GlobalIsSet(QuorumLightClientTokenManagementFlag.Name) {
 		ethCfg.QuorumLightClient.TokenManagement = ctx.GlobalString(QuorumLightClientTokenManagementFlag.Name)
 	}
-	if !isValidTokenManagement(ethCfg.QuorumLightClientTokenManagement) {
-		Fatalf("Invalid value specified '%s' for flag '%s'.", ethCfg.QuorumLightClientTokenManagement, QuorumLightClientTokenManagementFlag.Name)
+	if !isValidTokenManagement(ethCfg.QuorumLightClient.TokenManagement) {
+		Fatalf("Invalid value specified '%s' for flag '%s'.", ethCfg.QuorumLightClient.TokenManagement, QuorumLightClientTokenManagementFlag.Name)
 	}
 
 	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {

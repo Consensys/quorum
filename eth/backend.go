@@ -296,7 +296,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
 				break
 			default:
-				return nil, fmt.Errorf("Invalid value %s for `qlight.client.token.management`", eth.config.QuorumLightClientTokenManagement)
+				return nil, fmt.Errorf("Invalid value %s for `qlight.client.token.management`", eth.config.QuorumLightClient.TokenManagement)
 			}
 		}
 		if err != nil {
@@ -434,8 +434,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// Register the backend on the node
 	stack.RegisterAPIs(eth.APIs())
-	if eth.config.QuorumLightClient && eth.config.QuorumLightClientTokenEnabled &&
-		eth.config.QuorumLightClientTokenManagement == "external" {
+	if eth.config.QuorumLightClient.Enabled() && eth.config.QuorumLightClient.TokenEnabled &&
+		eth.config.QuorumLightClient.TokenManagement == "external" {
 		stack.RegisterAPIs(eth.QLightClientAPIs())
 	}
 	stack.RegisterProtocols(eth.Protocols())
