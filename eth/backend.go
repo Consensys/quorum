@@ -291,10 +291,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 				return nil, fmt.Errorf("The client-scurity-plugin token management is not implemented")
 			case "none":
 				log.Warn("Starting qlight client with auth token enabled but without a token management strategy. This is for development purposes only.")
-				break
 			case "external":
 				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
-				break
 			default:
 				return nil, fmt.Errorf("Invalid value %s for `qlight.client.token.management`", eth.config.QuorumLightClient.TokenManagement)
 			}
