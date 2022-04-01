@@ -164,7 +164,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 			stack.QServer().SetIsNodePermissioned(fbp.IsNodePermissionedEnode)
 		}
 	}
-	if cfg.Eth.QuorumLightClient {
+	if cfg.Eth.QuorumLightClient.Enabled() {
 		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))
 		stack.Server().SetNewTransportFunc(p2p.NewQlightClientTransport)
 	}
@@ -245,7 +245,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name), backend.ChainConfig().ChainID)
 	}
 
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !cfg.Eth.QuorumLightClient {
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !cfg.Eth.QuorumLightClient.Enabled() {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
