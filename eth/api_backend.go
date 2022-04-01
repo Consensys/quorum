@@ -63,7 +63,7 @@ type EthAPIBackend struct {
 }
 
 func (b *EthAPIBackend) ProxyEnabled() bool {
-	return b.eth.config.QuorumLightClient
+	return b.eth.config.QuorumLightClient.Enabled()
 }
 
 func (b *EthAPIBackend) ProxyClient() *rpc.Client {

@@ -28,7 +28,7 @@ func TestIsNodePermissioned(t *testing.T) {
 	defer os.RemoveAll(d)
 	writeNodeToFile(d, params.PERMISSIONED_CONFIG, node1)
 	writeNodeToFile(d, params.PERMISSIONED_CONFIG, node3)
-	writeNodeToFile(d, params.BLACKLIST_CONFIG, node3)
+	writeNodeToFile(d, params.DISALLOWED_CONFIG, node3)
 	n1, _ := enode.ParseV4(node1)
 	n2, _ := enode.ParseV4(node2)
 	n3, _ := enode.ParseV4(node3)
@@ -73,7 +73,7 @@ func Test_isNodeBlackListed(t *testing.T) {
 
 	d, _ := ioutil.TempDir("", "qdata")
 	defer os.RemoveAll(d)
-	writeNodeToFile(d, params.BLACKLIST_CONFIG, node1)
+	writeNodeToFile(d, params.DISALLOWED_CONFIG, node1)
 	n1, _ := enode.ParseV4(node1)
 	n2, _ := enode.ParseV4(node2)
 
