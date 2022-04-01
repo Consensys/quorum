@@ -227,7 +227,9 @@ type Config struct {
 type QuorumLightClient struct {
 	Use                      bool   `toml:",omitempty"`
 	PSI                      string `toml:",omitempty"`
-	Token                    string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
 	RPCTLS                   bool   `toml:",omitempty"`
 	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
 	RPCTLSCACert             string `toml:",omitempty"`

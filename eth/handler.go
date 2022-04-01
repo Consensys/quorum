@@ -102,7 +102,6 @@ type handlerConfig struct {
 	// Quorum QLight
 	// client
 	psi                string
-	token              string
 	privateClientCache qlight.PrivateClientCache
 	// server
 	authProvider             qlight.AuthProvider
@@ -156,7 +155,6 @@ type handler struct {
 	// Quorum QLight
 	// client
 	psi                string
-	token              string
 	privateClientCache qlight.PrivateClientCache
 	// server
 	authProvider             qlight.AuthProvider

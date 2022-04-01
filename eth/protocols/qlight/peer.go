@@ -100,6 +100,12 @@ func (p *Peer) QLightToken() string {
 	return p.qlightToken
 }
 
+func (p *Peer) SendNewAuthToken(token string) error {
+	return p2p.Send(p.rw, QLightTokenUpdateMsg, &qLightTokenUpdateData{
+		Token: token,
+	})
+}
+
 func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 	// Mark all the block hash as known, but ensure we don't overflow our limits
 	for p.knownBlocks.Cardinality() >= maxKnownBlocks {

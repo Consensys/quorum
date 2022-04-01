@@ -70,6 +70,14 @@ func handleMessageServer(backend Backend, peer *Peer) error {
 	case msg.Code == eth.TransactionsMsg:
 		peer.Log().Info("QLight Transactions message received. Ignoring.")
 		return nil
+	case msg.Code == QLightTokenUpdateMsg:
+		peer.Log().Info("QLight Token update received.")
+		res := new(qLightTokenUpdateData)
+		if err := msg.Decode(res); err != nil {
+			return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+		}
+		peer.qlightToken = res.Token
+		return nil
 	case msg.Code == eth.GetBlockHeadersMsg:
 		if handler := handlers[msg.Code]; handler != nil {
 			return handler(backend, msg, peer.EthPeer)

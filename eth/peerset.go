@@ -280,3 +280,19 @@ func (ps *peerSet) close() {
 	}
 	ps.closed = true
 }
+
+// Quorum
+func (ps *peerSet) UpdateTokenForRunningQPeers(token string) error {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	for _, p := range ps.peers {
+		if p.qlight != nil {
+			err := p.qlight.SendNewAuthToken(token)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

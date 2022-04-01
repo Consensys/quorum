@@ -987,9 +987,17 @@ var (
 		Name:  "qlight.client.psi",
 		Usage: "The PSI this client will use to connect to a server node.",
 	}
-	QuorumLightClientTokenFlag = cli.StringFlag{
-		Name:  "qlight.client.token",
+	QuorumLightClientTokenEnabledFlag = cli.BoolFlag{
+		Name:  "qlight.client.token.enabled",
+		Usage: "Whether the client uses a token when connecting to the qlight server.",
+	}
+	QuorumLightClientTokenValueFlag = cli.StringFlag{
+		Name:  "qlight.client.token.value",
 		Usage: "The token this client will use to connect to a server node.",
+	}
+	QuorumLightClientTokenManagementFlag = cli.StringFlag{
+		Name:  "qlight.client.token.management",
+		Usage: "The mechanism used to refresh the token. Possible values: none (developer mode)/external (new token must be injected via the qlight RPC API)/client-security-plugin (the client security plugin must be deployed/configured).",
 	}
 	QuorumLightClientRPCTLSFlag = cli.BoolFlag{
 		Name:  "qlight.client.rpc.tls",
@@ -1900,8 +1908,22 @@ func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.C
 		ethCfg.QuorumLightClient.PSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
 	}
 
-	if ctx.GlobalIsSet(QuorumLightClientTokenFlag.Name) {
-		ethCfg.QuorumLightClient.Token = ctx.GlobalString(QuorumLightClientTokenFlag.Name)
+	if ctx.GlobalIsSet(QuorumLightClientTokenEnabledFlag.Name) {
+		ethCfg.QuorumLightClient.TokenEnabled = ctx.GlobalBool(QuorumLightClientTokenEnabledFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenValueFlag.Name) {
+		ethCfg.QuorumLightClient.TokenValue = ctx.GlobalString(QuorumLightClientTokenValueFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClient.TokenManagement) == 0 {
+		ethCfg.QuorumLightClient.TokenManagement = "client-security-plugin"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientTokenManagementFlag.Name) {
+		ethCfg.QuorumLightClient.TokenManagement = ctx.GlobalString(QuorumLightClientTokenManagementFlag.Name)
+	}
+	if !isValidTokenManagement(ethCfg.QuorumLightClient.TokenManagement) {
+		Fatalf("Invalid value specified '%s' for flag '%s'.", ethCfg.QuorumLightClient.TokenManagement, QuorumLightClientTokenManagementFlag.Name)
 	}
 
 	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
@@ -2563,4 +2585,15 @@ func MigrateFlags(action func(ctx *cli.Context) error) func(*cli.Context) error 
 		}
 		return action(ctx)
 	}
+}
+
+func isValidTokenManagement(value string) bool {
+	switch value {
+	case
+		"none",
+		"external",
+		"client-security-plugin":
+		return true
+	}
+	return false
 }
