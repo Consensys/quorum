@@ -34,8 +34,8 @@ func IsNodePermissioned(nodename string, currentNode string, datadir string, dir
 	return defaultFileBasedPermissioning.IsNodePermissioned(nodename, currentNode, datadir, direction)
 }
 
-func isNodeBlackListed(nodeName, dataDir string) bool {
-	return defaultFileBasedPermissioning.isNodeBlackListed(nodeName, dataDir)
+func isNodeDisallowed(nodeName, dataDir string) bool {
+	return defaultFileBasedPermissioning.isNodeDisallowed(nodeName, dataDir)
 }
 
 func (fbp *FileBasedPermissioning) IsNodePermissionedEnode(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
@@ -54,8 +54,8 @@ func (fbp *FileBasedPermissioning) IsNodePermissioned(nodename string, currentNo
 	for _, v := range permissionedList {
 		if v == nodename {
 			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
-			// check if the node is blacklisted
-			return !fbp.isNodeBlackListed(nodename, datadir)
+			// check if the node is disallowed
+			return !fbp.isNodeDisallowed(nodename, datadir)
 		}
 	}
 	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
@@ -103,9 +103,9 @@ func (fbp *FileBasedPermissioning) ParsePermissionedNodes(DataDir string) []*eno
 	return nodes
 }
 
-// This function checks if the node is black-listed
-func (fbp *FileBasedPermissioning) isNodeBlackListed(nodeName, dataDir string) bool {
-	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", fbp.DisallowedFile)
+// This function checks if the node is disallowed
+func (fbp *FileBasedPermissioning) isNodeDisallowed(nodeName, dataDir string) bool {
+	log.Debug("isNodeDisallowed", "DataDir", dataDir, "file", fbp.DisallowedFile)
 
 	path := filepath.Join(dataDir, fbp.DisallowedFile)
 	if _, err := os.Stat(path); err != nil {
@@ -115,7 +115,7 @@ func (fbp *FileBasedPermissioning) isNodeBlackListed(nodeName, dataDir string) b
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Debug("isNodeBlackListed: Failed to access nodes", "err", err)
+		log.Debug("isNodeDisallowed: Failed to access nodes", "err", err)
 		return true
 	}
 

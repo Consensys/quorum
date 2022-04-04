@@ -96,8 +96,8 @@ func Test_isNodeBlackListed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isNodeBlackListed(tt.args.nodeName, tt.args.dataDir); got != tt.want {
-				t.Errorf("isNodeBlackListed() = %v, want %v", got, tt.want)
+			if got := isNodeDisallowed(tt.args.nodeName, tt.args.dataDir); got != tt.want {
+				t.Errorf("isNodeDisallowed() = %v, want %v", got, tt.want)
 			}
 		})
 	}
