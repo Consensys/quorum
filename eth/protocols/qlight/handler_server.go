@@ -63,14 +63,14 @@ func handleMessageServer(backend Backend, peer *Peer) error {
 
 	var handlers = eth.ETH_65_FULL_SYNC
 
-	switch {
-	case msg.Code == eth.BlockHeadersMsg:
+	switch msg.Code {
+	case eth.BlockHeadersMsg:
 		peer.Log().Info("QLight Block Headers message received. Ignoring.")
 		return nil
-	case msg.Code == eth.TransactionsMsg:
+	case eth.TransactionsMsg:
 		peer.Log().Info("QLight Transactions message received. Ignoring.")
 		return nil
-	case msg.Code == QLightTokenUpdateMsg:
+	case QLightTokenUpdateMsg:
 		peer.Log().Info("QLight Token update received.")
 		res := new(qLightTokenUpdateData)
 		if err := msg.Decode(res); err != nil {
@@ -78,17 +78,17 @@ func handleMessageServer(backend Backend, peer *Peer) error {
 		}
 		peer.qlightToken = res.Token
 		return nil
-	case msg.Code == eth.GetBlockHeadersMsg:
+	case eth.GetBlockHeadersMsg:
 		if handler := handlers[msg.Code]; handler != nil {
 			return handler(backend, msg, peer.EthPeer)
 		}
-	case msg.Code == eth.GetBlockBodiesMsg:
+	case eth.GetBlockBodiesMsg:
 		res := new(eth.GetBlockBodiesPacket)
 		if err := msg.Decode(res); err != nil {
 			return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 		}
 		return backend.QHandle(peer, res)
-	case msg.Code == eth.NewBlockHashesMsg:
+	case eth.NewBlockHashesMsg:
 		peer.Log().Info("QLight New Block Hashes message received. Ignoring.")
 		return nil
 	}

@@ -68,29 +68,29 @@ func handleMessageClient(backend Backend, peer *Peer) error {
 
 	var handlers = eth.ETH_65_FULL_SYNC
 
-	switch {
-	case msg.Code == eth.BlockHeadersMsg:
+	switch msg.Code {
+	case eth.BlockHeadersMsg:
 		if handler := handlers[msg.Code]; handler != nil {
 			return handler(backend, msg, peer.EthPeer)
 		}
-	case msg.Code == eth.TransactionsMsg:
+	case eth.TransactionsMsg:
 		return qlightClientHandleTransactions(backend, msg, peer)
-	case msg.Code == eth.BlockBodiesMsg:
+	case eth.BlockBodiesMsg:
 		res := new(eth.BlockBodiesPacket)
 		if err := msg.Decode(res); err != nil {
 			return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 		}
 		return backend.QHandle(peer, res)
-	case msg.Code == eth.NewBlockHashesMsg:
+	case eth.NewBlockHashesMsg:
 		if handler := handlers[msg.Code]; handler != nil {
 			return handler(backend, msg, peer.EthPeer)
 		}
-	case msg.Code == QLightNewBlockPrivateDataMsg:
+	case QLightNewBlockPrivateDataMsg:
 		peer.Log().Info("QLight Received block private data message", "msg", msg.Code)
 		return qlightClientHandleNewBlockPrivateData(backend, msg, peer)
-	case msg.Code == eth.NewBlockMsg:
+	case eth.NewBlockMsg:
 		return qlightClientHandleNewBlock(backend, msg, peer)
-	case msg.Code == eth.NewPooledTransactionHashesMsg:
+	case eth.NewPooledTransactionHashesMsg:
 		if handler := handlers[msg.Code]; handler != nil {
 			return handler(backend, msg, peer.EthPeer)
 		}
