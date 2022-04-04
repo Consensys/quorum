@@ -29,7 +29,7 @@ func (p *Peer) broadcastBlocksQLightServer() {
 						return
 					}
 				} else {
-					p.Log().Error("PSI missmatch for block private data", "bpdPSI", prop.blockPrivateData.PSI, "peerPSI", p.qlightPSI)
+					p.Log().Error("PSI mismatch for block private data", "bpdPSI", prop.blockPrivateData.PSI, "peerPSI", p.qlightPSI)
 				}
 			}
 			if err := p.SendNewBlock(prop.block, prop.td); err != nil {
