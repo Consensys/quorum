@@ -617,7 +617,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	}
 	prevBlock := big.NewInt(0)
 	for _, transition := range c.Transitions {
-		if transition.Algorithm != IBFT && transition.Algorithm != QBFT {
+		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
 			return ErrTransitionAlgorithm
 		}
 		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
