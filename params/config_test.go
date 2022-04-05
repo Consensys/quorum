@@ -395,8 +395,12 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{big.NewInt(0), "", 30000, 5, 10}}},
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), Algorithm: "AA"}}},
 			wantErr: ErrTransitionAlgorithm,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), Algorithm: ""}}},
+			wantErr: nil,
 		},
 	}
 
