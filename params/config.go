@@ -425,8 +425,11 @@ const (
 )
 
 type Transition struct {
-	Block     *big.Int `json:"block"`
-	Algorithm string   `json:"algorithm,omitempty"`
+	Block                 *big.Int `json:"block"`
+	Algorithm             string   `json:"algorithm,omitempty"`
+	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
 }
 
 // String implements the fmt.Stringer interface.
@@ -616,6 +619,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	for _, transition := range c.Transitions {
 		if transition.Algorithm != IBFT && transition.Algorithm != QBFT {
 			return ErrTransitionAlgorithm
+		}
+		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
+			return ErrTestQBFTBlockAndTransitions
 		}
 		if transition.Algorithm == QBFT {
 			isQBFT = true
