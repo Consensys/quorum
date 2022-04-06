@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 )
 
@@ -125,6 +126,7 @@ type Config struct {
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	Transitions            []params.Transition
 }
 
 var DefaultConfig = &Config{
@@ -147,17 +149,35 @@ func (c Config) QBFTBlockNumber() int64 {
 
 // IsQBFTConsensusAt checks if qbft consensus is enabled for the block height identified by the given header
 func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
-	// If qbftBlock is not defined in genesis qbft consensus is not used
-	if c.TestQBFTBlock == nil {
-		return false
-	}
+	if c.TestQBFTBlock != nil {
+		if c.TestQBFTBlock.Uint64() == 0 {
+			return true
+		}
 
-	if c.TestQBFTBlock.Uint64() == 0 {
-		return true
+		if blockNumber.Cmp(c.TestQBFTBlock) >= 0 {
+			return true
+		}
 	}
-
-	if blockNumber.Cmp(c.TestQBFTBlock) >= 0 {
-		return true
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].Algorithm == params.QBFT {
+			return true
+		}
 	}
 	return false
+}
+
+func (c Config) GetConfig(blockNumber *big.Int) Config {
+	newConfig := c
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].RequestTimeoutSeconds != 0 {
+			newConfig.RequestTimeout = c.Transitions[i].RequestTimeoutSeconds
+		}
+		if c.Transitions[i].EpochLength != 0 {
+			newConfig.Epoch = c.Transitions[i].EpochLength
+		}
+		if c.Transitions[i].BlockPeriodSeconds != 0 {
+			newConfig.BlockPeriod = c.Transitions[i].BlockPeriodSeconds
+		}
+	}
+	return newConfig
 }

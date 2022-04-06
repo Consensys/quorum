@@ -345,9 +345,10 @@ func TestVoting(t *testing.T) {
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))
 		for j, vote := range tt.votes {
+			blockNumber := big.NewInt(int64(j) + 1)
 			headers[j] = &types.Header{
-				Number:     big.NewInt(int64(j) + 1),
-				Time:       uint64(int64(j) * int64(config.BlockPeriod)),
+				Number:     blockNumber,
+				Time:       uint64(int64(j) * int64(config.GetConfig(blockNumber).BlockPeriod)),
 				Coinbase:   accounts.address(vote.validator),
 				Difficulty: istanbulcommon.DefaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
