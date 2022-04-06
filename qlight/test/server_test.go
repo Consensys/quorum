@@ -1,7 +1,9 @@
 package test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
@@ -131,7 +133,71 @@ func TestPrivateBlockDataResolverImpl_PrepareBlockPrivateData_NonPartyTransactio
 }
 
 func TestPrivateBlockDataResolverImpl_PrepareBlockPrivateData_PMTTransaction(t *testing.T) {
-	// TODO figure out how to test PMT transactions
+	assert := assert.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockpsm := mps.NewMockPrivateStateManager(ctrl)
+	mockptm := private.NewMockPrivateTransactionManager(ctrl)
+	mockstaterepo := mps.NewMockPrivateStateRepository(ctrl)
+
+	saved := private.P
+	defer func() {
+		private.P = saved
+	}()
+	private.P = mockptm
+
+	tx, err := types.SignTx(types.NewContractCreation(0, big.NewInt(0), testGas, nil, common.BytesToEncryptedPayloadHash([]byte("pmt private tx")).Bytes()), types.QuorumPrivateTxSigner{}, testKey)
+	txData := new(bytes.Buffer)
+	err = json.NewEncoder(txData).Encode(tx)
+	assert.Nil(err)
+
+	mockptm.EXPECT().Receive(common.BytesToEncryptedPayloadHash([]byte("pmt inner tx"))).Return("AAA", []string{"AAA", "CCC"}, txData.Bytes(), &engine.ExtraMetadata{
+		ACHashes:            nil,
+		ACMerkleRoot:        common.Hash{},
+		PrivacyFlag:         0,
+		ManagedParties:      []string{"AAA", "CCC"},
+		Sender:              "AAA",
+		MandatoryRecipients: nil,
+	}, nil).AnyTimes()
+	mockptm.EXPECT().Receive(common.BytesToEncryptedPayloadHash([]byte("pmt private tx"))).Return("AAA", []string{"AAA", "CCC"}, common.FromHex(testCode), &engine.ExtraMetadata{
+		ACHashes:            nil,
+		ACMerkleRoot:        common.Hash{},
+		PrivacyFlag:         0,
+		ManagedParties:      []string{"AAA", "CCC"},
+		Sender:              "AAA",
+		MandatoryRecipients: nil,
+	}, nil).AnyTimes()
+	mockptm.EXPECT().HasFeature(engine.MultiplePrivateStates).Return(true)
+	mockptm.EXPECT().Groups().Return(PrivacyGroups, nil).AnyTimes()
+
+	mockpsm.EXPECT().ResolveForUserContext(gomock.Any()).Return(PSI1PSM, nil).AnyTimes()
+	mockpsm.EXPECT().NotIncludeAny(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	mockpsm.EXPECT().StateRepository(gomock.Any()).Return(mockstaterepo, nil).AnyTimes()
+	mockpsm.EXPECT().PSIs().Return([]types.PrivateStateIdentifier{PSI1PSM.ID, PSI2PSM.ID, types.DefaultPrivateStateIdentifier, types.ToPrivateStateIdentifier("other")}).AnyTimes()
+
+	mockstaterepo.EXPECT().PrivateStateRoot(gomock.Any()).Return(common.StringToHash("PrivateStateRoot"), nil)
+
+	pbdr := qlight.NewPrivateBlockDataResolver(mockpsm, mockptm)
+	blocks, _, _ := buildTestChainWithOnePMTTxPerBlock(1, params.QuorumMPSTestChainConfig)
+
+	blockPrivateData, err := pbdr.PrepareBlockPrivateData(blocks[0], PSI1PSM.ID.String())
+
+	assert.Nil(err)
+	assert.NotNil(blockPrivateData)
+	assert.Equal(common.StringToHash("PrivateStateRoot"), blockPrivateData.PrivateStateRoot)
+	assert.Equal(blocks[0].Hash(), blockPrivateData.BlockHash)
+	assert.Len(blockPrivateData.PrivateTransactions, 2)
+
+	pmtTransactionData := blockPrivateData.PrivateTransactions[0]
+	assert.True(pmtTransactionData.IsSender)
+	assert.Equal(txData.Bytes(), pmtTransactionData.Payload)
+	assert.ElementsMatch(pmtTransactionData.Extra.ManagedParties, []string{"AAA"})
+
+	privateTransactionData := blockPrivateData.PrivateTransactions[1]
+	assert.True(privateTransactionData.IsSender)
+	assert.Equal(common.FromHex(testCode), privateTransactionData.Payload)
+	assert.ElementsMatch(privateTransactionData.Extra.ManagedParties, []string{"AAA"})
 }
 
 func TestAuthProviderImpl_Authorize_AuthManagerNil(t *testing.T) {
@@ -371,6 +437,33 @@ func buildTestChainWithOneTxPerBlock(n int, config *params.ChainConfig) ([]*type
 
 		signer := types.QuorumPrivateTxSigner{}
 		tx, err := types.SignTx(types.NewContractCreation(block.TxNonce(testAddress), big.NewInt(0), testGas, nil, common.FromHex(testCode)), signer, testKey)
+		if err != nil {
+			panic(err)
+		}
+		block.AddTx(tx)
+	})
+
+	hashes := make([]common.Hash, n+1)
+	hashes[len(hashes)-1] = genesis.Hash()
+	blockm := make(map[common.Hash]*types.Block, n+1)
+	blockm[genesis.Hash()] = genesis
+	for i, b := range blocks {
+		hashes[len(hashes)-i-2] = b.Hash()
+		blockm[b.Hash()] = b
+	}
+
+	blockchain, _ := core.NewBlockChain(testdb, nil, config, ethash.NewFaker(), vm.Config{}, nil, nil, nil)
+	return blocks, blockm, blockchain
+}
+
+func buildTestChainWithOnePMTTxPerBlock(n int, config *params.ChainConfig) ([]*types.Block, map[common.Hash]*types.Block, *core.BlockChain) {
+	testdb := rawdb.NewMemoryDatabase()
+	genesis := core.GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
+	blocks, _ := core.GenerateChain(config, genesis, ethash.NewFaker(), testdb, n, func(i int, block *core.BlockGen) {
+		block.SetCoinbase(common.Address{0})
+
+		signer := types.LatestSigner(config)
+		tx, err := types.SignTx(types.NewTransaction(block.TxNonce(testAddress), common.QuorumPrivacyPrecompileContractAddress(), big.NewInt(0), testGas, nil, common.BytesToEncryptedPayloadHash([]byte("pmt inner tx")).Bytes()), signer, testKey)
 		if err != nil {
 			panic(err)
 		}
