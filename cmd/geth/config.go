@@ -213,7 +213,7 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 	})
 
 	if err != nil {
-		utils.Fatalf("QLight tls - unable to read server tls configuration: %v", err)
+		utils.Fatalf("QLight TLS - unable to read server tls configuration: %v", err)
 	}
 
 	return tlsConfig
