@@ -14,7 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/private/engine/qlightptm"
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -23,6 +25,10 @@ var (
 	P                PrivateTransactionManager
 	isPrivacyEnabled = false
 )
+
+type HasRPCClient interface {
+	SetRPCClient(client *rpc.Client)
+}
 
 type Identifiable interface {
 	Name() string
@@ -64,14 +70,23 @@ func FromEnvironmentOrNil(name string) (http2.Config, error) {
 	return cfg, nil
 }
 
-func InitialiseConnection(cfg http2.Config) error {
+func InitialiseConnection(cfg http2.Config, isLightClient bool) error {
 	var err error
+	if isLightClient {
+		P, err = NewQLightTxManager()
+		return err
+	}
 	P, err = NewPrivateTxManager(cfg)
 	return err
 }
 
 func IsQuorumPrivacyEnabled() bool {
 	return isPrivacyEnabled
+}
+
+func NewQLightTxManager() (PrivateTransactionManager, error) {
+	isPrivacyEnabled = true
+	return qlightptm.New(), nil
 }
 
 func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {
@@ -129,9 +144,13 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 
 // Retrieve the private transaction that is associated with a privacy marker transaction
 func FetchPrivateTransaction(data []byte) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
+	return FetchPrivateTransactionWithPTM(data, P)
+}
+
+func FetchPrivateTransactionWithPTM(data []byte, ptm PrivateTransactionManager) (*types.Transaction, []string, *engine.ExtraMetadata, error) {
 	txHash := common.BytesToEncryptedPayloadHash(data)
 
-	_, managedParties, txData, metadata, err := P.Receive(txHash)
+	_, managedParties, txData, metadata, err := ptm.Receive(txHash)
 	if err != nil {
 		return nil, nil, nil, err
 	}

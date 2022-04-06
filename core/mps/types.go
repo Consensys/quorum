@@ -58,6 +58,16 @@ func (psm *PrivateStateMetadata) NotIncludeAny(addresses ...string) bool {
 	return true
 }
 
+func (psm *PrivateStateMetadata) FilterAddresses(addresses ...string) []string {
+	result := make([]string, 0)
+	for _, addr := range addresses {
+		if _, found := psm.addressIndex[addr]; found {
+			result = append(result, addr)
+		}
+	}
+	return result
+}
+
 func (psm *PrivateStateMetadata) String() string {
 	return fmt.Sprintf("ID=%s,Name=%s,Desc=%s,Type=%d,Addresses=%v", psm.ID, psm.Name, psm.Description, psm.Type, psm.Addresses)
 }

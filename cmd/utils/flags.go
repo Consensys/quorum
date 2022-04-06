@@ -953,6 +953,105 @@ var (
 		Name:  "ptm.tls.insecureskipverify",
 		Usage: "Disable verification of server's TLS certificate on connection to private transaction manager",
 	}
+	QuorumLightServerFlag = cli.BoolFlag{
+		Name:  "qlight.server",
+		Usage: "If enabled, the quorum light P2P protocol is started in addition to the other P2P protocols",
+	}
+	QuorumLightServerP2PListenPortFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.port",
+		Usage: "QLight Network listening port",
+		Value: 30305,
+	}
+	QuorumLightServerP2PMaxPeersFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.maxpeers",
+		Usage: "Maximum number of qlight peers",
+		Value: 10,
+	}
+	QuorumLightServerP2PNetrestrictFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.netrestrict",
+		Usage: "Restricts network communication to the given IP networks (CIDR masks)",
+	}
+	QuorumLightServerP2PPermissioningFlag = cli.BoolFlag{
+		Name:  "qlight.server.p2p.permissioning",
+		Usage: "If enabled, the qlight peers are checked against a permissioned list and a disallowed list.",
+	}
+	QuorumLightServerP2PPermissioningPrefixFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.permissioning.prefix",
+		Usage: "The prefix for the permissioned-nodes.json and disallowed-nodes.json files.",
+	}
+	QuorumLightClientFlag = cli.BoolFlag{
+		Name:  "qlight.client",
+		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
+	}
+	QuorumLightClientPSIFlag = cli.StringFlag{
+		Name:  "qlight.client.psi",
+		Usage: "The PSI this client will use to connect to a server node.",
+	}
+	QuorumLightClientTokenEnabledFlag = cli.BoolFlag{
+		Name:  "qlight.client.token.enabled",
+		Usage: "Whether the client uses a token when connecting to the qlight server.",
+	}
+	QuorumLightClientTokenValueFlag = cli.StringFlag{
+		Name:  "qlight.client.token.value",
+		Usage: "The token this client will use to connect to a server node.",
+	}
+	QuorumLightClientTokenManagementFlag = cli.StringFlag{
+		Name:  "qlight.client.token.management",
+		Usage: "The mechanism used to refresh the token. Possible values: none (developer mode)/external (new token must be injected via the qlight RPC API)/client-security-plugin (the client security plugin must be deployed/configured).",
+	}
+	QuorumLightClientRPCTLSFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls",
+		Usage: "If enabled, the quorum light client RPC connection will be configured to use TLS",
+	}
+	QuorumLightClientRPCTLSInsecureSkipVerifyFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls.insecureskipverify",
+		Usage: "If enabled, the quorum light client RPC connection skips TLS verification",
+	}
+	QuorumLightClientRPCTLSCACertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cacert",
+		Usage: "The quorum light client RPC client certificate authority.",
+	}
+	QuorumLightClientRPCTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cert",
+		Usage: "The quorum light client RPC client certificate.",
+	}
+	QuorumLightClientRPCTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.key",
+		Usage: "The quorum light client RPC client certificate private key.",
+	}
+	QuorumLightClientServerNodeFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNode",
+		Usage: "The node ID of the target server node",
+	}
+	QuorumLightClientServerNodeRPCFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNodeRPC",
+		Usage: "The RPC URL of the target server node",
+	}
+	QuorumLightTLSFlag = cli.BoolFlag{
+		Name:  "qlight.tls",
+		Usage: "If enabled, the quorum light client P2P protocol will use tls",
+	}
+	QuorumLightTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.tls.cert",
+		Usage: "The certificate file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.tls.key",
+		Usage: "The key file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSCACertsFlag = cli.StringFlag{
+		Name:  "qlight.tls.cacerts",
+		Usage: "The certificate authorities file to use for validating P2P connection",
+	}
+	QuorumLightTLSClientAuthFlag = cli.IntFlag{
+		Name:  "qlight.tls.clientauth",
+		Usage: "The way the client is authenticated. Possible values: 0=NoClientCert(default) 1=RequestClientCert 2=RequireAnyClientCert 3=VerifyClientCertIfGiven 4=RequireAndVerifyClientCert",
+		Value: 0,
+	}
+	QuorumLightTLSCipherSuitesFlag = cli.StringFlag{
+		Name:  "qlight.tls.ciphersuites",
+		Usage: "The cipher suites to use for the qlight P2P connection",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1393,9 +1492,41 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 }
 
+func SetQP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+	setNodeKey(ctx, cfg)
+	//setNAT(ctx, cfg)
+	cfg.NAT = nil
+	if ctx.GlobalIsSet(QuorumLightServerP2PListenPortFlag.Name) {
+		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerP2PListenPortFlag.Name))
+	}
+
+	cfg.EnableNodePermission = ctx.GlobalIsSet(QuorumLightServerP2PPermissioningFlag.Name)
+
+	cfg.MaxPeers = 10
+	if ctx.GlobalIsSet(QuorumLightServerP2PMaxPeersFlag.Name) {
+		cfg.MaxPeers = ctx.GlobalInt(QuorumLightServerP2PMaxPeersFlag.Name)
+	}
+
+	if netrestrict := ctx.GlobalString(QuorumLightServerP2PNetrestrictFlag.Name); netrestrict != "" {
+		list, err := netutil.ParseNetlist(netrestrict)
+		if err != nil {
+			Fatalf("Option %q: %v", QuorumLightServerP2PNetrestrictFlag.Name, err)
+		}
+		cfg.NetRestrict = list
+	}
+
+	cfg.MaxPendingPeers = 0
+	cfg.NoDiscovery = true
+	cfg.DiscoveryV5 = false
+	cfg.NoDial = true
+}
+
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
+	if cfg.QP2P != nil {
+		SetQP2PConfig(ctx, cfg.QP2P)
+	}
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)
 	setGraphQL(ctx, cfg)
@@ -1745,6 +1876,106 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 	}
 }
 
+func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.Config) {
+	if ctx.GlobalIsSet(QuorumLightServerFlag.Name) {
+		ethCfg.QuorumLightServer = ctx.GlobalBool(QuorumLightServerFlag.Name)
+	}
+
+	if ethCfg.QuorumLightServer {
+		if nodeCfg.QP2P == nil {
+			nodeCfg.QP2P = &p2p.Config{
+				ListenAddr:  ":30305",
+				MaxPeers:    10,
+				NAT:         nil,
+				NoDial:      true,
+				NoDiscovery: true,
+			}
+			SetQP2PConfig(ctx, nodeCfg.QP2P)
+		}
+	} else {
+		nodeCfg.QP2P = nil
+	}
+
+	ethCfg.QuorumLightClient = &ethconfig.QuorumLightClient{}
+	if ctx.GlobalIsSet(QuorumLightClientFlag.Name) {
+		ethCfg.QuorumLightClient.Use = ctx.GlobalBool(QuorumLightClientFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClient.PSI) == 0 {
+		ethCfg.QuorumLightClient.PSI = "private"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
+		ethCfg.QuorumLightClient.PSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenEnabledFlag.Name) {
+		ethCfg.QuorumLightClient.TokenEnabled = ctx.GlobalBool(QuorumLightClientTokenEnabledFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenValueFlag.Name) {
+		ethCfg.QuorumLightClient.TokenValue = ctx.GlobalString(QuorumLightClientTokenValueFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClient.TokenManagement) == 0 {
+		ethCfg.QuorumLightClient.TokenManagement = "client-security-plugin"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientTokenManagementFlag.Name) {
+		ethCfg.QuorumLightClient.TokenManagement = ctx.GlobalString(QuorumLightClientTokenManagementFlag.Name)
+	}
+	if !isValidTokenManagement(ethCfg.QuorumLightClient.TokenManagement) {
+		Fatalf("Invalid value specified '%s' for flag '%s'.", ethCfg.QuorumLightClient.TokenManagement, QuorumLightClientTokenManagementFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLS = ctx.GlobalBool(QuorumLightClientRPCTLSFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSInsecureSkipVerify = ctx.GlobalBool(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
+		ethCfg.QuorumLightClient.RPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSCertFlag.Name, QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSKeyFlag.Name, QuorumLightClientRPCTLSCertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
+		ethCfg.QuorumLightClient.ServerNodeRPC = ctx.GlobalString(QuorumLightClientServerNodeRPCFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
+		ethCfg.QuorumLightClient.ServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
+		// This is already done in geth/config - before the node.New invocation (at which point the StaticNodes is already copied)
+		//stack.Config().P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClientServerNode)}
+	}
+
+	if ethCfg.QuorumLightClient.Enabled() {
+		if ctx.GlobalBool(MiningEnabledFlag.Name) {
+			Fatalf("QLight clients do not support mining")
+		}
+		if len(ethCfg.QuorumLightClient.ServerNode) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeFlag.Name)
+		}
+		if len(ethCfg.QuorumLightClient.ServerNodeRPC) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeRPCFlag.Name)
+		}
+
+		nodeCfg.P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClient.ServerNode)}
+		log.Info("The node is configured to run as a qlight client. 'maxpeers' is overridden to `1` and the P2P listener is disabled.")
+		nodeCfg.P2P.MaxPeers = 1
+		// force the qlight client node to disable the local P2P listener
+		nodeCfg.P2P.ListenAddr = ""
+	}
+}
+
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
@@ -1779,6 +2010,13 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
+
+	// Quorum
+	if cfg.QuorumLightClient.Enabled() && cfg.SyncMode != downloader.FullSync {
+		Fatalf("Only the 'full' syncmode is supported for the qlight client.")
+	}
+	// End Quorum
+
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
 	}
@@ -2356,4 +2594,15 @@ func MigrateFlags(action func(ctx *cli.Context) error) func(*cli.Context) error 
 		}
 		return action(ctx)
 	}
+}
+
+func isValidTokenManagement(value string) bool {
+	switch value {
+	case
+		"none",
+		"external",
+		"client-security-plugin":
+		return true
+	}
+	return false
 }

@@ -80,6 +80,9 @@ type Config struct {
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
 
+	// Quorum
+	QP2P *p2p.Config `toml:",omitempty"`
+
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
 	// current directory.
@@ -238,6 +241,13 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
+}
+
+func (c *Config) QNodeDB() string {
+	if c.DataDir == "" {
+		return "" // ephemeral
+	}
+	return c.ResolvePath("qnodes")
 }
 
 // DefaultIPCEndpoint returns the IPC path used by default.

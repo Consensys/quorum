@@ -97,6 +97,14 @@ func (mpsr *MultiplePrivateStateRepository) IsMPS() bool {
 	return true
 }
 
+func (mpsr *MultiplePrivateStateRepository) PrivateStateRoot(psi types.PrivateStateIdentifier) (common.Hash, error) {
+	privateStateRoot, err := mpsr.trie.TryGet([]byte(psi))
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return common.BytesToHash(privateStateRoot), nil
+}
+
 func (mpsr *MultiplePrivateStateRepository) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB, error) {
 	mpsr.mux.Lock()
 	ms, found := mpsr.managedStates[psi]
@@ -173,6 +181,7 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		if err != nil {
 			return err
 		}
+
 		// update the managed state root in the trie of state roots
 		if err := mpsr.trie.TryUpdate([]byte(psi), privateRoot.Bytes()); err != nil {
 			return err
