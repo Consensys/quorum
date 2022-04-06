@@ -314,12 +314,7 @@ func (h *handler) runQLightClientPeer(peer *qlightproto.Peer, handler qlightprot
 func (h *handler) StartQLightClient() {
 	h.maxPeers = 1
 	// Quorum
-	if !h.raftMode {
-		// broadcast mined blocks
-		//h.wg.Add(1)
-		//h.minedBlockSub = h.eventMux.Subscribe(core.NewMinedBlockEvent{})
-		//go h.minedBroadcastLoop()
-	} else {
+	if h.raftMode {
 		// We set this immediately in raft mode to make sure the miner never drops
 		// incoming txes. Raft mode doesn't use the fetcher or downloader, and so
 		// this would never be set otherwise.
