@@ -336,18 +336,18 @@ type ChainConfig struct {
 	EWASMBlock  *big.Int `json:"ewasmBlock,omitempty"`  // EWASM switch block (nil = no fork, 0 = already activated)
 
 	// Various consensus engines
-	Ethash      *EthashConfig   `json:"ethash,omitempty"`
-	Clique      *CliqueConfig   `json:"clique,omitempty"`
-	Istanbul    *IstanbulConfig `json:"istanbul,omitempty"`    // Quorum
-	IBFT        *IBFTConfig     `json:"ibft,omitempty"`        // Quorum
-	QBFT        *QBFTConfig     `json:"qbft,omitempty"`        // Quorum
-	Transitions []Transition    `json:"transitions,omitempty"` // Quorum
+	Ethash   *EthashConfig   `json:"ethash,omitempty"`
+	Clique   *CliqueConfig   `json:"clique,omitempty"`
+	Istanbul *IstanbulConfig `json:"istanbul,omitempty"` // Quorum
+	IBFT     *IBFTConfig     `json:"ibft,omitempty"`     // Quorum
+	QBFT     *QBFTConfig     `json:"qbft,omitempty"`     // Quorum
 
 	// Start of Quorum specific configs
 
-	IsQuorum             bool   `json:"isQuorum"`     // Quorum flag
-	TransactionSizeLimit uint64 `json:"txnSizeLimit"` // Quorum - transaction size limit
-	MaxCodeSize          uint64 `json:"maxCodeSize"`  // Quorum -  maximum CodeSize of contract
+	Transitions          []Transition `json:"transitions,omitempty"` // Quorum - transition config based on the block number
+	IsQuorum             bool         `json:"isQuorum"`              // Quorum flag
+	TransactionSizeLimit uint64       `json:"txnSizeLimit"`          // Quorum - transaction size limit
+	MaxCodeSize          uint64       `json:"maxCodeSize"`           // Quorum -  maximum CodeSize of contract
 
 	// QIP714Block implements the permissions related changes
 	QIP714Block            *big.Int `json:"qip714Block,omitempty"`
