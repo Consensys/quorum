@@ -40,8 +40,7 @@ type PublicTransactionPoolProxyAPI struct {
 // NewPublicTransactionPoolAPI creates a new RPC service with methods specific for the transaction pool.
 func NewPublicTransactionPoolProxyAPI(b Backend, nonceLock *AddrLocker) interface{} {
 	apiSupport, ok := b.(ProxyAPISupport)
-	if ok {
-		if apiSupport.ProxyEnabled() {
+	if ok && apiSupport.ProxyEnabled() {
 			signer := types.LatestSigner(b.ChainConfig())
 			return &PublicTransactionPoolProxyAPI{
 				PublicTransactionPoolAPI{b, nonceLock, signer},
