@@ -129,7 +129,6 @@ func NewPrivateAccountProxyAPI(b Backend, nonceLock *AddrLocker) interface{} {
 				},
 				apiSupport.ProxyClient(),
 			}
-		}
 	}
 	return NewPrivateAccountAPI(b, nonceLock)
 }
