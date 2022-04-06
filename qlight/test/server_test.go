@@ -148,6 +148,7 @@ func TestPrivateBlockDataResolverImpl_PrepareBlockPrivateData_PMTTransaction(t *
 	private.P = mockptm
 
 	tx, err := types.SignTx(types.NewContractCreation(0, big.NewInt(0), testGas, nil, common.BytesToEncryptedPayloadHash([]byte("pmt private tx")).Bytes()), types.QuorumPrivateTxSigner{}, testKey)
+	assert.Nil(err)
 	txData := new(bytes.Buffer)
 	err = json.NewEncoder(txData).Encode(tx)
 	assert.Nil(err)
