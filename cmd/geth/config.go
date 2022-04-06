@@ -201,7 +201,7 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 		utils.Fatalf("QLight tls flag is set but no server certificate has been provided")
 	}
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSKeyFlag.Name) {
-		utils.Fatalf("QLight tls flag is set but no server key has been provided")
+		utils.Fatalf("QLight TLS is enabled but no server key has been provided")
 	}
 
 	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
