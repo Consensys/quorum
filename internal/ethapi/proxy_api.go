@@ -120,8 +120,7 @@ type PrivateAccountProxyAPI struct {
 
 func NewPrivateAccountProxyAPI(b Backend, nonceLock *AddrLocker) interface{} {
 	apiSupport, ok := b.(ProxyAPISupport)
-	if ok {
-		if apiSupport.ProxyEnabled() {
+	if ok && apiSupport.ProxyEnabled() {
 			return &PrivateAccountProxyAPI{
 				PrivateAccountAPI{
 					am:        b.AccountManager(),
