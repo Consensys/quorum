@@ -369,7 +369,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		)
 		// setup rpc client TLS context
 		if eth.config.QuorumLightClient.RPCTLS {
-			tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
+			tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
 				InsecureSkipVerify: eth.config.QuorumLightClient.RPCTLSInsecureSkipVerify,
 				CACertFileName:     eth.config.QuorumLightClient.RPCTLSCACert,
 				CertFileName:       eth.config.QuorumLightClient.RPCTLSCert,

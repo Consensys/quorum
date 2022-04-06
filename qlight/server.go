@@ -176,7 +176,6 @@ func (a *authProviderImpl) Authorize(token string, psi string) error {
 		}
 	}
 	if !qlightP2P || !rpcETH {
-		log.Error("The P2P token does not have the necessary authorization", "p2p", qlightP2P, "rpcETH", rpcETH)
 		return fmt.Errorf("The P2P token does not have the necessary authorization p2p=%v rpcETH=%v", qlightP2P, rpcETH)
 	}
 	// try to resolve the PSI

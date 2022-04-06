@@ -79,7 +79,7 @@ type Config struct {
 
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
-	
+
 	// Quorum
 	QP2P *p2p.Config `toml:",omitempty"`
 

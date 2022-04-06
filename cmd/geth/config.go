@@ -179,7 +179,7 @@ func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
 	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
 		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
 	}
-	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
 		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
 		CertFileName:   ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
 		KeyFileName:    ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
@@ -204,7 +204,7 @@ func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
 		utils.Fatalf("QLight TLS is enabled but no server key has been provided")
 	}
 
-	tlsConfig, err := qlight.ConfigureQLightTLSConfig(&qlight.TLSConfig{
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
 		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
 		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
 		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),

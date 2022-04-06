@@ -42,7 +42,6 @@ func MakeProtocolsServer(backend Backend, network uint64, dnsdisc enode.Iterator
 func HandleServer(backend Backend, peer *Peer) error {
 	for {
 		if err := handleMessageServer(backend, peer); err != nil {
-			peer.Log().Debug("Message handling failed in `eth`", "err", err)
 			return err
 		}
 	}

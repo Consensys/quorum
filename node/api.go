@@ -334,7 +334,7 @@ func (api *publicAdminAPI) NodeInfo() (*QuorumNodeInfo, error) {
 }
 
 func (api *publicAdminAPI) QnodeInfo() (*QuorumNodeInfo, error) {
-	server := api.node.qserver
+	server := api.node.QServer()
 	if server == nil {
 		return nil, nil
 	}

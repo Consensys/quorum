@@ -41,11 +41,11 @@ type PublicTransactionPoolProxyAPI struct {
 func NewPublicTransactionPoolProxyAPI(b Backend, nonceLock *AddrLocker) interface{} {
 	apiSupport, ok := b.(ProxyAPISupport)
 	if ok && apiSupport.ProxyEnabled() {
-			signer := types.LatestSigner(b.ChainConfig())
-			return &PublicTransactionPoolProxyAPI{
-				PublicTransactionPoolAPI{b, nonceLock, signer},
-				apiSupport.ProxyClient(),
-			}
+		signer := types.LatestSigner(b.ChainConfig())
+		return &PublicTransactionPoolProxyAPI{
+			PublicTransactionPoolAPI{b, nonceLock, signer},
+			apiSupport.ProxyClient(),
+		}
 	}
 	return NewPublicTransactionPoolAPI(b, nonceLock)
 }
@@ -121,14 +121,14 @@ type PrivateAccountProxyAPI struct {
 func NewPrivateAccountProxyAPI(b Backend, nonceLock *AddrLocker) interface{} {
 	apiSupport, ok := b.(ProxyAPISupport)
 	if ok && apiSupport.ProxyEnabled() {
-			return &PrivateAccountProxyAPI{
-				PrivateAccountAPI{
-					am:        b.AccountManager(),
-					nonceLock: nonceLock,
-					b:         b,
-				},
-				apiSupport.ProxyClient(),
-			}
+		return &PrivateAccountProxyAPI{
+			PrivateAccountAPI{
+				am:        b.AccountManager(),
+				nonceLock: nonceLock,
+				b:         b,
+			},
+			apiSupport.ProxyClient(),
+		}
 	}
 	return NewPrivateAccountAPI(b, nonceLock)
 }

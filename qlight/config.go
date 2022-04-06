@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/plugin/security"
@@ -21,7 +21,7 @@ type TLSConfig struct {
 	ServerName           string
 }
 
-func ConfigureQLightTLSConfig(config *TLSConfig) (*tls.Config, error) {
+func NewTLSConfig(config *TLSConfig) (*tls.Config, error) {
 	if config.InsecureSkipVerify {
 		return &tls.Config{
 			InsecureSkipVerify: true,
@@ -36,7 +36,7 @@ func ConfigureQLightTLSConfig(config *TLSConfig) (*tls.Config, error) {
 		if err != nil {
 			CA_Pool = x509.NewCertPool()
 		}
-		cert, err := ioutil.ReadFile(config.CACertFileName)
+		cert, err := os.ReadFile(config.CACertFileName)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +52,7 @@ func ConfigureQLightTLSConfig(config *TLSConfig) (*tls.Config, error) {
 		if err != nil {
 			ClientCA_Pool = x509.NewCertPool()
 		}
-		cert, err := ioutil.ReadFile(config.ClientCACertFileName)
+		cert, err := os.ReadFile(config.ClientCACertFileName)
 		if err != nil {
 			return nil, err
 		}
