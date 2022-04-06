@@ -46,8 +46,6 @@ func NewPublicTransactionPoolProxyAPI(b Backend, nonceLock *AddrLocker) interfac
 				PublicTransactionPoolAPI{b, nonceLock, signer},
 				apiSupport.ProxyClient(),
 			}
-
-		}
 	}
 	return NewPublicTransactionPoolAPI(b, nonceLock)
 }
