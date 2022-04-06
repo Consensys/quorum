@@ -78,7 +78,9 @@ type Config struct {
 	RaftLogDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P  p2p.Config
+	P2P p2p.Config
+	
+	// Quorum
 	QP2P *p2p.Config `toml:",omitempty"`
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
