@@ -2461,14 +2461,23 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.Istanbul.ProposerPolicy))
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			istanbulConfig.Transitions = config.Transitions
+		}
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
 		ibftConfig.TestQBFTBlock = nil
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			ibftConfig.Transitions = config.Transitions
+		}
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			qbftConfig.Transitions = config.Transitions
+		}
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft
