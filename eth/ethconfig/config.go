@@ -250,6 +250,9 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
+	if chainConfig.Transitions != nil && len(chainConfig.Transitions) != 0 {
+		config.Istanbul.Transitions = chainConfig.Transitions
+	}
 	// If Istanbul is requested, set it up
 	if chainConfig.Istanbul != nil {
 		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")

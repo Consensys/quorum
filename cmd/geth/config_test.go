@@ -392,9 +392,10 @@ func TestFlagsConfig(t *testing.T) {
 	// QUORUM
 	// [Eth.Istanbul]
 	quorumIstanbul := eth.Istanbul
-	assert.Equal(t, uint64(10000), quorumIstanbul.RequestTimeout)
-	assert.Equal(t, uint64(1), quorumIstanbul.BlockPeriod)
-	assert.Equal(t, uint64(30000), quorumIstanbul.Epoch)
+	config := quorumIstanbul.GetConfig(nil)
+	assert.Equal(t, uint64(10000), config.RequestTimeout)
+	assert.Equal(t, uint64(1), config.BlockPeriod)
+	assert.Equal(t, uint64(30000), config.Epoch)
 	assert.Equal(t, big.NewInt(0), quorumIstanbul.Ceil2Nby3Block)
 	assert.Equal(t, istanbul.RoundRobin, quorumIstanbul.ProposerPolicy.Id) // conflict with genesis?
 	// END QUORUM
@@ -685,9 +686,10 @@ func testConfig(t *testing.T, cfg *gethConfig) {
 	// QUORUM
 	// [Eth.Quorum.Istanbul]
 	istanbul := cfg.Eth.Istanbul
-	assert.Equal(t, uint64(10000), istanbul.RequestTimeout)
-	assert.Equal(t, uint64(5), istanbul.BlockPeriod)
-	assert.Equal(t, uint64(30000), istanbul.Epoch)
+	config := istanbul.GetConfig(nil)
+	assert.Equal(t, uint64(10000), config.RequestTimeout)
+	assert.Equal(t, uint64(5), config.BlockPeriod)
+	assert.Equal(t, uint64(30000), config.Epoch)
 	assert.Equal(t, big.NewInt(0), istanbul.Ceil2Nby3Block)
 	// END QUORUM
 }
