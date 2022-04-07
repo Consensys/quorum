@@ -633,6 +633,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
 			return ErrTestQBFTBlockAndTransitions
 		}
+		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
+			return ErrMaxCodeSizeConfigAndTransitions
+		}
 		if transition.Algorithm == QBFT {
 			isQBFT = true
 		}
@@ -644,6 +647,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		}
 		if transition.Algorithm == IBFT && isQBFT {
 			return ErrTransition
+		}
+		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
+			return ErrContractSizeLimit
 		}
 		prevBlock = transition.Block
 	}
@@ -763,6 +769,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].EpochLength != c2.Transitions[i].EpochLength {
 			return ErrTransitionIncompatible("EpochLength"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
+			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
 		}
 	}
 

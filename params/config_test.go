@@ -402,6 +402,26 @@ func TestCheckTransitionsData(t *testing.T) {
 			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), Algorithm: ""}}},
 			wantErr: nil,
 		},
+		{
+			stored:  &ChainConfig{MaxCodeSizeConfig: []MaxCodeConfigStruct{{big.NewInt(10), 24}}, Transitions: []Transition{{Block: big.NewInt(0), ContractSizeLimit: 50}}},
+			wantErr: ErrMaxCodeSizeConfigAndTransitions,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), ContractSizeLimit: 23}}},
+			wantErr: ErrContractSizeLimit,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), ContractSizeLimit: 129}}},
+			wantErr: ErrContractSizeLimit,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0), ContractSizeLimit: 50}}},
+			wantErr: nil,
+		},
+		{
+			stored:  &ChainConfig{Transitions: []Transition{{Block: big.NewInt(0)}}},
+			wantErr: nil,
+		},
 	}
 
 	for _, test := range tests {
