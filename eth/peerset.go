@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/eth/protocols/qlight"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
 )
@@ -156,6 +157,28 @@ func (ps *peerSet) registerPeer(peer *eth.Peer, ext *snap.Peer) error {
 	return nil
 }
 
+// registerPeer injects a new `eth` peer into the working set, or returns an error
+// if the peer is already known.
+func (ps *peerSet) registerQPeer(peer *qlight.Peer) error {
+	// Start tracking the new peer
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	if ps.closed {
+		return errPeerSetClosed
+	}
+	id := peer.ID()
+	if _, ok := ps.peers[id]; ok {
+		return errPeerAlreadyRegistered
+	}
+	eth := &ethPeer{
+		Peer:   peer.EthPeer,
+		qlight: peer,
+	}
+	ps.peers[id] = eth
+	return nil
+}
+
 // unregisterPeer removes a remote peer from the active set, disabling any further
 // actions to/from that particular entity.
 func (ps *peerSet) unregisterPeer(id string) error {
@@ -256,4 +279,20 @@ func (ps *peerSet) close() {
 		p.Disconnect(p2p.DiscQuitting)
 	}
 	ps.closed = true
+}
+
+// Quorum
+func (ps *peerSet) UpdateTokenForRunningQPeers(token string) error {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	for _, p := range ps.peers {
+		if p.qlight != nil {
+			err := p.qlight.SendNewAuthToken(token)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

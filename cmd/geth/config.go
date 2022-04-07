@@ -18,6 +18,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"math/big"
@@ -34,9 +35,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -135,6 +140,8 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
+	utils.SetQLightConfig(ctx, &cfg.Node, &cfg.Eth)
+
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
@@ -144,8 +151,72 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
+	if cfg.Eth.QuorumLightServer {
+		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
+		// permissioning for the qlight P2P server
+		stack.QServer().SetNewTransportFunc(p2p.NewQlightServerTransport)
+		if ctx.GlobalIsSet(utils.QuorumLightServerP2PPermissioningFlag.Name) {
+			prefix := "qlight"
+			if ctx.GlobalIsSet(utils.QuorumLightServerP2PPermissioningPrefixFlag.Name) {
+				prefix = ctx.GlobalString(utils.QuorumLightServerP2PPermissioningPrefixFlag.Name)
+			}
+			fbp := core.NewFileBasedPermissoningWithPrefix(prefix)
+			stack.QServer().SetIsNodePermissioned(fbp.IsNodePermissionedEnode)
+		}
+	}
+	if cfg.Eth.QuorumLightClient.Enabled() {
+		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))
+		stack.Server().SetNewTransportFunc(p2p.NewQlightClientTransport)
+	}
 
 	return stack, cfg
+}
+
+func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
+	}
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
+		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
+		CertFileName:   ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:    ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		ServerName:     enode.MustParse(ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)).IP().String(),
+		CipherSuites:   ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
+	})
+
+	if err != nil {
+		utils.Fatalf("Unable to load the specified tls configuration: %v", err)
+	}
+	return tlsConfig
+}
+
+func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
+		utils.Fatalf("QLight TLS is enabled but no server certificate has been provided")
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSKeyFlag.Name) {
+		utils.Fatalf("QLight TLS is enabled but no server key has been provided")
+	}
+
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
+		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
+		ClientAuth:           ctx.GlobalInt(utils.QuorumLightTLSClientAuthFlag.Name),
+		CipherSuites:         ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
+	})
+
+	if err != nil {
+		utils.Fatalf("QLight TLS - unable to read server tls configuration: %v", err)
+	}
+
+	return tlsConfig
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
@@ -174,7 +245,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name), backend.ChainConfig().ChainID)
 	}
 
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !cfg.Eth.QuorumLightClient.Enabled() {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
 	}
 
@@ -296,7 +367,7 @@ func quorumInitialisePrivacy(ctx *cli.Context) error {
 		return err
 	}
 
-	err = private.InitialiseConnection(cfg)
+	err = private.InitialiseConnection(cfg, ctx.GlobalIsSet(utils.QuorumLightClientFlag.Name))
 	if err != nil {
 		return err
 	}

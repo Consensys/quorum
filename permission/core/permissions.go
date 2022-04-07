@@ -13,10 +13,39 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// check if a given node is permissioned to connect to the change
+type FileBasedPermissioning struct {
+	PermissionFile string
+	DisallowedFile string
+}
+
+var defaultFileBasedPermissioning = FileBasedPermissioning{
+	PermissionFile: params.PERMISSIONED_CONFIG,
+	DisallowedFile: params.DISALLOWED_CONFIG,
+}
+
+func NewFileBasedPermissoningWithPrefix(prefix string) FileBasedPermissioning {
+	return FileBasedPermissioning{
+		PermissionFile: prefix + "-" + params.PERMISSIONED_CONFIG,
+		DisallowedFile: prefix + "-" + params.DISALLOWED_CONFIG,
+	}
+}
+
 func IsNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
+	return defaultFileBasedPermissioning.IsNodePermissioned(nodename, currentNode, datadir, direction)
+}
+
+func isNodeDisallowed(nodeName, dataDir string) bool {
+	return defaultFileBasedPermissioning.isNodeDisallowed(nodeName, dataDir)
+}
+
+func (fbp *FileBasedPermissioning) IsNodePermissionedEnode(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
+	return fbp.IsNodePermissioned(nodename, currentNode, datadir, direction)
+}
+
+// check if a given node is permissioned to connect to the change
+func (fbp *FileBasedPermissioning) IsNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 	var permissionedList []string
-	nodes := ParsePermissionedNodes(datadir)
+	nodes := fbp.ParsePermissionedNodes(datadir)
 	for _, v := range nodes {
 		permissionedList = append(permissionedList, v.ID().String())
 	}
@@ -25,8 +54,8 @@ func IsNodePermissioned(nodename string, currentNode string, datadir string, dir
 	for _, v := range permissionedList {
 		if v == nodename {
 			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
-			// check if the node is blacklisted
-			return !isNodeBlackListed(nodename, datadir)
+			// check if the node is disallowed
+			return !fbp.isNodeDisallowed(nodename, datadir)
 		}
 	}
 	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
@@ -36,13 +65,13 @@ func IsNodePermissioned(nodename string, currentNode string, datadir string, dir
 //this is a shameless copy from the config.go. It is a duplication of the code
 //for the timebeing to allow reload of the permissioned nodes while the server is running
 
-func ParsePermissionedNodes(DataDir string) []*enode.Node {
+func (fbp *FileBasedPermissioning) ParsePermissionedNodes(DataDir string) []*enode.Node {
 
-	log.Debug("parsePermissionedNodes", "DataDir", DataDir, "file", params.PERMISSIONED_CONFIG)
+	log.Debug("parsePermissionedNodes", "DataDir", DataDir, "file", fbp.PermissionFile)
 
-	path := filepath.Join(DataDir, params.PERMISSIONED_CONFIG)
+	path := filepath.Join(DataDir, fbp.PermissionFile)
 	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
+		log.Error("Read Error for permissioned-nodes file. This is because 'permissioned' flag is specified but no permissioned-nodes file is present.", "fileName", fbp.PermissionFile, "err", err)
 		return nil
 	}
 	// Load the nodes from the config file
@@ -74,19 +103,19 @@ func ParsePermissionedNodes(DataDir string) []*enode.Node {
 	return nodes
 }
 
-// This function checks if the node is black-listed
-func isNodeBlackListed(nodeName, dataDir string) bool {
-	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", params.BLACKLIST_CONFIG)
+// This function checks if the node is disallowed
+func (fbp *FileBasedPermissioning) isNodeDisallowed(nodeName, dataDir string) bool {
+	log.Debug("isNodeDisallowed", "DataDir", dataDir, "file", fbp.DisallowedFile)
 
-	path := filepath.Join(dataDir, params.BLACKLIST_CONFIG)
+	path := filepath.Join(dataDir, fbp.DisallowedFile)
 	if _, err := os.Stat(path); err != nil {
-		log.Debug("Read Error for disallowed-nodes.json file. disallowed-nodes.json file is not present.", "err", err)
+		log.Debug("Read Error for disallowed-nodes file. disallowed-nodes file is not present.", "fileName", fbp.DisallowedFile, "err", err)
 		return false
 	}
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Debug("isNodeBlackListed: Failed to access nodes", "err", err)
+		log.Debug("isNodeDisallowed: Failed to access nodes", "err", err)
 		return true
 	}
 

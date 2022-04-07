@@ -218,6 +218,29 @@ type Config struct {
 
 	// Quorum
 	core.QuorumChainConfig `toml:"-"`
+
+	// QuorumLight
+	QuorumLightServer bool               `toml:",omitempty"`
+	QuorumLightClient *QuorumLightClient `toml:",omitempty"`
+}
+
+type QuorumLightClient struct {
+	Use                      bool   `toml:",omitempty"`
+	PSI                      string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
+	RPCTLS                   bool   `toml:",omitempty"`
+	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	RPCTLSCACert             string `toml:",omitempty"`
+	RPCTLSCert               string `toml:",omitempty"`
+	RPCTLSKey                string `toml:",omitempty"`
+	ServerNode               string `toml:",omitempty"`
+	ServerNodeRPC            string `toml:",omitempty"`
+}
+
+func (q *QuorumLightClient) Enabled() bool {
+	return q != nil && q.Use
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

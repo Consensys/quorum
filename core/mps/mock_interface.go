@@ -352,6 +352,21 @@ func (mr *MockPrivateStateRepositoryMockRecorder) MergeReceipts(pub, priv interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergeReceipts", reflect.TypeOf((*MockPrivateStateRepository)(nil).MergeReceipts), pub, priv)
 }
 
+// PrivateStateRoot mocks base method.
+func (m *MockPrivateStateRepository) PrivateStateRoot(psi types.PrivateStateIdentifier) (common.Hash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrivateStateRoot", psi)
+	ret0, _ := ret[0].(common.Hash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PrivateStateRoot indicates an expected call of PrivateStateRoot.
+func (mr *MockPrivateStateRepositoryMockRecorder) PrivateStateRoot(psi interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateStateRoot", reflect.TypeOf((*MockPrivateStateRepository)(nil).PrivateStateRoot), psi)
+}
+
 // Reset mocks base method.
 func (m *MockPrivateStateRepository) Reset() error {
 	m.ctrl.T.Helper()

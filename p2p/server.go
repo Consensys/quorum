@@ -1193,3 +1193,7 @@ func (srv *Server) SetIsNodePermissioned(f func(*enode.Node, string, string, str
 		srv.isNodePermissionedFunc = f
 	}
 }
+
+func (srv *Server) SetNewTransportFunc(f func(net.Conn, *ecdsa.PublicKey) transport) {
+	srv.newTransport = f
+}
