@@ -117,7 +117,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicTransactionPoolAPI(apiBackend, nonceLock),
+			Service:   NewPublicTransactionPoolProxyAPI(apiBackend, nonceLock),
 			Public:    true,
 		}, {
 			Namespace: "txpool",
@@ -141,7 +141,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "personal",
 			Version:   "1.0",
-			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
+			Service:   NewPrivateAccountProxyAPI(apiBackend, nonceLock),
 			Public:    false,
 		},
 	}

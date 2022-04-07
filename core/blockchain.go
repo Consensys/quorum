@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
@@ -220,7 +221,8 @@ type BlockChain struct {
 	setPrivateState func([]*types.Log, *state.StateDB, types.PrivateStateIdentifier) // Function to check extension and set private state
 
 	// privateStateManager manages private state(s) for this blockchain
-	privateStateManager mps.PrivateStateManager
+	privateStateManager           mps.PrivateStateManager
+	privateStateRootHashValidator qlight.PrivateStateRootHashValidator
 	// End Quorum
 }
 
@@ -776,6 +778,11 @@ func (bc *BlockChain) StatePSI(psi types.PrivateStateIdentifier) (*state.StateDB
 
 // Quorum
 //
+// SetPrivateStateRootHashValidator allows injecting a private state root hash validator
+func (bc *BlockChain) SetPrivateStateRootHashValidator(psrhv qlight.PrivateStateRootHashValidator) {
+	bc.privateStateRootHashValidator = psrhv
+}
+
 // StatePSI returns a new mutable public state and a mutable private state for the given PSI,
 // based on a particular point in time.
 func (bc *BlockChain) StateAtPSI(root common.Hash, psi types.PrivateStateIdentifier) (*state.StateDB, *state.StateDB, error) {
@@ -1717,6 +1724,12 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	err = psManager.CommitAndWrite(bc.chainConfig.IsEIP158(block.Number()), block)
 	if err != nil {
 		return NonStatTy, err
+	}
+	if bc.privateStateRootHashValidator != nil {
+		err = bc.privateStateRootHashValidator.ValidatePrivateStateRoot(block.Hash(), block.Root())
+		if err != nil {
+			return NonStatTy, err
+		}
 	}
 	// /Quorum
 
