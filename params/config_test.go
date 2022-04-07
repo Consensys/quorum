@@ -328,10 +328,10 @@ func TestCheckTransitionsData(t *testing.T) {
 		wantErr error
 	}
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
-	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10}
-	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10}
-	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10}
-	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10}
+	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50}
+	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50}
+	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50}
+	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50}
 
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
@@ -391,7 +391,7 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockOrder,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10}}},
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50}}},
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
@@ -408,6 +408,61 @@ func TestCheckTransitionsData(t *testing.T) {
 		err := test.stored.CheckTransitionsData()
 		if !reflect.DeepEqual(err, test.wantErr) {
 			t.Errorf("error mismatch:\nstored: %v\nerr: %v\nwant: %v", test.stored, err, test.wantErr)
+		}
+	}
+}
+
+func TestGetMaxCodeSize(t *testing.T) {
+	type test struct {
+		config      *ChainConfig
+		blockNumber int64
+		maxCode     int
+	}
+	config1, config2, config3 := *TestChainConfig, *TestChainConfig, *TestChainConfig
+	config1.MaxCodeSizeConfig = []MaxCodeConfigStruct{
+		{big.NewInt(2), 28},
+		{big.NewInt(4), 32},
+	}
+	config1.MaxCodeSize = 34
+	config2.MaxCodeSize = 36
+	config2.MaxCodeSizeChangeBlock = big.NewInt(2)
+	config3.MaxCodeSize = 0
+	config3.Transitions = []Transition{
+		{Block: big.NewInt(2), ContractSizeLimit: 50},
+		{Block: big.NewInt(4), ContractSizeLimit: 54},
+	}
+	maxCodeDefault := 32 * 1024
+	tests := []test{
+		{MainnetChainConfig, 0, MaxCodeSize},
+		{RopstenChainConfig, 0, MaxCodeSize},
+		{RinkebyChainConfig, 0, MaxCodeSize},
+		{GoerliChainConfig, 0, MaxCodeSize},
+		{YoloV3ChainConfig, 0, MaxCodeSize},
+		{AllEthashProtocolChanges, 0, 35 * 1024},
+		{AllCliqueProtocolChanges, 0, maxCodeDefault},
+		{TestChainConfig, 0, maxCodeDefault},
+		{QuorumTestChainConfig, 0, maxCodeDefault},
+		{QuorumMPSTestChainConfig, 0, maxCodeDefault},
+		{&config1, 0, MaxCodeSize},
+		{&config1, 1, MaxCodeSize},
+		{&config1, 2, 28 * 1024},
+		{&config1, 3, 28 * 1024},
+		{&config1, 4, 32 * 1024},
+		{&config2, 0, MaxCodeSize},
+		{&config2, 1, MaxCodeSize},
+		{&config2, 2, 36 * 1024},
+		{&config2, 3, 36 * 1024},
+		{&config3, 0, MaxCodeSize},
+		{&config3, 1, MaxCodeSize},
+		{&config3, 2, 50 * 1024},
+		{&config3, 3, 50 * 1024},
+		{&config3, 4, 54 * 1024},
+		{&config3, 8, 54 * 1024},
+	}
+	for _, test := range tests {
+		maxCodeSize := test.config.GetMaxCodeSize(big.NewInt(test.blockNumber))
+		if !reflect.DeepEqual(maxCodeSize, test.maxCode) {
+			t.Errorf("error mismatch:\nexpected: %v\nreceived: %v\n", test.maxCode, maxCodeSize)
 		}
 	}
 }

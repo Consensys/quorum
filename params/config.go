@@ -431,6 +431,7 @@ type Transition struct {
 	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
 	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
 	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit     uint64   `json:"contractSizeLimit,omitempty"`     // Maximum smart contract code size
 }
 
 // String implements the fmt.Stringer interface.
@@ -580,6 +581,13 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 			}
 		} else {
 			maxCodeSize = int(c.MaxCodeSize) * 1024
+		}
+	}
+	if c.Transitions != nil && len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].ContractSizeLimit != 0 {
+				maxCodeSize = int(c.Transitions[i].ContractSizeLimit) * 1024
+			}
 		}
 	}
 	return maxCodeSize
