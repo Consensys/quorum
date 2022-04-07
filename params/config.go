@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -565,6 +566,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	maxCodeSize := MaxCodeSize
 
 	if len(c.MaxCodeSizeConfig) > 0 {
+		log.Warn("WARNING: The attribute config.maxCodeSizeConfig is deprecated and will be removed in the future, please use config.transitions.contractSizeLimit on genesis file")
 		for _, data := range c.MaxCodeSizeConfig {
 			if data.Block.Cmp(num) > 0 {
 				break
