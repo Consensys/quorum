@@ -754,9 +754,6 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		if isSameBlock || c1.Transitions[i].EpochLength != c2.Transitions[i].EpochLength {
 			return ErrTransitionIncompatible("EpochLength"), head, head
 		}
-		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
-			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
-		}
 	}
 
 	return nil, big.NewInt(0), big.NewInt(0)
