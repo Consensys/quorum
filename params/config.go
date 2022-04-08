@@ -780,6 +780,70 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 
 // Quorum
 //
+// checks if changes to transitions proposed are compatible
+// with already existing genesis data
+func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *big.Int, *big.Int) {
+	if len(c1.Transitions) == 0 && len(c2.Transitions) == 0 {
+		// maxCodeSizeConfig not used. return
+		return nil, big.NewInt(0), big.NewInt(0)
+	}
+
+	// existing config had Transitions and new one does not have the same return error
+	if len(c1.Transitions) > 0 && len(c2.Transitions) == 0 {
+		return fmt.Errorf("genesis file missing transitions information"), head, head
+	}
+
+	if len(c2.Transitions) > 0 && len(c1.Transitions) == 0 {
+		return nil, big.NewInt(0), big.NewInt(0)
+	}
+
+	// check the number of records below current head in both configs
+	// if they do not match throw an error
+	c1RecsBelowHead := 0
+	for _, data := range c1.Transitions {
+		if data.Block.Cmp(head) <= 0 {
+			c1RecsBelowHead++
+		} else {
+			break
+		}
+	}
+
+	c2RecsBelowHead := 0
+	for _, data := range c2.Transitions {
+		if data.Block.Cmp(head) <= 0 {
+			c2RecsBelowHead++
+		} else {
+			break
+		}
+	}
+
+	// if the count of past records is not matching return error
+	if c1RecsBelowHead != c2RecsBelowHead {
+		return errors.New("transitions data incompatible. updating transitions for past"), head, head
+	}
+
+	// validate that each past record is matching exactly. if not return error
+	for i := 0; i < c1RecsBelowHead; i++ {
+		isSameBlock := c1.Transitions[i].Block.Cmp(c2.Transitions[i].Block) != 0
+		if isSameBlock || c1.Transitions[i].Algorithm != c2.Transitions[i].Algorithm {
+			return ErrTransitionIncompatible("Algorithm"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].BlockPeriodSeconds != c2.Transitions[i].BlockPeriodSeconds {
+			return ErrTransitionIncompatible("BlockPeriodSeconds"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].RequestTimeoutSeconds != c2.Transitions[i].RequestTimeoutSeconds {
+			return ErrTransitionIncompatible("RequestTimeoutSeconds"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].EpochLength != c2.Transitions[i].EpochLength {
+			return ErrTransitionIncompatible("EpochLength"), head, head
+		}
+	}
+
+	return nil, big.NewInt(0), big.NewInt(0)
+}
+
+// Quorum
+//
 // IsPrivacyEnhancementsEnabled returns whether num represents a block number after the PrivacyEnhancementsEnabled fork
 func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 	return isForked(c.PrivacyEnhancementsBlock, num)
