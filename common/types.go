@@ -24,12 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -56,6 +58,44 @@ type EncryptedPayloadHash [EncryptedPayloadHashLength]byte
 
 // Using map to enable fast lookup
 type EncryptedPayloadHashes map[EncryptedPayloadHash]struct{}
+
+func (h *EncryptedPayloadHash) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64())
+}
+
+func (h *EncryptedPayloadHash) UnmarshalJSON(j []byte) (err error) {
+	var ephStr string
+	err = json.Unmarshal(j, &ephStr)
+	if err != nil {
+		return err
+	}
+	eph, err := Base64ToEncryptedPayloadHash(ephStr)
+	if err != nil {
+		return err
+	}
+	h.SetBytes(eph.Bytes())
+	return nil
+}
+
+func (h *EncryptedPayloadHashes) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64s())
+}
+
+func (h *EncryptedPayloadHashes) UnmarshalJSON(j []byte) (err error) {
+	var ephStrArray []string
+	err = json.Unmarshal(j, &ephStrArray)
+	if err != nil {
+		return err
+	}
+	for _, str := range ephStrArray {
+		eph, err := Base64ToEncryptedPayloadHash(str)
+		if err != nil {
+			return err
+		}
+		h.Add(eph)
+	}
+	return nil
+}
 
 // BytesToEncryptedPayloadHash sets b to EncryptedPayloadHash.
 // If b is larger than len(h), b will be cropped from the left.
@@ -298,6 +338,27 @@ func (ephs EncryptedPayloadHashes) NotExist(eph EncryptedPayloadHash) bool {
 
 func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
 	ephs[eph] = struct{}{}
+}
+
+func (ephs EncryptedPayloadHashes) EncodeRLP(writer io.Writer) error {
+	encryptedPayloadHashesArray := make([]EncryptedPayloadHash, len(ephs))
+	idx := 0
+	for key := range ephs {
+		encryptedPayloadHashesArray[idx] = key
+		idx++
+	}
+	return rlp.Encode(writer, encryptedPayloadHashesArray)
+}
+
+func (ephs EncryptedPayloadHashes) DecodeRLP(stream *rlp.Stream) error {
+	var encryptedPayloadHashesRLP []EncryptedPayloadHash
+	if err := stream.Decode(&encryptedPayloadHashesRLP); err != nil {
+		return err
+	}
+	for _, val := range encryptedPayloadHashesRLP {
+		ephs.Add(val)
+	}
+	return nil
 }
 
 func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {

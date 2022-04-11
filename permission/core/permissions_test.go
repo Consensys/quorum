@@ -28,7 +28,7 @@ func TestIsNodePermissioned(t *testing.T) {
 	defer os.RemoveAll(d)
 	writeNodeToFile(d, params.PERMISSIONED_CONFIG, node1)
 	writeNodeToFile(d, params.PERMISSIONED_CONFIG, node3)
-	writeNodeToFile(d, params.BLACKLIST_CONFIG, node3)
+	writeNodeToFile(d, params.DISALLOWED_CONFIG, node3)
 	n1, _ := enode.ParseV4(node1)
 	n2, _ := enode.ParseV4(node2)
 	n3, _ := enode.ParseV4(node3)
@@ -73,7 +73,7 @@ func Test_isNodeBlackListed(t *testing.T) {
 
 	d, _ := ioutil.TempDir("", "qdata")
 	defer os.RemoveAll(d)
-	writeNodeToFile(d, params.BLACKLIST_CONFIG, node1)
+	writeNodeToFile(d, params.DISALLOWED_CONFIG, node1)
 	n1, _ := enode.ParseV4(node1)
 	n2, _ := enode.ParseV4(node2)
 
@@ -96,8 +96,8 @@ func Test_isNodeBlackListed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isNodeBlackListed(tt.args.nodeName, tt.args.dataDir); got != tt.want {
-				t.Errorf("isNodeBlackListed() = %v, want %v", got, tt.want)
+			if got := isNodeDisallowed(tt.args.nodeName, tt.args.dataDir); got != tt.want {
+				t.Errorf("isNodeDisallowed() = %v, want %v", got, tt.want)
 			}
 		})
 	}

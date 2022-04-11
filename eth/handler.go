@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -97,6 +98,14 @@ type handlerConfig struct {
 	// Quorum
 	Engine   consensus.Engine
 	RaftMode bool
+
+	// Quorum QLight
+	// client
+	psi                string
+	privateClientCache qlight.PrivateClientCache
+	// server
+	authProvider             qlight.AuthProvider
+	privateBlockDataResolver qlight.PrivateBlockDataResolver
 }
 
 type handler struct {
@@ -142,6 +151,14 @@ type handler struct {
 
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
+
+	// Quorum QLight
+	// client
+	psi                string
+	privateClientCache qlight.PrivateClientCache
+	// server
+	authProvider             qlight.AuthProvider
+	privateBlockDataResolver qlight.PrivateBlockDataResolver
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.

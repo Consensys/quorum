@@ -39,6 +39,7 @@ var Modules = map[string]string{
 	"quorumPermission": QUORUM_NODE_JS,
 	"quorumExtension":  Extension_JS,
 	"plugin_account":   Account_Plugin_Js,
+	"qlight":           QLight_JS,
 }
 
 const ChequebookJs = `
@@ -224,8 +225,16 @@ web3._extend({
 			getter: 'admin_nodeInfo'
 		}),
 		new web3._extend.Property({
+			name: 'qnodeInfo',
+			getter: 'admin_qnodeInfo'
+		}),
+		new web3._extend.Property({
 			name: 'peers',
 			getter: 'admin_peers'
+		}),
+		new web3._extend.Property({
+			name: 'qpeers',
+			getter: 'admin_qpeers'
 		}),
 		new web3._extend.Property({
 			name: 'datadir',
@@ -630,6 +639,18 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'getQuorumPayload',
 			call: 'eth_getQuorumPayload',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getQuorumPayloadExtra',
+			call: 'eth_getQuorumPayloadExtra',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'decryptQuorumPayload',
+			call: 'eth_decryptQuorumPayload',
 			params: 1,
 			inputFormatter: [null]
 		}),
@@ -1253,6 +1274,33 @@ web3._extend({
 		new web3._extend.Property({
 			name: 'activeExtensionContracts',
 			getter: 'quorumExtension_activeExtensionContracts'
+		})
+	]
+});
+`
+
+const QLight_JS = `
+web3._extend({
+	property: 'qlight',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'getCurrentToken',
+			call: 'qlight_getCurrentToken',
+			params: 0
+		}),
+		new web3._extend.Method({
+			name: 'setCurrentToken',
+			call: 'qlight_setCurrentToken',
+			params: 1,
+			inputFormatter: [null]
+		}),
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'token',
+			getter: 'qlight_getCurrentToken'
 		})
 	]
 });
