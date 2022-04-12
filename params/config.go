@@ -431,7 +431,7 @@ type Transition struct {
 	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
 	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
 	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit     uint64   `json:"contractSizeLimit,omitempty"`     // Maximum smart contract code size
+	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
 }
 
 // String implements the fmt.Stringer interface.
@@ -567,7 +567,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	maxCodeSize := MaxCodeSize
 
 	if len(c.MaxCodeSizeConfig) > 0 {
-		log.Warn("WARNING: The attribute config.maxCodeSizeConfig is deprecated and will be removed in the future, please use config.transitions.contractSizeLimit on genesis file")
+		log.Warn("WARNING: The attribute config.maxCodeSizeConfig is deprecated and will be removed in the future, please use config.transitions.contractsizelimit on genesis file")
 		for _, data := range c.MaxCodeSizeConfig {
 			if data.Block.Cmp(num) > 0 {
 				break
@@ -583,7 +583,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 			maxCodeSize = int(c.MaxCodeSize) * 1024
 		}
 	}
-	if c.Transitions != nil && len(c.Transitions) > 0 {
+	if len(c.Transitions) > 0 {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
 			if c.Transitions[i].ContractSizeLimit != 0 {
 				maxCodeSize = int(c.Transitions[i].ContractSizeLimit) * 1024
