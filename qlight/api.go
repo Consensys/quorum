@@ -7,6 +7,7 @@ type RunningPeerAuthUpdater interface {
 }
 
 type PrivateQLightAPI struct {
+	tokenHolder *TokenHolder
 	peerUpdater RunningPeerAuthUpdater
 	rpcClient   *rpc.Client
 }
@@ -17,11 +18,14 @@ func NewPrivateQLightAPI(peerUpdater RunningPeerAuthUpdater, rpcClient *rpc.Clie
 }
 
 func (p *PrivateQLightAPI) SetCurrentToken(token string) {
-	SetCurrentToken(token)
+	if token == p.GetCurrentToken() {
+		return
+	}
+	p.tokenHolder.SetCurrentToken(token)
 	p.peerUpdater.UpdateTokenForRunningQPeers(token)
 	if p.rpcClient != nil {
 		if len(token) > 0 {
-			p.rpcClient.WithHTTPCredentials(TokenCredentialsProvider)
+			p.rpcClient.WithHTTPCredentials(p.tokenHolder.HttpCredentialsProvider)
 		} else {
 			p.rpcClient.WithHTTPCredentials(nil)
 		}
@@ -29,5 +33,5 @@ func (p *PrivateQLightAPI) SetCurrentToken(token string) {
 }
 
 func (p *PrivateQLightAPI) GetCurrentToken() string {
-	return GetCurrentToken()
+	return p.tokenHolder.GetCurrentToken()
 }

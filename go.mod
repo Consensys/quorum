@@ -12,6 +12,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/aws/aws-sdk-go v1.25.48
+	github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220412060737-fb651d927801
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9
@@ -68,11 +69,11 @@ require (
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
-	golang.org/x/text v0.3.3
+	golang.org/x/sys v0.0.0-20220403205710-6acee93ad0eb
+	golang.org/x/text v0.3.7
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/grpc v1.29.1
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
+	google.golang.org/grpc v1.45.0
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
 	gopkg.in/karalabe/cookiejar.v2 v2.0.0-20150724131613-8dcd6a7f4951
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6

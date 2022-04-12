@@ -239,6 +239,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// fails to start
 	if cfg.Node.Plugins != nil {
 		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
+		log.Debug("plugin manager", "value", stack.PluginManager())
+		err := ethService.NotifyRegisteredPluginService(stack.PluginManager())
+		if err != nil {
+			utils.Fatalf("Error initialising QLight Token Manager: %s", err.Error())
+		}
 	}
 
 	if cfg.Node.IsPermissionEnabled() {

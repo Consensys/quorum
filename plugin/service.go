@@ -80,6 +80,9 @@ func (s *PluginManager) getPlugin(name PluginInterfaceName) (managedPlugin, bool
 
 // Check if a plugin is enabled/setup
 func (s *PluginManager) IsEnabled(name PluginInterfaceName) bool {
+	if s == nil {
+		return false
+	}
 	_, ok := s.initializedPlugins[name]
 	return ok
 }
