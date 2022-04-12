@@ -2478,6 +2478,9 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			qbftConfig.Transitions = config.Transitions
 		}
+		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		}
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft

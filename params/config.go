@@ -414,6 +414,7 @@ func (c IBFTConfig) String() string {
 
 type QBFTConfig struct {
 	*BFTConfig
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"` // Smart contract address for list of validators
 }
 
 func (c QBFTConfig) String() string {
@@ -426,12 +427,13 @@ const (
 )
 
 type Transition struct {
-	Block                 *big.Int `json:"block"`
-	Algorithm             string   `json:"algorithm,omitempty"`
-	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	Block                    *big.Int       `json:"block"`
+	Algorithm                string         `json:"algorithm,omitempty"`
+	EpochLength              uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit        uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
 }
 
 // String implements the fmt.Stringer interface.
@@ -772,6 +774,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
 			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ValidatorContractAddress != c2.Transitions[i].ValidatorContractAddress {
+			return ErrTransitionIncompatible("ValidatorContractAddress"), head, head
 		}
 	}
 

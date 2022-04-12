@@ -259,6 +259,9 @@ func initGenesis(ctx *cli.Context) error {
 		if err != nil {
 			utils.Fatalf("transitions data invalid: %v", err)
 		}
+		if genesis.ExtraData != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			utils.Fatalf("invalid genesis file: cant combine extraData and config.qbft.validatorcontractaddress at the same time")
+		}
 	}
 	// End Quorum
 

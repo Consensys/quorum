@@ -134,8 +134,18 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if err != nil {
 		return err
 	}
-
-	err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, snap.ValSet)
+	var valSet istanbul.ValidatorSet
+	validatorContract := sb.config.GetValidatorContractAddress(header.Number)
+	if validatorContract != (common.Address{}) {
+		// TODO: in progress figure out to call the binded backend
+		//sb.core.
+		//NewSimulatedBackend
+		//contract.NewValidatorContractInterfaceCaller(validatorContract, sb.)
+		//valSet = eth_call()
+	} else {
+		valSet = snap.ValSet
+	}
+	err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
 	if err != nil {
 		return err
 	}

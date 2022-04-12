@@ -17,6 +17,7 @@
 package istanbul
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sync"
 
@@ -127,6 +128,7 @@ type Config struct {
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 	Transitions            []params.Transition
+	ValidatorContract      common.Address
 }
 
 var DefaultConfig = &Config{
@@ -180,4 +182,14 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		}
 	}
 	return newConfig
+}
+
+func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address {
+	validatorContractAddress := c.ValidatorContract
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].ValidatorContractAddress != (common.Address{}) {
+			validatorContractAddress = c.Transitions[i].ValidatorContractAddress
+		}
+	}
+	return validatorContractAddress
 }

@@ -274,6 +274,11 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	if chainConfig.QBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
+		}
+		//node, _ := stack.Attach()
+		//ethclient.NewClient(node)
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// Otherwise assume proof-of-work
