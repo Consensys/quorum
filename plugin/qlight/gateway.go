@@ -12,9 +12,10 @@ type PluginGateway struct {
 
 var _ PluginTokenManager = &PluginGateway{}
 
-func (p *PluginGateway) TokenRefresh(ctx context.Context, currentToken string) (string, error) {
+func (p *PluginGateway) TokenRefresh(ctx context.Context, currentToken, psi string) (string, error) {
 	resp, err := p.client.TokenRefresh(ctx, &proto.PluginQLightTokenManager_Request{
 		CurrentToken: currentToken,
+		Psi:          psi,
 	})
 	if err != nil {
 		return "", err

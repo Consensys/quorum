@@ -283,7 +283,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 
-	eth.qlightTokenHolder, err = qlight.NewTokenHolder(stack.PluginManager())
+	eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, stack.PluginManager())
 	if err != nil {
 		return nil, fmt.Errorf("new token holder: %w", err)
 	}

@@ -66,10 +66,10 @@ github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmV
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/aws/aws-sdk-go v1.25.48 h1:J82DYDGZHOKHdhx6hD24Tm30c2C3GchYGfN0mf9iKUk=
 github.com/aws/aws-sdk-go v1.25.48/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
-github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220405062154-79ac62948cbf h1:7F23gdk6R3pATp+sk0qlkDf/oBpgHX7+XS437SpP0nQ=
-github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220405062154-79ac62948cbf/go.mod h1:2oTYMl/VWUQM05nB1Pmh6qudRGx58Q5yqN5uwisZsyA=
-github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220412060737-fb651d927801 h1:4NsvEOlv5/dcubevIY8449ujQ28rB8T+72i6dpTFlt8=
-github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220412060737-fb651d927801/go.mod h1:2oTYMl/VWUQM05nB1Pmh6qudRGx58Q5yqN5uwisZsyA=
+github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220413075712-56e19d8320ae h1:yBD99LQyBHQar/uCaKLOjhExuB0Pf/ZR+Xwhq++co60=
+github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220413075712-56e19d8320ae/go.mod h1:2oTYMl/VWUQM05nB1Pmh6qudRGx58Q5yqN5uwisZsyA=
+github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220413083636-a32d0e688972 h1:yn/rKF3teqRIsPyGQSj4SyoYQLBFSzDN4bass/ddgso=
+github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220413083636-a32d0e688972/go.mod h1:2oTYMl/VWUQM05nB1Pmh6qudRGx58Q5yqN5uwisZsyA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0 h1:HWo1m869IqiPhD389kmkxeTalrjNbbJTC8LXupb+sl0=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=

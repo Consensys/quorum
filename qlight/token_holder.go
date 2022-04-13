@@ -10,15 +10,16 @@ import (
 
 type TokenHolder struct {
 	token  string
+	psi    string
 	plugin qlightplugin.PluginTokenManager
 }
 
-func NewTokenHolder(pluginManager *plugin.PluginManager) (*TokenHolder, error) {
+func NewTokenHolder(psi string, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
 	plugin, err := getPlugin(pluginManager)
 	if err != nil {
 		return nil, err
 	}
-	return NewTokenHolderWithPlugin(plugin), nil
+	return NewTokenHolderWithPlugin(psi, plugin), nil
 }
 
 func getPlugin(pluginManager *plugin.PluginManager) (plugin qlightplugin.PluginTokenManager, err error) {
@@ -36,8 +37,11 @@ func getPlugin(pluginManager *plugin.PluginManager) (plugin qlightplugin.PluginT
 	return
 }
 
-func NewTokenHolderWithPlugin(plugin qlightplugin.PluginTokenManager) *TokenHolder {
-	return &TokenHolder{plugin: plugin}
+func NewTokenHolderWithPlugin(psi string, plugin qlightplugin.PluginTokenManager) *TokenHolder {
+	return &TokenHolder{
+		psi:    psi,
+		plugin: plugin,
+	}
 }
 
 func (h *TokenHolder) RefreshPlugin(pluginManager *plugin.PluginManager) (err error) {
@@ -48,7 +52,7 @@ func (h *TokenHolder) RefreshPlugin(pluginManager *plugin.PluginManager) (err er
 func (h *TokenHolder) HttpCredentialsProvider(ctx context.Context) (string, error) {
 	if h.plugin != nil {
 		log.Debug("HttpCredentialsProvider using", "plugin", h.plugin)
-		return h.plugin.TokenRefresh(ctx, h.token)
+		return h.plugin.TokenRefresh(ctx, h.token, h.psi)
 	}
 	log.Debug("HttpCredentialsProvider using", "token", h.token)
 	return h.token, nil
@@ -60,12 +64,13 @@ func (h *TokenHolder) GetCurrentToken() string {
 		return ""
 	}
 	if h.plugin != nil {
-		returnedToken, err := h.plugin.TokenRefresh(context.Background(), h.token)
+		returnedToken, err := h.plugin.TokenRefresh(context.Background(), h.token, h.psi)
 		if err != nil {
 			log.Error("get token from plugin", "err", err)
+		} else {
+			log.Debug("new token from plugin", "old", h.token, "new", returnedToken)
+			h.token = returnedToken
 		}
-		log.Debug("new token from plugin", "old", h.token, "new", returnedToken)
-		h.token = returnedToken
 	} else {
 		log.Debug("token plugin is missing", "token", h.token)
 	}
