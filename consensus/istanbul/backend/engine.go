@@ -131,12 +131,6 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	// Assemble the voting snapshot
-	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
-	if err != nil {
-		return err
-	}
-	var valSet istanbul.ValidatorSet
 	validatorContract := sb.config.GetValidatorContractAddress(header.Number)
 	if validatorContract != (common.Address{}) {
 		// TODO: @achraf17 figure out how to test!!!
@@ -158,34 +152,44 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 			return err
 		}
 		log.Error("Fetched validators from smart contract", "validators", validators)
-		valSet = validator.NewSet(validators, sb.config.ProposerPolicy)
-	} else {
-		valSet = snap.ValSet
-	}
-	err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
-	if err != nil {
-		return err
-	}
-
-	// get valid candidate list
-	sb.candidatesLock.RLock()
-	var addresses []common.Address
-	var authorizes []bool
-	for address, authorize := range sb.candidates {
-		if snap.checkVote(address, authorize) {
-			addresses = append(addresses, address)
-			authorizes = append(authorizes, authorize)
-		}
-	}
-	sb.candidatesLock.RUnlock()
-
-	if len(addresses) > 0 {
-		index := rand.Intn(len(addresses))
-
-		err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
+		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+		err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
 		if err != nil {
-			log.Error("BFT: error writing validator vote", "err", err)
 			return err
+		}
+
+	} else {
+		// Assemble the voting snapshot
+		snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
+		if err != nil {
+			return err
+		}
+
+		err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, snap.ValSet)
+		if err != nil {
+			return err
+		}
+
+		// get valid candidate list
+		sb.candidatesLock.RLock()
+		var addresses []common.Address
+		var authorizes []bool
+		for address, authorize := range sb.candidates {
+			if snap.checkVote(address, authorize) {
+				addresses = append(addresses, address)
+				authorizes = append(authorizes, authorize)
+			}
+		}
+		sb.candidatesLock.RUnlock()
+
+		if len(addresses) > 0 {
+			index := rand.Intn(len(addresses))
+
+			err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
+			if err != nil {
+				log.Error("BFT: error writing validator vote", "err", err)
+				return err
+			}
 		}
 	}
 
