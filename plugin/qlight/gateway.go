@@ -2,6 +2,7 @@ package qlight
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager/proto"
 )
@@ -18,7 +19,7 @@ func (p *PluginGateway) TokenRefresh(ctx context.Context, currentToken, psi stri
 		Psi:          psi,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("refresh token: %w", err)
 	}
 	return resp.Token, nil
 }

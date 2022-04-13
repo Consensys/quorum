@@ -2,6 +2,7 @@ package qlight
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin"
@@ -17,7 +18,7 @@ type TokenHolder struct {
 func NewTokenHolder(psi string, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
 	plugin, err := getPlugin(pluginManager)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get plugin: %w", err)
 	}
 	return NewTokenHolderWithPlugin(psi, plugin), nil
 }
@@ -51,16 +52,16 @@ func (h *TokenHolder) RefreshPlugin(pluginManager *plugin.PluginManager) (err er
 
 func (h *TokenHolder) HttpCredentialsProvider(ctx context.Context) (string, error) {
 	if h.plugin != nil {
-		log.Debug("HttpCredentialsProvider using", "plugin", h.plugin)
+		log.Debug("HttpCredentialsProvider using plugin")
 		return h.plugin.TokenRefresh(ctx, h.token, h.psi)
 	}
-	log.Debug("HttpCredentialsProvider using", "token", h.token)
+	log.Debug("HttpCredentialsProvider using token")
 	return h.token, nil
 }
 
 func (h *TokenHolder) GetCurrentToken() string {
 	if h == nil {
-		log.Debug("token holder nil")
+		log.Warn("token holder nil, returning empty token")
 		return ""
 	}
 	if h.plugin != nil {
@@ -68,18 +69,19 @@ func (h *TokenHolder) GetCurrentToken() string {
 		if err != nil {
 			log.Error("get token from plugin", "err", err)
 		} else {
-			log.Debug("new token from plugin", "old", h.token, "new", returnedToken)
+			if h.token != returnedToken {
+				log.Debug("new token from plugin")
+			}
 			h.token = returnedToken
 		}
 	} else {
-		log.Debug("token plugin is missing", "token", h.token)
+		log.Warn("token plugin is missing")
 	}
 	return h.token
 }
 
 func (h *TokenHolder) SetCurrentToken(newToken string) {
 	h.token = newToken
-	log.Debug("token set", "token", newToken)
 }
 
 func tokenManager(pluginManager *plugin.PluginManager) (tmp *plugin.QLightTokenManagerPluginTemplate, err error) {

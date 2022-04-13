@@ -283,19 +283,18 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 
-	eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, stack.PluginManager())
-	if err != nil {
-		return nil, fmt.Errorf("new token holder: %w", err)
-	}
 	if eth.config.QuorumLightClient.Enabled() {
 		clientCache, err := qlight.NewClientCache(chainDb)
 		if eth.config.QuorumLightClient.TokenEnabled {
-			eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
+			eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, stack.PluginManager())
+			if err != nil {
+				return nil, fmt.Errorf("new token holder: %w", err)
+			}
 			switch eth.config.QuorumLightClient.TokenManagement {
 			case "client-security-plugin":
-				// TODO QLight - when hte client-security-plugin is implemented this may be a good place to initialize it
-				return nil, fmt.Errorf("The client-scurity-plugin token management is not implemented")
+				log.Info("Starting qlight client with auth token enabled without external API and token from argument, plugin has to be provided")
 			case "none":
+				eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 				log.Warn("Starting qlight client with auth token enabled but without a token management strategy. This is for development purposes only.")
 			case "external":
 				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
