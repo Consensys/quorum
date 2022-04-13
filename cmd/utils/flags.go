@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -2449,6 +2450,15 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 	}
 
 	var engine consensus.Engine
+
+	//TODO: @achraf17 alternative is to pass in on constructor
+	// 		we need to have it on every config as we may transition
+	//		to use smart contracts in teh future.
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
@@ -2464,6 +2474,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			istanbulConfig.Transitions = config.Transitions
 		}
+		istanbulConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
@@ -2471,6 +2482,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			ibftConfig.Transitions = config.Transitions
 		}
+		ibftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
@@ -2481,6 +2493,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
 			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
 		}
+		qbftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft

@@ -17,6 +17,8 @@
 package backend
 
 import (
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	"math/big"
 	"math/rand"
 	"time"
@@ -137,11 +139,21 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	var valSet istanbul.ValidatorSet
 	validatorContract := sb.config.GetValidatorContractAddress(header.Number)
 	if validatorContract != (common.Address{}) {
-		// TODO: in progress figure out to call the binded backend
-		//sb.core.
-		//NewSimulatedBackend
-		//contract.NewValidatorContractInterfaceCaller(validatorContract, sb.)
-		//valSet = eth_call()
+		// TODO: @achraf17 figure out how to test!!!
+
+		validatorContract, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+		if err != nil {
+			return err
+		}
+		opts:= bind.CallOpts{
+			Pending: true,
+			BlockNumber: header.Number,
+		}
+		validators, err := validatorContract.GetValidators(&opts)
+		if err != nil {
+			return err
+		}
+		valSet = validator.NewSet(validators, sb.config.ProposerPolicy)
 	} else {
 		valSet = snap.ValSet
 	}
