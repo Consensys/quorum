@@ -140,18 +140,21 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	validatorContract := sb.config.GetValidatorContractAddress(header.Number)
 	if validatorContract != (common.Address{}) {
 		// TODO: @achraf17 figure out how to test!!!
-		log.Error("SMART CONTRACT VALIDATOR ON", "address", validatorContract)
+		log.Error("SMART CONTRACT VALIDATOR ON", "address", validatorContract, "client", sb.config.Client)
 
-		validatorContract, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+
 		if err != nil {
+			log.Error("NewValidatorContractInterfaceCaller BANG", "err", err)
 			return err
 		}
 		opts := bind.CallOpts{
-			Pending:     false,
-			BlockNumber: header.Number,
+			Pending:     false
 		}
-		validators, err := validatorContract.GetValidators(&opts)
+		validators, err := validatorContractCaller.GetValidators(&opts)
+
 		if err != nil {
+			log.Error("Something BANG", "err", err)
 			return err
 		}
 		log.Error("Fetched validators from smart contract", "validators", validators)
