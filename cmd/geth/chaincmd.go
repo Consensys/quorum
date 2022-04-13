@@ -260,7 +260,7 @@ func initGenesis(ctx *cli.Context) error {
 		if err != nil {
 			utils.Fatalf("transitions data invalid: %v", err)
 		}
-		if genesis.ExtraData != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
+		if genesis.Config.QBFT != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
 			qbftExtra := new(types.QBFTExtra)
 			err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
 			if err != nil || len(qbftExtra.Validators) > 0 {
