@@ -149,7 +149,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 			return err
 		}
 		opts := bind.CallOpts{
-			Pending:     false
+			Pending:     false,
 		}
 		validators, err := validatorContractCaller.GetValidators(&opts)
 
