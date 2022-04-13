@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -260,7 +261,11 @@ func initGenesis(ctx *cli.Context) error {
 			utils.Fatalf("transitions data invalid: %v", err)
 		}
 		if genesis.ExtraData != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
-			utils.Fatalf("invalid genesis file: cant combine extraData and config.qbft.validatorcontractaddress at the same time")
+			qbftExtra := new(types.QBFTExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
+			if err != nil || len(qbftExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.qbft.validatorcontractaddress at the same time")
+			}
 		}
 	}
 	// End Quorum

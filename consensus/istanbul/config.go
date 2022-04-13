@@ -17,11 +17,11 @@
 package istanbul
 
 import (
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 )
@@ -130,7 +130,7 @@ type Config struct {
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 	Transitions            []params.Transition
 	ValidatorContract      common.Address
-	Client                 bind.ContractCaller
+	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
 var DefaultConfig = &Config{

@@ -17,15 +17,15 @@
 package backend
 
 import (
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	"math/big"
 	"math/rand"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -145,8 +145,8 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		if err != nil {
 			return err
 		}
-		opts:= bind.CallOpts{
-			Pending: true,
+		opts := bind.CallOpts{
+			Pending:     true,
 			BlockNumber: header.Number,
 		}
 		validators, err := validatorContract.GetValidators(&opts)

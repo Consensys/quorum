@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -53,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/extension"
@@ -2453,7 +2453,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 
 	//TODO: @achraf17 alternative is to pass in on constructor
 	// 		we need to have it on every config as we may transition
-	//		to use smart contracts in teh future.
+	//		to use smart contracts in the future.
 	client, err := stack.Attach()
 	if err != nil {
 		Fatalf("Failed to attach to self: %v", err)
