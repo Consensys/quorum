@@ -52,8 +52,8 @@ func TestGetConfig(t *testing.T) {
 		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
 	}
 
-	config := DefaultConfig
-	config.Transitions = []params.Transition{{
+	config := &DefaultConfig
+	(*config).Transitions = []params.Transition{{
 		Block:       big.NewInt(1),
 		EpochLength: 40000,
 	}, {
@@ -85,7 +85,7 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c := config.GetConfig(big.NewInt(test.blockNumber))
+		c := test.expectedConfig.GetConfig(big.NewInt(test.blockNumber))
 		if !reflect.DeepEqual(c, test.expectedConfig) {
 			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedConfig, c)
 		}
@@ -129,12 +129,9 @@ func TestIsQBFTConsensusAt(t *testing.T) {
 }
 
 func TestGetValidatorContractAddress(t *testing.T) {
-	if !reflect.DeepEqual(DefaultConfig.GetValidatorContractAddress(nil), common.Address{}) {
-		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
-	}
 	address, address1, address2, address3 := common.Address{}, common.Address{0x2}, common.Address{0x4}, common.Address{0x6}
 
-	config := DefaultConfig
+	config := *DefaultConfig
 	config.Transitions = []params.Transition{{
 		Block:                    big.NewInt(2),
 		ValidatorContractAddress: address1,

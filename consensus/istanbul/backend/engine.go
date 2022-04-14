@@ -17,15 +17,15 @@
 package backend
 
 import (
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	"math/big"
 	"math/rand"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -386,7 +386,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					return nil, err
 				}
 				break
-			}  else {
+			} else {
 				// Get the validators from genesis to create a snapshot
 				validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
 				if err != nil {
