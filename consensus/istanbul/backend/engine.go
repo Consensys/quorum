@@ -430,7 +430,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 
 	validatorContract := sb.config.GetValidatorContractAddress(new(big.Int).SetUint64(number))
 	if validatorContract != (common.Address{}) {
-		log.Info("Applying snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
+		log.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
 
 		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
