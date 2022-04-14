@@ -301,7 +301,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		number := ReadHeaderNumber(nfdb, hash)
-		threshold := atomic.LoadUint64(&f.threshold)
+		threshold := int(atomic.LoadUint64(&f.threshold))
 
 		switch {
 		case number == nil:
@@ -309,12 +309,12 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			backoff = true
 			continue
 
-		case *number < threshold:
-			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", threshold)
+		case *number < uint64(params.GetImmutabilityThresholdWithDefault(threshold)):
+			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.GetImmutabilityThresholdWithDefault(threshold))
 			backoff = true
 			continue
 
-		case *number-threshold <= f.frozen:
+		case *number-uint64(params.GetImmutabilityThresholdWithDefault(threshold)) <= f.frozen:
 			log.Debug("Ancient blocks frozen already", "number", *number, "hash", hash, "frozen", f.frozen)
 			backoff = true
 			continue
@@ -326,7 +326,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		// Seems we have data ready to be frozen, process in usable batches
-		limit := *number - threshold
+		limit := *number - uint64(params.GetImmutabilityThresholdWithDefault(threshold))
 		if limit-f.frozen > freezerBatchLimit {
 			limit = f.frozen + freezerBatchLimit
 		}

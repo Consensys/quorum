@@ -29,6 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -65,7 +67,7 @@ var Defaults = Config{
 		DatasetsOnDisk:   2,
 		DatasetsLockMmap: false,
 	},
-	NetworkId:               1,
+	NetworkId:               1337,
 	TxLookupLimit:           2350000,
 	LightPeers:              100,
 	UltraLightFraction:      75,
@@ -77,8 +79,8 @@ var Defaults = Config{
 	TrieTimeout:             60 * time.Minute,
 	SnapshotCache:           102,
 	Miner: miner.Config{
-		GasFloor: 8000000,
-		GasCeil:  8000000,
+		GasFloor: params.MinGasLimit,
+		GasCeil:  params.GenesisGasLimit,
 		GasPrice: big.NewInt(params.GWei),
 		Recommit: 3 * time.Second,
 	},
@@ -86,6 +88,9 @@ var Defaults = Config{
 	RPCGasCap:   25000000,
 	GPO:         FullNodeGPO,
 	RPCTxFeeCap: 1, // 1 ether
+
+	// Quorum
+	Istanbul: *istanbul.DefaultConfig, // Quorum
 }
 
 func init() {
@@ -131,8 +136,8 @@ type Config struct {
 
 	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
-	// Whitelist of required block number -> hash values to accept
-	Whitelist map[uint64]common.Hash `toml:"-"`
+	// AuthorizationList of required block number -> hash values to accept
+	AuthorizationList map[uint64]common.Hash `toml:"-"` // not in the TOML configuration
 
 	// Light client options
 	LightServ          int  `toml:",omitempty"` // Maximum percentage of time allowed for serving LES requests
@@ -177,6 +182,11 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
+	RaftMode             bool
+	EnableNodePermission bool
+	// Istanbul options
+	Istanbul istanbul.Config
+
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
 
@@ -201,16 +211,73 @@ type Config struct {
 
 	// Berlin block override (TODO: remove after the fork)
 	OverrideBerlin *big.Int `toml:",omitempty"`
+
+	// Quorum
+	// timeout value for call
+	EVMCallTimeOut time.Duration
+
+	// Quorum
+	core.QuorumChainConfig `toml:"-"`
+
+	// QuorumLight
+	QuorumLightServer bool               `toml:",omitempty"`
+	QuorumLightClient *QuorumLightClient `toml:",omitempty"`
+}
+
+type QuorumLightClient struct {
+	Use                      bool   `toml:",omitempty"`
+	PSI                      string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
+	RPCTLS                   bool   `toml:",omitempty"`
+	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	RPCTLSCACert             string `toml:",omitempty"`
+	RPCTLSCert               string `toml:",omitempty"`
+	RPCTLSKey                string `toml:",omitempty"`
+	ServerNode               string `toml:",omitempty"`
+	ServerNodeRPC            string `toml:",omitempty"`
+}
+
+func (q *QuorumLightClient) Enabled() bool {
+	return q != nil && q.Use
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
-func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
+func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
+		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
+	if chainConfig.Transitions != nil && len(chainConfig.Transitions) != 0 {
+		config.Istanbul.Transitions = chainConfig.Transitions
+	}
+	// If Istanbul is requested, set it up
+	if chainConfig.Istanbul != nil {
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
+		if chainConfig.Istanbul.Epoch != 0 {
+			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
+		}
+		config.Istanbul.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(chainConfig.Istanbul.ProposerPolicy))
+		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
+		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
+		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
+
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.IBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = nil
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.QBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
 	// Otherwise assume proof-of-work
-	switch config.PowMode {
+	switch config.Ethash.PowMode {
 	case ethash.ModeFake:
 		log.Warn("Ethash used in fake mode")
 		return ethash.NewFaker()
@@ -221,17 +288,28 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		log.Warn("Ethash used in shared mode")
 		return ethash.NewShared()
 	default:
-		engine := ethash.New(ethash.Config{
-			CacheDir:         stack.ResolvePath(config.CacheDir),
-			CachesInMem:      config.CachesInMem,
-			CachesOnDisk:     config.CachesOnDisk,
-			CachesLockMmap:   config.CachesLockMmap,
-			DatasetDir:       config.DatasetDir,
-			DatasetsInMem:    config.DatasetsInMem,
-			DatasetsOnDisk:   config.DatasetsOnDisk,
-			DatasetsLockMmap: config.DatasetsLockMmap,
-		}, notify, noverify)
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
+		// For Quorum, Raft run as a separate service, so
+		// the Ethereum service still needs a consensus engine,
+		// use the consensus with the lightest overhead
+		log.Warn("Ethash used in full fake mode")
+		return ethash.NewFullFaker()
+	}
+}
+
+func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) {
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
 	}
 }

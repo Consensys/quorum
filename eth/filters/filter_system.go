@@ -313,7 +313,7 @@ func (es *EventSystem) handleLogs(filters filterIndex, ev []*types.Log) {
 		return
 	}
 	for _, f := range filters[LogsSubscription] {
-		matchedLogs := filterLogs(ev, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
+		matchedLogs := filterLogs(ev, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics, f.logsCrit.PSI)
 		if len(matchedLogs) > 0 {
 			f.logs <- matchedLogs
 		}
@@ -325,7 +325,7 @@ func (es *EventSystem) handlePendingLogs(filters filterIndex, ev []*types.Log) {
 		return
 	}
 	for _, f := range filters[PendingLogsSubscription] {
-		matchedLogs := filterLogs(ev, nil, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
+		matchedLogs := filterLogs(ev, nil, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics, f.logsCrit.PSI)
 		if len(matchedLogs) > 0 {
 			f.logs <- matchedLogs
 		}
@@ -334,7 +334,7 @@ func (es *EventSystem) handlePendingLogs(filters filterIndex, ev []*types.Log) {
 
 func (es *EventSystem) handleRemovedLogs(filters filterIndex, ev core.RemovedLogsEvent) {
 	for _, f := range filters[LogsSubscription] {
-		matchedLogs := filterLogs(ev.Logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
+		matchedLogs := filterLogs(ev.Logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics, f.logsCrit.PSI)
 		if len(matchedLogs) > 0 {
 			f.logs <- matchedLogs
 		}
@@ -417,7 +417,7 @@ func (es *EventSystem) lightFilterLogs(header *types.Header, addresses []common.
 				unfiltered = append(unfiltered, &logcopy)
 			}
 		}
-		logs := filterLogs(unfiltered, nil, nil, addresses, topics)
+		logs := filterLogs(unfiltered, nil, nil, addresses, topics, "")
 		if len(logs) > 0 && logs[0].TxHash == (common.Hash{}) {
 			// We have matching but non-derived logs
 			receipts, err := es.backend.GetReceipts(ctx, header.Hash())
@@ -432,7 +432,7 @@ func (es *EventSystem) lightFilterLogs(header *types.Header, addresses []common.
 					unfiltered = append(unfiltered, &logcopy)
 				}
 			}
-			logs = filterLogs(unfiltered, nil, nil, addresses, topics)
+			logs = filterLogs(unfiltered, nil, nil, addresses, topics, "")
 		}
 		return logs
 	}

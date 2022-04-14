@@ -187,7 +187,7 @@ func (t *StateTest) RunNoVerify(subtest StateSubtest, vmconfig vm.Config, snapsh
 	txContext := core.NewEVMTxContext(msg)
 	context := core.NewEVMBlockContext(block.Header(), nil, &t.json.Env.Coinbase)
 	context.GetHash = vmTestBlockHash
-	evm := vm.NewEVM(context, txContext, statedb, config, vmconfig)
+	evm := vm.NewEVM(context, txContext, statedb, statedb, config, vmconfig)
 
 	// Execute the message.
 	snapshot := statedb.Snapshot()

@@ -123,7 +123,7 @@ func (t *BlockTest) Run(snapshotter bool) error {
 		cache.SnapshotLimit = 1
 		cache.SnapshotWait = true
 	}
-	chain, err := core.NewBlockChain(db, cache, config, engine, vm.Config{}, nil, nil)
+	chain, err := core.NewBlockChain(db, cache, config, engine, vm.Config{}, nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (t *BlockTest) Run(snapshotter bool) error {
 	if common.Hash(t.json.BestBlock) != cmlast {
 		return fmt.Errorf("last block hash validation mismatch: want: %x, have: %x", t.json.BestBlock, cmlast)
 	}
-	newDB, err := chain.State()
+	newDB, _, err := chain.State()
 	if err != nil {
 		return err
 	}

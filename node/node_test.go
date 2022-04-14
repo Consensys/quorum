@@ -31,8 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -599,6 +599,7 @@ func createNode(t *testing.T, httpPort, wsPort int) *Node {
 		WSPort:   wsPort,
 	}
 	node, err := New(conf)
+	node.pluginManager = plugin.NewEmptyPluginManager()
 	if err != nil {
 		t.Fatalf("could not create a new node: %v", err)
 	}

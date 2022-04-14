@@ -21,18 +21,38 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/mps"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
+// TODO: Split this interface for the quorum functions ex: ChainContextWithQuorum
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.Header
+
+	// Config retrieves the chain's fork configuration
+	Config() *params.ChainConfig
+
+	// Quorum
+
+	// QuorumConfig retrieves the Quorum chain's configuration
+	QuorumConfig() *QuorumChainConfig
+
+	// PrivateStateManager returns the private state manager
+	PrivateStateManager() mps.PrivateStateManager
+
+	// CheckAndSetPrivateState updates the private state as a part contract state extension
+	CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier)
+
+	// End Quorum
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.

@@ -26,9 +26,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -72,6 +75,9 @@ type LightChain struct {
 	running          int32 // whether LightChain is running or stopped
 	procInterrupt    int32 // interrupts chain insert
 	disableCheckFreq int32 // disables header verification
+
+	// Quorum
+	isMultitenant bool
 }
 
 // NewLightChain returns a fully initialised light chain using information
@@ -115,6 +121,15 @@ func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.
 			log.Info("Chain rewind was successful, resuming normal operation")
 		}
 	}
+	return bc, nil
+}
+
+func NewMultitenantLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.Engine, checkpoint *params.TrustedCheckpoint) (*LightChain, error) {
+	bc, err := NewLightChain(odr, config, engine, checkpoint)
+	if err != nil {
+		return nil, err
+	}
+	bc.isMultitenant = true
 	return bc, nil
 }
 
@@ -581,4 +596,18 @@ func (lc *LightChain) DisableCheckFreq() {
 // EnableCheckFreq enables header validation.
 func (lc *LightChain) EnableCheckFreq() {
 	atomic.StoreInt32(&lc.disableCheckFreq, 0)
+}
+
+func (lc *LightChain) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, lc.isMultitenant
+}
+
+// QuorumConfig retrieves the Quorum chain's configuration
+func (lc *LightChain) QuorumConfig() *core.QuorumChainConfig { return &core.QuorumChainConfig{} }
+
+// PrivateStateManager returns the private state manager
+func (lc *LightChain) PrivateStateManager() mps.PrivateStateManager { return nil }
+
+// CheckAndSetPrivateState updates the private state as a part contract state extension
+func (lc *LightChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
 }

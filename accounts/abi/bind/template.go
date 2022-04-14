@@ -123,6 +123,8 @@ var (
 	// {{.Type}}ABI is the input ABI used to generate the binding from.
 	const {{.Type}}ABI = "{{.InputABI}}"
 
+	var {{.Type}}ParsedABI, _ = abi.JSON(strings.NewReader({{.Type}}ABI))
+
 	{{if $contract.FuncSigs}}
 		// {{.Type}}FuncSigs maps the 4-byte function signature to its string representation.
 		var {{.Type}}FuncSigs = map[string]string{
@@ -494,6 +496,7 @@ var (
 			return &{{$contract.Type}}{{.Normalized.Name}}Iterator{contract: _{{$contract.Type}}.contract, event: "{{.Original.Name}}", logs: logs, sub: sub}, nil
  		}
 
+		var {{.Normalized.Name}}TopicHash = "0x{{printf "%x" .Original.ID}}"
 		// Watch{{.Normalized.Name}} is a free log subscription operation binding the contract event 0x{{printf "%x" .Original.ID}}.
 		//
 		// Solidity: {{.Original.String}}

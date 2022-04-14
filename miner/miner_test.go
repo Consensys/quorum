@@ -24,11 +24,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/trie"
@@ -37,7 +39,10 @@ import (
 type mockBackend struct {
 	bc     *core.BlockChain
 	txPool *core.TxPool
+	db     ethdb.Database
 }
+
+var _ Backend = &mockBackend{} // check implementation
 
 func NewMockBackend(bc *core.BlockChain, txPool *core.TxPool) *mockBackend {
 	return &mockBackend{
@@ -54,8 +59,13 @@ func (m *mockBackend) TxPool() *core.TxPool {
 	return m.txPool
 }
 
+func (m *mockBackend) ChainDb() ethdb.Database {
+	return m.db
+}
+
 type testBlockChain struct {
-	statedb       *state.StateDB
+	statedb *state.StateDB
+
 	gasLimit      uint64
 	chainHeadFeed *event.Feed
 }
@@ -70,8 +80,8 @@ func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block
 	return bc.CurrentBlock()
 }
 
-func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
-	return bc.statedb, nil
+func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, mps.PrivateStateRepository, error) {
+	return bc.statedb, nil, nil
 }
 
 func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
@@ -245,7 +255,7 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux) {
 	// Create consensus engine
 	engine := clique.New(chainConfig.Clique, chainDB)
 	// Create Ethereum backend
-	bc, err := core.NewBlockChain(chainDB, nil, chainConfig, engine, vm.Config{}, nil, nil)
+	bc, err := core.NewBlockChain(chainDB, nil, chainConfig, engine, vm.Config{}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("can't create new chain %v", err)
 	}

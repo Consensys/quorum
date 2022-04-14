@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -40,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -67,9 +69,12 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	Engine() consensus.Engine
 	ChainDb() ethdb.Database
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, func(), error)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, func(), error)
-	StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, func(), error)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error)
+	StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error)
+
+	// Quorum
+	GetBlockchain() *core.BlockChain
 }
 
 // API is the collection of tracing APIs exposed over the private debugging endpoint.
@@ -86,6 +91,25 @@ type chainContext struct {
 	api *API
 	ctx context.Context
 }
+
+// Quorum
+
+func (context *chainContext) Config() *params.ChainConfig {
+	return context.api.backend.ChainConfig()
+}
+
+func (context *chainContext) QuorumConfig() *core.QuorumChainConfig {
+	return &core.QuorumChainConfig{}
+}
+
+func (context *chainContext) PrivateStateManager() mps.PrivateStateManager {
+	return context.api.backend.GetBlockchain().PrivateStateManager()
+}
+
+func (context *chainContext) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB, psi types.PrivateStateIdentifier) {
+}
+
+// End Quorum
 
 func (context *chainContext) Engine() consensus.Engine {
 	return context.api.backend.Engine()
@@ -181,6 +205,8 @@ type blockTraceTask struct {
 	statedb *state.StateDB   // Intermediate state prepped for tracing
 	block   *types.Block     // Block to trace the transactions from
 	results []*txTraceResult // Trace results procudes by the task
+	// Quorum
+	privateStateDb *state.StateDB
 }
 
 // blockTraceResult represets the results of tracing a single block when an entire
@@ -196,6 +222,8 @@ type blockTraceResult struct {
 type txTraceTask struct {
 	statedb *state.StateDB // Intermediate state prepped for tracing
 	index   int            // Transaction offset in the block
+	// Quorum
+	privateStateDb *state.StateDB
 }
 
 // TraceChain returns the structured logs created during the execution of EVM
@@ -238,7 +266,11 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	states, release, err := api.backend.StatesInRange(ctx, start, endBlock, reexec)
+	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	states, privateStateRepos, release, err := api.backend.StatesInRange(ctx, start, endBlock, reexec)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +298,8 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer)
-					res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, config)
+					msg = api.clearMessageDataIfNonParty(msg, psm)
+					res, err := api.traceTx(ctx, msg, tx, blockCtx, task.statedb, task.privateStateDb, config, i, task.block.Header(), privateStateRepos[0])
 					if err != nil {
 						task.results[i] = &txTraceResult{Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -274,6 +307,7 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 					}
 					// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 					task.statedb.Finalise(api.backend.ChainConfig().IsEIP158(task.block.Number()))
+					task.privateStateDb.Finalise(api.backend.ChainConfig().IsEIP158(task.block.Number()))
 					task.results[i] = &txTraceResult{Result: res}
 				}
 				// Stream the result back to the user or abort on teardown
@@ -330,9 +364,17 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 				break
 			}
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
+			if number <= start.NumberU64() {
+				continue
+			}
 			txs := block.Transactions()
+			privateState, err := privateStateRepos[0].StatePSI(psm.ID)
+			if err != nil {
+				failed = err
+				break
+			}
 			select {
-			case tasks <- &blockTraceTask{statedb: states[int(number-start.NumberU64()-1)], block: block, results: make([]*txTraceResult, len(txs))}:
+			case tasks <- &blockTraceTask{statedb: states[int(number-start.NumberU64()-1)], privateStateDb: privateState.Copy(), block: block, results: make([]*txTraceResult, len(txs))}:
 			case <-notifier.Closed():
 				return
 			}
@@ -458,7 +500,15 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, release, err := api.backend.StateAtBlock(ctx, parent, reexec)
+	statedb, privateStateRepo, release, err := api.backend.StateAtBlock(ctx, parent, reexec)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -484,8 +534,10 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 			defer pend.Done()
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
-				msg, _ := txs[task.index].AsMessage(signer)
-				res, err := api.traceTx(ctx, msg, blockCtx, task.statedb, config)
+				tx := txs[task.index]
+				msg, _ := tx.AsMessage(signer)
+				msg = api.clearMessageDataIfNonParty(msg, psm)
+				res, err := api.traceTx(ctx, msg, tx, blockCtx, task.statedb, task.privateStateDb, config, task.index, block.Header(), privateStateRepo)
 				if err != nil {
 					results[task.index] = &txTraceResult{Error: err.Error()}
 					continue
@@ -498,13 +550,26 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 	var failed error
 	for i, tx := range txs {
 		// Send the trace task over for execution
-		jobs <- &txTraceTask{statedb: statedb.Copy(), index: i}
+		jobs <- &txTraceTask{
+			statedb:        statedb.Copy(),
+			privateStateDb: privateStateDb.Copy(),
+			index:          i,
+		}
 
 		// Generate the next state snapshot fast without tracing
 		msg, _ := tx.AsMessage(signer)
 		txContext := core.NewEVMTxContext(msg)
 
-		vmenv := vm.NewEVM(blockCtx, txContext, statedb, api.backend.ChainConfig(), vm.Config{})
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(api.chainContext(ctx).Config().IsQuorum, tx, statedb, privateStateDb)
+		vmenv := vm.NewEVM(blockCtx, txContext, statedb, privateStateDbToUse, api.chainContext(ctx).Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
+		vmenv.InnerApply = func(innerTx *types.Transaction) error {
+			return applyInnerTransaction(api.backend.GetBlockchain(), statedb, privateStateDbToUse, block.Header(), tx, vm.Config{}, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, i)
+		}
+		msg = api.clearMessageDataIfNonParty(msg, psm)
+		// /Quorum
+
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas())); err != nil {
 			failed = err
 			break
@@ -512,6 +577,8 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 		// Finalize the state so any modifications are written to the trie
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
+		privateStateDb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
+
 	}
 	close(jobs)
 	pend.Wait()
@@ -544,7 +611,15 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, release, err := api.backend.StateAtBlock(ctx, parent, reexec)
+	statedb, privateStateRepo, release, err := api.backend.StateAtBlock(ctx, parent, reexec)
+	if err != nil {
+		return nil, err
+	}
+	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +693,17 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 			}
 		}
 		// Execute the transaction and flush any traces to disk
-		vmenv := vm.NewEVM(vmctx, txContext, statedb, chainConfig, vmConf)
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(chainConfig.IsQuorum, tx, statedb, privateStateDb)
+		vmConf.ApplyOnPartyOverride = &psm.ID
+		vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, chainConfig, vmConf)
+		vmenv.SetCurrentTX(tx)
+		vmenv.InnerApply = func(innerTx *types.Transaction) error {
+			return applyInnerTransaction(api.backend.GetBlockchain(), statedb, privateStateDbToUse, block.Header(), tx, vmConf, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, i)
+		}
+		msg = api.clearMessageDataIfNonParty(msg, psm)
+		// /Quorum
+
 		_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 		if writer != nil {
 			writer.Flush()
@@ -656,9 +741,12 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // TraceTransaction returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
 func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	_, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
+	tx, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
+	}
+	if tx == nil {
+		return nil, fmt.Errorf("transaction %#x not found", hash)
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {
@@ -672,13 +760,12 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	if err != nil {
 		return nil, err
 	}
-	msg, vmctx, statedb, release, err := api.backend.StateAtTransaction(ctx, block, int(index), reexec)
+	msg, vmctx, statedb, privateState, privateStateRepo, release, err := api.backend.StateAtTransaction(ctx, block, int(index), reexec)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-
-	return api.traceTx(ctx, msg, vmctx, statedb, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateState, config, int(index), block.Header(), privateStateRepo)
 }
 
 // TraceCall lets you trace a given eth_call. It collects the structured logs
@@ -704,22 +791,51 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHa
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, release, err := api.backend.StateAtBlock(ctx, block, reexec)
+	statedb, privateStateRepo, release, err := api.backend.StateAtBlock(ctx, block, reexec)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
+	privateStateDb, err := privateStateRepo.DefaultState()
+	if err != nil {
+		return nil, err
+	}
+
+	// Quorum
+	header := block.Header()
+	// End Quorum
 
 	// Execute the trace
 	msg := args.ToMessage(api.backend.RPCGasCap())
 	vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
-	return api.traceTx(ctx, msg, vmctx, statedb, config)
+
+	// Quorum: we run the call with privateState as publicState to check if we have a result, if it is not empty, then it is a private call
+	var noTracerConfig *TraceConfig
+	if config != nil {
+		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
+		noTracerConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
+			Reexec:    config.Reexec,
+			Timeout:   config.Timeout,
+		}
+	}
+	res, err := api.traceTx(ctx, msg, nil, vmctx, statedb, privateStateDb, noTracerConfig, 0, header, privateStateRepo) // test private with no config
+	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                    // check there is a result
+		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
+			return api.traceTx(ctx, msg, nil, vmctx, statedb, privateStateDb, config, 0, header, privateStateRepo) // re-run with trace
+		}
+		return res, err // return private result with no tracer
+	} else if err == nil && !ok {
+		return nil, fmt.Errorf("can not cast traceTx result to *ethapi.ExecutionResult: %#v, %#v", res, err) // better error formatting than "method handler failed"
+	}
+	// / Quorum
+	return api.traceTx(ctx, msg, nil, vmctx, statedb, privateStateDb, config, 0, header, privateStateRepo) // public / standard run
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *API) traceTx(ctx context.Context, message core.Message, vmctx vm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *API) traceTx(ctx context.Context, message core.Message, tx *types.Transaction, vmctx vm.BlockContext, statedb, privateStateDb *state.StateDB, config *TraceConfig, txIndex int, header *types.Header, privateStateRepo mps.PrivateStateRepository) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer    vm.Tracer
@@ -754,8 +870,24 @@ func (api *API) traceTx(ctx context.Context, message core.Message, vmctx vm.Bloc
 		tracer = vm.NewStructLogger(config.LogConfig)
 	}
 
+	// Quorum
+	// Set the private state to public state if it is not a private tx
+	privateStateDbToUse := core.PrivateStateDBForTxn(api.backend.ChainConfig().IsQuorum, tx, statedb, privateStateDb)
+
+	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tracing failed: %v", err)
+	}
+
 	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), vm.Config{Debug: true, Tracer: tracer})
+	vmconf := &vm.Config{Debug: true, Tracer: tracer, ApplyOnPartyOverride: &psm.ID}
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.chainContext(ctx).Config(), *vmconf)
+	vmenv.SetCurrentTX(tx)
+	vmenv.InnerApply = func(innerTx *types.Transaction) error {
+		return applyInnerTransaction(api.backend.GetBlockchain(), statedb, privateStateDbToUse, header, tx, *vmconf, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, txIndex)
+	}
+	// /Quorum
+
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
@@ -782,6 +914,30 @@ func (api *API) traceTx(ctx context.Context, message core.Message, vmctx vm.Bloc
 	default:
 		panic(fmt.Sprintf("bad tracer type %T", tracer))
 	}
+}
+
+// clearMessageDataIfNonParty sets the message data to empty hash in case the private state is not party to the
+// transaction. The effect is that when the private tx payload is resolved using the privacy manager the private part of
+// the transaction is not retrieved and the transaction is being executed as if the node/private state is not party to
+// the transaction.
+func (api *API) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateStateMetadata) types.Message {
+	if msg.IsPrivate() {
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
+
+		if api.chainContext(nil).PrivateStateManager().NotIncludeAny(psm, managedParties...) {
+			return msg.WithEmptyPrivateData(true)
+		}
+	}
+	return msg
+}
+
+func applyInnerTransaction(bc *core.BlockChain, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
+	var (
+		author  *common.Address = nil // ApplyTransaction will determine the author from the header so we won't do it here
+		gp      *core.GasPool   = new(core.GasPool).AddGas(outerTx.Gas())
+		usedGas uint64          = 0
+	)
+	return core.ApplyInnerTransaction(bc, author, gp, stateDB, privateStateDB, header, outerTx, &usedGas, evmConf, forceNonParty, privateStateRepo, vmenv, innerTx, txIndex)
 }
 
 // APIs return the collection of RPC services the tracer package offers.

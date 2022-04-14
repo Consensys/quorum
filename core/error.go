@@ -71,4 +71,21 @@ var (
 	// ErrTxTypeNotSupported is returned if a transaction is not supported in the
 	// current network configuration.
 	ErrTxTypeNotSupported = types.ErrTxTypeNotSupported
+
+	// Quorum
+	// ErrAbortBlocksProcessing is returned if bc.insertChain is interrupted under raft mode
+	ErrAbortBlocksProcessing = errors.New("abort during blocks processing")
+
+	// ErrContractManagedPartiesCheckFailed is returned if managed parties check has failed for contract
+	ErrContractManagedPartiesCheckFailed = errors.New("managed parties check has failed for contract")
+
+	// ErrPrivacyMetadataInvalidMerkleRoot is returned if there is an empty MR during the pmh.prepare(...)
+	ErrPrivacyMetadataInvalidMerkleRoot = errors.New("privacy metadata has empty MR for stateValidation flag")
+
+	// ErrPrivacyEnhancedReceivedWhenDisabled is returned if privacy enhanced transaction received while privacy enhancements are disabled
+	ErrPrivacyEnhancedReceivedWhenDisabled = errors.New("privacy metadata has empty MR for stateValidation flag")
+
+	// ErrPrivateContractInteractionVerificationFailed is returned if the verification of contract interaction differs from the one returned by Tessera (check pmh.verify(...))
+	ErrPrivateContractInteractionVerificationFailed = errors.New("verification of contract interaction differs from the one returned by Tessera")
+	// End Quorum
 )
