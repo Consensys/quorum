@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"github.com/stretchr/testify/assert"
@@ -123,6 +124,47 @@ func TestIsQBFTConsensusAt(t *testing.T) {
 		isQbft := test.config.IsQBFTConsensusAt(big.NewInt(test.blockNumber))
 		if !reflect.DeepEqual(isQbft, test.isQBFT) {
 			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.isQBFT, isQbft)
+		}
+	}
+}
+
+func TestGetValidatorContractAddress(t *testing.T) {
+	if !reflect.DeepEqual(DefaultConfig.GetValidatorContractAddress(nil), common.Address{}) {
+		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
+	}
+	address, address1, address2, address3 := common.Address{}, common.Address{0x2}, common.Address{0x4}, common.Address{0x6}
+
+	config := DefaultConfig
+	config.Transitions = []params.Transition{{
+		Block:                    big.NewInt(2),
+		ValidatorContractAddress: address1,
+	}, {
+		Block:                    big.NewInt(4),
+		ValidatorContractAddress: address2,
+	}, {
+		Block:                    big.NewInt(6),
+		ValidatorContractAddress: address3,
+	}}
+
+	type test struct {
+		blockNumber     int64
+		expectedAddress common.Address
+	}
+	tests := []test{
+		{0, address},
+		{1, address},
+		{2, address1},
+		{3, address1},
+		{4, address2},
+		{5, address2},
+		{10, address3},
+		{100, address3},
+	}
+
+	for _, test := range tests {
+		c := config.GetValidatorContractAddress(big.NewInt(test.blockNumber))
+		if !reflect.DeepEqual(c, test.expectedAddress) {
+			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedAddress, c)
 		}
 	}
 }

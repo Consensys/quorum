@@ -246,7 +246,6 @@ func (q *QuorumLightClient) Enabled() bool {
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
 func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
-	client, _ := stack.Attach()
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
 		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
@@ -255,6 +254,8 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	if chainConfig.Transitions != nil && len(chainConfig.Transitions) != 0 {
 		config.Istanbul.Transitions = chainConfig.Transitions
 	}
+	client, _ := stack.Attach()
+	config.Istanbul.Client = ethclient.NewClient(client)
 	// If Istanbul is requested, set it up
 	if chainConfig.Istanbul != nil {
 		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
@@ -265,14 +266,11 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
-		config.Istanbul.Client = ethclient.NewClient(client)
-
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.IBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = nil
-		config.Istanbul.Client = ethclient.NewClient(client)
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.QBFT != nil {
@@ -281,7 +279,6 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
 			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
 		}
-		config.Istanbul.Client = ethclient.NewClient(client)
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// Otherwise assume proof-of-work

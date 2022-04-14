@@ -2451,9 +2451,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 
 	var engine consensus.Engine
 
-	//TODO: @achraf17 alternative is to pass in on constructor
-	// 		we need to have it on every config as we may transition
-	//		to use smart contracts in the future.
 	client, err := stack.Attach()
 	if err != nil {
 		Fatalf("Failed to attach to self: %v", err)

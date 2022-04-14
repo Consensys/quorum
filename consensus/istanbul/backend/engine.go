@@ -142,9 +142,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 			log.Error("NewValidatorContractInterfaceCaller BANG", "err", err)
 			return err
 		}
-		opts := bind.CallOpts{
-			Pending:     false,
-		}
+		opts := bind.CallOpts{Pending: false}
 		validators, err := validatorContractCaller.GetValidators(&opts)
 
 		if err != nil {
