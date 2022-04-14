@@ -17,15 +17,15 @@
 package backend
 
 import (
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	"math/big"
 	"math/rand"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -131,63 +131,36 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	validatorContract := sb.config.GetValidatorContractAddress(header.Number)
-	if validatorContract != (common.Address{}) {
-		// TODO: @achraf17 figure out how to test!!!
-		log.Error("SMART CONTRACT VALIDATOR ON", "address", validatorContract, "client", sb.config.Client)
+	// Assemble the voting snapshot
+	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
+	if err != nil {
+		return err
+	}
 
-		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+	err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, snap.ValSet)
+	if err != nil {
+		return err
+	}
 
+	// get valid candidate list
+	sb.candidatesLock.RLock()
+	var addresses []common.Address
+	var authorizes []bool
+	for address, authorize := range sb.candidates {
+		if snap.checkVote(address, authorize) {
+			addresses = append(addresses, address)
+			authorizes = append(authorizes, authorize)
+		}
+	}
+	sb.candidatesLock.RUnlock()
+
+	if len(addresses) > 0 {
+		index := rand.Intn(len(addresses))
+
+		err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
 		if err != nil {
-			log.Error("NewValidatorContractInterfaceCaller BANG", "err", err)
+			log.Error("BFT: error writing validator vote", "err", err)
 			return err
-		}
-		opts := bind.CallOpts{Pending: false}
-		validators, err := validatorContractCaller.GetValidators(&opts)
-
-		if err != nil {
-			log.Error("Something BANG", "err", err)
-			return err
-		}
-		log.Error("Fetched validators from smart contract", "validators", validators)
-		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
-		err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		// Assemble the voting snapshot
-		snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
-		if err != nil {
-			return err
-		}
-
-		err = sb.EngineForBlockNumber(header.Number).Prepare(chain, header, snap.ValSet)
-		if err != nil {
-			return err
-		}
-
-		// get valid candidate list
-		sb.candidatesLock.RLock()
-		var addresses []common.Address
-		var authorizes []bool
-		for address, authorize := range sb.candidates {
-			if snap.checkVote(address, authorize) {
-				addresses = append(addresses, address)
-				authorizes = append(authorizes, authorize)
-			}
-		}
-		sb.candidatesLock.RUnlock()
-
-		if len(addresses) > 0 {
-			index := rand.Intn(len(addresses))
-
-			err = sb.EngineForBlockNumber(header.Number).WriteVote(header, addresses[index], authorizes[index])
-			if err != nil {
-				log.Error("BFT: error writing validator vote", "err", err)
-				return err
-			}
 		}
 	}
 
@@ -360,6 +333,7 @@ func (sb *Backend) storeSnap(snap *Snapshot) error {
 
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -389,18 +363,43 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, err
 			}
 
-			// Get the validators from genesis to create a snapshot
-			validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
-			if err != nil {
-				sb.logger.Error("BFT: invalid genesis block", "err", err)
-				return nil, err
-			}
+			if sb.config.ValidatorContract != (common.Address{}) {
+				log.Info("Initialising snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
 
-			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
-			if err := sb.storeSnap(snap); err != nil {
-				return nil, err
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.ValidatorContract, sb.config.Client)
+
+				if err != nil {
+					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+					return nil, err
+				}
+				opts := bind.CallOpts{
+					Pending: false,
+				}
+				validators, err := validatorContractCaller.GetValidators(&opts)
+
+				if err != nil {
+					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+					return nil, err
+				}
+				snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
+				if err := sb.storeSnap(snap); err != nil {
+					return nil, err
+				}
+				break
+			}  else {
+				// Get the validators from genesis to create a snapshot
+				validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
+				if err != nil {
+					sb.logger.Error("BFT: invalid genesis block", "err", err)
+					return nil, err
+				}
+
+				snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
+				if err := sb.storeSnap(snap); err != nil {
+					return nil, err
+				}
+				break
 			}
-			break
 		}
 
 		// No snapshot for this header, gather the header and move backward
@@ -429,6 +428,27 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
 
+	validatorContract := sb.config.GetValidatorContractAddress(new(big.Int).SetUint64(number))
+	if validatorContract != (common.Address{}) {
+		log.Info("Applying snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
+
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+
+		if err != nil {
+			log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+			return nil, err
+		}
+		opts := bind.CallOpts{Pending: false}
+		validators, err := validatorContractCaller.GetValidators(&opts)
+
+		if err != nil {
+			log.Error("BFT: invalid validator smart contract", "err", err)
+			return nil, err
+		}
+		log.Trace("Fetched validators from smart contract", "validators", validators)
+		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+		snap.ValSet = valSet
+	}
 	snap, err := sb.snapApply(snap, headers)
 	if err != nil {
 		return nil, err

@@ -386,9 +386,6 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 }
 
 func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
-	// TODO: @achraf
-	// 1. check the config
-	// here add the call of the smart contract
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return nil, err
