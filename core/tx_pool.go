@@ -551,7 +551,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 	}
 	// Reject transactions over defined size to prevent DOS attacks
-	if uint64(tx.Size()) > sizeLimit*1024 {
+	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
 	}
 	// End Quorum
@@ -595,6 +595,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		}
 	} else {
 		// Drop non-local transactions under our own minimal accepted gas price
+		local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 		if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
 			return ErrUnderpriced
 		}
