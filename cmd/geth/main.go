@@ -428,6 +428,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		if err := stack.PluginManager().AddAccountPluginToBackend(b); err != nil {
 			log.Error("failed to setup account plugin", "err", err)
 		}
+		log.Info("registered account plugin with account backend")
 	}
 
 	// Unlock any account specifically requested
