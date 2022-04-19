@@ -575,11 +575,6 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		directCount += len(hashes)
 		peer.AsyncSendTransactions(hashes)
 	}
-	for peer, hashes := range txset {
-		directPeers++
-		directCount += len(hashes)
-		peer.AsyncSendTransactions(hashes)
-	}
 	for peer, hashes := range annos {
 		annoPeers++
 		annoCount += len(hashes)

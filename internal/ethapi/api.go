@@ -1639,11 +1639,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
-	// Derive the sender.
-	//bigblock := new(big.Int).SetUint64(blockNumber)
-	//signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
-	//from, _ := types.Sender(signer, tx)
-
 	// Quorum: note that upstream code has been refactored into this method
 	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
 }
