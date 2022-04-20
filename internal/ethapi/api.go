@@ -2239,7 +2239,8 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
 
 	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(encodedTx); err != nil {
+	// if err := tx.UnmarshalBinary(encodedTx); err != nil { // Quorum
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
 
