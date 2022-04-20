@@ -71,7 +71,7 @@ var Defaults = Config{
 	TxLookupLimit:           2350000,
 	LightPeers:              100,
 	UltraLightFraction:      75,
-	DatabaseCache:           512,
+	DatabaseCache:           768,
 	TrieCleanCache:          154,
 	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,

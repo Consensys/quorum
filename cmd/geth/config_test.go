@@ -299,7 +299,7 @@ func TestFlagsConfig(t *testing.T) {
 	assert.Equal(t, false, eth.NoPrefetch)
 	assert.Equal(t, 100, eth.LightPeers)
 	assert.Equal(t, 75, eth.UltraLightFraction)
-	assert.Equal(t, 512, eth.DatabaseCache)
+	assert.Equal(t, 768, eth.DatabaseCache)
 	assert.Equal(t, "", eth.DatabaseFreezer)
 	assert.Equal(t, 256, eth.TrieCleanCache)
 	assert.Equal(t, "triecache", eth.TrieCleanCacheJournal)

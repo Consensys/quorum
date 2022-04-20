@@ -742,11 +742,11 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // and returns them as a JSON object.
 func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
 	tx, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
-	if err != nil {
-		return nil, err
-	}
 	if tx == nil {
 		return nil, fmt.Errorf("transaction %#x not found", hash)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("transaction %#x not found: %w", hash, err)
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {
