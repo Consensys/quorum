@@ -304,12 +304,12 @@ func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) 
 	logs := make(chan []*types.Log)
 	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
-		return "", err
+		return rpc.ID(""), err
 	}
 	crit.PSI = psm.ID
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
 	if err != nil {
-		return "", err
+		return rpc.ID(""), err
 	}
 
 	api.filtersMu.Lock()

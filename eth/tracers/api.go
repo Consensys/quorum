@@ -364,7 +364,7 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 				break
 			}
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
-			if number <= start.NumberU64() {
+			if number <= start.NumberU64() { // Quorum
 				continue
 			}
 			txs := block.Transactions()
