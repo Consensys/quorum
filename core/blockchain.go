@@ -497,15 +497,10 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Quorum
-	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
-		if privateStateRepository == nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
-		if _, err := privateStateRepository.DefaultState(); err != nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
+	if _, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
+		log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+		bc.currentBlock.Store(currentBlock)
+		return bc.Reset()
 	}
 	// /Quorum
 
@@ -644,16 +639,19 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			bc.currentFastBlock.Store(newHeadFastBlock)
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
-		head := bc.CurrentBlock().NumberU64()
+		localHead := head
+		if bc.CurrentBlock() != nil {
+			localHead = bc.CurrentBlock().NumberU64()
+		}
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
 		// between the stateful-block and the sethead target.
 		var wipe bool
-		if head+1 < frozen {
-			wipe = pivot == nil || head >= *pivot
+		if localHead+1 < frozen {
+			wipe = pivot == nil || localHead >= *pivot
 		}
-		return head, wipe // Only force wipe if full synced
+		return localHead, wipe // Only force wipe if full synced
 	}
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db ethdb.KeyValueWriter, hash common.Hash, num uint64) {
@@ -678,7 +676,7 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 	}
 	// If SetHead was only called as a chain reparation method, try to skip
 	// touching the header chain altogether, unless the freezer is broken
-	if block := bc.CurrentBlock(); block.NumberU64() == head {
+	if block := bc.CurrentBlock(); block != nil && block.NumberU64() == head {
 		if target, force := updateFn(bc.db, block.Header()); force {
 			bc.hc.SetHead(target, updateFn, delFn)
 		}
