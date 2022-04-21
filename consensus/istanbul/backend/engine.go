@@ -372,8 +372,10 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				if err != nil {
 					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
 				}
+
 				opts := bind.CallOpts{
 					Pending: false,
+					BlockNumber: new(big.Int).SetUint64(number - 1),
 				}
 				validators, err := validatorContractCaller.GetValidators(&opts)
 
