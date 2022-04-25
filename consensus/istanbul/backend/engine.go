@@ -364,6 +364,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, err
 			}
 
+			var validators []common.Address
 			if sb.config.ValidatorContract != (common.Address{}) {
 				log.Info("Initialising snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
 
@@ -374,34 +375,29 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				}
 
 				opts := bind.CallOpts{
-					Pending: false,
-					BlockNumber: new(big.Int).SetUint64(number - 1),
+					Pending:     false,
+					BlockNumber: big.NewInt(0),
 				}
-				validators, err := validatorContractCaller.GetValidators(&opts)
-
+				validators, err = validatorContractCaller.GetValidators(&opts)
 				if err != nil {
 					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
 					return nil, err
 				}
-				snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
-				if err := sb.storeSnap(snap); err != nil {
-					return nil, err
-				}
-				break
 			} else {
 				// Get the validators from genesis to create a snapshot
-				validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
+				var err error
+				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
 				if err != nil {
 					sb.logger.Error("BFT: invalid genesis block", "err", err)
 					return nil, err
 				}
-
-				snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
-				if err := sb.storeSnap(snap); err != nil {
-					return nil, err
-				}
-				break
 			}
+
+			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
+			if err := sb.storeSnap(snap); err != nil {
+				return nil, err
+			}
+			break
 		}
 
 		// No snapshot for this header, gather the header and move backward
@@ -440,7 +436,10 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
 			return nil, err
 		}
-		opts := bind.CallOpts{Pending: false}
+		opts := bind.CallOpts{
+			Pending:     false,
+			BlockNumber: new(big.Int).SetUint64(number),
+		}
 		validators, err := validatorContractCaller.GetValidators(&opts)
 
 		if err != nil {
