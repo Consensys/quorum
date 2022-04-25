@@ -626,15 +626,13 @@ var (
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 
 	blockReward := big.NewInt(0)
-	if !config.IsQuorum { //disable block reward for Quorum
-		// Select the correct block reward based on chain progression
-		blockReward = FrontierBlockReward
-		if config.IsByzantium(header.Number) {
-			blockReward = ByzantiumBlockReward
-		}
-		if config.IsConstantinople(header.Number) {
-			blockReward = ConstantinopleBlockReward
-		}
+	// Select the correct block reward based on chain progression
+	blockReward = FrontierBlockReward
+	if config.IsByzantium(header.Number) {
+		blockReward = ByzantiumBlockReward
+	}
+	if config.IsConstantinople(header.Number) {
+		blockReward = ConstantinopleBlockReward
 	}
 
 	// Accumulate the rewards for the miner and any included uncles
