@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Genesis hashes to enforce below configs on.
@@ -430,6 +431,7 @@ type Transition struct {
 	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
 	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
 	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
 }
 
 // String implements the fmt.Stringer interface.
@@ -566,6 +568,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	maxCodeSize := MaxCodeSize
 
 	if len(c.MaxCodeSizeConfig) > 0 {
+		log.Warn("WARNING: The attribute config.maxCodeSizeConfig is deprecated and will be removed in the future, please use config.transitions.contractsizelimit on genesis file")
 		for _, data := range c.MaxCodeSizeConfig {
 			if data.Block.Cmp(num) > 0 {
 				break
@@ -579,6 +582,13 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 			}
 		} else {
 			maxCodeSize = int(c.MaxCodeSize) * 1024
+		}
+	}
+	if len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].ContractSizeLimit != 0 {
+				maxCodeSize = int(c.Transitions[i].ContractSizeLimit) * 1024
+			}
 		}
 	}
 	return maxCodeSize
@@ -624,6 +634,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
 			return ErrTestQBFTBlockAndTransitions
 		}
+		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
+			return ErrMaxCodeSizeConfigAndTransitions
+		}
 		if transition.Algorithm == QBFT {
 			isQBFT = true
 		}
@@ -635,6 +648,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		}
 		if transition.Algorithm == IBFT && isQBFT {
 			return ErrTransition
+		}
+		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
+			return ErrContractSizeLimit
 		}
 		prevBlock = transition.Block
 	}
@@ -754,6 +770,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].EpochLength != c2.Transitions[i].EpochLength {
 			return ErrTransitionIncompatible("EpochLength"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
+			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
 		}
 	}
 
