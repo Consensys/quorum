@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager/proto"
+	"github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go/proto"
 )
 
 type PluginGateway struct {

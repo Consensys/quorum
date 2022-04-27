@@ -1,33 +1,33 @@
 package qlight
 
 import (
-	//"context"
+	"context"
 	"testing"
 
+	"github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go/mock_proto"
+	"github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go/proto"
 	"github.com/golang/mock/gomock"
-	//"github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager/proto"
-	//"github.com/golang/mock/gomock"
-	//"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPluginPingPong_Ping(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	/*req := &proto.PluginHelloWorld_Request{
-		Msg: "arbitrary msg",
+	req := &proto.TokenRefresh_Request{
+		CurrentToken: "arbitrary msg",
+		Psi:          "psi",
 	}
-	mockClient := mock_proto.NewMockPluginGreetingClient(ctrl)
+	mockClient := mock_proto.NewMockPluginQLightTokenRefresherClient(ctrl)
 	mockClient.
 		EXPECT().
-		Greeting(gomock.Any(), gomock.Eq(req)).
-		Return(&proto.PluginHelloWorld_Response{
-			Msg: "arbitrary response",
+		TokenRefresh(gomock.Any(), gomock.Eq(req)).
+		Return(&proto.TokenRefresh_Response{
+			Token: "new token",
 		}, nil)
 	testObject := &PluginGateway{client: mockClient}
 
-	resp, err := testObject.Greeting(context.Background(), "arbitrary msg")
+	resp, err := testObject.TokenRefresh(context.Background(), "arbitrary msg", "psi")
 
 	assert.NoError(t, err)
-	assert.Equal(t, "arbitrary response", resp)
-	*/
+	assert.Equal(t, "new token", resp)
 }

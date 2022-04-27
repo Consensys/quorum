@@ -3,7 +3,7 @@ package qlight
 import (
 	"context"
 
-	"github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager/proto"
+	"github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go/proto"
 	iplugin "github.com/ethereum/go-ethereum/internal/plugin"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"

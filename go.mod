@@ -10,9 +10,9 @@ replace github.com/coreos/etcd => github.com/Consensys/etcd v3.3.13-quorum197+in
 require (
 	github.com/Azure/azure-storage-blob-go v0.7.0
 	github.com/BurntSushi/toml v0.3.1
+	github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go v0.0.0-20220427130631-ecd75caa6e73
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/aws/aws-sdk-go v1.25.48
-	github.com/baptiste-b-pegasys/quorum-plugin-qlight-token-manager v0.0.0-20220426133706-3b9390db12f7
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9
@@ -30,7 +30,7 @@ require (
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff
 	github.com/go-stack/stack v1.8.1
-	github.com/golang/mock v1.4.3
+	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
@@ -69,10 +69,10 @@ require (
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/sys v0.0.0-20220403205710-6acee93ad0eb
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	golang.org/x/text v0.3.7
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/grpc v1.45.0
+	google.golang.org/grpc v1.46.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
 	gopkg.in/karalabe/cookiejar.v2 v2.0.0-20150724131613-8dcd6a7f4951
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
