@@ -99,7 +99,9 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64) (statedb *s
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if err := statedb.Reset(root); err != nil {
+		err = statedb.Reset(root)
+		// statedb, err = state.New(root, database, nil) // Quorum
+		if err != nil {
 			return nil, nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 

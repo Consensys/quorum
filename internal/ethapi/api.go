@@ -1647,18 +1647,19 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 // Common code extracted from GetTransactionReceipt() to enable reuse
 func getTransactionReceiptCommonCode(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, hash common.Hash, index uint64, receipt *types.Receipt) (map[string]interface{}, error) {
 	fields := map[string]interface{}{
-		"blockHash":                  blockHash,
-		"blockNumber":                hexutil.Uint64(blockNumber),
-		"transactionHash":            hash,
-		"transactionIndex":           hexutil.Uint64(index),
-		"from":                       tx.From(),
-		"to":                         tx.To(),
-		"gasUsed":                    hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed":          hexutil.Uint64(receipt.CumulativeGasUsed),
-		"contractAddress":            nil,
-		"logs":                       receipt.Logs,
-		"logsBloom":                  receipt.Bloom,
-		"type":                       hexutil.Uint(tx.Type()),
+		"blockHash":         blockHash,
+		"blockNumber":       hexutil.Uint64(blockNumber),
+		"transactionHash":   hash,
+		"transactionIndex":  hexutil.Uint64(index),
+		"from":              tx.From(),
+		"to":                tx.To(),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":   nil,
+		"logs":              receipt.Logs,
+		"logsBloom":         receipt.Bloom,
+		"type":              hexutil.Uint(tx.Type()),
+		// Quorum
 		"isPrivacyMarkerTransaction": tx.IsPrivacyMarker(),
 	}
 
@@ -1867,7 +1868,7 @@ func (args *PrivateTxArgs) SetRawTransactionPrivateFrom(ctx context.Context, b B
 	return nil
 }
 
-// setDefaults is a helper function that fills in default values for unspecified tx fields.
+// setDefaults fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.GasPrice == nil {
 		price, err := b.SuggestPrice(ctx)
@@ -2032,6 +2033,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
+
 	if tx.To() == nil {
 		addr := crypto.CreateAddress(from, tx.Nonce())
 		log.Info("Submitted contract creation", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "contract", addr.Hex(), "value", tx.Value())
@@ -2237,6 +2239,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
 
 	tx := new(types.Transaction)
+	// if err := tx.UnmarshalBinary(encodedTx); err != nil { // Quorum
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
