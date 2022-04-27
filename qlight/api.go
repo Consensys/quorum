@@ -33,5 +33,9 @@ func (p *PrivateQLightAPI) SetCurrentToken(token string) {
 }
 
 func (p *PrivateQLightAPI) GetCurrentToken() string {
-	return p.tokenHolder.GetCurrentToken()
+	return p.tokenHolder.CurrentToken()
+}
+
+func (p *PrivateQLightAPI) ReloadPlugin() error {
+	return p.tokenHolder.ReloadPlugin()
 }

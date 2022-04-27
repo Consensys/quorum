@@ -4,6 +4,7 @@ import "context"
 
 type PluginTokenManager interface {
 	TokenRefresh(ctx context.Context, currentToken, psi string) (string, error)
+	PluginTokenManager(ctx context.Context) (int32, error)
 }
 
 type PluginTokenManagerDeferFunc func() (PluginTokenManager, error)
@@ -18,4 +19,12 @@ func (d *ReloadablePluginTokenManager) TokenRefresh(ctx context.Context, current
 		return "", err
 	}
 	return p.TokenRefresh(ctx, currentToken, psi)
+}
+
+func (d *ReloadablePluginTokenManager) PluginTokenManager(ctx context.Context) (int32, error) {
+	p, err := d.DeferFunc()
+	if err != nil {
+		return 0, err
+	}
+	return p.PluginTokenManager(ctx)
 }
