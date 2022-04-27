@@ -848,5 +848,9 @@ func (s *Ethereum) NotifyRegisteredPluginService(pluginManager *plugin.PluginMan
 	if s.qlightTokenHolder == nil {
 		return nil
 	}
-	return s.qlightTokenHolder.RefreshPlugin(pluginManager)
+	switch s.config.QuorumLightClient.TokenManagement {
+	case "client-security-plugin":
+		return s.qlightTokenHolder.RefreshPlugin(pluginManager)
+	}
+	return nil
 }
