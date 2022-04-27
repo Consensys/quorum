@@ -334,7 +334,7 @@ func (sb *Backend) storeSnap(snap *Snapshot) error {
 
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
-
+	targetBlockHeight := number
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -426,7 +426,13 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
 
-	validatorContract := sb.config.GetValidatorContractAddress(new(big.Int).SetUint64(number))
+	snap, err := sb.snapApply(snap, headers)
+	if err != nil {
+		return nil, err
+	}
+	sb.recents.Add(snap.Hash, snap)
+
+	validatorContract := sb.config.GetValidatorContractAddress(new(big.Int).SetUint64(targetBlockHeight))
 	if validatorContract != (common.Address{}) {
 		log.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
 
@@ -438,7 +444,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		}
 		opts := bind.CallOpts{
 			Pending:     false,
-			BlockNumber: new(big.Int).SetUint64(number),
+			BlockNumber: new(big.Int).SetUint64(targetBlockHeight),
 		}
 		validators, err := validatorContractCaller.GetValidators(&opts)
 
@@ -450,11 +456,6 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
 	}
-	snap, err := sb.snapApply(snap, headers)
-	if err != nil {
-		return nil, err
-	}
-	sb.recents.Add(snap.Hash, snap)
 
 	// If we've generated a new checkpoint snapshot, save to disk
 	if snap.Number%checkpointInterval == 0 && len(headers) > 0 {
