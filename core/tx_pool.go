@@ -550,7 +550,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if sizeLimit == 0 {
 		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 	}
-	// Reject transactions over 64KB (or manually set limit) to prevent DOS attacks
+	// Reject transactions over defined size to prevent DOS attacks
 	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
 	}

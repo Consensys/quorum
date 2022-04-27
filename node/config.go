@@ -203,11 +203,12 @@ type Config struct {
 	oldGethResourceWarning bool
 
 	// AllowUnprotectedTxs allows non EIP-155 protected transactions to be send over RPC.
-	AllowUnprotectedTxs bool             `toml:",omitempty"`
-	Plugins             *plugin.Settings `toml:",omitempty"`
-	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
-	EnableNodePermission bool `toml:",omitempty"`
-	EnableMultitenancy   bool `toml:",omitempty"` // comes from MultitenancyFlag flag
+	AllowUnprotectedTxs bool `toml:",omitempty"`
+
+	// Quorum
+	Plugins              *plugin.Settings `toml:",omitempty"`
+	EnableNodePermission bool             `toml:",omitempty"` // comes from EnableNodePermissionFlag --permissioned.
+	EnableMultitenancy   bool             `toml:",omitempty"` // comes from MultitenancyFlag flag
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into

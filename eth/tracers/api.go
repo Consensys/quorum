@@ -77,7 +77,7 @@ type Backend interface {
 	GetBlockchain() *core.BlockChain
 }
 
-// API is the collection of tracing APIs statedb exposed over the private debugging endpoint.
+// API is the collection of tracing APIs exposed over the private debugging endpoint.
 type API struct {
 	backend Backend
 }
@@ -202,10 +202,11 @@ type txTraceResult struct {
 // blockTraceTask represents a single block trace task when an entire chain is
 // being traced.
 type blockTraceTask struct {
-	statedb        *state.StateDB   // Intermediate state prepped for tracing
-	privateStateDb *state.StateDB   // Quorum
-	block          *types.Block     // Block to trace the transactions from
-	results        []*txTraceResult // Trace results procudes by the task
+	statedb *state.StateDB   // Intermediate state prepped for tracing
+	block   *types.Block     // Block to trace the transactions from
+	results []*txTraceResult // Trace results procudes by the task
+	// Quorum
+	privateStateDb *state.StateDB
 }
 
 // blockTraceResult represets the results of tracing a single block when an entire
@@ -219,9 +220,10 @@ type blockTraceResult struct {
 // txTraceTask represents a single transaction trace task when an entire block
 // is being traced.
 type txTraceTask struct {
-	statedb        *state.StateDB // Intermediate state prepped for tracing
+	statedb *state.StateDB // Intermediate state prepped for tracing
+	index   int            // Transaction offset in the block
+	// Quorum
 	privateStateDb *state.StateDB
-	index          int // Transaction offset in the block
 }
 
 // TraceChain returns the structured logs created during the execution of EVM
@@ -362,22 +364,21 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 				break
 			}
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
-			if number > start.NumberU64() {
-				txs := block.Transactions()
-				privateState, err := privateStateRepos[0].StatePSI(psm.ID)
-				if err != nil {
-					failed = err
-					break
-				}
-				select {
-				case tasks <- &blockTraceTask{statedb: states[int(number-start.NumberU64()-1)], privateStateDb: privateState.Copy(), block: block, results: make([]*txTraceResult, len(txs))}:
-				case <-notifier.Closed():
-					return
-				}
-				traced += uint64(len(txs))
+			if number <= start.NumberU64() { // Quorum
+				continue
 			}
-
-			// TODO(karalabe): Do we need the preimages? Won't they accumulate too much?
+			txs := block.Transactions()
+			privateState, err := privateStateRepos[0].StatePSI(psm.ID)
+			if err != nil {
+				failed = err
+				break
+			}
+			select {
+			case tasks <- &blockTraceTask{statedb: states[int(number-start.NumberU64()-1)], privateStateDb: privateState.Copy(), block: block, results: make([]*txTraceResult, len(txs))}:
+			case <-notifier.Closed():
+				return
+			}
+			traced += uint64(len(txs))
 		}
 	}()
 

@@ -203,9 +203,8 @@ func TestGraphQL_BadRequest(t *testing.T) {
 	body := strings.NewReader("{\"query\": \"{bleh{number}}\",\"variables\": null}")
 	gqlReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/graphql", stack.HTTPEndpoint()), body)
 	if err != nil {
-		t.Error("could not issue new http request ", err)
+		t.Fatalf("could not post: %v", err)
 	}
-	gqlReq.Header.Set("Content-Type", "application/json")
 	// read from response
 	resp := doHTTPRequest(t, gqlReq)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
