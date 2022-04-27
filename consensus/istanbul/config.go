@@ -126,6 +126,7 @@ type Config struct {
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	EmptyBlock             *bool           `toml:",omitempty"` // Generate empty block (true by default)
 	Transitions            []params.Transition
 }
 
@@ -164,6 +165,20 @@ func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 		}
 	}
 	return false
+}
+
+// EmptyBlockGeneration checks if qbft consensus will generate empty block
+func (c *Config) EmptyBlockGeneration(blockNumber *big.Int) bool {
+	emptyBlock := true
+	if c.EmptyBlock != nil {
+		emptyBlock = *c.EmptyBlock
+	}
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].EmptyBlock != nil {
+			emptyBlock = *c.Transitions[i].EmptyBlock
+		}
+	}
+	return emptyBlock
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {

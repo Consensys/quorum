@@ -418,6 +418,7 @@ func (c IBFTConfig) String() string {
 
 type QBFTConfig struct {
 	*BFTConfig
+	EmptyBlock *bool `json:"emptyblock,omitempty"`
 }
 
 func (c QBFTConfig) String() string {
@@ -436,6 +437,7 @@ type Transition struct {
 	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
 	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
 	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	EmptyBlock            *bool    `json:"emptyblock,omitempty"`            // Empty blocks generation if true
 }
 
 // String implements the fmt.Stringer interface.
@@ -622,6 +624,21 @@ func (c *ChainConfig) CheckMaxCodeConfigData() error {
 	}
 
 	return nil
+}
+
+func (c *ChainConfig) EmptyBlock(num *big.Int) bool {
+	emptyBlock := true
+	if c.QBFT != nil && c.QBFT.EmptyBlock != nil {
+		emptyBlock = *c.QBFT.EmptyBlock
+	}
+	if len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].EmptyBlock != nil {
+				emptyBlock = *c.Transitions[i].EmptyBlock
+			}
+		}
+	}
+	return emptyBlock
 }
 
 func (c *ChainConfig) CheckTransitionsData() error {

@@ -2,6 +2,7 @@ package qbftengine
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -360,6 +361,9 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (*types.Block, error) {
+	if !e.cfg.EmptyBlockGeneration(block.Number()) && len(block.Transactions()) == 0 {
+		return block, fmt.Errorf("empty block")
+	}
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, istanbulcommon.ErrUnauthorized
 	}

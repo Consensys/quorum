@@ -126,3 +126,45 @@ func TestIsQBFTConsensusAt(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyBlock(t *testing.T) {
+	vFalse := false
+	vTrue := true
+	config1 := *DefaultConfig
+	config1.EmptyBlock = nil
+	config2 := *DefaultConfig
+	config2.EmptyBlock = &vFalse
+	config3 := *DefaultConfig
+	config3.EmptyBlock = &vTrue
+	config4 := *DefaultConfig
+	config4.EmptyBlock = &vTrue
+	config4.Transitions = []params.Transition{
+		{Block: big.NewInt(5), EmptyBlock: nil},
+		{Block: big.NewInt(10), EmptyBlock: &vFalse},
+	}
+	type test struct {
+		config      Config
+		blockNumber int64
+		emptyBlock  bool
+	}
+	tests := []test{
+		{*DefaultConfig, 0, true},
+		{*DefaultConfig, 10, true},
+		{config1, 0, true},
+		{config1, 10, true},
+		{config2, 0, false},
+		{config2, 10, false},
+		{config3, 0, true},
+		{config3, 10, true},
+		{config4, 0, true},
+		{config4, 9, true},
+		{config4, 10, false},
+		{config4, 11, false},
+	}
+	for idx, test := range tests {
+		emptyBlock := test.config.EmptyBlockGeneration(big.NewInt(test.blockNumber))
+		if !reflect.DeepEqual(emptyBlock, test.emptyBlock) {
+			t.Errorf("error mismatch: test=%d\nexpected: %v\ngot: %v\n", idx, test.emptyBlock, emptyBlock)
+		}
+	}
+}

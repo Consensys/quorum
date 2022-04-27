@@ -328,10 +328,12 @@ func TestCheckTransitionsData(t *testing.T) {
 		wantErr error
 	}
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
-	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50}
-	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50}
-	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50}
-	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50}
+	vFalse := false
+	vTrue := true
+	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50, &vFalse}
+	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50, &vTrue}
+	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50, &vFalse}
+	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50, &vTrue}
 
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
@@ -391,7 +393,7 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockOrder,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50}}},
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50, &vFalse}}},
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
