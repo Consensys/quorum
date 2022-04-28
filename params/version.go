@@ -28,7 +28,7 @@ const (
 
 	QuorumVersionMajor = 22
 	QuorumVersionMinor = 4
-	QuorumVersionPatch = 0
+	QuorumVersionPatch = 1
 )
 
 // Version holds the textual version string.
