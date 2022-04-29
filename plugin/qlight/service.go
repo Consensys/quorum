@@ -7,6 +7,9 @@ type PluginTokenManager interface {
 	PluginTokenManager(ctx context.Context) (int32, error)
 }
 
+//go:generate mockgen -source=service.go -destination service_mockery.go -package qlight
+var _ PluginTokenManager = &MockPluginTokenManager{}
+
 type PluginTokenManagerDeferFunc func() (PluginTokenManager, error)
 
 type ReloadablePluginTokenManager struct {

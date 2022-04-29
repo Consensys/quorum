@@ -289,20 +289,21 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			switch eth.config.QuorumLightClient.TokenManagement {
 			case "client-security-plugin":
 				log.Info("Starting qlight client with auth token enabled without external API and token from argument, plugin has to be provided")
-				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, eth.handler.peers, stack.PluginManager())
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, stack.PluginManager())
 				if err != nil {
 					return nil, fmt.Errorf("new token holder: %w", err)
 				}
+				eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 			case "none":
 				log.Warn("Starting qlight client with auth token enabled but without a token management strategy. This is for development purposes only.")
-				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil, nil)
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil)
 				if err != nil {
 					return nil, fmt.Errorf("new token holder: %w", err)
 				}
 				eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 			case "external":
 				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
-				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil, nil)
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil)
 				if err != nil {
 					return nil, fmt.Errorf("new token holder: %w", err)
 				}
@@ -330,6 +331,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			tokenHolder:        eth.qlightTokenHolder,
 		}); err != nil {
 			return nil, err
+		}
+		if eth.qlightTokenHolder != nil {
+			eth.qlightTokenHolder.SetPeerUpdater(eth.handler.peers)
 		}
 		eth.blockchain.SetPrivateStateRootHashValidator(clientCache)
 	} else {

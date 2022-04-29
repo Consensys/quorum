@@ -20,10 +20,12 @@ type TokenHolder struct {
 	plugin              qlightplugin.PluginTokenManager
 	pluginManager       *plugin.PluginManager
 	peerUpdater         RunningPeerAuthUpdater
+	timer               *time.Timer
+	cancelTimer         func()
 }
 
-func NewTokenHolder(psi string, peerUpdater RunningPeerAuthUpdater, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
-	plugin, err := getPlugin(pluginManager)
+func NewTokenHolder(psi string, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
+	plugin, err := getPlugin(pluginManager, new(plugin.QLightTokenManagerPluginTemplate))
 	if err != nil {
 		return nil, fmt.Errorf("get plugin: %w", err)
 	}
@@ -34,11 +36,11 @@ func NewTokenHolder(psi string, peerUpdater RunningPeerAuthUpdater, pluginManage
 			return nil, fmt.Errorf("fetch refresh anticipation value: %w", err)
 		}
 	}
-	return NewTokenHolderWithPlugin(psi, refreshAnticipation, peerUpdater, plugin, pluginManager), nil
+	return NewTokenHolderWithPlugin(psi, refreshAnticipation, plugin, pluginManager), nil
 }
 
-func getPlugin(pluginManager *plugin.PluginManager) (plugin qlightplugin.PluginTokenManager, err error) {
-	pluginTemplate, err := tokenManager(pluginManager)
+func getPlugin(pluginManager plugin.PluginManagerInterface, pluginTemplate plugin.QLightTokenManagerPluginTemplateInterface) (plugin qlightplugin.PluginTokenManager, err error) {
+	pluginTemplate, err = tokenManager(pluginManager, pluginTemplate)
 	if err != nil {
 		return
 	}
@@ -52,18 +54,28 @@ func getPlugin(pluginManager *plugin.PluginManager) (plugin qlightplugin.PluginT
 	return
 }
 
-func NewTokenHolderWithPlugin(psi string, refreshAnticipation int32, peerUpdater RunningPeerAuthUpdater, plugin qlightplugin.PluginTokenManager, pluginManager *plugin.PluginManager) *TokenHolder {
+func NewTokenHolderWithPlugin(psi string, refreshAnticipation int32, plugin qlightplugin.PluginTokenManager, pluginManager *plugin.PluginManager) *TokenHolder {
 	return &TokenHolder{
 		psi:                 psi,
 		plugin:              plugin,
 		pluginManager:       pluginManager,
-		peerUpdater:         peerUpdater,
 		refreshAnticipation: refreshAnticipation,
 	}
 }
 
-func (h *TokenHolder) RefreshPlugin(pluginManager *plugin.PluginManager) (err error) {
-	h.plugin, err = getPlugin(pluginManager)
+func (h *TokenHolder) SetPeerUpdater(peerUpdater RunningPeerAuthUpdater) {
+	if h == nil || peerUpdater == nil {
+		return
+	}
+	h.peerUpdater = peerUpdater
+}
+
+func (h *TokenHolder) RefreshPlugin(pluginManager plugin.PluginManagerInterface) error {
+	return h.refreshPlugin(pluginManager, new(plugin.QLightTokenManagerPluginTemplate))
+}
+
+func (h *TokenHolder) refreshPlugin(pluginManager plugin.PluginManagerInterface, template plugin.QLightTokenManagerPluginTemplateInterface) (err error) {
+	h.plugin, err = getPlugin(pluginManager, template)
 	if err != nil {
 		return
 	}
@@ -75,6 +87,7 @@ func (h *TokenHolder) RefreshPlugin(pluginManager *plugin.PluginManager) (err er
 		}
 	}
 	h.refreshAnticipation = refreshAnticipation
+	err = h.updateTimer()
 	return
 }
 
@@ -88,7 +101,7 @@ func (h *TokenHolder) HttpCredentialsProvider(ctx context.Context) (string, erro
 }
 
 func (h *TokenHolder) ReloadPlugin() error {
-	plugin, err := getPlugin(h.pluginManager)
+	plugin, err := getPlugin(h.pluginManager, new(plugin.QLightTokenManagerPluginTemplate))
 	if err != nil {
 		return err
 	}
@@ -98,7 +111,7 @@ func (h *TokenHolder) ReloadPlugin() error {
 	}
 	h.plugin = plugin
 	h.refreshAnticipation = refreshAnticipation
-	return nil
+	return h.updateTimer()
 }
 
 func (h *TokenHolder) CurrentToken() string {
@@ -129,32 +142,84 @@ func (h *TokenHolder) CurrentToken() string {
 			}
 		}
 		h.token = returnedToken
+		err = h.updateTimer()
+		if err != nil {
+			log.Warn("update token timer", "err", err)
+		}
 	}
 	return h.token
+}
+
+// updateTimer updates the expiration timer that will trigger automatically a token refreshment
+func (h *TokenHolder) updateTimer() error {
+	if h == nil && h.plugin == nil {
+		return nil
+	}
+	expireIn, err := h.tokenExpirationDelay()
+	if err != nil {
+		return err
+	}
+	if expireIn <= 0 { // automatic refresh one second after if already expired
+		expireIn = time.Second
+	}
+	if h.timer != nil {
+		h.cancelTimer()
+		if !h.timer.Stop() {
+			<-h.timer.C
+		}
+		h.timer.Reset(expireIn)
+	} else {
+		h.timer = time.NewTimer(expireIn)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-h.timer.C:
+			log.Debug("refresh token timer triggered")
+			h.CurrentToken()
+		}
+	}()
+	h.cancelTimer = cancel
+	return nil
 }
 
 type JWT struct {
 	ExpireAt int64 `json:"exp"`
 }
 
-func (h *TokenHolder) tokenExpired() (bool, error) {
+func (h *TokenHolder) tokenExpirationDelay() (time.Duration, error) {
+	if len(h.token) == 0 {
+		return 0, nil
+	}
 	token := h.token
 	idx := strings.Index(token, " ")
 	if idx >= 0 {
 		token = token[idx+1:]
 	}
 	split := strings.Split(token, ".")
+	if len(split) <= 1 {
+		return 0, nil
+	}
 	data, err := base64.RawStdEncoding.DecodeString(split[1])
 	if err != nil {
-		return false, fmt.Errorf("decode Base64: %w", err)
+		return 0, fmt.Errorf("decode Base64: %w", err)
 	}
 	jwt := &JWT{}
 	err = json.Unmarshal(data, jwt)
 	if err != nil {
-		return false, fmt.Errorf("unmarshal JSON: %w", err)
+		return 0, fmt.Errorf("unmarshal JSON: %w", err)
 	}
 	expireAt := time.Unix(jwt.ExpireAt, 0)
-	return time.Since(expireAt) >= -time.Duration(h.refreshAnticipation)*time.Millisecond, nil
+	return -time.Since(expireAt), nil // transform negative value to positive as expiration date is in future and time.Since measure in the past
+}
+
+func (h *TokenHolder) tokenExpired() (bool, error) {
+	expireIn, err := h.tokenExpirationDelay()
+	if err != nil {
+		return false, err
+	}
+	return expireIn < time.Duration(h.refreshAnticipation)*time.Millisecond, nil
 }
 
 func (h *TokenHolder) SetCurrentToken(v string) {
@@ -165,13 +230,14 @@ func (h *TokenHolder) SetExpirationAnticipation(v int32) {
 	h.refreshAnticipation = v
 }
 
-func tokenManager(pluginManager *plugin.PluginManager) (tmp *plugin.QLightTokenManagerPluginTemplate, err error) {
+func tokenManager(pluginManager plugin.PluginManagerInterface, template plugin.QLightTokenManagerPluginTemplateInterface) (plugin.QLightTokenManagerPluginTemplateInterface, error) {
 	name := plugin.QLightTokenManagerPluginInterfaceName
 	if pluginManager.IsEnabled(name) {
-		tmp = new(plugin.QLightTokenManagerPluginTemplate)
-		err = pluginManager.GetPluginTemplate(name, tmp)
-		return
+		managedPlugin := template.ManagedPlugin()
+		log.Warn("template plugin", "tmp", template, "managed", managedPlugin)
+		err := pluginManager.GetPluginTemplate(name, managedPlugin)
+		return template, err
 	}
 	log.Info("Token Manager Plugin is not enabled")
-	return
+	return nil, nil
 }

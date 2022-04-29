@@ -113,3 +113,18 @@ func (p *QLightTokenManagerPluginTemplate) Get() (qlight.PluginTokenManager, err
 		},
 	}, nil
 }
+
+func (p *QLightTokenManagerPluginTemplate) ManagedPlugin() managedPlugin {
+	return p
+}
+
+type QLightTokenManagerPluginTemplateInterface interface {
+	Get() (qlight.PluginTokenManager, error)
+	Start() (err error)
+	Stop() (err error)
+	ManagedPlugin() managedPlugin
+}
+
+//go:generate mockgen -source=plugin_templates.go -destination plugin_templates_mockery.go -package plugin
+var _ QLightTokenManagerPluginTemplateInterface = &QLightTokenManagerPluginTemplate{}
+var _ QLightTokenManagerPluginTemplateInterface = &MockQLightTokenManagerPluginTemplateInterface{}
