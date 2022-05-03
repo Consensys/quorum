@@ -47,8 +47,16 @@ func (pm *ProtocolManager) replayWAL(maybeRaftSnapshot *raftpb.Snapshot) (*wal.W
 		fatalf("failed to read WAL: %s", err)
 	}
 
-	pm.raftStorage.SetHardState(hardState)
-	pm.raftStorage.Append(entries)
+	// filter empty entries
+	newEntries := make([]raftpb.Entry, 0, len(entries))
+	for i := range entries {
+		if len(entries[i].Data) > 0 {
+			newEntries = append(newEntries, entries[i])
+		}
+	}
 
-	return wal, entries
+	pm.raftStorage.SetHardState(hardState)
+	pm.raftStorage.Append(newEntries)
+
+	return wal, newEntries
 }
