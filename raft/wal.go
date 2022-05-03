@@ -47,11 +47,12 @@ func (pm *ProtocolManager) replayWAL(maybeRaftSnapshot *raftpb.Snapshot) (*wal.W
 		fatalf("failed to read WAL: %s", err)
 	}
 
-	// filter empty entries
+	// trim first empty entries
 	newEntries := make([]raftpb.Entry, 0, len(entries))
 	for i := range entries {
-		if len(entries[i].Data) > 0 {
-			newEntries = append(newEntries, entries[i])
+		if len(entries[i].Data) > 0 { // find 1st non empty entry, append everything from this entry
+			newEntries = append(newEntries, entries[i:]...)
+			break
 		}
 	}
 

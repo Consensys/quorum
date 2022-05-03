@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -487,7 +488,10 @@ func (pm *ProtocolManager) startRaft() {
 			for _, entry := range entries {
 				if entry.Type == raftpb.EntryNormal {
 					var block types.Block
-					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
+					if err := rlp.DecodeBytes(entry.Data, &block); err == io.EOF {
+						log.Warn("empty entry from raft")
+						continue
+					} else if err != nil {
 						log.Error("error decoding block: ", "err", err)
 						continue
 					}
