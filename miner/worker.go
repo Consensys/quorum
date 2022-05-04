@@ -594,7 +594,7 @@ func (w *worker) taskLoop() {
 			w.pendingTasks[sealHash] = task
 			w.pendingMu.Unlock()
 
-			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil && err.Error() != "empty block" {
 				log.Warn("Block sealing failed", "err", err)
 			}
 		case <-w.exitCh:
