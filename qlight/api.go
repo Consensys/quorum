@@ -18,9 +18,6 @@ func NewPrivateQLightAPI(peerUpdater RunningPeerAuthUpdater, rpcClient *rpc.Clie
 }
 
 func (p *PrivateQLightAPI) SetCurrentToken(token string) {
-	if token == p.GetCurrentToken() {
-		return
-	}
 	p.tokenHolder.SetCurrentToken(token)
 	p.peerUpdater.UpdateTokenForRunningQPeers(token)
 	if p.rpcClient != nil {
