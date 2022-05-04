@@ -439,8 +439,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
 		if err != nil {
-			log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
-			return nil, err
+			return nil, fmt.Errorf("BFT: invalid smart contract in genesis alloc: %w", err)
 		}
 		opts := bind.CallOpts{
 			Pending:     false,
