@@ -451,7 +451,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			log.Error("BFT: invalid validator smart contract", "err", err)
 			return nil, err
 		}
-		log.Trace("Fetched validators from smart contract", "validators", validators)
+		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
 	}
