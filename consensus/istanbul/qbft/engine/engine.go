@@ -321,11 +321,19 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	// add validators in snapshot to extraData's validators section
-	return ApplyHeaderQBFTExtra(
-		header,
-		WriteValidators(validator.SortedAddresses(validators.List())),
-	)
+	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number-1))
+	if validatorContract != (common.Address{}) {
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators([]common.Address{}),
+		)
+	} else {
+		// add validators in snapshot to extraData's validators section
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators(validator.SortedAddresses(validators.List())),
+		)
+	}
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
@@ -385,6 +393,7 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return new(big.Int)
 }
 
+//only used on genesis
 func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
