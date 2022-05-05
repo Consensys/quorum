@@ -321,7 +321,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number-1))
+	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
 	if validatorContract != (common.Address{}) {
 		return ApplyHeaderQBFTExtra(
 			header,
