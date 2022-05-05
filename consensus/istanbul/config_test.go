@@ -52,8 +52,8 @@ func TestGetConfig(t *testing.T) {
 		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
 	}
 
-	config := &DefaultConfig
-	(*config).Transitions = []params.Transition{{
+	config := *DefaultConfig
+	config.Transitions = []params.Transition{{
 		Block:       big.NewInt(1),
 		EpochLength: 40000,
 	}, {
