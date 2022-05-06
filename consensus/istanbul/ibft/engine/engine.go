@@ -276,17 +276,27 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// use the same difficulty for all blocks
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 
-	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()))
-	if err != nil {
-		return err
-	}
-	header.Extra = extra
-
 	// set header's timestamp
 	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
 	if header.Time < uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
+	}
+
+	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number-1))
+	if validatorContract != (common.Address{}) {
+		extra, err := prepareExtra(header, []common.Address{})
+		if err != nil {
+			return err
+		}
+		header.Extra = extra
+	} else {
+
+		// add validators in snapshot to extraData's validators section
+		extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()))
+		if err != nil {
+			return err
+		}
+		header.Extra = extra
 	}
 
 	return nil
@@ -380,7 +390,7 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return new(big.Int)
 }
 
-func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
+func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
 		return nil, err

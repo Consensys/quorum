@@ -386,7 +386,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			} else {
 				// Get the validators from genesis to create a snapshot
 				var err error
-				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
+				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
 				if err != nil {
 					sb.logger.Error("BFT: invalid genesis block", "err", err)
 					return nil, err
