@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -743,6 +744,12 @@ func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) er
 	// Handle incoming messages until the connection is torn down
 	for {
 		if err := h.handleConsensus(p, protoRW); err != nil {
+			// allow the P2P connection to remain active during sync (when the engine is stopped)
+			if errors.Is(err, istanbul.ErrStoppedEngine) && h.downloader.Synchronising() {
+				// should this be warn or debug
+				p.Log().Warn("Ignoring `stopped engine` consensus error due to active sync.")
+				continue
+			}
 			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
 			return err
 		}
