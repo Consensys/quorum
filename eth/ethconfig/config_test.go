@@ -19,7 +19,7 @@ func TestSetBFT(t *testing.T) {
 	setBFTConfig(config, bftConfig)
 	assert.Equal(t, config.Ceil2Nby3Block, bftConfig.Ceil2Nby3Block)
 	assert.Equal(t, config.Epoch, bftConfig.EpochLength)
-	assert.Equal(t, config.RequestTimeout, bftConfig.RequestTimeoutSeconds)
+	assert.Equal(t, config.RequestTimeout, bftConfig.RequestTimeoutSeconds*1000)
 	assert.Equal(t, config.BlockPeriod, istanbul.DefaultConfig.BlockPeriod)
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 }
