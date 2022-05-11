@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -334,7 +335,7 @@ func (sb *Backend) storeSnap(snap *Snapshot) error {
 
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
-	targetBlockHeight := number
+	targetBlockHeight := new(big.Int).SetUint64(number)
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -365,7 +366,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			}
 
 			var validators []common.Address
-			if sb.config.ValidatorContract != (common.Address{}) {
+			if sb.config.ValidatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
 				sb.logger.Info("Initialising snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
 
 				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.ValidatorContract, sb.config.Client)
@@ -432,8 +433,8 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	}
 	sb.recents.Add(snap.Hash, snap)
 
-	validatorContract := sb.config.GetValidatorContractAddress(new(big.Int).SetUint64(targetBlockHeight))
-	if validatorContract != (common.Address{}) {
+	validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
+	if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
 		sb.logger.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
 
 		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
@@ -443,7 +444,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		}
 		opts := bind.CallOpts{
 			Pending:     false,
-			BlockNumber: new(big.Int).SetUint64(targetBlockHeight),
+			BlockNumber: targetBlockHeight,
 		}
 		validators, err := validatorContractCaller.GetValidators(&opts)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
@@ -282,8 +283,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number-1))
-	if validatorContract != (common.Address{}) {
+	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(big.NewInt(0).SetUint64(number-1)) == params.ContractMode {
 		extra, err := prepareExtra(header, []common.Address{})
 		if err != nil {
 			return err

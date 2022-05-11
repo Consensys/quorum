@@ -267,6 +267,13 @@ func initGenesis(ctx *cli.Context) error {
 				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.qbft.validatorcontractaddress at the same time")
 			}
 		}
+		if genesis.Config.IBFT != nil && genesis.Config.IBFT.ValidatorContractAddress != (common.Address{}) {
+			istanbulExtra := new(types.IstanbulExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], istanbulExtra)
+			if err != nil || len(istanbulExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.ibft.validatorcontractaddress at the same time")
+			}
+		}
 	}
 	// End Quorum
 

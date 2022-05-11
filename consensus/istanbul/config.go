@@ -195,3 +195,13 @@ func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address
 	}
 	return validatorContractAddress
 }
+
+func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
+	mode := params.BlockHeaderMode
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].ValidatorSelectionMode != "" {
+			mode = c.Transitions[i].ValidatorSelectionMode
+		}
+	}
+	return mode
+}
