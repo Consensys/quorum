@@ -103,6 +103,7 @@ type handlerConfig struct {
 	// client
 	psi                string
 	privateClientCache qlight.PrivateClientCache
+	tokenHolder        *qlight.TokenHolder
 	// server
 	authProvider             qlight.AuthProvider
 	privateBlockDataResolver qlight.PrivateBlockDataResolver
@@ -146,8 +147,9 @@ type handler struct {
 	peerWG    sync.WaitGroup
 
 	// Quorum
-	raftMode bool
-	engine   consensus.Engine
+	raftMode    bool
+	engine      consensus.Engine
+	tokenHolder *qlight.TokenHolder
 
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
@@ -180,6 +182,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		quitSync:          make(chan struct{}),
 		raftMode:          config.RaftMode,
 		engine:            config.Engine,
+		tokenHolder:       config.tokenHolder,
 	}
 
 	// Quorum
