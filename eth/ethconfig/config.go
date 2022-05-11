@@ -57,7 +57,9 @@ var LightClientGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode: downloader.FastSync,
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	SyncMode: downloader.FullSync,
+	// End Quorum
 	Ethash: ethash.Config{
 		CacheDir:         "ethash",
 		CachesInMem:      2,
