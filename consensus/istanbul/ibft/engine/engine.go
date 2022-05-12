@@ -283,22 +283,20 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
-	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(big.NewInt(0).SetUint64(number-1)) == params.ContractMode {
-		extra, err := prepareExtra(header, []common.Address{})
-		if err != nil {
-			return err
-		}
-		header.Extra = extra
+	num := big.NewInt(0).SetUint64(number - 1)
+	validatorContract := e.cfg.GetValidatorContractAddress(num)
+	var addresses []common.Address
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(num) == params.ContractMode {
+		addresses = []common.Address{}
 	} else {
-
 		// add validators in snapshot to extraData's validators section
-		extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()))
-		if err != nil {
-			return err
-		}
-		header.Extra = extra
+		addresses = validator.SortedAddresses(validators.List())
 	}
+	extra, err := prepareExtra(header, addresses)
+	if err != nil {
+		return err
+	}
+	header.Extra = extra
 
 	return nil
 }
