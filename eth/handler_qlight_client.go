@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -75,6 +74,7 @@ func newQLightClientHandler(config *handlerConfig) (*handler, error) {
 		engine:             config.Engine,
 		psi:                config.psi,
 		privateClientCache: config.privateClientCache,
+		tokenHolder:        config.tokenHolder,
 	}
 
 	if config.Sync == downloader.FullSync {
@@ -200,7 +200,7 @@ func (h *handler) runQLightClientPeer(peer *qlightproto.Peer, handler qlightprot
 	}
 
 	log.Info("QLight attempting handshake")
-	if err := peer.QLightHandshake(false, h.psi, qlight.GetCurrentToken()); err != nil {
+	if err := peer.QLightHandshake(false, h.psi, h.tokenHolder.CurrentToken()); err != nil {
 		peer.Log().Debug("QLight handshake failed", "err", err)
 		log.Info("QLight handshake failed", "err", err)
 
@@ -328,6 +328,9 @@ func (h *handler) StartQLightClient() {
 }
 
 func (h *handler) StopQLightClient() {
+	if h == nil {
+		return
+	}
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
 	close(h.quitSync)

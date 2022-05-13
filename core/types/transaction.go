@@ -87,20 +87,6 @@ type TxData interface {
 	setSignatureValues(chainID, v, r, s *big.Int)
 }
 
-// Quorum
-
-func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
-	return &PrivacyMetadata{
-		PrivacyFlag: privacyFlag,
-	}
-}
-
-func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
-	tx.privacyMetadata = pm
-}
-
-// End Quorum
-
 // EncodeRLP implements rlp.Encoder
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	if tx.Type() == LegacyTxType {
@@ -185,6 +171,19 @@ func (tx *Transaction) UnmarshalBinary(b []byte) error {
 	tx.setDecoded(inner, len(b))
 	return nil
 }
+
+// Quorum
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		PrivacyFlag: privacyFlag,
+	}
+}
+
+func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
+	tx.privacyMetadata = pm
+}
+
+// End Quorum
 
 // decodeTyped decodes a typed transaction from the canonical format.
 func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
@@ -285,6 +284,7 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
+// PrivacyMetadata returns the privacy metadata of the transaction. (Quorum)
 func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
 
 // To returns the recipient address of the transaction.
@@ -322,6 +322,7 @@ func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.inner.gasPrice().Cmp(other)
 }
 
+// From returns the sender address of the transaction. (Quorum)
 func (tx *Transaction) From() common.Address {
 	if from, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err == nil {
 		return from
@@ -369,6 +370,7 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	return &Transaction{inner: cpy, time: tx.time}, nil
 }
 
+// String returns the string representation of the transaction. (Quorum)
 func (tx *Transaction) String() string {
 	var from, to string
 	v, r, s := tx.RawSignatureValues()
@@ -599,7 +601,8 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 		data:       tx.Data(),
 		accessList: tx.AccessList(),
 		checkNonce: true,
-		isPrivate:  tx.IsPrivate(),
+		// Quorum
+		isPrivate: tx.IsPrivate(),
 	}
 
 	var err error

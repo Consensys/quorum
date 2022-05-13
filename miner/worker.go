@@ -744,12 +744,13 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	publicState.StartPrefetcher("miner")
 
 	env := &environment{
-		signer:           types.MakeSigner(w.chainConfig, header.Number),
-		state:            publicState,
-		ancestors:        mapset.NewSet(),
-		family:           mapset.NewSet(),
-		uncles:           mapset.NewSet(),
-		header:           header,
+		signer:    types.MakeSigner(w.chainConfig, header.Number),
+		state:     publicState,
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
+		header:    header,
+		// Quorum
 		privateStateRepo: privateStateRepo,
 	}
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -996,7 +997,6 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	if parent.Time() >= uint64(timestamp) {
 		timestamp = int64(parent.Time() + 1)
 	}
-
 	num := parent.Number()
 	header := &types.Header{
 		ParentHash: parent.Hash(),

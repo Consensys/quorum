@@ -616,7 +616,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
 	}
-	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
+	if evm.currentTx != nil && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
 		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
 			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)

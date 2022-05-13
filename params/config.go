@@ -70,6 +70,7 @@ var (
 		PetersburgBlock:     big.NewInt(7_280_000),
 		IstanbulBlock:       big.NewInt(9_069_000),
 		MuirGlacierBlock:    big.NewInt(9_200_000),
+		BerlinBlock:         big.NewInt(12_244_000),
 		Ethash:              new(EthashConfig),
 	}
 
@@ -109,6 +110,7 @@ var (
 		PetersburgBlock:     big.NewInt(4_939_394),
 		IstanbulBlock:       big.NewInt(6_485_846),
 		MuirGlacierBlock:    big.NewInt(7_117_117),
+		BerlinBlock:         big.NewInt(9_812_189),
 		Ethash:              new(EthashConfig),
 	}
 
@@ -148,6 +150,7 @@ var (
 		PetersburgBlock:     big.NewInt(4_321_234),
 		IstanbulBlock:       big.NewInt(5_435_345),
 		MuirGlacierBlock:    nil,
+		BerlinBlock:         big.NewInt(8_290_928),
 		Clique: &CliqueConfig{
 			Period: 15,
 			Epoch:  30000,
@@ -188,6 +191,7 @@ var (
 		PetersburgBlock:     big.NewInt(0),
 		IstanbulBlock:       big.NewInt(1_561_651),
 		MuirGlacierBlock:    nil,
+		BerlinBlock:         big.NewInt(4_460_644),
 		Clique: &CliqueConfig{
 			Period: 15,
 			Epoch:  30000,
@@ -1009,8 +1013,9 @@ type Rules struct {
 	IsHomestead, IsEIP150, IsEIP155, IsEIP158               bool
 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
 	IsBerlin                                                bool
-	IsPrivacyEnhancementsEnabled                            bool // Quorum
-	IsPrivacyPrecompile                                     bool // Quorum
+	// Quorum
+	IsPrivacyEnhancementsEnabled bool
+	IsPrivacyPrecompile          bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1020,17 +1025,18 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		chainID = new(big.Int)
 	}
 	return Rules{
-		ChainID:                      new(big.Int).Set(chainID),
-		IsHomestead:                  c.IsHomestead(num),
-		IsEIP150:                     c.IsEIP150(num),
-		IsEIP155:                     c.IsEIP155(num),
-		IsEIP158:                     c.IsEIP158(num),
-		IsByzantium:                  c.IsByzantium(num),
-		IsConstantinople:             c.IsConstantinople(num),
-		IsPetersburg:                 c.IsPetersburg(num),
-		IsIstanbul:                   c.IsIstanbul(num),
-		IsBerlin:                     c.IsBerlin(num),
-		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num), // Quorum
-		IsPrivacyPrecompile:          c.IsPrivacyPrecompile(num),          // Quorum
+		ChainID:          new(big.Int).Set(chainID),
+		IsHomestead:      c.IsHomestead(num),
+		IsEIP150:         c.IsEIP150(num),
+		IsEIP155:         c.IsEIP155(num),
+		IsEIP158:         c.IsEIP158(num),
+		IsByzantium:      c.IsByzantium(num),
+		IsConstantinople: c.IsConstantinople(num),
+		IsPetersburg:     c.IsPetersburg(num),
+		IsIstanbul:       c.IsIstanbul(num),
+		IsBerlin:         c.IsBerlin(num),
+		// Quorum
+		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
+		IsPrivacyPrecompile:          c.IsPrivacyPrecompile(num),
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/qlight"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -96,3 +97,34 @@ func (f *ReloadableAccountServiceFactory) Create() (account.Service, error) {
 
 	return am, nil
 }
+
+type QLightTokenManagerPluginTemplate struct {
+	*basePlugin
+}
+
+func (p *QLightTokenManagerPluginTemplate) Get() (qlight.PluginTokenManager, error) {
+	return &qlight.ReloadablePluginTokenManager{
+		DeferFunc: func() (qlight.PluginTokenManager, error) {
+			raw, err := p.dispense(qlight.ConnectorName)
+			if err != nil {
+				return nil, err
+			}
+			return raw.(qlight.PluginTokenManager), nil
+		},
+	}, nil
+}
+
+func (p *QLightTokenManagerPluginTemplate) ManagedPlugin() managedPlugin {
+	return p
+}
+
+type QLightTokenManagerPluginTemplateInterface interface {
+	Get() (qlight.PluginTokenManager, error)
+	Start() (err error)
+	Stop() (err error)
+	ManagedPlugin() managedPlugin
+}
+
+//go:generate mockgen -source=plugin_templates.go -destination plugin_templates_mockery.go -package plugin
+var _ QLightTokenManagerPluginTemplateInterface = &QLightTokenManagerPluginTemplate{}
+var _ QLightTokenManagerPluginTemplateInterface = &MockQLightTokenManagerPluginTemplateInterface{}
