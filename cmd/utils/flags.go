@@ -52,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/extension"
@@ -2225,6 +2226,11 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
 		return backend.ApiBackend, nil
 	}
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+	cfg.Istanbul.Client = ethclient.NewClient(client)
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
@@ -2449,6 +2455,12 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 	}
 
 	var engine consensus.Engine
+
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
@@ -2464,6 +2476,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			istanbulConfig.Transitions = config.Transitions
 		}
+		istanbulConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
@@ -2471,6 +2484,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			ibftConfig.Transitions = config.Transitions
 		}
+		ibftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
@@ -2478,6 +2492,10 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readOnly bool, useExist bool)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			qbftConfig.Transitions = config.Transitions
 		}
+		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		}
+		qbftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
 		// for Raft
