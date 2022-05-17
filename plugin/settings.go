@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/qlight"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-plugin"
@@ -20,9 +21,10 @@ import (
 )
 
 const (
-	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
-	SecurityPluginInterfaceName   = PluginInterfaceName("security")
-	AccountPluginInterfaceName    = PluginInterfaceName("account")
+	HelloWorldPluginInterfaceName         = PluginInterfaceName("helloworld") // lower-case always
+	SecurityPluginInterfaceName           = PluginInterfaceName("security")
+	AccountPluginInterfaceName            = PluginInterfaceName("account")
+	QLightTokenManagerPluginInterfaceName = PluginInterfaceName("qlighttokenmanager")
 )
 
 var (
@@ -74,6 +76,11 @@ var (
 			},
 			pluginSet: plugin.PluginSet{
 				account.ConnectorName: &account.PluginConnector{},
+			},
+		},
+		QLightTokenManagerPluginInterfaceName: {
+			pluginSet: plugin.PluginSet{
+				qlight.ConnectorName: &qlight.PluginConnector{},
 			},
 		},
 	}

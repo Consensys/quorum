@@ -17,19 +17,23 @@
 package backend
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -331,6 +335,7 @@ func (sb *Backend) storeSnap(snap *Snapshot) error {
 
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+	targetBlockHeight := new(big.Int).SetUint64(number)
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -360,11 +365,33 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, err
 			}
 
-			// Get the validators from genesis to create a snapshot
-			validators, err := sb.EngineForBlockNumber(big.NewInt(0)).Validators(genesis)
-			if err != nil {
-				sb.logger.Error("BFT: invalid genesis block", "err", err)
-				return nil, err
+			var validators []common.Address
+			if sb.config.ValidatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
+				sb.logger.Info("Initialising snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
+
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.ValidatorContract, sb.config.Client)
+
+				if err != nil {
+					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
+				}
+
+				opts := bind.CallOpts{
+					Pending:     false,
+					BlockNumber: big.NewInt(0),
+				}
+				validators, err = validatorContractCaller.GetValidators(&opts)
+				if err != nil {
+					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+					return nil, err
+				}
+			} else {
+				// Get the validators from genesis to create a snapshot
+				var err error
+				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
+				if err != nil {
+					sb.logger.Error("BFT: invalid genesis block", "err", err)
+					return nil, err
+				}
 			}
 
 			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
@@ -405,6 +432,30 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		return nil, err
 	}
 	sb.recents.Add(snap.Hash, snap)
+
+	validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
+	if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
+		sb.logger.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
+
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
+
+		if err != nil {
+			return nil, fmt.Errorf("BFT: invalid smart contract in genesis alloc: %w", err)
+		}
+		opts := bind.CallOpts{
+			Pending:     false,
+			BlockNumber: targetBlockHeight,
+		}
+		validators, err := validatorContractCaller.GetValidators(&opts)
+
+		if err != nil {
+			log.Error("BFT: invalid validator smart contract", "err", err)
+			return nil, err
+		}
+		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
+		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+		snap.ValSet = valSet
+	}
 
 	// If we've generated a new checkpoint snapshot, save to disk
 	if snap.Number%checkpointInterval == 0 && len(headers) > 0 {

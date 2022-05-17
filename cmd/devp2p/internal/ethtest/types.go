@@ -126,9 +126,9 @@ type Conn struct {
 	ourKey                 *ecdsa.PrivateKey
 	negotiatedProtoVersion uint
 	ourHighestProtoVersion uint
-	caps                   []p2p.Cap
 	// Quorum
 	ethProtocolVersion uint
+	caps               []p2p.Cap
 }
 
 func (c *Conn) Read() Message {

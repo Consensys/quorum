@@ -20,6 +20,8 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 )
@@ -127,6 +129,8 @@ type Config struct {
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 	Transitions            []params.Transition
+	ValidatorContract      common.Address
+	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
 var DefaultConfig = &Config{
@@ -180,4 +184,24 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		}
 	}
 	return newConfig
+}
+
+func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address {
+	validatorContractAddress := c.ValidatorContract
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].ValidatorContractAddress != (common.Address{}) {
+			validatorContractAddress = c.Transitions[i].ValidatorContractAddress
+		}
+	}
+	return validatorContractAddress
+}
+
+func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
+	mode := params.BlockHeaderMode
+	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+		if c.Transitions[i].ValidatorSelectionMode != "" {
+			mode = c.Transitions[i].ValidatorSelectionMode
+		}
+	}
+	return mode
 }

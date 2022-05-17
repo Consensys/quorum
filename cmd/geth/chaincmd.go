@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -239,6 +240,20 @@ func initGenesis(ctx *cli.Context) error {
 		if err != nil {
 			utils.Fatalf("transitions data invalid: %v", err)
 		}
+		if genesis.Config.QBFT != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftExtra := new(types.QBFTExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
+			if err != nil || len(qbftExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.qbft.validatorcontractaddress at the same time")
+			}
+		}
+		if genesis.Config.IBFT != nil && genesis.Config.IBFT.ValidatorContractAddress != (common.Address{}) {
+			istanbulExtra := new(types.IstanbulExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], istanbulExtra)
+			if err != nil || len(istanbulExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.ibft.validatorcontractaddress at the same time")
+			}
+		}
 	}
 	// End Quorum
 
@@ -285,7 +300,7 @@ func importChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack, true)
+	chain, db := utils.MakeChain(ctx, stack, false)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles

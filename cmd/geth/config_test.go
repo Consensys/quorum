@@ -299,7 +299,7 @@ func TestFlagsConfig(t *testing.T) {
 	assert.Equal(t, false, eth.NoPrefetch)
 	assert.Equal(t, 100, eth.LightPeers)
 	assert.Equal(t, 75, eth.UltraLightFraction)
-	assert.Equal(t, 512, eth.DatabaseCache)
+	assert.Equal(t, 768, eth.DatabaseCache)
 	assert.Equal(t, "", eth.DatabaseFreezer)
 	assert.Equal(t, 256, eth.TrieCleanCache)
 	assert.Equal(t, "triecache", eth.TrieCleanCacheJournal)
@@ -318,8 +318,8 @@ func TestFlagsConfig(t *testing.T) {
 
 	// [Eth.Miner]
 	miner := cfg.Eth.Miner
-	assert.Equal(t, uint64(8000000), miner.GasFloor)
-	assert.Equal(t, uint64(8000000), miner.GasCeil)
+	assert.Equal(t, uint64(700000000), miner.GasFloor)
+	assert.Equal(t, uint64(800000000), miner.GasCeil)
 	assert.Equal(t, big.NewInt(1000000000), miner.GasPrice)
 	assert.Equal(t, time.Duration(3000000000), miner.Recommit)
 	assert.Equal(t, false, miner.Noverify)

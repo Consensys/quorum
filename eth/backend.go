@@ -56,6 +56,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/qlight"
@@ -106,6 +107,7 @@ type Ethereum struct {
 	consensusServicePendingLogsFeed *event.Feed
 	qlightServerHandler             *handler
 	qlightP2pServer                 *p2p.Server
+	qlightTokenHolder               *qlight.TokenHolder
 }
 
 // New creates a new Ethereum object (including the
@@ -285,18 +287,31 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
+
 	if eth.config.QuorumLightClient.Enabled() {
 		clientCache, err := qlight.NewClientCache(chainDb)
 		if eth.config.QuorumLightClient.TokenEnabled {
-			qlight.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 			switch eth.config.QuorumLightClient.TokenManagement {
 			case "client-security-plugin":
-				// TODO QLight - when hte client-security-plugin is implemented this may be a good place to initialize it
-				return nil, fmt.Errorf("The client-scurity-plugin token management is not implemented")
+				log.Info("Starting qlight client with auth token enabled without external API and token from argument, plugin has to be provided")
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, stack.PluginManager())
+				if err != nil {
+					return nil, fmt.Errorf("new token holder: %w", err)
+				}
+				eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 			case "none":
 				log.Warn("Starting qlight client with auth token enabled but without a token management strategy. This is for development purposes only.")
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil)
+				if err != nil {
+					return nil, fmt.Errorf("new token holder: %w", err)
+				}
+				eth.qlightTokenHolder.SetCurrentToken(eth.config.QuorumLightClient.TokenValue)
 			case "external":
 				log.Info("Starting qlight client with auth token enabled and `external` token management strategy.")
+				eth.qlightTokenHolder, err = qlight.NewTokenHolder(config.QuorumLightClient.PSI, nil)
+				if err != nil {
+					return nil, fmt.Errorf("new token holder: %w", err)
+				}
 			default:
 				return nil, fmt.Errorf("Invalid value %s for `qlight.client.token.management`", eth.config.QuorumLightClient.TokenManagement)
 			}
@@ -318,32 +333,53 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			Engine:             eth.engine,
 			psi:                config.QuorumLightClient.PSI,
 			privateClientCache: clientCache,
+			tokenHolder:        eth.qlightTokenHolder,
 		}); err != nil {
 			return nil, err
+		}
+		if eth.qlightTokenHolder != nil {
+			eth.qlightTokenHolder.SetPeerUpdater(eth.handler.peers)
 		}
 		eth.blockchain.SetPrivateStateRootHashValidator(clientCache)
 	} else {
-		authManProvider := func() security.AuthenticationManager {
-			_, authManager, _ := stack.GetSecuritySupports()
-			return authManager
-		}
 		if eth.handler, err = newHandler(&handlerConfig{
-			Database:   chainDb,
-			Chain:      eth.blockchain,
-			TxPool:     eth.txPool,
-			Network:    config.NetworkId,
-			Sync:       config.SyncMode,
-			BloomCache: uint64(cacheLimit),
-			EventMux:   eth.eventMux,
-			Checkpoint: checkpoint,
-			// Quorum
-			AuthorizationList:        config.AuthorizationList,
-			RaftMode:                 config.RaftMode,
-			Engine:                   eth.engine,
-			authProvider:             qlight.NewAuthProvider(eth.blockchain.PrivateStateManager(), authManProvider),
-			privateBlockDataResolver: qlight.NewPrivateBlockDataResolver(eth.blockchain.PrivateStateManager(), private.P),
+			Database:          chainDb,
+			Chain:             eth.blockchain,
+			TxPool:            eth.txPool,
+			Network:           config.NetworkId,
+			Sync:              config.SyncMode,
+			BloomCache:        uint64(cacheLimit),
+			EventMux:          eth.eventMux,
+			Checkpoint:        checkpoint,
+			AuthorizationList: config.AuthorizationList,
+			RaftMode:          config.RaftMode,
+			Engine:            eth.engine,
+			tokenHolder:       eth.qlightTokenHolder,
 		}); err != nil {
 			return nil, err
+		}
+		if eth.config.QuorumLightServer {
+			authManProvider := func() security.AuthenticationManager {
+				_, authManager, _ := stack.GetSecuritySupports()
+				return authManager
+			}
+			if eth.qlightServerHandler, err = newQLightServerHandler(&handlerConfig{
+				Database:                 chainDb,
+				Chain:                    eth.blockchain,
+				TxPool:                   eth.txPool,
+				Network:                  config.NetworkId,
+				Sync:                     config.SyncMode,
+				BloomCache:               uint64(cacheLimit),
+				EventMux:                 eth.eventMux,
+				Checkpoint:               checkpoint,
+				AuthorizationList:        config.AuthorizationList,
+				RaftMode:                 config.RaftMode,
+				Engine:                   eth.engine,
+				authProvider:             qlight.NewAuthProvider(eth.blockchain.PrivateStateManager(), authManProvider),
+				privateBlockDataResolver: qlight.NewPrivateBlockDataResolver(eth.blockchain.PrivateStateManager(), private.P),
+			}); err != nil {
+				return nil, err
+			}
 		}
 	}
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
@@ -382,7 +418,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		}
 
 		if eth.config.QuorumLightClient.TokenEnabled {
-			proxyClient = proxyClient.WithHTTPCredentials(qlight.TokenCredentialsProvider)
+			proxyClient = proxyClient.WithHTTPCredentials(eth.qlightTokenHolder.HttpCredentialsProvider)
 		}
 
 		if len(eth.config.QuorumLightClient.PSI) > 0 {
@@ -398,9 +434,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
 	}
 
-	if eth.APIBackend.allowUnprotectedTxs {
-		log.Info("Unprotected transactions allowed")
-	}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
@@ -816,4 +849,17 @@ func (s *Ethereum) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscripti
 		return s.consensusServicePendingLogsFeed.Subscribe(ch)
 	}
 	return s.miner.SubscribePendingLogs(ch)
+}
+
+// NotifyRegisteredPluginService will ask to refresh the plugin service
+// (Quorum)
+func (s *Ethereum) NotifyRegisteredPluginService(pluginManager *plugin.PluginManager) error {
+	if s.qlightTokenHolder == nil {
+		return nil
+	}
+	switch s.config.QuorumLightClient.TokenManagement {
+	case "client-security-plugin":
+		return s.qlightTokenHolder.RefreshPlugin(pluginManager)
+	}
+	return nil
 }

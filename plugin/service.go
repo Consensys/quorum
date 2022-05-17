@@ -12,6 +12,20 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+type PluginManagerInterface interface {
+	APIs() []rpc.API
+	Start() (err error)
+	Stop() error
+	IsEnabled(name PluginInterfaceName) bool
+	PluginsInfo() interface{}
+	Reload(name PluginInterfaceName) (bool, error)
+	GetPluginTemplate(name PluginInterfaceName, v managedPlugin) error
+}
+
+//go:generate mockgen -source=service.go -destination plugin_manager_mockery.go -package plugin
+var _ PluginManagerInterface = &PluginManager{}
+var _ PluginManagerInterface = &MockPluginManagerInterface{}
+
 // this implements geth service
 type PluginManager struct {
 	nodeName           string // geth node name
@@ -80,6 +94,9 @@ func (s *PluginManager) getPlugin(name PluginInterfaceName) (managedPlugin, bool
 
 // Check if a plugin is enabled/setup
 func (s *PluginManager) IsEnabled(name PluginInterfaceName) bool {
+	if s == nil {
+		return false
+	}
 	_, ok := s.initializedPlugins[name]
 	return ok
 }

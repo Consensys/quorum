@@ -178,7 +178,10 @@ func DeleteSnapshotRecoveryNumber(db ethdb.KeyValueWriter) {
 
 // ReadSnapshotSyncStatus retrieves the serialized sync status saved at shutdown.
 func ReadSnapshotSyncStatus(db ethdb.KeyValueReader) []byte {
-	data, _ := db.Get(snapshotSyncStatusKey)
+	data, err := db.Get(snapshotSyncStatusKey)
+	if err != nil {
+		log.Error("Error reading snapshot sync status", "err", err)
+	}
 	return data
 }
 

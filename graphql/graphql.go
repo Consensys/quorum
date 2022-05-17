@@ -1226,7 +1226,7 @@ func (r *Resolver) Syncing() (*SyncState, error) {
 
 // Quorum
 
-// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
+// PrivateTransaction returns the internal private transaction for privacy marker transactions
 func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
 	tx, err := t.resolve(ctx)
 	if err != nil || tx == nil {

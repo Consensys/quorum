@@ -80,13 +80,18 @@ func newBalanceTestSetup(db ethdb.KeyValueStore, posExp, negExp utils.ValueExpir
 func (b *balanceTestSetup) newNode(capacity uint64) *nodeBalance {
 	node := enode.SignNull(&enr.Record{}, enode.ID{})
 	b.ns.SetField(node, b.setup.clientField, balanceTestClient{})
-	//b.ns.SetState(node, testFlag, nodestate.Flags{}, 0)
-	//b.ns.SetField(node, b.setup.connAddressField, "")
 	if capacity != 0 {
 		b.ns.SetField(node, b.setup.capacityField, capacity)
-		//b.ns.SetField(node, ppTestSetup.CapacityField, capacity)
 	}
 	n, _ := b.ns.GetField(node, b.setup.balanceField).(*nodeBalance)
+	/*
+			b.ns.SetState(node, testFlag, nodestate.Flags{}, 0)
+			b.ns.SetField(node, btTestSetup.connAddressField, "")
+			if capacity != 0 {
+			    b.ns.SetField(node, ppTestSetup.CapacityField, capacity)
+			}
+		n, _ := b.ns.GetField(node, btTestSetup.BalanceField).(*NodeBalance)
+	*/
 	return n
 }
 
@@ -471,8 +476,8 @@ func TestBalancePersistenceGeth(t *testing.T) {
 	setup.stop()
 }
 
-/* TODO:
-func TestBalancePersistenceGoq(t *testing.T) {
+/* TODO
+func TestBalancePersistence(t *testing.T) {
 	clock := &mclock.Simulated{}
 	ns := nodestate.NewNodeStateMachine(nil, nil, clock, testSetup)
 	db := memorydb.New()
@@ -522,7 +527,7 @@ func TestBalancePersistenceGoq(t *testing.T) {
 	negExp = &utils.Expirer{}
 	posExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour*2)) // halves every two hours
 	negExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour))   // halves every hour
-	bt = newBalanceTracker(ns, bt.setup, db, clock, posExp, negExp)
+	bt = newBalanceTracker(ns, btTestSetup, db, clock, posExp, negExp)
 	ns.Start()
 	bts = &balanceTestSetup{
 		clock: clock,

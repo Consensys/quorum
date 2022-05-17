@@ -327,7 +327,7 @@ func (n *nodeBalance) priority(capacity uint64) int64 {
 	defer n.lock.Unlock()
 
 	now := n.bt.clock.Now()
-	n.updateBalance(now)
+	n.updateBalance(n.bt.clock.Now())
 	return n.balanceToPriority(now, n.balance, capacity)
 }
 
@@ -669,9 +669,8 @@ func (n *nodeBalance) timeUntil(priority int64) (time.Duration, bool) {
 			}
 			diffTime = float64(pos-targetPos) / timePrice
 			return time.Duration(diffTime), true
-		} else {
-			diffTime = float64(pos) / timePrice
 		}
+		diffTime = float64(pos) / timePrice
 	} else {
 		if targetPos > 0 {
 			return 0, true

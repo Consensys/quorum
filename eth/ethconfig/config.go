@@ -67,11 +67,11 @@ var Defaults = Config{
 		DatasetsOnDisk:   2,
 		DatasetsLockMmap: false,
 	},
-	NetworkId:               1,
+	NetworkId:               1337,
 	TxLookupLimit:           2350000,
 	LightPeers:              100,
 	UltraLightFraction:      75,
-	DatabaseCache:           512,
+	DatabaseCache:           768,
 	TrieCleanCache:          154,
 	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,
@@ -79,8 +79,8 @@ var Defaults = Config{
 	TrieTimeout:             60 * time.Minute,
 	SnapshotCache:           102,
 	Miner: miner.Config{
-		GasFloor: 8000000,
-		GasCeil:  8000000,
+		GasFloor: params.MinGasLimit,
+		GasCeil:  params.GenesisGasLimit,
 		GasPrice: big.NewInt(params.GWei),
 		Recommit: 3 * time.Second,
 	},
@@ -137,7 +137,7 @@ type Config struct {
 	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
 	// AuthorizationList of required block number -> hash values to accept
-	AuthorizationList map[uint64]common.Hash `toml:"-"`
+	AuthorizationList map[uint64]common.Hash `toml:"-"` // not in the TOML configuration
 
 	// Light client options
 	LightServ          int  `toml:",omitempty"` // Maximum percentage of time allowed for serving LES requests
@@ -192,11 +192,11 @@ type Config struct {
 	EVMInterpreter string
 
 	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap uint64
+	RPCGasCap uint64 `toml:",omitempty"`
 
 	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 	// send-transction variants. The unit is ether.
-	RPCTxFeeCap float64
+	RPCTxFeeCap float64 `toml:",omitempty"`
 
 	// Checkpoint is a hardcoded checkpoint which can be nil.
 	Checkpoint *params.TrustedCheckpoint `toml:",omitempty"`
@@ -251,37 +251,53 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	if chainConfig.IBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = nil
+		if chainConfig.IBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.IBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.QBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
-	ethashConfig := config.Ethash
 	// Otherwise assume proof-of-work
-	switch ethashConfig.PowMode {
+	switch config.Ethash.PowMode {
 	case ethash.ModeFake:
 		log.Warn("Ethash used in fake mode")
+		return ethash.NewFaker()
 	case ethash.ModeTest:
 		log.Warn("Ethash used in test mode")
+		return ethash.NewTester(nil, noverify)
 	case ethash.ModeShared:
 		log.Warn("Ethash used in shared mode")
+		return ethash.NewShared()
+	default:
+		// For Quorum, Raft run as a separate service, so
+		// the Ethereum service still needs a consensus engine,
+		// use the consensus with the lightest overhead
+		log.Warn("Ethash used in full fake mode")
+		return ethash.NewFullFaker()
 	}
-	engine := ethash.New(ethash.Config{
-		PowMode:          ethashConfig.PowMode,
-		CacheDir:         stack.ResolvePath(ethashConfig.CacheDir),
-		CachesInMem:      ethashConfig.CachesInMem,
-		CachesOnDisk:     ethashConfig.CachesOnDisk,
-		CachesLockMmap:   ethashConfig.CachesLockMmap,
-		DatasetDir:       ethashConfig.DatasetDir,
-		DatasetsInMem:    ethashConfig.DatasetsInMem,
-		DatasetsOnDisk:   ethashConfig.DatasetsOnDisk,
-		DatasetsLockMmap: ethashConfig.DatasetsLockMmap,
-		NotifyFull:       ethashConfig.NotifyFull,
-	}, notify, noverify)
-	engine.SetThreads(-1) // Disable CPU mining
-	return engine
+	/*
+			engine := ethash.New(ethash.Config{
+		    		PowMode:          ethashConfig.PowMode,
+		    		CacheDir:         stack.ResolvePath(ethashConfig.CacheDir),
+		    		CachesInMem:      ethashConfig.CachesInMem,
+		    		CachesOnDisk:     ethashConfig.CachesOnDisk,
+		    		CachesLockMmap:   ethashConfig.CachesLockMmap,
+		    		DatasetDir:       ethashConfig.DatasetDir,
+		    		DatasetsInMem:    ethashConfig.DatasetsInMem,
+		    		DatasetsOnDisk:   ethashConfig.DatasetsOnDisk,
+		    		DatasetsLockMmap: ethashConfig.DatasetsLockMmap,
+		    		NotifyFull:       ethashConfig.NotifyFull,
+		    	}, notify, noverify)
+		    	engine.SetThreads(-1) // Disable CPU mining
+		    	return engine
+	*/
 }
 
 // Quorum
@@ -310,7 +326,7 @@ func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) 
 		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
 	}
 	if bftConfig.RequestTimeoutSeconds != 0 {
-		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds * 1000
 	}
 	if bftConfig.EpochLength != 0 {
 		istanbulConfig.Epoch = bftConfig.EpochLength

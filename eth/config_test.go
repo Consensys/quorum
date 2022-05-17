@@ -13,8 +13,8 @@ func TestQuorumDefautConfig(t *testing.T) {
 		expected uint64
 	}
 	var testData = map[string]data{
-		"eth.DefaultConfig.Miner.GasFloor": {ethconfig.Defaults.Miner.GasFloor, 8000000},
-		"eth.DefaultConfig.Miner.GasCeil":  {ethconfig.Defaults.Miner.GasCeil, 8000000},
+		"eth.DefaultConfig.Miner.GasFloor": {ethconfig.Defaults.Miner.GasFloor, 700000000},
+		"eth.DefaultConfig.Miner.GasCeil":  {ethconfig.Defaults.Miner.GasCeil, 800000000},
 	}
 	for k, v := range testData {
 		assert.Equal(t, v.expected, v.actual, k+" value mismatch")

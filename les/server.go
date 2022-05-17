@@ -298,3 +298,35 @@ func (s *LesServer) capacityManagement() {
 		}
 	}
 }
+
+/*
+func (s *LesServer) getClient(id enode.ID) *clientPeer {
+	if node := s.ns.GetNode(id); node != nil {
+		if p, ok := s.ns.GetField(node, clientPeerField).(*clientPeer); ok {
+			return p
+		}
+	}
+	return nil
+}
+
+func (s *LesServer) dropClient(id enode.ID) {
+	if p := s.getClient(id); p != nil {
+		p.Peer.Disconnect(p2p.DiscRequested)
+	}
+}
+
+// ServiceInfo implements vfs.Service
+func (s *LesServer) ServiceInfo() (string, string) {
+	return "les", "Ethereum light client service"
+}
+
+// Handle implements vfs.Service
+func (s *LesServer) Handle(id enode.ID, address string, name string, data []byte) []byte {
+	switch name {
+	case vflux.CapacityQueryName:
+		return s.clientPool.serveCapQuery(id, address, data)
+	default:
+		return nil
+	}
+}
+*/

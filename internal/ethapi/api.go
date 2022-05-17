@@ -988,8 +988,8 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
-	// Get a new instance of the EVM.
 	msg := args.ToMessage(globalGasCap)
+	// Get a new instance of the EVM.
 	evm, vmError, err := b.GetEVM(ctx, msg, state, header, nil)
 	if err != nil {
 		return nil, err
@@ -1748,20 +1748,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	return getTransactionReceiptCommonCode(tx, blockHash, blockNumber, hash, index, receipt)
 }
 
-/*
-	var signer types.Signer = types.FrontierSigner{}
-	if tx.Protected() {
-		signer = types.NewEIP155Signer(tx.ChainId())
-	}
-	from, _ := types.Sender(signer, tx)
-*/
-/*
-	// Derive the sender.
-    bigblock := new(big.Int).SetUint64(blockNumber)
-    signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
-    from, _ := types.Sender(signer, tx)
-*/
-
 // Quorum
 // Common code extracted from GetTransactionReceipt() to enable reuse
 func getTransactionReceiptCommonCode(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, hash common.Hash, index uint64, receipt *types.Receipt) (map[string]interface{}, error) {
@@ -1926,7 +1912,6 @@ type SendTxArgs struct {
 	// For non-legacy transactions
 	AccessList *types.AccessList `json:"accessList,omitempty"`
 	ChainID    *big.Int          `json:"chainId,omitempty"`
-	//ChainID    *hexutil.Big      `json:"chainId,omitempty"`
 }
 
 func (s SendTxArgs) IsPrivate() bool {
@@ -2022,6 +2007,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			return errors.New(`contract creation without any data provided`)
 		}
 	}
+
 	// Estimate the gas usage if necessary.
 	if args.Gas == nil {
 		// For backwards-compatibility reason, we try both input and data
@@ -2348,6 +2334,7 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
+	// if err := tx.UnmarshalBinary(encodedTx); err != nil { // Quorum
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}

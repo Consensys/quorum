@@ -406,29 +406,6 @@ func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
 	})
 }
 
-/*
-func decodeSignature(sig []byte) (r, s, v *big.Int) {
-	if tx.Type() != LegacyTxType {
-		return nil, nil, nil, ErrTxTypeNotSupported
-	}
-	r, s, v = decodeSignature(sig)
-	return r, s, v, nil
-}
-
-// Hash returns the hash to be signed by the sender.
-// It does not uniquely identify the transaction.
-func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
-	return rlpHash([]interface{}{
-		tx.Nonce(),
-		tx.GasPrice(),
-		tx.Gas(),
-		tx.To(),
-		tx.Value(),
-		tx.Data(),
-	})
-}
-*/
-
 func decodeSignature(sig []byte) (r, s, v *big.Int) {
 	if len(sig) != crypto.SignatureLength {
 		panic(fmt.Sprintf("wrong size for signature: got %d, want %d", len(sig), crypto.SignatureLength))

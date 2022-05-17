@@ -333,7 +333,7 @@ func dbGet(ctx *cli.Context) error {
 		log.Info("Get operation failed", "error", err)
 		return err
 	}
-	fmt.Printf("key %#x: %#x\n", key, data)
+	fmt.Printf("key %#x:\n\t%#x\n", key, data)
 	return nil
 }
 

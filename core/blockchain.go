@@ -405,7 +405,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			log.Warn("Enabling snapshot recovery", "chainhead", head.NumberU64(), "diskbase", *layer)
 			recover = true
 		}
-		bc.snaps, _ = snapshot.New(bc.db, bc.stateCache.TrieDB(), bc.cacheConfig.SnapshotLimit, head.Root(), !bc.cacheConfig.SnapshotWait, true, recover)
+		bc.snaps, err = snapshot.New(bc.db, bc.stateCache.TrieDB(), bc.cacheConfig.SnapshotLimit, head.Root(), !bc.cacheConfig.SnapshotWait, true, recover)
+		if err != nil {
+			log.Error("Error trying to load snapshot", "err", err)
+		}
 	}
 	// Take ownership of this particular state
 	go bc.update()
@@ -494,17 +497,12 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Quorum
-	if privateStateRepository, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
-		if privateStateRepository == nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
-		if _, err := privateStateRepository.DefaultState(); err != nil {
-			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
-			return bc.Reset()
-		}
+	if _, err := bc.privateStateManager.StateRepository(currentBlock.Root()); err != nil {
+		log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+		bc.currentBlock.Store(currentBlock)
+		return bc.Reset()
 	}
-	// End Quorum
+	// /Quorum
 
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
@@ -641,16 +639,19 @@ func (bc *BlockChain) SetHeadBeyondRoot(head uint64, root common.Hash) (uint64, 
 			bc.currentFastBlock.Store(newHeadFastBlock)
 			headFastBlockGauge.Update(int64(newHeadFastBlock.NumberU64()))
 		}
-		head := bc.CurrentBlock().NumberU64()
+		localHead := head
+		if bc.CurrentBlock() != nil {
+			localHead = bc.CurrentBlock().NumberU64()
+		}
 
 		// If setHead underflown the freezer threshold and the block processing
 		// intent afterwards is full block importing, delete the chain segment
 		// between the stateful-block and the sethead target.
 		var wipe bool
-		if head+1 < frozen {
-			wipe = pivot == nil || head >= *pivot
+		if localHead+1 < frozen {
+			wipe = pivot == nil || localHead >= *pivot
 		}
-		return head, wipe // Only force wipe if full synced
+		return localHead, wipe // Only force wipe if full synced
 	}
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db ethdb.KeyValueWriter, hash common.Hash, num uint64) {
@@ -1649,14 +1650,13 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	return bc.writeBlockWithState(block, receipts, logs, state, psManager, emitHeadEvent)
 }
 
-// Quorum
-
-// isRaft checks if the consensus engine is Rfat
+// QUORUM
+// checks if the consensus engine is Rfat
 func (bc *BlockChain) isRaft() bool {
 	return bc.chainConfig.IsQuorum && bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil
 }
 
-// CommitBlockWithState is a function specifically added for Raft consensus. This is called from mintNewBlock
+// function specifically added for Raft consensus. This is called from mintNewBlock
 // to commit public and private state using bc.chainmu lock
 // added to avoid concurrent map errors in high stress conditions
 func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, privateState *state.StateDB) error {
@@ -1664,7 +1664,6 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 	if !bc.isRaft() {
 		return errors.New("error function can be called only for Raft consensus")
 	}
-
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 	if _, err := state.Commit(deleteEmptyObjects); err != nil {
@@ -1675,8 +1674,6 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 	}
 	return nil
 }
-
-// End Quorum
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
@@ -1729,7 +1726,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			return NonStatTy, err
 		}
 	}
-	// End Quorum
+	// /Quorum
 
 	triedb := bc.stateCache.TrieDB()
 
@@ -1738,6 +1735,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := triedb.Commit(root, false, nil); err != nil {
 			return NonStatTy, err
 		}
+
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
@@ -2026,12 +2024,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// If the chain is terminating, stop processing blocks
 		if bc.insertStopped() {
 			log.Debug("Abort during block processing")
-			// Quorum
+			// QUORUM
 			if bc.isRaft() {
 				// Only returns an error for raft mode
 				return it.index, ErrAbortBlocksProcessing
 			}
-			// End Quorum
+			// END QUORUM
 			break
 		}
 		// If the header is a banned one, straight out abort
