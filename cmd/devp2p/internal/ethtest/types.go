@@ -127,6 +127,8 @@ type Conn struct {
 	negotiatedProtoVersion uint
 	ourHighestProtoVersion uint
 	caps                   []p2p.Cap
+	// Quorum
+	ethProtocolVersion uint
 }
 
 func (c *Conn) Read() Message {

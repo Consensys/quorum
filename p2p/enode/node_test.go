@@ -21,6 +21,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"net"
+	"strings"
 	"testing"
 	"testing/quick"
 
@@ -141,5 +143,127 @@ func TestID_logdistEqual(t *testing.T) {
 	x := ID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 	if LogDist(x, x) != 0 {
 		t.Errorf("LogDist(x, x) != 0")
+	}
+}
+
+// Quorum
+//
+// test raft port in node detail
+func TestNodeInfoForRaftPort(t *testing.T) {
+	node := NewV4Hostname(
+		hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+		"192.168.0.1",
+		30302,
+		30303,
+		2021,
+	)
+	wantIP := enr.IPv4{192, 168, 0, 1}
+	wantUdp := 30303
+	wantTcp := 30302
+	wantRaftPort := 2021
+	assert.Equal(t, wantRaftPort, node.RaftPort(), "node raft port mismatch")
+	assert.Equal(t, net.IP(wantIP), node.IP(), "node ip mismatch")
+	assert.Equal(t, wantUdp, node.UDP(), "node UDP port mismatch")
+	assert.Equal(t, wantTcp, node.TCP(), "node TCP port mismatch")
+
+}
+
+// Quorum - test parsing url with hostname (if host is FQDN)
+func TestNodeParseUrlWithHostnameForQuorum(t *testing.T) {
+	var url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost:21000?discport=0&raftport=50401"
+	n, err := ParseV4(url)
+	if err != nil {
+		t.Errorf("parsing host failed %v", err)
+	}
+	assert.Equal(t, 50401, n.RaftPort())
+
+	url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost1:21000?discport=0&raftport=50401"
+	_, err = ParseV4(url)
+	if err != nil {
+		errMsg := err.Error()
+		hasError := strings.Contains(errMsg, "no such host")
+
+		assert.Equal(t, true, hasError, err.Error())
+	}
+}
+
+// Quorum
+// test Incomplete
+func TestIncomplete(t *testing.T) {
+	var testCases = []struct {
+		n            *Node
+		isIncomplete bool
+	}{
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.IP{127, 0, 0, 1},
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("::"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("2001:db8:3c4d:15::abcd:ef12"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				nil,
+				52150,
+				52150,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				0,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: true,
+		},
+	}
+
+	for i, test := range testCases {
+		if test.n.Incomplete() != test.isIncomplete {
+			t.Errorf("test %d: Node.Incomplete() mismatch:\ngot:  %v\nwant: %v", i, test.n.Incomplete(), test.isIncomplete)
+		}
 	}
 }

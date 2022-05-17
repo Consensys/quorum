@@ -24,7 +24,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -269,29 +268,61 @@ func WriteFastTxLookupLimit(db ethdb.KeyValueWriter, number uint64) {
 	}
 }
 
+// Quorum
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
-func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
+func readHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) (rlp.RawValue, *types.Header) {
 	// First try to look up the data in ancient database. Extra hash
 	// comparison is necessary since ancient database only maintains
 	// the canonical data.
 	data, _ := db.Ancient(freezerHeaderTable, number)
-	if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
-		return data
+
+	// Quorum: parse header to make sure we compare using the right hash (IBFT hash is based on a filtered header)
+	if len(data) > 0 {
+		header := decodeHeaderRLP(data)
+		if header.Hash() == hash {
+			return data, header
+		}
 	}
+	// End Quorum
+
 	// Then try to look up the data in leveldb.
 	data, _ = db.Get(headerKey(number, hash))
 	if len(data) > 0 {
-		return data
+		return data, decodeHeaderRLP(data) // Quorum: return decodeHeaderRLP(data)
 	}
 	// In the background freezer is moving data from leveldb to flatten files.
 	// So during the first check for ancient db, the data is not yet in there,
 	// but when we reach into leveldb, the data was already moved. That would
 	// result in a not found error.
 	data, _ = db.Ancient(freezerHeaderTable, number)
-	if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
-		return data
+
+	// Quorum: parse header to make sure we compare using the right hash (IBFT hash is based on a filtered header)
+	if len(data) > 0 {
+		header := decodeHeaderRLP(data)
+		if header.Hash() == hash {
+			return data, header
+		}
 	}
-	return nil // Can't find the data anywhere.
+	// End Quorum
+
+	return nil, nil // Can't find the data anywhere.
+}
+
+// Quorum
+func decodeHeaderRLP(data rlp.RawValue) *types.Header {
+	header := new(types.Header)
+	if err := rlp.Decode(bytes.NewReader(data), header); err != nil {
+		log.Error("Invalid block header RLP", "err", err)
+		return nil
+	}
+	return header
+}
+
+// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
+	// Quorum: original code implemented inside `readHeaderRLP(...)` with some modifications from Quorum
+	data, _ := readHeaderRLP(db, hash, number)
+	return data
 }
 
 // HasHeader verifies the existence of a block header corresponding to the hash.
@@ -307,13 +338,13 @@ func HasHeader(db ethdb.Reader, hash common.Hash, number uint64) bool {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db ethdb.Reader, hash common.Hash, number uint64) *types.Header {
-	data := ReadHeaderRLP(db, hash, number)
-	if len(data) == 0 {
+	data, header := readHeaderRLP(db, hash, number)
+	if data == nil {
+		log.Trace("header data not found in ancient or level db", "hash", hash)
 		return nil
 	}
-	header := new(types.Header)
-	if err := rlp.Decode(bytes.NewReader(data), header); err != nil {
-		log.Error("Invalid block header RLP", "hash", hash, "err", err)
+	if header == nil {
+		log.Error("Invalid block header RLP", "hash", hash)
 		return nil
 	}
 	return header
@@ -569,15 +600,36 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 	if len(data) == 0 {
 		return nil
 	}
+	// split the data into the standard receipt rlp list and the quorum extraData bytes
+	_, extraData, err := rlp.SplitList(data)
+	if err != nil {
+		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+		return nil
+	}
+	// reslice data to remove extraData and get the receipt rlp list as the result from rlp.SplitList does not include the list header bytes
+	vanillaDataWithListHeader := data[0 : len(data)-len(extraData)]
+
 	// Convert the receipts from their storage form to their internal representation
 	storageReceipts := []*types.ReceiptForStorage{}
-	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+	if err := rlp.DecodeBytes(vanillaDataWithListHeader, &storageReceipts); err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
 	receipts := make(types.Receipts, len(storageReceipts))
 	for i, storageReceipt := range storageReceipts {
 		receipts[i] = (*types.Receipt)(storageReceipt)
+	}
+	if len(extraData) > 0 {
+		quorumExtraDataReceipts := []*types.QuorumReceiptExtraData{}
+		if err := rlp.DecodeBytes(extraData, &quorumExtraDataReceipts); err != nil {
+			log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+			return nil
+		}
+		for i, quorumExtraDataReceipt := range quorumExtraDataReceipts {
+			if quorumExtraDataReceipt != nil {
+				receipts[i].FillReceiptExtraDataFromStorage(quorumExtraDataReceipt)
+			}
+		}
 	}
 	return receipts
 }
@@ -611,12 +663,26 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *para
 func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
+	quorumReceiptsExtraData := make([]*types.QuorumReceiptExtraData, len(receipts))
+	extraDataEmpty := true
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
+		quorumReceiptsExtraData[i] = &receipt.QuorumReceiptExtraData
+		if !receipt.QuorumReceiptExtraData.IsEmpty() {
+			extraDataEmpty = false
+		}
 	}
 	bytes, err := rlp.EncodeToBytes(storageReceipts)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
+	}
+	if !extraDataEmpty {
+		bytesExtraData, err := rlp.EncodeToBytes(quorumReceiptsExtraData)
+		if err != nil {
+			log.Crit("Failed to encode block receipts", "err", err)
+		}
+		// the vanilla receipts and the extra data receipts are concatenated and stored as a single value
+		bytes = append(bytes, bytesExtraData...)
 	}
 	// Store the flattened receipt slice
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
@@ -797,6 +863,11 @@ func DeleteBadBlocks(db ethdb.KeyValueWriter) {
 	if err := db.Delete(badBlockKey); err != nil {
 		log.Crit("Failed to delete bad blocks", "err", err)
 	}
+}
+
+// HasBadBlock returns whether the block with the hash is a bad block. dep: Istanbul
+func HasBadBlock(db ethdb.Reader, hash common.Hash) bool {
+	return ReadBadBlock(db, hash) != nil
 }
 
 // FindCommonAncestor returns the last common ancestor of two block headers

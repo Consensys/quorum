@@ -150,6 +150,7 @@ type FilterQuery struct {
 	// {{A}, {B}}         matches topic A in first position AND B in second position
 	// {{A, B}, {C, D}}   matches topic (A OR B) in first position AND (C OR D) in second position
 	Topics [][]common.Hash
+	PSI    types.PrivateStateIdentifier
 }
 
 // LogFilterer provides access to contract log events using a one-off query or continuous

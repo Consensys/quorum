@@ -153,6 +153,14 @@ func pruneState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, false)
+	defer chaindb.Close()
+
+	// TODO: Quorum
+	/*if chaindb.Config().IsQuorum {
+		log.Error("Can not prune state when using GoQuorum as this has an impact on private state")
+		return errors.New("prune-state is not available when IsQuorum is enabled")
+	}*/
+
 	pruner, err := pruner.NewPruner(chaindb, stack.ResolvePath(""), stack.ResolvePath(config.Eth.TrieCleanCacheJournal), ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "error", err)
@@ -182,6 +190,8 @@ func verifyState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, true)
+	defer chaindb.Close()
+
 	headBlock := rawdb.ReadHeadBlock(chaindb)
 	if headBlock == nil {
 		log.Error("Failed to load head block")
@@ -220,6 +230,8 @@ func traverseState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, true)
+	defer chaindb.Close()
+
 	headBlock := rawdb.ReadHeadBlock(chaindb)
 	if headBlock == nil {
 		log.Error("Failed to load head block")
@@ -310,6 +322,8 @@ func traverseRawState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, true)
+	defer chaindb.Close()
+
 	headBlock := rawdb.ReadHeadBlock(chaindb)
 	if headBlock == nil {
 		log.Error("Failed to load head block")

@@ -19,16 +19,19 @@ package common
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -38,12 +41,114 @@ const (
 	HashLength = 32
 	// AddressLength is the expected length of the address
 	AddressLength = 20
+	// length of the hash returned by Private Transaction Manager
+	EncryptedPayloadHashLength = 64
 )
 
 var (
+	ErrNotPrivateContract = errors.New("the provided address is not a private contract")
+	ErrNoAccountExtraData = errors.New("no account extra data found")
+
 	hashT    = reflect.TypeOf(Hash{})
 	addressT = reflect.TypeOf(Address{})
 )
+
+// Hash, returned by Private Transaction Manager, represents the 64-byte hash of encrypted payload
+type EncryptedPayloadHash [EncryptedPayloadHashLength]byte
+
+// Using map to enable fast lookup
+type EncryptedPayloadHashes map[EncryptedPayloadHash]struct{}
+
+func (h *EncryptedPayloadHash) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64())
+}
+
+func (h *EncryptedPayloadHash) UnmarshalJSON(j []byte) (err error) {
+	var ephStr string
+	err = json.Unmarshal(j, &ephStr)
+	if err != nil {
+		return err
+	}
+	eph, err := Base64ToEncryptedPayloadHash(ephStr)
+	if err != nil {
+		return err
+	}
+	h.SetBytes(eph.Bytes())
+	return nil
+}
+
+func (h *EncryptedPayloadHashes) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(h.ToBase64s())
+}
+
+func (h *EncryptedPayloadHashes) UnmarshalJSON(j []byte) (err error) {
+	var ephStrArray []string
+	err = json.Unmarshal(j, &ephStrArray)
+	if err != nil {
+		return err
+	}
+	for _, str := range ephStrArray {
+		eph, err := Base64ToEncryptedPayloadHash(str)
+		if err != nil {
+			return err
+		}
+		h.Add(eph)
+	}
+	return nil
+}
+
+// BytesToEncryptedPayloadHash sets b to EncryptedPayloadHash.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
+	var h EncryptedPayloadHash
+	h.SetBytes(b)
+	return h
+}
+
+func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return EncryptedPayloadHash{}, fmt.Errorf("unable to convert base64 string %s to EncryptedPayloadHash. Cause: %v", b64, err)
+	}
+	return BytesToEncryptedPayloadHash(bytes), nil
+}
+
+func (eph *EncryptedPayloadHash) SetBytes(b []byte) {
+	if len(b) > len(eph) {
+		b = b[len(b)-EncryptedPayloadHashLength:]
+	}
+
+	copy(eph[EncryptedPayloadHashLength-len(b):], b)
+}
+
+func (eph EncryptedPayloadHash) Hex() string {
+	return hexutil.Encode(eph[:])
+}
+
+func (eph EncryptedPayloadHash) Bytes() []byte {
+	return eph[:]
+}
+
+func (eph EncryptedPayloadHash) String() string {
+	return eph.Hex()
+}
+
+func (eph EncryptedPayloadHash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(eph[:])
+}
+
+func (eph EncryptedPayloadHash) TerminalString() string {
+	return fmt.Sprintf("%x…%x", eph[:3], eph[EncryptedPayloadHashLength-3:])
+}
+
+func (eph EncryptedPayloadHash) BytesTypeRef() *hexutil.Bytes {
+	b := hexutil.Bytes(eph.Bytes())
+	return &b
+}
+
+func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
+	return eph == EncryptedPayloadHash{}
+}
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
@@ -55,6 +160,8 @@ func BytesToHash(b []byte) Hash {
 	h.SetBytes(b)
 	return h
 }
+
+func StringToHash(s string) Hash { return BytesToHash([]byte(s)) } // dep: Istanbul
 
 // BigToHash sets byte representation of b to hash.
 // If b is larger than len(h), b will be cropped from the left.
@@ -140,6 +247,10 @@ func (h *Hash) SetBytes(b []byte) {
 	copy(h[HashLength-len(b):], b)
 }
 
+func EmptyHash(h Hash) bool {
+	return h == Hash{}
+}
+
 // Generate implements testing/quick.Generator.
 func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := rand.Intn(len(h))
@@ -147,6 +258,23 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 		h[i] = byte(rand.Uint32())
 	}
 	return reflect.ValueOf(h)
+}
+
+func (h Hash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(h.Bytes())
+}
+
+// Decode base64 string to Hash
+// if String is empty then return empty hash
+func Base64ToHash(b64 string) (Hash, error) {
+	if b64 == "" {
+		return Hash{}, nil
+	}
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return Hash{}, fmt.Errorf("unable to convert base64 string %s to Hash. Cause: %v", b64, err)
+	}
+	return BytesToHash(bytes), nil
 }
 
 // Scan implements Scanner for database/sql.
@@ -195,6 +323,69 @@ func (h UnprefixedHash) MarshalText() ([]byte, error) {
 	return []byte(hex.EncodeToString(h[:])), nil
 }
 
+func (ephs EncryptedPayloadHashes) ToBase64s() []string {
+	a := make([]string, 0, len(ephs))
+	for eph := range ephs {
+		a = append(a, eph.ToBase64())
+	}
+	return a
+}
+
+func (ephs EncryptedPayloadHashes) NotExist(eph EncryptedPayloadHash) bool {
+	_, ok := ephs[eph]
+	return !ok
+}
+
+func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
+	ephs[eph] = struct{}{}
+}
+
+func (ephs EncryptedPayloadHashes) EncodeRLP(writer io.Writer) error {
+	encryptedPayloadHashesArray := make([]EncryptedPayloadHash, len(ephs))
+	idx := 0
+	for key := range ephs {
+		encryptedPayloadHashesArray[idx] = key
+		idx++
+	}
+	return rlp.Encode(writer, encryptedPayloadHashesArray)
+}
+
+func (ephs EncryptedPayloadHashes) DecodeRLP(stream *rlp.Stream) error {
+	var encryptedPayloadHashesRLP []EncryptedPayloadHash
+	if err := stream.Decode(&encryptedPayloadHashesRLP); err != nil {
+		return err
+	}
+	for _, val := range encryptedPayloadHashesRLP {
+		ephs.Add(val)
+	}
+	return nil
+}
+
+func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {
+	ephs := make(EncryptedPayloadHashes)
+	for _, b64 := range b64s {
+		data, err := Base64ToEncryptedPayloadHash(b64)
+		if err != nil {
+			return nil, err
+		}
+		ephs.Add(data)
+	}
+	return ephs, nil
+}
+
+// Print hex but only first 3 and last 3 bytes
+func FormatTerminalString(data []byte) string {
+	l := len(data)
+	if l > 0 {
+		if l > 6 {
+			return fmt.Sprintf("%x…%x", data[:3], data[l-3:])
+		} else {
+			return fmt.Sprintf("%x", data[:])
+		}
+	}
+	return ""
+}
+
 /////////// Address
 
 // Address represents the 20 byte address of an Ethereum account.
@@ -207,6 +398,8 @@ func BytesToAddress(b []byte) Address {
 	a.SetBytes(b)
 	return a
 }
+
+func StringToAddress(s string) Address { return BytesToAddress([]byte(s)) } // dep: Istanbul
 
 // BigToAddress returns Address with byte values of b.
 // If b is larger than len(h), b will be cropped from the left.
@@ -425,4 +618,13 @@ func (ma *MixedcaseAddress) ValidChecksum() bool {
 // Original returns the mixed-case input string
 func (ma *MixedcaseAddress) Original() string {
 	return ma.original
+}
+
+type DecryptRequest struct {
+	SenderKey       []byte   `json:"senderKey"`
+	CipherText      []byte   `json:"cipherText"`
+	CipherTextNonce []byte   `json:"cipherTextNonce"`
+	RecipientBoxes  []string `json:"recipientBoxes"`
+	RecipientNonce  []byte   `json:"recipientNonce"`
+	RecipientKeys   []string `json:"recipientKeys"`
 }

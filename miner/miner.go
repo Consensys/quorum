@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -38,6 +39,7 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	ChainDb() ethdb.Database
 }
 
 // Config is the configuration parameters of mining.
@@ -50,7 +52,10 @@ type Config struct {
 	GasCeil    uint64         // Target gas ceiling for mined blocks.
 	GasPrice   *big.Int       // Minimum gas price for mining a transaction
 	Recommit   time.Duration  // The time interval for miner to re-create mining work.
-	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
+	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).AllowedFutureBlockTime uint64         // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+
+	// Quorum
+	AllowedFutureBlockTime uint64 // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 }
 
 // Miner creates blocks and searches for proof-of-work values.
@@ -181,8 +186,8 @@ func (miner *Miner) SetRecommitInterval(interval time.Duration) {
 }
 
 // Pending returns the currently pending block and associated state.
-func (miner *Miner) Pending() (*types.Block, *state.StateDB) {
-	return miner.worker.pending()
+func (self *Miner) Pending(psi types.PrivateStateIdentifier) (*types.Block, *state.StateDB, *state.StateDB) {
+	return self.worker.pending(psi)
 }
 
 // PendingBlock returns the currently pending block.

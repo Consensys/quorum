@@ -41,14 +41,14 @@ var (
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
 		Value: 3,
 	}
+	logjsonFlag = cli.BoolFlag{
+		Name:  "log.json",
+		Usage: "Format logs with JSON",
+	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
 		Value: "",
-	}
-	logjsonFlag = cli.BoolFlag{
-		Name:  "log.json",
-		Usage: "Format logs with JSON",
 	}
 	backtraceAtFlag = cli.StringFlag{
 		Name:  "log.backtrace",
@@ -175,7 +175,6 @@ func Setup(ctx *cli.Context) error {
 		ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	}
 	glogger.SetHandler(ostream)
-
 	// logging
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))

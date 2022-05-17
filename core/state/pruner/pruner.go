@@ -333,7 +333,29 @@ func (p *Pruner) Prune(root common.Hash) error {
 		return err
 	}
 	log.Info("State bloom filter committed", "name", filterName)
-	return prune(p.snaptree, root, p.db, p.stateBloom, filterName, middleRoots, start)
+	if err := prune(p.snaptree, root, p.db, p.stateBloom, filterName, middleRoots, start); err != nil {
+		return err
+	}
+
+	// Pruning is done, now drop the "useless" layers from the snapshot.
+	// Firstly, flushing the target layer into the disk. After that all
+	// diff layers below the target will all be merged into the disk.
+	if err := p.snaptree.Cap(root, 0); err != nil {
+		return err
+	}
+	// Secondly, flushing the snapshot journal into the disk. All diff
+	// layers upon the target layer are dropped silently. Eventually the
+	// entire snapshot tree is converted into a single disk layer with
+	// the pruning target as the root.
+	if _, err := p.snaptree.Journal(root); err != nil {
+		return err
+	}
+	// Delete the state bloom, it marks the entire pruning procedure is
+	// finished. If any crashes or manual exit happens before this,
+	// `RecoverPruning` will pick it up in the next restarts to redo all
+	// the things.
+	os.RemoveAll(filterName)
+	return nil
 }
 
 // RecoverPruning will resume the pruning procedure during the system restart.
@@ -397,7 +419,28 @@ func RecoverPruning(datadir string, db ethdb.Database, trieCachePath string) err
 		log.Error("Pruning target state is not existent")
 		return errors.New("non-existent target state")
 	}
-	return prune(snaptree, stateBloomRoot, db, stateBloom, stateBloomPath, middleRoots, time.Now())
+	if err := prune(snaptree, stateBloomRoot, db, stateBloom, stateBloomPath, middleRoots, time.Now()); err != nil {
+		return err
+	}
+	// Pruning is done, now drop the "useless" layers from the snapshot.
+	// Firstly, flushing the target layer into the disk. After that all
+	// diff layers below the target will all be merged into the disk.
+	if err := snaptree.Cap(stateBloomRoot, 0); err != nil {
+		return err
+	}
+	// Secondly, flushing the snapshot journal into the disk. All diff
+	// layers upon are dropped silently. Eventually the entire snapshot
+	// tree is converted into a single disk layer with the pruning target
+	// as the root.
+	if _, err := snaptree.Journal(stateBloomRoot); err != nil {
+		return err
+	}
+	// Delete the state bloom, it marks the entire pruning procedure is
+	// finished. If any crashes or manual exit happens before this,
+	// `RecoverPruning` will pick it up in the next restarts to redo all
+	// the things.
+	os.RemoveAll(stateBloomPath)
+	return nil
 }
 
 // extractGenesis loads the genesis state and commits all the state entries

@@ -540,7 +540,7 @@ var bindTests = []struct {
 				struct A {
 					bytes32 B;
 				}
-				
+
 				function F() public view returns (A[] memory a, uint256[] memory c, bool[] memory d) {
 					A[] memory a = new A[](2);
 					a[0].B = bytes32(uint256(1234) << 96);
@@ -548,7 +548,7 @@ var bindTests = []struct {
 					bool[] memory d;
 					return (a, c, d);
 				}
-			
+
 				function G() public view returns (A[] memory a) {
 					A[] memory a = new A[](2);
 					a[0].B = bytes32(uint256(1234) << 96);
@@ -570,10 +570,10 @@ var bindTests = []struct {
 			// Generate a new random account and a funded simulator
 			key, _ := crypto.GenerateKey()
 			auth, _ := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337))
-		
+
 			sim := backends.NewSimulatedBackend(core.GenesisAlloc{auth.From: {Balance: big.NewInt(10000000000)}}, 10000000)
 			defer sim.Close()
-		
+
 			// Deploy a structs method invoker contract and execute its default method
 			_, _, structs, err := DeployStructs(auth, sim)
 			if err != nil {
@@ -1851,6 +1851,15 @@ func TestGolangBindings(t *testing.T) {
 	if out, err := replacer.CombinedOutput(); err != nil {
 		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
 	}
+
+	// Quorum - add package github.com/ConsenSys/quorum/crypto/secp256k1 that is defined as a standalone module
+	secp256Replacer := exec.Command(gocmd, "mod", "edit", "-replace", "github.com/ethereum/go-ethereum/crypto/secp256k1=github.com/ConsenSys/quorum/crypto/secp256k1@v0.0.0-20210223160031-6e8585c2a9ad") // Repo root
+	secp256Replacer.Dir = pkg
+	if out, err := secp256Replacer.CombinedOutput(); err != nil {
+		t.Fatalf("failed to replace binding test dependency to current source tree: %v\n%s", err, out)
+	}
+	// End Quorum
+
 	tidier := exec.Command(gocmd, "mod", "tidy")
 	tidier.Dir = pkg
 	if out, err := tidier.CombinedOutput(); err != nil {

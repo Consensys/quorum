@@ -89,9 +89,10 @@ func (n *Node) Seq() uint64 {
 	return n.r.Seq()
 }
 
-// Incomplete returns true for nodes with no IP address.
+// Quorum
+// Incomplete returns true for nodes with no IP address and no hostname if with raftport.
 func (n *Node) Incomplete() bool {
-	return n.IP() == nil
+	return n.IP() == nil && (!n.HasRaftPort() || (n.Host() == "" && n.HasRaftPort()))
 }
 
 // Load retrieves an entry from the underlying record.
@@ -99,8 +100,31 @@ func (n *Node) Load(k enr.Entry) error {
 	return n.r.Load(k)
 }
 
-// IP returns the IP address of the node. This prefers IPv4 addresses.
+// IP returns the IP address of the node.
+//
+// Quorum
+// To support DNS lookup in node ip. The function performs hostname lookup if hostname is defined in enr.Hostname
+// and falls back to enr.IP value in case of failure. It also makes sure the resolved IP is in IPv4 or IPv6 format
 func (n *Node) IP() net.IP {
+	if n.Host() == "" {
+		// no host is set, so use the IP directly
+		return n.loadIP()
+	}
+	// attempt to look up IP addresses if host is a FQDN
+	lookupIPs, err := net.LookupIP(n.Host())
+	if err != nil {
+		return n.loadIP()
+	}
+	// set to first ip by default & as Ethereum upstream
+	ip := lookupIPs[0]
+	// Ensure the IP is 4 bytes long for IPv4 addresses.
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+	return ip
+}
+
+func (n *Node) loadIP() net.IP {
 	var (
 		ip4 enr.IPv4
 		ip6 enr.IPv6
@@ -114,11 +138,34 @@ func (n *Node) IP() net.IP {
 	return nil
 }
 
+// Quorum
+func (n *Node) Host() string {
+	var hostname string
+	n.Load((*enr.Hostname)(&hostname))
+	return hostname
+}
+
+// End-Quorum
+
 // UDP returns the UDP port of the node.
 func (n *Node) UDP() int {
 	var port enr.UDP
 	n.Load(&port)
 	return int(port)
+}
+
+// used by Quorum RAFT - returns the Raft port of the node
+func (n *Node) RaftPort() int {
+	var port enr.RaftPort
+	err := n.Load(&port)
+	if err != nil {
+		return 0
+	}
+	return int(port)
+}
+
+func (n *Node) HasRaftPort() bool {
+	return n.RaftPort() > 0
 }
 
 // UDP returns the TCP port of the node.
@@ -224,6 +271,34 @@ func (n *ID) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// ID is a unique identifier for each node used by RAFT
+type EnodeID [64]byte
+
+// ID prints as a long hexadecimal number.
+func (n EnodeID) String() string {
+	return fmt.Sprintf("%x", n[:])
+}
+
+// The Go syntax representation of a ID is a call to HexID.
+func (n EnodeID) GoString() string {
+	return fmt.Sprintf("enode.HexID(\"%x\")", n[:])
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (n EnodeID) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(n[:])), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (n *EnodeID) UnmarshalText(text []byte) error {
+	id, err := RaftHexID(string(text))
+	if err != nil {
+		return err
+	}
+	*n = id
+	return nil
+}
+
 // HexID converts a hex string to an ID.
 // The string may be prefixed with 0x.
 // It panics if the string is not a valid ID.
@@ -233,6 +308,20 @@ func HexID(in string) ID {
 		panic(err)
 	}
 	return id
+}
+
+// used by Quorum RAFT to derive 64 byte nodeId from 128 byte enodeID
+func RaftHexID(in string) (EnodeID, error) {
+	var id EnodeID
+	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))
+	if err != nil {
+		return id, err
+	} else if len(b) != len(id) {
+		return id, fmt.Errorf("wrong length, want %d hex chars", len(id)*2)
+	}
+
+	copy(id[:], b)
+	return id, nil
 }
 
 func ParseID(in string) (ID, error) {

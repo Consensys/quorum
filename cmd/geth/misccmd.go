@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -89,7 +90,7 @@ The output of this command is supposed to be machine-readable.
 		ArgsUsage: "<versionstring (optional)>",
 		Category:  "MISCELLANEOUS COMMANDS",
 		Description: `
-The version-check command fetches vulnerability-information from https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json, 
+The version-check command fetches vulnerability-information from https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json,
 and displays information about any security vulnerabilities that affect the currently executing version.
 `,
 	}
@@ -141,7 +142,9 @@ func version(ctx *cli.Context) error {
 	if gitDate != "" {
 		fmt.Println("Git Commit Date:", gitDate)
 	}
+	fmt.Println("Quorum Version:", params.QuorumVersion)
 	fmt.Println("Architecture:", runtime.GOARCH)
+	fmt.Println("Network Id:", ethconfig.Defaults.NetworkId)
 	fmt.Println("Go Version:", runtime.Version())
 	fmt.Println("Operating System:", runtime.GOOS)
 	fmt.Printf("GOPATH=%s\n", os.Getenv("GOPATH"))

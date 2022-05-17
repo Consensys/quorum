@@ -27,6 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console/prompt"
@@ -39,6 +40,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/plugin"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -59,6 +62,7 @@ var (
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
 		utils.DataDirFlag,
+		utils.RaftLogDirFlag,
 		utils.AncientFlag,
 		utils.MinFreeDiskSpaceFlag,
 		utils.KeyStoreDirFlag,
@@ -101,7 +105,7 @@ var (
 		utils.UltraLightFractionFlag,
 		utils.UltraLightOnlyAnnounceFlag,
 		utils.LightNoSyncServeFlag,
-		utils.WhitelistFlag,
+		utils.AuthorizationListFlag,
 		utils.BloomFilterSizeFlag,
 		utils.CacheFlag,
 		utils.CacheDatabaseFlag,
@@ -151,6 +155,64 @@ var (
 		utils.EVMInterpreterFlag,
 		utils.MinerNotifyFullFlag,
 		configFileFlag,
+		// Quorum
+		utils.QuorumImmutabilityThreshold,
+		utils.EnableNodePermissionFlag,
+		utils.RaftModeFlag,
+		utils.RaftBlockTimeFlag,
+		utils.RaftJoinExistingFlag,
+		utils.RaftPortFlag,
+		utils.RaftDNSEnabledFlag,
+		utils.EmitCheckpointsFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.PluginSettingsFlag,
+		utils.PluginSkipVerifyFlag,
+		utils.PluginLocalVerifyFlag,
+		utils.PluginPublicKeyFlag,
+		utils.AllowedFutureBlockTimeFlag,
+		utils.EVMCallTimeOutFlag,
+		utils.MultitenancyFlag,
+		utils.RevertReasonFlag,
+		utils.QuorumEnablePrivateTrieCache,
+		utils.QuorumEnablePrivacyMarker,
+		utils.QuorumPTMUnixSocketFlag,
+		utils.QuorumPTMUrlFlag,
+		utils.QuorumPTMTimeoutFlag,
+		utils.QuorumPTMDialTimeoutFlag,
+		utils.QuorumPTMHttpIdleTimeoutFlag,
+		utils.QuorumPTMHttpWriteBufferSizeFlag,
+		utils.QuorumPTMHttpReadBufferSizeFlag,
+		utils.QuorumPTMTlsModeFlag,
+		utils.QuorumPTMTlsRootCaFlag,
+		utils.QuorumPTMTlsClientCertFlag,
+		utils.QuorumPTMTlsClientKeyFlag,
+		utils.QuorumPTMTlsInsecureSkipVerify,
+		utils.QuorumLightServerFlag,
+		utils.QuorumLightServerP2PListenPortFlag,
+		utils.QuorumLightServerP2PMaxPeersFlag,
+		utils.QuorumLightServerP2PNetrestrictFlag,
+		utils.QuorumLightServerP2PPermissioningFlag,
+		utils.QuorumLightServerP2PPermissioningPrefixFlag,
+		utils.QuorumLightClientFlag,
+		utils.QuorumLightClientPSIFlag,
+		utils.QuorumLightClientTokenEnabledFlag,
+		utils.QuorumLightClientTokenValueFlag,
+		utils.QuorumLightClientTokenManagementFlag,
+		utils.QuorumLightClientRPCTLSFlag,
+		utils.QuorumLightClientRPCTLSInsecureSkipVerifyFlag,
+		utils.QuorumLightClientRPCTLSCACertFlag,
+		utils.QuorumLightClientRPCTLSCertFlag,
+		utils.QuorumLightClientRPCTLSKeyFlag,
+		utils.QuorumLightClientServerNodeFlag,
+		utils.QuorumLightClientServerNodeRPCFlag,
+		utils.QuorumLightTLSFlag,
+		utils.QuorumLightTLSCertFlag,
+		utils.QuorumLightTLSKeyFlag,
+		utils.QuorumLightTLSCACertsFlag,
+		utils.QuorumLightTLSClientAuthFlag,
+		utils.QuorumLightTLSCipherSuitesFlag,
+		// End-Quorum
 	}
 
 	rpcFlags = []cli.Flag{
@@ -206,6 +268,7 @@ func init() {
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,
+		mpsdbUpgradeCommand,
 		importCommand,
 		exportCommand,
 		importPreimagesCommand,
@@ -326,10 +389,24 @@ func geth(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
+	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
 	debug.Memsize.Add("node", stack)
+
+	// raft mode does not support --exitwhensynced
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		utils.Fatalf("raft consensus does not support --exitwhensynced")
+	}
 
 	// Start up the node itself
 	utils.StartNode(ctx, stack)
+
+	// Now that the plugin manager has been started we register the account plugin with the corresponding account backend.  All other account management is disabled when using External Signer
+	if !ctx.IsSet(utils.ExternalSignerFlag.Name) && stack.PluginManager().IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := stack.AccountManager().Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := stack.PluginManager().AddAccountPluginToBackend(b); err != nil {
+			log.Error("failed to setup account plugin", "err", err)
+		}
+	}
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)
@@ -344,6 +421,12 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		utils.Fatalf("Failed to attach to self: %v", err)
 	}
 	ethClient := ethclient.NewClient(rpcClient)
+
+	// Quorum
+	if ctx.GlobalBool(utils.MultitenancyFlag.Name) && !stack.PluginManager().IsEnabled(plugin.SecurityPluginInterfaceName) {
+		utils.Fatalf("multitenancy requires RPC Security Plugin to be configured")
+	}
+	// End Quorum
 
 	go func() {
 		// Open any wallets already attached
@@ -402,6 +485,22 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		}()
 	}
 
+	// Quorum
+	//
+	// checking if permissions is enabled and staring the permissions service
+	if stack.Config().EnableNodePermission {
+		stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
+		if stack.IsPermissionEnabled() {
+			var permissionService *permission.PermissionCtrl
+			if err := stack.Lifecycle(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}
+		}
+	}
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -421,6 +520,9 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
+
+	// checks quorum features that depend on the ethereum service
+	quorumValidateEthService(stack, ctx.GlobalBool(utils.RaftModeFlag.Name))
 }
 
 // unlockAccounts unlocks any account specifically requested.

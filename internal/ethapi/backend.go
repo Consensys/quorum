@@ -20,13 +20,14 @@ package ethapi
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -34,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -59,11 +61,11 @@ type Backend interface {
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error)
+	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error)
 	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	GetTd(ctx context.Context, hash common.Hash) *big.Int
-	GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error)
+	GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error)
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
@@ -88,6 +90,15 @@ type Backend interface {
 
 	ChainConfig() *params.ChainConfig
 	Engine() consensus.Engine
+
+	// Quorum
+	CallTimeOut() time.Duration
+	// AccountExtraDataStateGetterByNumber returns state getter at a given block height
+	AccountExtraDataStateGetterByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateGetter, error)
+	PSMR() mps.PrivateStateMetadataResolver
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
+	// IsPrivacyMarkerTransactionCreationEnabled returns true if privacy marker transactions are enabled and should be created
+	IsPrivacyMarkerTransactionCreationEnabled() bool
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
@@ -106,7 +117,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicTransactionPoolAPI(apiBackend, nonceLock),
+			Service:   NewPublicTransactionPoolProxyAPI(apiBackend, nonceLock),
 			Public:    true,
 		}, {
 			Namespace: "txpool",
@@ -130,7 +141,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "personal",
 			Version:   "1.0",
-			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
+			Service:   NewPrivateAccountProxyAPI(apiBackend, nonceLock),
 			Public:    false,
 		},
 	}

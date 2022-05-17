@@ -41,6 +41,15 @@ var (
 	defaultNegFactors = vfs.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1}
 )
 
+/*var (
+	serverSetup = &nodestate.Setup{}
+	clientPeerField = serverSetup.NewField("clientPeer", reflect.TypeOf(&clientPeer{}))
+	clientInfoField     = serverSetup.NewField("clientInfo", reflect.TypeOf(&clientInfo{}))
+	connAddressField = serverSetup.NewField("connAddr", reflect.TypeOf(""))
+	balanceTrackerSetup = vfs.NewBalanceTrackerSetup(serverSetup)
+	priorityPoolSetup   = vfs.NewPriorityPoolSetup(serverSetup)
+)*/
+
 const defaultConnectedBias = time.Minute * 3
 
 type ethBackend interface {
@@ -81,6 +90,7 @@ func NewLesServer(node *node.Node, e ethBackend, config *ethconfig.Config) (*Les
 	if err != nil {
 		return nil, err
 	}
+	//ns := nodestate.NewNodeStateMachine(nil, nil, mclock.System{}, serverSetup)
 	// Calculate the number of threads used to service the light client
 	// requests based on the user-specified value.
 	threads := config.LightServ * 4 / 100
@@ -110,6 +120,7 @@ func NewLesServer(node *node.Node, e ethBackend, config *ethconfig.Config) (*Les
 		threadsIdle:  threads,
 		p2pSrv:       node.Server(),
 	}
+	//srv.vfluxServer.Register(srv)
 	issync := e.Synced
 	if config.LightNoSyncServe {
 		issync = func() bool { return true }
@@ -281,7 +292,7 @@ func (s *LesServer) capacityManagement() {
 				log.Warn("Reduced free peer connections", "from", freePeers, "to", newFreePeers)
 			}
 			freePeers = newFreePeers
-			s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
+			//s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
 		case <-s.closeCh:
 			return
 		}

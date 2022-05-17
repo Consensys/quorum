@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -41,6 +42,9 @@ func init() {
 	lightMaxForkAncestry = 10000
 	blockCacheMaxItems = 1024
 	fsHeaderContCheck = 500 * time.Millisecond
+
+	// set immutability threshold to 10000 as well
+	params.SetQuorumImmutabilityThreshold(10000)
 }
 
 // downloadTester is a test simulator for mocking out local block chain.

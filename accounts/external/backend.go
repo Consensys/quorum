@@ -211,6 +211,8 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 		GasPrice: hexutil.Big(*tx.GasPrice()),
 		To:       to,
 		From:     common.NewMixedcaseAddress(account.Address),
+		// Quorum
+		IsPrivate: tx.IsPrivate(),
 	}
 	var res signTransactionResult
 	if err := api.client.Call(&res, "account_signTransaction", args); err != nil {

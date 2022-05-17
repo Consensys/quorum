@@ -158,7 +158,7 @@ WARNING: This is a low-level operation which may cause database corruption!`,
 			utils.GoerliFlag,
 			utils.YoloV3Flag,
 		},
-		Description: `This command sets a given database key to the given value. 
+		Description: `This command sets a given database key to the given value.
 WARNING: This is a low-level operation which may cause database corruption!`,
 	}
 	dbGetSlotsCmd = cli.Command{
@@ -286,10 +286,8 @@ func showLeveldbStats(db ethdb.Stater) {
 func dbStats(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
-
 	db := utils.MakeChainDatabase(ctx, stack, true)
 	defer db.Close()
-
 	showLeveldbStats(db)
 	return nil
 }
@@ -395,7 +393,7 @@ func dbPut(ctx *cli.Context) error {
 	}
 	data, err = db.Get(key)
 	if err == nil {
-		fmt.Printf("Previous value: %#x\n", data)
+		fmt.Printf("Previous value:\n%#x\n", data)
 	}
 	return db.Put(key, value)
 }

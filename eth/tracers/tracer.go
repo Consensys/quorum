@@ -312,6 +312,8 @@ type Tracer struct {
 	reason    error  // Textual reason for the interruption
 }
 
+var _ vm.Tracer = &Tracer{}
+
 // New instantiates a new tracer instance. code specifies a Javascript snippet,
 // which must evaluate to an expression returning an object with 'step', 'fault'
 // and 'result' functions.

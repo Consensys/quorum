@@ -31,6 +31,8 @@ type JSONLogger struct {
 	cfg     *LogConfig
 }
 
+var _ Tracer = &JSONLogger{}
+
 // NewJSONLogger creates a new EVM tracer that prints execution steps as JSON objects
 // into the provided stream.
 func NewJSONLogger(cfg *LogConfig, writer io.Writer) *JSONLogger {
@@ -41,10 +43,8 @@ func NewJSONLogger(cfg *LogConfig, writer io.Writer) *JSONLogger {
 	return l
 }
 
-func (l *JSONLogger) CaptureStart(env *EVM, from, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (l *JSONLogger) CaptureStart(env *EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 }
-
-func (l *JSONLogger) CaptureFault(*EVM, uint64, OpCode, uint64, uint64, *ScopeContext, int, error) {}
 
 // CaptureState outputs state information on the logger.
 func (l *JSONLogger) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error) {
@@ -91,4 +91,10 @@ func (l *JSONLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, 
 		l.encoder.Encode(endLog{common.Bytes2Hex(output), math.HexOrDecimal64(gasUsed), t, err.Error()})
 	}
 	l.encoder.Encode(endLog{common.Bytes2Hex(output), math.HexOrDecimal64(gasUsed), t, ""})
+}
+
+// Quorum
+
+// CaptureFault outputs state information on the logger.
+func (l *JSONLogger) CaptureFault(env *EVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error) {
 }

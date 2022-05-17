@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net/http"
@@ -28,10 +29,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -46,6 +50,7 @@ type Node struct {
 	dirLock       fileutil.Releaser // prevents concurrent use of instance directory
 	stop          chan struct{}     // Channel to wait for termination notifications
 	server        *p2p.Server       // Currently running P2P networking layer
+	qserver       *p2p.Server       // Currently running P2P networking layer for QLight
 	startStopLock sync.Mutex        // Start/Stop are protected by an additional lock
 	state         int               // Tracks state of node lifecycle
 
@@ -58,6 +63,10 @@ type Node struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	databases map[*closeTrackingDB]struct{} // All open databases
+
+	// Quorum
+	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
+	// End Quorum
 }
 
 const (
@@ -97,12 +106,16 @@ func New(conf *Config) (*Node, error) {
 
 	node := &Node{
 		config:        conf,
-		inprocHandler: rpc.NewServer(),
+		inprocHandler: rpc.NewProtectedServer(nil, conf.EnableMultitenancy),
 		eventmux:      new(event.TypeMux),
 		log:           conf.Logger,
 		stop:          make(chan struct{}),
 		server:        &p2p.Server{Config: conf.P2P},
 		databases:     make(map[*closeTrackingDB]struct{}),
+		pluginManager: plugin.NewEmptyPluginManager(),
+	}
+	if conf.QP2P != nil {
+		node.qserver = &p2p.Server{Config: *conf.QP2P}
 	}
 
 	// Register built-in APIs.
@@ -134,6 +147,26 @@ func New(conf *Config) (*Node, error) {
 	if node.server.Config.NodeDatabase == "" {
 		node.server.Config.NodeDatabase = node.config.NodeDB()
 	}
+	if node.qserver != nil {
+		node.qserver.Config.PrivateKey = node.config.NodeKey()
+		node.qserver.Config.Name = "qgeth"
+		node.qserver.Config.Logger = node.log
+		node.qserver.Config.NodeDatabase = node.config.QNodeDB()
+		node.qserver.Config.DataDir = node.config.DataDir
+	}
+
+	// Check HTTP/WS prefixes are valid.
+	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
+		return nil, err
+	}
+	if err := validatePrefix("WebSocket", conf.WSPathPrefix); err != nil {
+		return nil, err
+	}
+
+	// Quorum
+	node.server.Config.EnableNodePermission = node.config.EnableNodePermission
+	node.server.Config.DataDir = node.config.DataDir
+	// End Quorum
 
 	// Check HTTP/WS prefixes are valid.
 	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
@@ -144,9 +177,9 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
-	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
+	node.http = newHTTPServer(node.log, conf.HTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
+	node.ipc = newIPCServer(node.log, conf.IPCEndpoint()).withMultitenancy(node.config.EnableMultitenancy)
 
 	return node, nil
 }
@@ -167,6 +200,15 @@ func (n *Node) Start() error {
 		return ErrNodeStopped
 	}
 	n.state = runningState
+
+	// Quorum
+	// Start the plugin manager before as might be needed for TLS and Auth manager for networking/rpc.
+	if err := n.PluginManager().Start(); err != nil {
+		n.doClose(nil)
+		return err
+	}
+	// End Quorum
+
 	// open networking and RPC endpoints
 	err := n.openEndpoints()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
@@ -263,6 +305,13 @@ func (n *Node) openEndpoints() error {
 	if err := n.server.Start(); err != nil {
 		return convertFileLockError(err)
 	}
+	// Quorum
+	if n.qserver != nil {
+		if err := n.qserver.Start(); err != nil {
+			return convertFileLockError(err)
+		}
+	}
+	// End Quorum
 	// start RPC endpoints
 	err := n.startRPC()
 	if err != nil {
@@ -289,6 +338,11 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop running lifecycles in reverse order.
 	failure := &StopError{Services: make(map[reflect.Type]error)}
+	// Quorum
+	if err := n.PluginManager().Stop(); err != nil {
+		failure.Services[reflect.TypeOf(n.PluginManager())] = err
+	}
+	// End Quorum
 	for i := len(running) - 1; i >= 0; i-- {
 		if err := running[i].Stop(); err != nil {
 			failure.Services[reflect.TypeOf(running[i])] = err
@@ -297,6 +351,9 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop p2p networking.
 	n.server.Stop()
+	if n.qserver != nil {
+		n.qserver.Stop()
+	}
 
 	if len(failure.Services) > 0 {
 		return failure
@@ -336,6 +393,8 @@ func (n *Node) closeDataDir() {
 // configureRPC is a helper method to configure all the various RPC endpoints during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server when appropriate
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
@@ -348,6 +407,11 @@ func (n *Node) startRPC() error {
 		}
 	}
 
+	tls, auth, err := n.GetSecuritySupports()
+	if err != nil {
+		return err
+	}
+
 	// Configure HTTP.
 	if n.config.HTTPHost != "" {
 		config := httpConfig{
@@ -356,10 +420,11 @@ func (n *Node) startRPC() error {
 			Modules:            n.config.HTTPModules,
 			prefix:             n.config.HTTPPathPrefix,
 		}
-		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
+		server := n.http
+		if err := server.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
 		}
-		if err := n.http.enableRPC(n.rpcAPIs, config); err != nil {
+		if err := server.enableRPC(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
@@ -375,15 +440,15 @@ func (n *Node) startRPC() error {
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
 		}
-		if err := server.enableWS(n.rpcAPIs, config); err != nil {
+		if err := server.enableWS(n.rpcAPIs, config, auth); err != nil {
 			return err
 		}
 	}
 
-	if err := n.http.start(); err != nil {
+	if err := n.http.start(tls); err != nil {
 		return err
 	}
-	return n.ws.start()
+	return n.ws.start(tls)
 }
 
 func (n *Node) wsServerForPort(port int) *httpServer {
@@ -401,13 +466,15 @@ func (n *Node) stopRPC() {
 }
 
 // startInProc registers all RPC APIs on the inproc server.
+// Quorum
+// 1. Inject mutlitenancy flag into rpc server
 func (n *Node) startInProc() error {
 	for _, api := range n.rpcAPIs {
 		if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
 			return err
 		}
 	}
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
@@ -445,6 +512,16 @@ func (n *Node) RegisterProtocols(protocols []p2p.Protocol) {
 	n.server.Protocols = append(n.server.Protocols, protocols...)
 }
 
+func (n *Node) RegisterQProtocols(protocols []p2p.Protocol) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.state != initializingState {
+		panic("can't register protocols on running/stopped node")
+	}
+	n.qserver.Protocols = append(n.qserver.Protocols, protocols...)
+}
+
 // RegisterAPIs registers the APIs a service provides on the node.
 func (n *Node) RegisterAPIs(apis []rpc.API) {
 	n.lock.Lock()
@@ -477,6 +554,15 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
 }
 
+// AttachWithPSI creates a PSI-specific RPC client attached to an in-process API handler.
+func (n *Node) AttachWithPSI(psi types.PrivateStateIdentifier) (*rpc.Client, error) {
+	client, err := n.Attach()
+	if err != nil {
+		return nil, err
+	}
+	return client.WithPSI(psi), nil
+}
+
 // RPCHandler returns the in-process RPC request handler.
 func (n *Node) RPCHandler() (*rpc.Server, error) {
 	n.lock.Lock()
@@ -501,6 +587,13 @@ func (n *Node) Server() *p2p.Server {
 	defer n.lock.Unlock()
 
 	return n.server
+}
+
+func (n *Node) QServer() *p2p.Server {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.qserver
 }
 
 // DataDir retrieves the current datadir used by the protocol stack.
@@ -637,4 +730,75 @@ func (n *Node) closeDatabases() (errors []error) {
 		}
 	}
 	return errors
+}
+
+// Quorum
+func (n *Node) GetSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
+			return
+		}
+		if tlsConfigSource, err = sp.TLSConfigurationSource(); err != nil {
+			return
+		}
+		if authManager, err = sp.AuthenticationManager(); err != nil {
+			return
+		}
+	} else {
+		log.Info("Security Plugin is not enabled")
+	}
+	return
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
+}
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) PluginManager() *plugin.PluginManager {
+	return n.pluginManager
+}
+
+// Quorum
+//
+// This can be used to set the plugin manager in the node (replacing the default Empty one)
+func (n *Node) SetPluginManager(pm *plugin.PluginManager) {
+	n.pluginManager = pm
+}
+
+// Quorum
+//
+// Lifecycle retrieves a currently lifecycle registered of a specific type.
+func (n *Node) Lifecycle(lifecycle interface{}) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// Short circuit if the node's not running
+	if n.server == nil {
+		return ErrNodeStopped
+	}
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(lifecycle).Elem()
+	for _, runningLifecycle := range n.lifecycles {
+		lElem := reflect.TypeOf(runningLifecycle)
+		if lElem == element.Type() {
+			element.Set(reflect.ValueOf(runningLifecycle))
+			return nil
+		}
+	}
+
+	return ErrServiceUnknown
 }

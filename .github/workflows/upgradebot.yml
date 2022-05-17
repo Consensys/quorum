@@ -1,0 +1,29 @@
+name: Run Geth Upgrade
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 4 * * *'
+
+env:
+  GITHUB_USERNAME: ${{ secrets.QUORUM_BOT_GITHUB_USERNAME }}
+  GITHUB_USER_TOKEN: ${{ secrets.QUORUM_BOT_GITHUB_USER_TOKEN }}
+  GOPATH: /tmp
+  
+jobs:
+  check_geth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+        id: go
+      - name: Clone upgrade geth bot
+        run: |
+          git clone https://github.com/Consensys/quorum-bots.git $GOPATH/src/upgradebot
+      - name: Execute upgrade geth bot
+        run: |
+          git config --global user.email "${{github.actor}}@users.noreply.github.com"
+          git config --global user.name "${{github.actor}}"
+          go run upgradebot/cmd
