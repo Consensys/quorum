@@ -755,8 +755,7 @@ type filterBackend struct {
 	bc *core.BlockChain
 }
 
-func (fb *filterBackend) ChainDb() ethdb.Database { return fb.db }
-
+func (fb *filterBackend) ChainDb() ethdb.Database  { return fb.db }
 func (fb *filterBackend) EventMux() *event.TypeMux { panic("not supported") }
 
 func (fb *filterBackend) PSMR() mps.PrivateStateMetadataResolver { return fb.bc.PrivateStateManager() }

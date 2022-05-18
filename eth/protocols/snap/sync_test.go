@@ -483,7 +483,7 @@ func starvingStorageRequestHandler(t *testPeer, requestId uint64, root common.Ha
 	return defaultStorageRequestHandler(t, requestId, root, accounts, origin, limit, 500)
 }
 
-func starvingAccountRequestHandler(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
+func starvingAccountRequestHandler(t *testPeer, requestId uint64, root common.Hash, origin, limit common.Hash, cap uint64) error {
 	return defaultAccountRequestHandler(t, requestId, root, origin, limit, 500)
 }
 
@@ -688,11 +688,10 @@ func TestMultiSync(t *testing.T) {
 		return source
 	}
 	syncer := setupSyncer(mkSource("sourceA"), mkSource("sourceB"))
-	done := checkStall(t, term)
 	if err := syncer.Sync(sourceAccountTrie.Hash(), cancel); err != nil {
 		t.Fatalf("sync failed: %v", err)
 	}
-	close(done)
+	//close(done)
 	verifyTrie(syncer.db, sourceAccountTrie.Hash(), t)
 }
 

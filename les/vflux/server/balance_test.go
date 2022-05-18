@@ -84,14 +84,6 @@ func (b *balanceTestSetup) newNode(capacity uint64) *nodeBalance {
 		b.ns.SetField(node, b.setup.capacityField, capacity)
 	}
 	n, _ := b.ns.GetField(node, b.setup.balanceField).(*nodeBalance)
-	/*
-			b.ns.SetState(node, testFlag, nodestate.Flags{}, 0)
-			b.ns.SetField(node, btTestSetup.connAddressField, "")
-			if capacity != 0 {
-			    b.ns.SetField(node, ppTestSetup.CapacityField, capacity)
-			}
-		n, _ := b.ns.GetField(node, btTestSetup.BalanceField).(*NodeBalance)
-	*/
 	return n
 }
 

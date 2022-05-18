@@ -26,8 +26,6 @@ import (
 	"reflect"
 	"unicode"
 
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
@@ -45,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/naoina/toml"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (

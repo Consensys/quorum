@@ -1556,7 +1556,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 			}
 		}
 		// Copy the original db so we don't modify it
-		copyStatedb := *(db.(*state.StateDB)) // TODO
+		copyStatedb := *(db.(*state.StateDB)) // TODO: Quorum merge
 		statedb := &copyStatedb
 		msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), input, accessList, false)
 
@@ -2065,7 +2065,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	} else {
 		data = &types.AccessListTx{
 			To:         args.To,
-			ChainID:    (*big.Int)(args.ChainID),
+			ChainID:    args.ChainID,
 			Nonce:      uint64(*args.Nonce),
 			Gas:        uint64(*args.Gas),
 			GasPrice:   (*big.Int)(args.GasPrice),
@@ -2133,6 +2133,10 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 				return common.Hash{}, multitenancy.ErrNotAuthorized
 			}
 		}
+	}
+	if !b.UnprotectedAllowed() && !tx.Protected() {
+		// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
+		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err

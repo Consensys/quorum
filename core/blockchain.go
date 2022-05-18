@@ -1675,6 +1675,8 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 	return nil
 }
 
+// END QUORUM
+
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, psManager mps.PrivateStateRepository, emitHeadEvent bool) (status WriteStatus, err error) {

@@ -596,7 +596,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	} else {
 		// Drop non-local transactions under our own minimal accepted gas price
 		if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
-		return ErrUnderpriced}
+			return ErrUnderpriced
+		}
 	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {

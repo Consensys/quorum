@@ -61,6 +61,15 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
+// ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
+func (api *PublicEthereumAPI) ChainId() (hexutil.Uint64, error) {
+	// if current block is at or past the EIP-155 replay-protection fork block, return chainID from config
+	if config := api.e.blockchain.Config(); config.IsEIP155(api.e.blockchain.CurrentBlock().Number()) {
+		return (hexutil.Uint64)(config.ChainID.Uint64()), nil
+	}
+	return hexutil.Uint64(0), fmt.Errorf("chain not synced beyond EIP-155 replay-protection fork block")
+}
+
 // PublicMinerAPI provides an API to control the miner.
 // It offers only methods that operate on data that pose no security risk when it is publicly accessible.
 type PublicMinerAPI struct {
@@ -308,8 +317,36 @@ func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.Blo
 	if err != nil {
 		return state.Dump{}, err
 	}
-	return state.Dump{Root: privateState.IntermediateRoot(true).Hex()}, nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+	return state.Dump{
+		Root: privateState.IntermediateRoot(true).Hex(),
+	}, nil
 }
+
+// Quorum
+// DumpAddress retrieves the state of an address at a given block.
+// Quorum adds an additional parameter to support private state dump
+/*func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
+	if err != nil {
+		return state.DumpAccount{}, err
+	}
+
+	if accountDump, ok := privateState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	_, privateState, err = api.eth.BlockChain().StateAtPSI(block.Root(), defaultPSM.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if blockNr == rpc.PendingBlockNumber {
+		// If we're dumping the pending state, we need to request
+		// both the pending block as well as the pending state from
+		// the miner and operate on those
+		_, publicState, privateState := api.eth.miner.Pending(psm.ID)
+		return publicState, privateState, nil
+	}
+	return state.Dump{Root: privateState.IntermediateRoot(true).Hex()}, nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+}*/
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
 // the private debugging endpoint.
@@ -443,6 +480,7 @@ func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
+	//defer release()
 	st := statedb.StorageTrie(contractAddress)
 	if st == nil {
 		return StorageRangeResult{}, fmt.Errorf("account %x doesn't exist", contractAddress)
