@@ -764,7 +764,7 @@ func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backen
 
 	// See if the consensus engine protocol can handle this message, e.g. istanbul will check for message is
 	// istanbulMsg = 0x11, and NewBlockMsg = 0x07.
-	handled, err := h.handleConsensusMsg(p, msg, backend)
+	handled, err := h.handleConsensusMsg(p, msg)
 	if handled {
 		p.Log().Debug("consensus message was handled by consensus engine", "msg", msg.Code,
 			"quorumConsensusProtocolName", quorumConsensusProtocolName, "err", err)
@@ -774,17 +774,17 @@ func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backen
 
 	var handlers = eth.ETH_65_FULL_SYNC
 
-	p.Log().Debug("Looking for handlers of", "msg", msg.Code)
+	p.Log().Trace("Message not handled by sub-protocol", "msg", msg.Code)
 
 	if handler := handlers[msg.Code]; handler != nil {
-		p.Log().Debug("Found Handler", "msg", msg.Code)
+		p.Log().Debug("Found eth handler for msg", "msg", msg.Code)
 		return handler(backend, msg, p)
 	}
 
 	return nil
 }
 
-func (h *handler) handleConsensusMsg(p *eth.Peer, msg p2p.Msg, backend eth.Backend) (bool, error) {
+func (h *handler) handleConsensusMsg(p *eth.Peer, msg p2p.Msg) (bool, error) {
 	if handler, ok := h.engine.(consensus.Handler); ok {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
