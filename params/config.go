@@ -401,11 +401,12 @@ func (c *IstanbulConfig) String() string {
 }
 
 type BFTConfig struct {
-	EpochLength           uint64   `json:"epochlength"`              // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds    uint64   `json:"blockperiodseconds"`       // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds"`    // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ProposerPolicy        uint64   `json:"policy"`                   // The policy for proposer selection
-	Ceil2Nby3Block        *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	EpochLength              uint64         `json:"epochlength"`              // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds"`       // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds"`    // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ProposerPolicy           uint64         `json:"policy"`                   // The policy for proposer selection
+	Ceil2Nby3Block           *big.Int       `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"` // Smart contract address for list of validators
 }
 
 type IBFTConfig struct {
@@ -427,15 +428,20 @@ func (c QBFTConfig) String() string {
 const (
 	IBFT string = "ibft"
 	QBFT        = "qbft"
+
+	ContractMode    = "contract"
+	BlockHeaderMode = "blockheader"
 )
 
 type Transition struct {
-	Block                 *big.Int `json:"block"`
-	Algorithm             string   `json:"algorithm,omitempty"`
-	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	Block                    *big.Int       `json:"block"`
+	Algorithm                string         `json:"algorithm,omitempty"`
+	EpochLength              uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit        uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
+	ValidatorSelectionMode   string         `json:"validatorselectionmode"`          // Validator selection mode to switch to
 }
 
 // String implements the fmt.Stringer interface.
@@ -634,6 +640,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
 			return ErrTransitionAlgorithm
 		}
+		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
+			return ErrValidatorSelectionMode
+		}
 		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
 			return ErrTestQBFTBlockAndTransitions
 		}
@@ -654,6 +663,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
 			return ErrContractSizeLimit
+		}
+		if transition.ValidatorContractAddress != (common.Address{}) && transition.ValidatorSelectionMode != ContractMode {
+			return ErrMissingValidatorSelectionMode
 		}
 		prevBlock = transition.Block
 	}
@@ -776,6 +788,12 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
 			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ValidatorContractAddress != c2.Transitions[i].ValidatorContractAddress {
+			return ErrTransitionIncompatible("ValidatorContractAddress"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ValidatorSelectionMode != c2.Transitions[i].ValidatorSelectionMode {
+			return ErrTransitionIncompatible("ValidatorSelectionMode"), head, head
 		}
 	}
 

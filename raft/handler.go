@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -484,10 +485,14 @@ func (pm *ProtocolManager) startRaft() {
 		// chain and all other nodes in the network have confirmed these blocks
 		if maybeRaftSnapshot != nil {
 			currentChainHead := pm.blockchain.CurrentBlock().Number()
-			for _, entry := range entries {
+			emptyEntries := make([]int, 0, len(entries))
+			for idx, entry := range entries {
 				if entry.Type == raftpb.EntryNormal {
 					var block types.Block
-					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
+					if err := rlp.DecodeBytes(entry.Data, &block); err == io.EOF {
+						emptyEntries = append(emptyEntries, idx)
+						continue
+					} else if err != nil {
 						log.Error("error decoding block: ", "err", err)
 						continue
 					}
@@ -504,6 +509,9 @@ func (pm *ProtocolManager) startRaft() {
 						}
 					}
 				}
+			}
+			if len(emptyEntries) > 0 {
+				log.Warn("empty wal entries", "index", emptyEntries)
 			}
 		}
 

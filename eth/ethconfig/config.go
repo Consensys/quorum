@@ -263,17 +263,22 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
-
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.IBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = nil
+		if chainConfig.IBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.IBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.QBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// Otherwise assume proof-of-work

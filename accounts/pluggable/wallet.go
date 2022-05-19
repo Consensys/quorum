@@ -119,10 +119,8 @@ func prepareTxForSign(tx *types.Transaction, chainID *big.Int) (common.Hash, typ
 
 	if tx.IsPrivate() {
 		s = types.QuorumPrivateTxSigner{}
-	} else if chainID == nil {
-		s = types.HomesteadSigner{}
 	} else {
-		s = types.NewEIP155Signer(chainID)
+		s = types.LatestSignerForChainID(chainID)
 	}
 
 	return s.Hash(tx), s

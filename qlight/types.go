@@ -1,7 +1,6 @@
 package qlight
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/qlightptm"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type PrivateStateRootHashValidator interface {
@@ -76,8 +74,4 @@ func (d *PrivateTransactionData) ToCachable() *qlightptm.CachablePrivateTransact
 			IsSender:      d.IsSender,
 		},
 	}
-}
-
-var TokenCredentialsProvider rpc.HttpCredentialsProviderFunc = func(ctx context.Context) (string, error) {
-	return GetCurrentToken(), nil
 }

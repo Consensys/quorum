@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
@@ -321,11 +322,19 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	// add validators in snapshot to extraData's validators section
-	return ApplyHeaderQBFTExtra(
-		header,
-		WriteValidators(validator.SortedAddresses(validators.List())),
-	)
+	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(big.NewInt(0).SetUint64(number-1)) == params.ContractMode {
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators([]common.Address{}),
+		)
+	} else {
+		// add validators in snapshot to extraData's validators section
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators(validator.SortedAddresses(validators.List())),
+		)
+	}
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
@@ -385,7 +394,7 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return new(big.Int)
 }
 
-func (e *Engine) Validators(header *types.Header) ([]common.Address, error) {
+func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return nil, err
