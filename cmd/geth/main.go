@@ -62,7 +62,6 @@ var (
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
 		utils.DataDirFlag,
-		utils.RaftLogDirFlag,
 		utils.AncientFlag,
 		utils.MinFreeDiskSpaceFlag,
 		utils.KeyStoreDirFlag,
@@ -158,6 +157,7 @@ var (
 		// Quorum
 		utils.QuorumImmutabilityThreshold,
 		utils.EnableNodePermissionFlag,
+		utils.RaftLogDirFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,

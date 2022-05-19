@@ -169,7 +169,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != keyAddr {
 				return nil, ErrNotAuthorized
-}
+			}
 			// Quorum
 			signer := latestSigner
 			if tx.IsPrivate() {

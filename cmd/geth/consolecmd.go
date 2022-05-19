@@ -38,7 +38,8 @@ import (
 )
 
 var (
-	consoleFlags   = []cli.Flag{utils.JSpathFlag, utils.ExecFlag, utils.PreloadJSFlag}
+	consoleFlags = []cli.Flag{utils.JSpathFlag, utils.ExecFlag, utils.PreloadJSFlag}
+
 	rpcClientFlags = []cli.Flag{utils.RPCClientToken, utils.RPCClientTLSCert, utils.RPCClientTLSCaCert, utils.RPCClientTLSCipherSuites, utils.RPCClientTLSInsecureSkipVerify}
 
 	consoleCommand = cli.Command{
@@ -228,20 +229,20 @@ func remoteConsole(ctx *cli.Context) error {
 		Preload: utils.MakeConsolePreloads(ctx),
 	}
 
-	consl, err := console.New(config)
+	console, err := console.New(config)
 	if err != nil {
 		utils.Fatalf("Failed to start the JavaScript console: %v", err)
 	}
-	defer consl.Stop(false)
+	defer console.Stop(false)
 
 	if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
-		consl.Evaluate(script)
+		console.Evaluate(script)
 		return nil
 	}
 
 	// Otherwise print the welcome screen and enter interactive mode
-	consl.Welcome()
-	consl.Interactive()
+	console.Welcome()
+	console.Interactive()
 
 	return nil
 }

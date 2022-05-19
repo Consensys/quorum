@@ -168,14 +168,6 @@ func New(conf *Config) (*Node, error) {
 	node.server.Config.DataDir = node.config.DataDir
 	// End Quorum
 
-	// Check HTTP/WS prefixes are valid.
-	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
-		return nil, err
-	}
-	if err := validatePrefix("WebSocket", conf.WSPathPrefix); err != nil {
-		return nil, err
-	}
-
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts).withMultitenancy(node.config.EnableMultitenancy)

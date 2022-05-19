@@ -1556,8 +1556,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 			}
 		}
 		// Copy the original db so we don't modify it
-		copyStatedb := *(db.(*state.StateDB)) // TODO: Quorum merge
-		statedb := &copyStatedb               //db.(*state.StateDB)
+		statedb := db.(*state.StateDB)
 		msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), input, accessList, false)
 
 		// Apply the transaction with the access list tracer
