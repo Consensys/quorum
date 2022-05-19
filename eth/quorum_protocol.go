@@ -2,6 +2,8 @@ package eth
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/p2p"
 )
@@ -26,7 +28,7 @@ var quorumConsensusProtocolVersions []uint
 // protocol Length describe the number of messages support by the protocol/version map[uint]uint64{Istanbul64: 18, Istanbul99: 18, Istanbul100: 18}
 var quorumConsensusProtocolLengths map[uint]uint64
 
-func (s *Ethereum) quorumConsensusProtocols() []p2p.Protocol {
+func (s *Ethereum) quorumConsensusProtocols(backend eth.Backend, network uint64, dnsdisc enode.Iterator) []p2p.Protocol {
 	protos := make([]p2p.Protocol, len(quorumConsensusProtocolVersions))
 	for i, vsn := range quorumConsensusProtocolVersions {
 		// if we have a legacy protocol, e.g. istanbul/99, istanbul/64 then the protocol handler is will be the "eth"
@@ -37,14 +39,14 @@ func (s *Ethereum) quorumConsensusProtocols() []p2p.Protocol {
 			if !ok {
 				panic("makeProtocol for unknown version")
 			}
-			lp := s.handler.makeLegacyProtocol(quorumConsensusProtocolName, vsn, length)
+			lp := s.handler.makeLegacyProtocol(quorumConsensusProtocolName, vsn, length, backend, network, dnsdisc)
 			protos[i] = lp
 		} else {
 			length, ok := quorumConsensusProtocolLengths[vsn]
 			if !ok {
 				panic("makeQuorumConsensusProtocol for unknown version")
 			}
-			protos[i] = s.handler.makeQuorumConsensusProtocol(quorumConsensusProtocolName, vsn, length)
+			protos[i] = s.handler.makeQuorumConsensusProtocol(quorumConsensusProtocolName, vsn, length, backend, network, dnsdisc)
 		}
 	}
 	return protos

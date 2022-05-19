@@ -414,7 +414,7 @@ func (p *Peer) RequestOneHeader(hash common.Hash) error {
 		Skip:    uint64(0),
 		Reverse: false,
 	}
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetBlockHeadersMsg, &GetBlockHeadersPacket66{
 			RequestId:             rand.Uint64(),
 			GetBlockHeadersPacket: &query,
@@ -433,7 +433,7 @@ func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, re
 		Skip:    uint64(skip),
 		Reverse: reverse,
 	}
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetBlockHeadersMsg, &GetBlockHeadersPacket66{
 			RequestId:             rand.Uint64(),
 			GetBlockHeadersPacket: &query,
@@ -452,7 +452,7 @@ func (p *Peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 		Skip:    uint64(skip),
 		Reverse: reverse,
 	}
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetBlockHeadersMsg, &GetBlockHeadersPacket66{
 			RequestId:             rand.Uint64(),
 			GetBlockHeadersPacket: &query,
@@ -481,7 +481,7 @@ func (p *Peer) ExpectPeerMessage(code uint64, content types.Transactions) error 
 // specified.
 func (p *Peer) RequestBodies(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of block bodies", "count", len(hashes))
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetBlockBodiesMsg, &GetBlockBodiesPacket66{
 			RequestId:            rand.Uint64(),
 			GetBlockBodiesPacket: hashes,
@@ -494,7 +494,7 @@ func (p *Peer) RequestBodies(hashes []common.Hash) error {
 // data, corresponding to the specified hashes.
 func (p *Peer) RequestNodeData(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of state data", "count", len(hashes))
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetNodeDataMsg, &GetNodeDataPacket66{
 			RequestId:         rand.Uint64(),
 			GetNodeDataPacket: hashes,
@@ -506,7 +506,7 @@ func (p *Peer) RequestNodeData(hashes []common.Hash) error {
 // RequestReceipts fetches a batch of transaction receipts from a remote node.
 func (p *Peer) RequestReceipts(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of receipts", "count", len(hashes))
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetReceiptsMsg, &GetReceiptsPacket66{
 			RequestId:         rand.Uint64(),
 			GetReceiptsPacket: hashes,
@@ -518,7 +518,7 @@ func (p *Peer) RequestReceipts(hashes []common.Hash) error {
 // RequestTxs fetches a batch of transactions from a remote node.
 func (p *Peer) RequestTxs(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of transactions", "count", len(hashes))
-	if p.Version() >= ETH66 {
+	if p.Version() == ETH66 {
 		return p2p.Send(p.rw, GetPooledTransactionsMsg, &GetPooledTransactionsPacket66{
 			RequestId:                   rand.Uint64(),
 			GetPooledTransactionsPacket: hashes,
@@ -531,23 +531,12 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 
 // SendConsensus Used to send consensus subprotocol messages from an "eth" peer, e.g.  "istanbul/100" subprotocol messages.
 func (p *Peer) SendConsensus(msgcode uint64, data interface{}) error {
-	if p.consensusRw == nil {
-		return nil
-	}
-	return p2p.Send(p.consensusRw, msgcode, data)
+	return p2p.Send(p.rw, msgcode, data)
 }
 
 // SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
 func (p *Peer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
-	if p.consensusRw == nil {
-		return nil
-	}
-	return p2p.SendWithNoEncoding(p.consensusRw, msgcode, payload)
-}
-
-func (p *Peer) AddConsensusProtoRW(rw p2p.MsgReadWriter) *Peer {
-	p.consensusRw = rw
-	return p
+	return p2p.SendWithNoEncoding(p.rw, msgcode, payload)
 }
 
 func (p *Peer) Send(msgcode uint64, data interface{}) error {
