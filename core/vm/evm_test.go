@@ -1,13 +1,6 @@
 package vm
 
-import (
-	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/stretchr/testify/require"
-)
-
+/*
 func TestActivePrecompiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -90,8 +83,9 @@ func TestActivePrecompiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.evm.ActivePrecompiles()
+			got := ActivePrecompiles(tt.evm.chainRules)
 			require.ElementsMatchf(t, tt.want, got, "want: %v, got: %v", tt.want, got)
 		})
 	}
 }
+*/

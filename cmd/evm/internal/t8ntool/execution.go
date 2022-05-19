@@ -99,16 +99,17 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		return h
 	}
 	var (
-		statedb        = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
+		statedb     = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre)
+		signer      = types.MakeSigner(chainConfig, new(big.Int).SetUint64(pre.Env.Number))
+		gaspool     = new(core.GasPool)
+		blockHash   = common.Hash{0x13, 0x37}
+		rejectedTxs []int
+		includedTxs types.Transactions
+		gasUsed     = uint64(0)
+		receipts    = make(types.Receipts, 0)
+		txIndex     = 0
+		// Quorum
 		privateStatedb = MakePreState(rawdb.NewMemoryDatabase(), pre.Pre) // Quorum private state db
-		signer         = types.MakeSigner(chainConfig, new(big.Int).SetUint64(pre.Env.Number))
-		gaspool        = new(core.GasPool)
-		blockHash      = common.Hash{0x13, 0x37}
-		rejectedTxs    []int
-		includedTxs    types.Transactions
-		gasUsed        = uint64(0)
-		receipts       = make(types.Receipts, 0)
-		txIndex        = 0
 	)
 	gaspool.AddGas(pre.Env.GasLimit)
 	vmContext := vm.BlockContext{

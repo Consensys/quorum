@@ -182,11 +182,6 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
-	RaftMode             bool
-	EnableNodePermission bool
-	// Istanbul options
-	Istanbul istanbul.Config
-
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
 
@@ -213,6 +208,12 @@ type Config struct {
 	OverrideBerlin *big.Int `toml:",omitempty"`
 
 	// Quorum
+
+	RaftMode             bool
+	EnableNodePermission bool
+	// Istanbul options
+	Istanbul istanbul.Config
+
 	// timeout value for call
 	EVMCallTimeOut time.Duration
 
@@ -222,25 +223,6 @@ type Config struct {
 	// QuorumLight
 	QuorumLightServer bool               `toml:",omitempty"`
 	QuorumLightClient *QuorumLightClient `toml:",omitempty"`
-}
-
-type QuorumLightClient struct {
-	Use                      bool   `toml:",omitempty"`
-	PSI                      string `toml:",omitempty"`
-	TokenEnabled             bool   `toml:",omitempty"`
-	TokenValue               string `toml:",omitempty"`
-	TokenManagement          string `toml:",omitempty"`
-	RPCTLS                   bool   `toml:",omitempty"`
-	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
-	RPCTLSCACert             string `toml:",omitempty"`
-	RPCTLSCert               string `toml:",omitempty"`
-	RPCTLSKey                string `toml:",omitempty"`
-	ServerNode               string `toml:",omitempty"`
-	ServerNodeRPC            string `toml:",omitempty"`
-}
-
-func (q *QuorumLightClient) Enabled() bool {
-	return q != nil && q.Use
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
@@ -263,6 +245,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
+
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.IBFT != nil {
@@ -299,6 +282,27 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		log.Warn("Ethash used in full fake mode")
 		return ethash.NewFullFaker()
 	}
+}
+
+// Quorum
+
+type QuorumLightClient struct {
+	Use                      bool   `toml:",omitempty"`
+	PSI                      string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
+	RPCTLS                   bool   `toml:",omitempty"`
+	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	RPCTLSCACert             string `toml:",omitempty"`
+	RPCTLSCert               string `toml:",omitempty"`
+	RPCTLSKey                string `toml:",omitempty"`
+	ServerNode               string `toml:",omitempty"`
+	ServerNodeRPC            string `toml:",omitempty"`
+}
+
+func (q *QuorumLightClient) Enabled() bool {
+	return q != nil && q.Use
 }
 
 func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) {

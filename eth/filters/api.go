@@ -309,7 +309,7 @@ func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) 
 	crit.PSI = psm.ID
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
 	if err != nil {
-		return rpc.ID(""), err
+		return "", err
 	}
 
 	api.filtersMu.Lock()

@@ -157,28 +157,6 @@ func (ps *peerSet) registerPeer(peer *eth.Peer, ext *snap.Peer) error {
 	return nil
 }
 
-// registerPeer injects a new `eth` peer into the working set, or returns an error
-// if the peer is already known.
-func (ps *peerSet) registerQPeer(peer *qlight.Peer) error {
-	// Start tracking the new peer
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	if ps.closed {
-		return errPeerSetClosed
-	}
-	id := peer.ID()
-	if _, ok := ps.peers[id]; ok {
-		return errPeerAlreadyRegistered
-	}
-	eth := &ethPeer{
-		Peer:   peer.EthPeer,
-		qlight: peer,
-	}
-	ps.peers[id] = eth
-	return nil
-}
-
 // unregisterPeer removes a remote peer from the active set, disabling any further
 // actions to/from that particular entity.
 func (ps *peerSet) unregisterPeer(id string) error {
@@ -282,6 +260,7 @@ func (ps *peerSet) close() {
 }
 
 // Quorum
+
 func (ps *peerSet) UpdateTokenForRunningQPeers(token string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
@@ -294,5 +273,27 @@ func (ps *peerSet) UpdateTokenForRunningQPeers(token string) error {
 			}
 		}
 	}
+	return nil
+}
+
+// registerPeer injects a new `eth` peer into the working set, or returns an error
+// if the peer is already known.
+func (ps *peerSet) registerQPeer(peer *qlight.Peer) error {
+	// Start tracking the new peer
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	if ps.closed {
+		return errPeerSetClosed
+	}
+	id := peer.ID()
+	if _, ok := ps.peers[id]; ok {
+		return errPeerAlreadyRegistered
+	}
+	eth := &ethPeer{
+		Peer:   peer.EthPeer,
+		qlight: peer,
+	}
+	ps.peers[id] = eth
 	return nil
 }

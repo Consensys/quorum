@@ -595,7 +595,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		}
 	} else {
 		// Drop non-local transactions under our own minimal accepted gas price
-		local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 		if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
 			return ErrUnderpriced
 		}
@@ -1000,7 +999,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	}
 }
 
-// requestPromoteExecutables requests a pool reset to the new head block.
+// requestReset requests a pool reset to the new head block.
 // The returned channel is closed when the reset has occurred.
 func (pool *TxPool) requestReset(oldHead *types.Header, newHead *types.Header) chan struct{} {
 	select {
@@ -1769,12 +1768,14 @@ func (t *txLookup) RemoteToLocals(locals *accountSet) int {
 	return migrated
 }
 
-// helper function to return chainHeadChannel size
-func GetChainHeadChannleSize() int {
-	return chainHeadChanSize
-}
-
 // numSlots calculates the number of slots needed for a single transaction.
 func numSlots(tx *types.Transaction) int {
 	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
+}
+
+// Quorum
+
+// helper function to return chainHeadChannel size
+func GetChainHeadChannleSize() int {
+	return chainHeadChanSize
 }

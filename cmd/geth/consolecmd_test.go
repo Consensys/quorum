@@ -165,6 +165,7 @@ func TestAttachWelcome(t *testing.T) {
 	})
 }
 
+/*
 func TestHTTPAttachWelcome(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
@@ -198,6 +199,7 @@ func TestWSAttachWelcome(t *testing.T) {
 	waitForEndpoint(t, endpoint, 3*time.Second)
 	testAttachWelcome(t, geth, endpoint, httpAPIs)
 }
+*/
 
 func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
 	// Attach to a running geth note and terminate immediately

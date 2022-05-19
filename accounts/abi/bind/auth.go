@@ -169,7 +169,7 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != keyAddr {
 				return nil, ErrNotAuthorized
-			}
+}
 			// Quorum
 			signer := latestSigner
 			if tx.IsPrivate() {
@@ -209,7 +209,7 @@ func NewWalletTransactor(w accounts.Wallet, account accounts.Account, chainId *b
 		From: account.Address,
 		Signer: func(address common.Address, transaction *types.Transaction) (*types.Transaction, error) {
 			if address != account.Address {
-				return nil, errors.New("not authorized to sign this account")
+				return nil, ErrNotAuthorized
 			}
 			if transaction.ChainId() == nil {
 				chainId = transaction.ChainId()

@@ -12,10 +12,13 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/ConsenSys/quorum-qlight-token-manager-plugin-sdk-go v0.0.0-20220427130631-ecd75caa6e73
 	github.com/VictoriaMetrics/fastcache v1.5.7
-	github.com/aws/aws-sdk-go v1.25.48
+	github.com/aws/aws-sdk-go-v2 v1.2.0
+	github.com/aws/aws-sdk-go-v2/config v1.1.1
+	github.com/aws/aws-sdk-go-v2/credentials v1.1.1
+	github.com/aws/aws-sdk-go-v2/service/route53 v1.1.1
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cespare/cp v0.1.0
-	github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9
+	github.com/cloudflare/cloudflare-go v0.14.0
 	github.com/consensys/gurvy v0.3.8
 	github.com/coreos/etcd v3.3.20+incompatible
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
@@ -42,7 +45,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/bloomfilter/v2 v2.0.3
 	github.com/holiman/uint256 v1.1.1
-	github.com/huin/goupnp v1.0.1-0.20200620063722-49508fba0031
+	github.com/huin/goupnp v1.0.1-0.20210310174557-0ca763054c88
 	github.com/influxdata/influxdb v1.8.3
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
 	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
@@ -54,7 +57,7 @@ require (
 	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-isatty v0.0.14
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
-	github.com/olekukonko/tablewriter v0.0.2-0.20190409134802-7e037d187b0c
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pborman/uuid v0.0.0-20170112150404-1b00554d8222
@@ -65,15 +68,15 @@ require (
 	github.com/shirou/gopsutil v2.20.5+incompatible
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	github.com/stretchr/testify v1.7.0
-	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
+	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	golang.org/x/text v0.3.7
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 	google.golang.org/grpc v1.46.0
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/karalabe/cookiejar.v2 v2.0.0-20150724131613-8dcd6a7f4951
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6

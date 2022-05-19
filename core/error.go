@@ -72,6 +72,7 @@ var (
 	// current network configuration.
 	ErrTxTypeNotSupported = types.ErrTxTypeNotSupported
 
+
 	// Quorum
 	// ErrAbortBlocksProcessing is returned if bc.insertChain is interrupted under raft mode
 	ErrAbortBlocksProcessing = errors.New("abort during blocks processing")

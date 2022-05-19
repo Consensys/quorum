@@ -1664,7 +1664,6 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 	if !bc.isRaft() {
 		return errors.New("error function can be called only for Raft consensus")
 	}
-
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 	if _, err := state.Commit(deleteEmptyObjects); err != nil {
