@@ -497,7 +497,7 @@ func TestDeriveFieldsMPS(t *testing.T) {
 
 	for i := range receipts {
 		testReceiptFields(t, receipts[i], txs, i, "receipt"+strconv.Itoa(i), hash, number, signer)
-}
+	}
 	//check psi info on public and private receipt
 	assert.Empty(t, receipts[0].PSReceipts)
 	privRec := receipts[1]
@@ -515,7 +515,7 @@ func TestDeriveFieldsMPS(t *testing.T) {
 	for _, pR := range psiRec.PSReceipts {
 		testReceiptFields(t, pR, txs, 2, "psiReceipt", hash, number, signer)
 	}
-	}
+}
 
 func testReceiptFields(t *testing.T, receipt *Receipt, txs Transactions, txIndex int, receiptName string, blockHash common.Hash, blockNumber *big.Int, signer Signer) {
 	if receipt.BlockNumber.Cmp(blockNumber) != 0 {

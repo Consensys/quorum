@@ -91,8 +91,6 @@ func TestAccountExtraDataLinker_whenLinkingRoots(t *testing.T) {
 	}
 }
 
-//var errReadOnly = errors.New("unable to write")
-
 type ReadOnlyDB struct {
 	memorydb.Database
 }

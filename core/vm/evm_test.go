@@ -1,6 +1,13 @@
 package vm
 
-/*
+import (
+	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/require"
+)
+
 func TestActivePrecompiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -88,4 +95,3 @@ func TestActivePrecompiles(t *testing.T) {
 		})
 	}
 }
-*/
