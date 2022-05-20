@@ -722,7 +722,7 @@ func (h *handler) makeQuorumConsensusProtocol(protoName string, version uint, le
 					// add the rw protocol for the quorum subprotocol to the eth peer.
 					ethPeer.AddConsensusProtoRW(rw)
 					peer := eth.NewPeer(version, p, rw, h.txpool)
-					return h.handleConsensusLoop(peer, rw, backend)
+					return h.handleConsensusLoop(peer, rw, nil)
 				}
 				p.Log().Error("consensus subprotocol retrieved nil eth peer from peerset", "ethPeer.id", p2pPeerId)
 				return errEthPeerNil
@@ -741,10 +741,10 @@ func (h *handler) makeQuorumConsensusProtocol(protoName string, version uint, le
 	}
 }
 
-func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, backend eth.Backend) error {
+func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, fallThroughBackend eth.Backend) error {
 	// Handle incoming messages until the connection is torn down
 	for {
-		if err := h.handleConsensus(p, protoRW, backend); err != nil {
+		if err := h.handleConsensus(p, protoRW, fallThroughBackend); err != nil {
 			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
 			return err
 		}
@@ -752,7 +752,7 @@ func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, ba
 }
 
 // This is a no-op because the eth handleMsg main loop handle ibf message as well.
-func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backend eth.Backend) error {
+func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, fallThroughBackend eth.Backend) error {
 	// Read the next message from the remote peer (in protoRW), and ensure it's fully consumed
 	msg, err := protoRW.ReadMsg()
 	if err != nil {
@@ -772,13 +772,15 @@ func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backen
 		return err
 	}
 
-	var handlers = eth.ETH_65_FULL_SYNC
+	if fallThroughBackend != nil {
+		var handlers = eth.ETH_65_FULL_SYNC
 
-	p.Log().Trace("Message not handled by sub-protocol", "msg", msg.Code)
+		p.Log().Trace("Message not handled by legacy sub-protocol", "msg", msg.Code)
 
-	if handler := handlers[msg.Code]; handler != nil {
-		p.Log().Debug("Found eth handler for msg", "msg", msg.Code)
-		return handler(backend, msg, p)
+		if handler := handlers[msg.Code]; handler != nil {
+			p.Log().Debug("Found eth handler for msg", "msg", msg.Code)
+			return handler(fallThroughBackend, msg, p)
+		}
 	}
 
 	return nil
@@ -807,6 +809,7 @@ func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := eth.NewPeer(version, p, rw, h.txpool)
 			return h.runEthPeer(peer, func(peer *eth.Peer) error {
+				// We pass through the backend so that we can 'handle' messages that we can't handle
 				return h.handleConsensusLoop(peer, rw, backend)
 			})
 		},
