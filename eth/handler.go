@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
@@ -695,10 +696,11 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 // The Run method starts the protocol and is called by the p2p server. The quorum consensus subprotocol,
 // leverages the peer created and managed by the "eth" subprotocol.
 // The quorum consensus protocol requires that the "eth" protocol is running as well.
-func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, length uint64) p2p.Protocol {
+func (h *handler) makeQuorumConsensusProtocol(protoName string, version uint, length uint64, backend eth.Backend, network uint64, dnsdisc enode.Iterator) p2p.Protocol {
+	log.Debug("registering qouorum protocol ", "protoName", protoName, "version", version)
 
 	return p2p.Protocol{
-		Name:    ProtoName,
+		Name:    protoName,
 		Version: version,
 		Length:  length,
 		// no new peer created, uses the "eth" peer, so no peer management needed.
@@ -725,10 +727,11 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 					log.Warn("full p2p peer", "id", p2pPeerId, "ethPeer", ethPeer)
 				}
 				if ethPeer != nil {
-					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", p2pPeerId, "ProtoName", ProtoName)
+					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", p2pPeerId, "ProtoName", protoName)
 					// add the rw protocol for the quorum subprotocol to the eth peer.
 					ethPeer.AddConsensusProtoRW(rw)
-					return h.handleConsensusLoop(p, rw)
+					peer := eth.NewPeer(version, p, rw, h.txpool)
+					return h.handleConsensusLoop(peer, rw, backend)
 				}
 				p.Log().Error("consensus subprotocol retrieved nil eth peer from peerset", "ethPeer.id", p2pPeerId)
 				return errEthPeerNil
@@ -737,24 +740,20 @@ func (h *handler) makeQuorumConsensusProtocol(ProtoName string, version uint, le
 			}
 		},
 		NodeInfo: func() interface{} {
-			return h.NodeInfo()
+			return eth.NodeInfoFunc(backend.Chain(), network)
 		},
 		PeerInfo: func(id enode.ID) interface{} {
-			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
-				return p.Info()
-			}
-			if p := h.peers.peer(fmt.Sprintf("%x", id)); p != nil { // TODO:BBO
-				return p.Info()
-			}
-			return nil
+			return backend.PeerInfo(id)
 		},
+		Attributes:     []enr.Entry{eth.CurrentENREntry(backend.Chain())},
+		DialCandidates: dnsdisc,
 	}
 }
 
-func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
+func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, backend eth.Backend) error {
 	// Handle incoming messages until the connection is torn down
 	for {
-		if err := h.handleConsensus(p, protoRW); err != nil {
+		if err := h.handleConsensus(p, protoRW, backend); err != nil {
 			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
 			return err
 		}
@@ -762,7 +761,7 @@ func (h *handler) handleConsensusLoop(p *p2p.Peer, protoRW p2p.MsgReadWriter) er
 }
 
 // This is a no-op because the eth handleMsg main loop handle ibf message as well.
-func (h *handler) handleConsensus(p *p2p.Peer, protoRW p2p.MsgReadWriter) error {
+func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backend eth.Backend) error {
 	// Read the next message from the remote peer (in protoRW), and ensure it's fully consumed
 	msg, err := protoRW.ReadMsg()
 	if err != nil {
@@ -777,19 +776,29 @@ func (h *handler) handleConsensus(p *p2p.Peer, protoRW p2p.MsgReadWriter) error 
 	// istanbulMsg = 0x11, and NewBlockMsg = 0x07.
 	handled, err := h.handleConsensusMsg(p, msg)
 	if handled {
-		p.Log().Debug("consensus message was handled by consensus engine", "handled", handled,
+		p.Log().Debug("consensus message was handled by consensus engine", "msg", msg.Code,
 			"quorumConsensusProtocolName", quorumConsensusProtocolName, "err", err)
 		return err
+	}
+
+	var handlers = eth.ETH_65_FULL_SYNC
+
+	p.Log().Trace("Message not handled by sub-protocol", "msg", msg.Code)
+
+	if handler := handlers[msg.Code]; handler != nil {
+		p.Log().Debug("Found eth handler for msg", "msg", msg.Code)
+		return handler(backend, msg, p)
 	}
 
 	return nil
 }
 
-func (h *handler) handleConsensusMsg(p *p2p.Peer, msg p2p.Msg) (bool, error) {
+func (h *handler) handleConsensusMsg(p *eth.Peer, msg p2p.Msg) (bool, error) {
 	if handler, ok := h.engine.(consensus.Handler); ok {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
 		handled, err := handler.HandleMsg(addr, msg)
+
 		return handled, err
 	}
 	return false, nil
@@ -798,31 +807,26 @@ func (h *handler) handleConsensusMsg(p *p2p.Peer, msg p2p.Msg) (bool, error) {
 // makeLegacyProtocol is basically a copy of the eth makeProtocol, but for legacy subprotocols, e.g. "istanbul/99" "istabnul/64"
 // If support legacy subprotocols is removed, remove this and associated code as well.
 // If quorum is using a legacy protocol then the "eth" subprotocol should not be available.
-func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint64) p2p.Protocol {
-	log.Debug("registering a legacy protocol ", "protoName", protoName)
+func (h *handler) makeLegacyProtocol(protoName string, version uint, length uint64, backend eth.Backend, network uint64, dnsdisc enode.Iterator) p2p.Protocol {
+	log.Debug("registering a legacy protocol ", "protoName", protoName, "version", version)
 	return p2p.Protocol{
 		Name:    protoName,
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := eth.NewPeer(version, p, rw, h.txpool)
-			peer.AddConsensusProtoRW(rw)
 			return h.runEthPeer(peer, func(peer *eth.Peer) error {
-				return h.handleConsensusLoop(p, rw)
+				return h.handleConsensusLoop(peer, rw, backend)
 			})
 		},
 		NodeInfo: func() interface{} {
-			return h.NodeInfo()
+			return eth.NodeInfoFunc(backend.Chain(), network)
 		},
 		PeerInfo: func(id enode.ID) interface{} {
-			if p := h.peers.peer(fmt.Sprintf("%x", id[:8])); p != nil {
-				return p.Info()
-			}
-			if p := h.peers.peer(fmt.Sprintf("%x", id)); p != nil { // TODO:BBO
-				return p.Info()
-			}
-			return nil
+			return backend.PeerInfo(id)
 		},
+		Attributes:     []enr.Entry{eth.CurrentENREntry(backend.Chain())},
+		DialCandidates: dnsdisc,
 	}
 }
 

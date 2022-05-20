@@ -763,7 +763,7 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	// /Quorum
 	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
 	if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
-		quorumProtos := s.quorumConsensusProtocols()
+		quorumProtos := s.quorumConsensusProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
 		protos = append(protos, quorumProtos...)
 	}
 	// /end Quorum
