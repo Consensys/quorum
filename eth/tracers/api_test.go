@@ -141,11 +141,11 @@ func (b *testBackend) ChainDb() ethdb.Database {
 }
 
 func (b *testBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, mps.PrivateStateRepository, error) {
-	statedb, _, err := b.chain.StateAt(block.Root())
+	statedb, privateStateRepo, err := b.chain.StateAt(block.Root())
 	if err != nil {
 		return nil, nil, errStateNotFound
 	}
-	return statedb, nil, nil
+	return statedb, privateStateRepo, nil
 }
 
 func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
