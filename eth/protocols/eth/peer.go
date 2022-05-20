@@ -531,12 +531,23 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 
 // SendConsensus Used to send consensus subprotocol messages from an "eth" peer, e.g.  "istanbul/100" subprotocol messages.
 func (p *Peer) SendConsensus(msgcode uint64, data interface{}) error {
-	return p2p.Send(p.rw, msgcode, data)
+	if p.consensusRw == nil {
+		return nil
+	}
+	return p2p.Send(p.consensusRw, msgcode, data)
 }
 
 // SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
 func (p *Peer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
-	return p2p.SendWithNoEncoding(p.rw, msgcode, payload)
+	if p.consensusRw == nil {
+		return nil
+	}
+	return p2p.SendWithNoEncoding(p.consensusRw, msgcode, payload)
+}
+
+func (p *Peer) AddConsensusProtoRW(rw p2p.MsgReadWriter) *Peer {
+	p.consensusRw = rw
+	return p
 }
 
 func (p *Peer) Send(msgcode uint64, data interface{}) error {

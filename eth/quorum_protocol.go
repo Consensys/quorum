@@ -2,10 +2,10 @@ package eth
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/eth/protocols/eth"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 
+	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // Quorum: quorum_protocol enables the eth service to return two different protocols, one for the eth mainnet "eth" service,

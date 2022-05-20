@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/p2p/enr"
 	"math"
 	"math/big"
 	"sync"
@@ -43,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/qlight"
 	"github.com/ethereum/go-ethereum/trie"
@@ -720,6 +720,7 @@ func (h *handler) makeQuorumConsensusProtocol(protoName string, version uint, le
 				if ethPeer != nil {
 					p.Log().Debug("consensus subprotocol retrieved eth peer from peerset", "ethPeer.id", p2pPeerId, "ProtoName", protoName)
 					// add the rw protocol for the quorum subprotocol to the eth peer.
+					ethPeer.AddConsensusProtoRW(rw)
 					peer := eth.NewPeer(version, p, rw, h.txpool)
 					return h.handleConsensusLoop(peer, rw, backend)
 				}
@@ -770,7 +771,6 @@ func (h *handler) handleConsensus(p *eth.Peer, protoRW p2p.MsgReadWriter, backen
 			"quorumConsensusProtocolName", quorumConsensusProtocolName, "err", err)
 		return err
 	}
-
 
 	var handlers = eth.ETH_65_FULL_SYNC
 
