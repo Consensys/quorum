@@ -119,7 +119,6 @@ func TestCommit(t *testing.T) {
 	backend := newBackend()
 	defer backend.Stop()
 
-	commitCh := make(chan *types.Block)
 	// Case: it's a proposer, so the backend.commit will receive channel result from backend.Commit function
 	testCases := []struct {
 		expectedErr       error
@@ -147,6 +146,7 @@ func TestCommit(t *testing.T) {
 			},
 		},
 	}
+	commitCh := make(chan *types.Block, len(testCases))
 
 	for _, test := range testCases {
 		expBlock := test.expectedBlock()
@@ -192,7 +192,7 @@ func TestGetProposer(t *testing.T) {
 // This was fixed as part of commit 2a8310663ecafc0233758ca7883676bf568e926e
 func TestQBFTTransitionDeadlock(t *testing.T) {
 	timeout := time.After(1 * time.Minute)
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		chain, engine := newBlockChain(1, big.NewInt(1))
 		defer engine.Stop()
