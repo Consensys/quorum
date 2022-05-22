@@ -18,7 +18,7 @@ func Test_freezer_Close(t *testing.T) {
 
 	// Close second time should return error but do not hang sending data to freeze.quit channel
 	timeout := time.After(1 * time.Second)
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 
 	go func() {
 		errCh <- mockFreezer.Close()
