@@ -264,15 +264,6 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
-	// Otherwise assume proof-of-work
-	switch config.Ethash.PowMode {
-	case ethash.ModeFake:
-		log.Warn("Ethash used in fake mode")
-	case ethash.ModeTest:
-		log.Warn("Ethash used in test mode")
-	case ethash.ModeShared:
-		log.Warn("Ethash used in shared mode")
-	}
 	// For Quorum, Raft run as a separate service, so
 	// the Ethereum service still needs a consensus engine,
 	// use the consensus with the lightest overhead
