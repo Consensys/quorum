@@ -749,7 +749,7 @@ func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, fa
 			// allow the P2P connection to remain active during sync (when the engine is stopped)
 			if errors.Is(err, istanbul.ErrStoppedEngine) && h.downloader.Synchronising() {
 				// should this be warn or debug
-				p.Log().Warn("Ignoring `stopped engine` consensus error due to active sync.")
+				p.Log().Debug("Ignoring `stopped engine` consensus error due to active sync.")
 				continue
 			}
 			p.Log().Debug("Ethereum quorum message handling failed", "err", err)
