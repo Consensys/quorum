@@ -2258,13 +2258,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
 		return backend.ApiBackend, nil
 	}
-	/* TODO: check quorum
+
+	// Quorum
 	client, err := stack.Attach()
 	if err != nil {
 		Fatalf("Failed to attach to self: %v", err)
 	}
 	cfg.Istanbul.Client = ethclient.NewClient(client)
-	*/
+	// End Quorum
+
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)

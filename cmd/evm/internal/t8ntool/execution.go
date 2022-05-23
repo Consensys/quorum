@@ -144,6 +144,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		vmConfig.Tracer = tracer
 		vmConfig.Debug = (tracer != nil)
 		statedb.Prepare(tx.Hash(), blockHash, txIndex)
+		privateStatedb.Prepare(tx.Hash(), blockHash, txIndex)
 		txContext := core.NewEVMTxContext(msg)
 		snapshot := statedb.Snapshot()
 		evm := vm.NewEVM(vmContext, txContext, statedb, privateStatedb, chainConfig, vmConfig)

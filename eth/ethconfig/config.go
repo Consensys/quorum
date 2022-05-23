@@ -192,11 +192,11 @@ type Config struct {
 	EVMInterpreter string
 
 	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap uint64 `toml:",omitempty"`
+	RPCGasCap uint64
 
 	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 	// send-transction variants. The unit is ether.
-	RPCTxFeeCap float64 `toml:",omitempty"`
+	RPCTxFeeCap float64
 
 	// Checkpoint is a hardcoded checkpoint which can be nil.
 	Checkpoint *params.TrustedCheckpoint `toml:",omitempty"`
@@ -268,20 +268,17 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	switch config.Ethash.PowMode {
 	case ethash.ModeFake:
 		log.Warn("Ethash used in fake mode")
-		return ethash.NewFaker()
 	case ethash.ModeTest:
 		log.Warn("Ethash used in test mode")
-		return ethash.NewTester(nil, noverify)
 	case ethash.ModeShared:
 		log.Warn("Ethash used in shared mode")
-		return ethash.NewShared()
-	default:
-		// For Quorum, Raft run as a separate service, so
-		// the Ethereum service still needs a consensus engine,
-		// use the consensus with the lightest overhead
-		log.Warn("Ethash used in full fake mode")
-		return ethash.NewFullFaker()
 	}
+	// For Quorum, Raft run as a separate service, so
+	// the Ethereum service still needs a consensus engine,
+	// use the consensus with the lightest overhead
+	engine := ethash.NewFullFaker()
+	engine.SetThreads(-1) // Disable CPU Mining
+	return engine
 }
 
 // Quorum
