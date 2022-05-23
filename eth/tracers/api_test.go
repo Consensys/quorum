@@ -186,24 +186,6 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }
 
-func (b *testBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
-	var result []*state.StateDB
-	var privateResult []mps.PrivateStateRepository
-	for number := fromBlock.NumberU64(); number <= toBlock.NumberU64(); number += 1 {
-		block := b.chain.GetBlockByNumber(number)
-		if block == nil {
-			return nil, nil, nil, errBlockNotFound
-		}
-		statedb, privateStateRepo, err := b.chain.StateAt(block.Root())
-		if err != nil {
-			return nil, nil, nil, errStateNotFound
-		}
-		result = append(result, statedb)
-		privateResult = append(privateResult, privateStateRepo)
-	}
-	return result, privateResult, func() {}, nil
-}
-
 func (b *testBackend) GetBlockchain() *core.BlockChain {
 	return b.chain
 }
