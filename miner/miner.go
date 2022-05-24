@@ -52,7 +52,7 @@ type Config struct {
 	GasCeil    uint64         // Target gas ceiling for mined blocks.
 	GasPrice   *big.Int       // Minimum gas price for mining a transaction
 	Recommit   time.Duration  // The time interval for miner to re-create mining work.
-	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).AllowedFutureBlockTime uint64         // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
 
 	// Quorum
 	AllowedFutureBlockTime uint64 // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks

@@ -61,15 +61,6 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
-// ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
-func (api *PublicEthereumAPI) ChainId() (hexutil.Uint64, error) {
-	// if current block is at or past the EIP-155 replay-protection fork block, return chainID from config
-	if config := api.e.blockchain.Config(); config.IsEIP155(api.e.blockchain.CurrentBlock().Number()) {
-		return (hexutil.Uint64)(config.ChainID.Uint64()), nil
-	}
-	return hexutil.Uint64(0), fmt.Errorf("chain not synced beyond EIP-155 replay-protection fork block")
-}
-
 // PublicMinerAPI provides an API to control the miner.
 // It offers only methods that operate on data that pose no security risk when it is publicly accessible.
 type PublicMinerAPI struct {
@@ -275,23 +266,23 @@ func (api *PublicDebugAPI) DumpBlock(ctx context.Context, blockNr rpc.BlockNumbe
 	}
 
 	if typ != nil && *typ == "private" {
-		return privateState.RawDump(false, false, true), nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+		return privateState.RawDump(false, false, true), nil
 	}
-	return publicState.RawDump(false, false, true), nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+	return publicState.RawDump(false, false, true), nil
 }
 
-func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (state.Dump, error) {
+func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
 	_, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
 	if err != nil {
-		return state.Dump{}, err
+		return common.Hash{}, err
 	}
-	return state.Dump{Root: privateState.IntermediateRoot(true).Hex()}, nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+	return privateState.IntermediateRoot(true), nil
 }
 
-func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (state.Dump, error) {
+func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.BlockNumber) (common.Hash, error) {
 	psm, err := api.eth.blockchain.PrivateStateManager().StateRepository(api.eth.blockchain.CurrentBlock().Hash())
 	if err != nil {
-		return state.Dump{}, err
+		return common.Hash{}, err
 	}
 	defaultPSM := psm.DefaultStateMetadata()
 
@@ -302,7 +293,7 @@ func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.Blo
 		// the miner and operate on those
 		_, _, privateState = api.eth.miner.Pending(defaultPSM.ID)
 		// this is a copy of the private state so it is OK to do IntermediateRoot
-		return state.Dump{Root: privateState.IntermediateRoot(true).Hex()}, nil // TODO: 1.10.2: check stateDb.RawDump(false, false, true)
+		return privateState.IntermediateRoot(true), nil
 	}
 	var block *types.Block
 	if blockNr == rpc.LatestBlockNumber {
@@ -311,15 +302,13 @@ func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.Blo
 		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
 	}
 	if block == nil {
-		return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
+		return common.Hash{}, fmt.Errorf("block #%d not found", blockNr)
 	}
 	_, privateState, err = api.eth.BlockChain().StateAtPSI(block.Root(), defaultPSM.ID)
 	if err != nil {
-		return state.Dump{}, err
+		return common.Hash{}, err
 	}
-	return state.Dump{
-		Root: privateState.IntermediateRoot(true).Hex(),
-	}, nil
+	return privateState.IntermediateRoot(true), nil
 }
 
 // Quorum

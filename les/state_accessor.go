@@ -45,12 +45,16 @@ func (leth *LightEthereum) stateAtTransaction(ctx context.Context, block *types.
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, nil, nil, err
 	}
-	statedb, _, err := leth.stateAtBlock(ctx, parent, reexec)
+	statedb, private, err := leth.stateAtBlock(ctx, parent, reexec)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, nil, err
+	}
+	privateStateDb, err := private.DefaultState()
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, nil, nil, err
 	}
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, nil, nil, nil
+		return nil, vm.BlockContext{}, statedb, privateStateDb, private, nil
 	}
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(leth.blockchain.Config(), block.Number())
@@ -59,12 +63,13 @@ func (leth *LightEthereum) stateAtTransaction(ctx context.Context, block *types.
 		msg, _ := tx.AsMessage(signer)
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), leth.blockchain, nil)
-		// statedb.Prepare(tx.Hash(), block.Hash(), idx)
+		statedb.Prepare(tx.Hash(), block.Hash(), idx)
+		privateStateDb.Prepare(tx.Hash(), block.Hash(), idx)
 		if idx == txIndex {
-			return msg, context, statedb, nil, nil, nil
+			return msg, context, statedb, statedb, nil, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, nil, leth.blockchain.Config(), vm.Config{})
+		vmenv := vm.NewEVM(context, txContext, statedb, privateStateDb, leth.blockchain.Config(), vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}

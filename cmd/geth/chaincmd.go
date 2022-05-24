@@ -300,7 +300,7 @@ func importChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack, false)
+	chain, db := utils.MakeChain(ctx, stack, true)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles

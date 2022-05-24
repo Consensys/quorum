@@ -1556,8 +1556,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 			}
 		}
 		// Copy the original db so we don't modify it
-		copyStatedb := *(db.(*state.StateDB)) // TODO: Quorum merge
-		statedb := &copyStatedb
+		statedb := db.(*state.StateDB)
 		msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), input, accessList, false)
 
 		// Apply the transaction with the access list tracer
@@ -2141,12 +2140,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	// Print a log with full tx details for manual investigations and interventions
-	//signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
-	//from, err := types.Sender(signer, tx)
-	//if err != nil {
-	//	return common.Hash{}, err
-	//}
 
 	if tx.To() == nil {
 		addr := crypto.CreateAddress(from, tx.Nonce())
@@ -2193,7 +2186,7 @@ func runSimulation(ctx context.Context, b Backend, from common.Address, tx *type
 	if stateAtBlock == nil || err != nil {
 		return nil, nil, err
 	}
-	evm, _, err := b.GetEVM(ctx, msg, stateAtBlock, header, nil)
+	evm, _, err := b.GetEVM(ctx, msg, stateAtBlock, header, &vm.Config{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2295,7 +2288,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			return common.Hash{}, err
 		}
 	}
-	// /Quorum
 
 	return SubmitTransaction(ctx, s.b, signed, args.PrivateFrom, false)
 }
@@ -2338,7 +2330,6 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
-	// if err := tx.UnmarshalBinary(encodedTx); err != nil { // Quorum
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
@@ -2349,9 +2340,10 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 //
 // SendRawPrivateTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
-func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, input hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
+func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
 
 	tx := new(types.Transaction)
+	// if err := tx.UnmarshalBinary(encodedTx); err != nil { // Quorum
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}

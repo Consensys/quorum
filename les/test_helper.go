@@ -307,7 +307,7 @@ func newTestServerHandler(blocks int, indexers []*core.ChainIndexer, db ethdb.Da
 	server.costTracker.testCostList = testCostList(0) // Disable flow control mechanism.
 	server.clientPool = vfs.NewClientPool(db, testBufRecharge, defaultConnectedBias, clock, alwaysTrueFn)
 	server.clientPool.Start()
-	// server.clientPool.SetLimits(10000, 10000) // Assign enough capacity for clientpool
+	server.clientPool.SetLimits(10000, 10000) // Assign enough capacity for clientpool
 	server.handler = newServerHandler(server, simulation.Blockchain(), db, txpool, func() bool { return true })
 	if server.oracle != nil {
 		server.oracle.Start(simulation)

@@ -41,15 +41,6 @@ var (
 	defaultNegFactors = vfs.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1}
 )
 
-/*var (
-	serverSetup = &nodestate.Setup{}
-	clientPeerField = serverSetup.NewField("clientPeer", reflect.TypeOf(&clientPeer{}))
-	clientInfoField     = serverSetup.NewField("clientInfo", reflect.TypeOf(&clientInfo{}))
-	connAddressField = serverSetup.NewField("connAddr", reflect.TypeOf(""))
-	balanceTrackerSetup = vfs.NewBalanceTrackerSetup(serverSetup)
-	priorityPoolSetup   = vfs.NewPriorityPoolSetup(serverSetup)
-)*/
-
 const defaultConnectedBias = time.Minute * 3
 
 type ethBackend interface {
@@ -120,7 +111,6 @@ func NewLesServer(node *node.Node, e ethBackend, config *ethconfig.Config) (*Les
 		threadsIdle:  threads,
 		p2pSrv:       node.Server(),
 	}
-	//srv.vfluxServer.Register(srv)
 	issync := e.Synced
 	if config.LightNoSyncServe {
 		issync = func() bool { return true }
@@ -292,41 +282,9 @@ func (s *LesServer) capacityManagement() {
 				log.Warn("Reduced free peer connections", "from", freePeers, "to", newFreePeers)
 			}
 			freePeers = newFreePeers
-			//s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
+			s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
 		case <-s.closeCh:
 			return
 		}
 	}
 }
-
-/*
-func (s *LesServer) getClient(id enode.ID) *clientPeer {
-	if node := s.ns.GetNode(id); node != nil {
-		if p, ok := s.ns.GetField(node, clientPeerField).(*clientPeer); ok {
-			return p
-		}
-	}
-	return nil
-}
-
-func (s *LesServer) dropClient(id enode.ID) {
-	if p := s.getClient(id); p != nil {
-		p.Peer.Disconnect(p2p.DiscRequested)
-	}
-}
-
-// ServiceInfo implements vfs.Service
-func (s *LesServer) ServiceInfo() (string, string) {
-	return "les", "Ethereum light client service"
-}
-
-// Handle implements vfs.Service
-func (s *LesServer) Handle(id enode.ID, address string, name string, data []byte) []byte {
-	switch name {
-	case vflux.CapacityQueryName:
-		return s.clientPool.serveCapQuery(id, address, data)
-	default:
-		return nil
-	}
-}
-*/

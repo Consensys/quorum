@@ -412,12 +412,13 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 			txs := next.Transactions()
 			select {
 			case tasks <- &blockTraceTask{
-				statedb:          statedb.Copy(),
+				statedb: statedb.Copy(),
+				block:   next,
+				rootref: block.Root(),
+				results: make([]*txTraceResult, len(txs)),
+				// Quorum
 				privateStateDb:   privateState.Copy(),
 				privateStateRepo: privateStateRepo,
-				block:            next,
-				rootref:          block.Root(),
-				results:          make([]*txTraceResult, len(txs)),
 			}:
 			case <-notifier.Closed():
 				return
@@ -611,10 +612,11 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 	for i, tx := range txs {
 		// Send the trace task over for execution
 		jobs <- &txTraceTask{
-			statedb:          statedb.Copy(),
+			statedb: statedb.Copy(),
+			index:   i,
+			// Quorum
 			privateStateDb:   privateStateDb.Copy(),
 			privateStateRepo: privateStateRepo,
-			index:            i,
 		}
 
 		// Generate the next state snapshot fast without tracing

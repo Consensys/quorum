@@ -50,6 +50,10 @@ var (
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
 		Value: "",
 	}
+	logjsonFlag = cli.BoolFlag{
+		Name:  "log.json",
+		Usage: "Format logs with JSON",
+	}
 	backtraceAtFlag = cli.StringFlag{
 		Name:  "log.backtrace",
 		Usage: "Request a stack trace at a specific logging statement (e.g. \"block.go:271\")",

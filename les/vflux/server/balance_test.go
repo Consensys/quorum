@@ -298,36 +298,6 @@ func TestEstimatedPriority(t *testing.T) {
 	}
 }
 
-/* TODO:
-func TestPosBalanceMissing(t *testing.T) {
-	b := newBalanceTestSetup(nil, nil, nil)
-	defer b.stop()
-	node := b.newNode(1000)
-	node.SetPriceFactors(PriceFactors{1, 0, 1}, PriceFactors{1, 0, 1})
-
-	b.ns.SetField(node.node, ppTestSetup.CapacityField, uint64(1))
-	var inputs = []struct {
-		pos, neg uint64
-		priority int64
-		cap      uint64
-		after    time.Duration
-		expect   uint64
-	}{
-		{uint64(time.Second * 2), 0, 0, 1, time.Second, 0},
-		{uint64(time.Second * 2), 0, 0, 1, 2 * time.Second, 1},
-		{uint64(time.Second * 2), 0, int64(time.Second), 1, 2 * time.Second, uint64(time.Second) + 1},
-		{0, 0, int64(time.Second), 1, time.Second, uint64(2*time.Second) + 1},
-		{0, 0, -int64(time.Second), 1, time.Second, 1},
-	}
-	for _, i := range inputs {
-		node.SetBalance(i.pos, i.neg)
-		got := node.PosBalanceMissing(i.priority, i.cap, i.after)
-		if got != i.expect {
-			t.Fatalf("Missing budget mismatch, want %v, got %v", i.expect, got)
-		}
-	}
-}*/
-
 func TestPostiveBalanceCounting(t *testing.T) {
 	b := newBalanceTestSetup(nil, nil, nil)
 	defer b.stop()
@@ -421,7 +391,7 @@ func TestCallback(t *testing.T) {
 	}
 }
 
-func TestBalancePersistenceGeth(t *testing.T) {
+func TestBalancePersistence(t *testing.T) {
 	posExp := &utils.Expirer{}
 	negExp := &utils.Expirer{}
 	posExp.SetRate(0, math.Log(2)/float64(time.Hour*2)) // halves every two hours
@@ -467,72 +437,3 @@ func TestBalancePersistenceGeth(t *testing.T) {
 	expTotal(4000000000)
 	setup.stop()
 }
-
-/* TODO
-func TestBalancePersistence(t *testing.T) {
-	clock := &mclock.Simulated{}
-	ns := nodestate.NewNodeStateMachine(nil, nil, clock, testSetup)
-	db := memorydb.New()
-	posExp := &utils.Expirer{}
-	negExp := &utils.Expirer{}
-	posExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour*2)) // halves every two hours
-	negExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour))   // halves every hour
-	bt := newBalanceTracker(ns, btTestSetup, db, clock, posExp, negExp)
-	ns.Start()
-	bts := &balanceTestSetup{
-		clock: clock,
-		ns:    ns,
-		bt:    bt,
-	}
-	var nb *NodeBalance
-	exp := func(expPos, expNeg uint64) {
-		pos, neg := nb.GetBalance()
-		if pos != expPos {
-			t.Fatalf("Positive balance incorrect, want %v, got %v", expPos, pos)
-		}
-		if neg != expNeg {
-			t.Fatalf("Positive balance incorrect, want %v, got %v", expPos, pos)
-		}
-	}
-	expTotal := func(expTotal uint64) {
-		total := bt.TotalTokenAmount()
-		if total != expTotal {
-			t.Fatalf("Total token amount incorrect, want %v, got %v", expTotal, total)
-		}
-	}
-
-	expTotal(0)
-	nb = bts.newNode(0)
-	expTotal(0)
-	nb.SetBalance(16000000000, 16000000000)
-	exp(16000000000, 16000000000)
-	expTotal(16000000000)
-	clock.Run(time.Hour * 2)
-	exp(8000000000, 4000000000)
-	expTotal(8000000000)
-	bt.Stop()
-	ns.Stop()
-
-	clock = &mclock.Simulated{}
-	ns = nodestate.NewNodeStateMachine(nil, nil, clock, testSetup)
-	posExp = &utils.Expirer{}
-	negExp = &utils.Expirer{}
-	posExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour*2)) // halves every two hours
-	negExp.SetRate(clock.Now(), math.Log(2)/float64(time.Hour))   // halves every hour
-	bt = newBalanceTracker(ns, btTestSetup, db, clock, posExp, negExp)
-	ns.Start()
-	bts = &balanceTestSetup{
-		clock: clock,
-		ns:    ns,
-		bt:    bt,
-	}
-	expTotal(8000000000)
-	nb = bts.newNode(0)
-	exp(8000000000, 4000000000)
-	expTotal(8000000000)
-	clock.Run(time.Hour * 2)
-	exp(4000000000, 1000000000)
-	expTotal(4000000000)
-	bt.Stop()
-	ns.Stop()
-}*/

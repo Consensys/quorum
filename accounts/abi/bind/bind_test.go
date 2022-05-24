@@ -540,7 +540,7 @@ var bindTests = []struct {
 				struct A {
 					bytes32 B;
 				}
-
+				
 				function F() public view returns (A[] memory a, uint256[] memory c, bool[] memory d) {
 					A[] memory a = new A[](2);
 					a[0].B = bytes32(uint256(1234) << 96);
@@ -548,7 +548,7 @@ var bindTests = []struct {
 					bool[] memory d;
 					return (a, c, d);
 				}
-
+			
 				function G() public view returns (A[] memory a) {
 					A[] memory a = new A[](2);
 					a[0].B = bytes32(uint256(1234) << 96);
@@ -570,10 +570,10 @@ var bindTests = []struct {
 			// Generate a new random account and a funded simulator
 			key, _ := crypto.GenerateKey()
 			auth, _ := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337))
-
+		
 			sim := backends.NewSimulatedBackend(core.GenesisAlloc{auth.From: {Balance: big.NewInt(10000000000)}}, 10000000)
 			defer sim.Close()
-
+		
 			// Deploy a structs method invoker contract and execute its default method
 			_, _, structs, err := DeployStructs(auth, sim)
 			if err != nil {

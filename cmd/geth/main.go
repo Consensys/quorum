@@ -158,6 +158,7 @@ var (
 		// Quorum
 		utils.QuorumImmutabilityThreshold,
 		utils.EnableNodePermissionFlag,
+		utils.RaftLogDirFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,

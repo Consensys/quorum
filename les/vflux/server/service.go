@@ -40,7 +40,6 @@ type (
 
 	// Service is a service registered at the Server and identified by a string id
 	Service interface {
-		//ServiceInfo() (id, desc string)                                      // only called during registration
 		Handle(id enode.ID, address string, name string, data []byte) []byte // never called concurrently
 	}
 

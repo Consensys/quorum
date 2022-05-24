@@ -109,6 +109,8 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	privateDb := b.privateStatedb
 	if privateDb == nil {
 		privateDb = b.statedb
+	} else {
+		b.privateStatedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
 	}
 	// End Quorum
 

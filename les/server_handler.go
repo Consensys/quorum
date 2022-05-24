@@ -151,8 +151,8 @@ func (h *serverHandler) handle(p *clientPeer) error {
 		p.Log().Debug("Client pool already closed")
 		return p2p.DiscRequested
 	}
-	//activeCount, _ := h.server.clientPool.Active()
-	//clientConnectionGauge.Update(int64(activeCount))
+	activeCount, _ := h.server.clientPool.Active()
+	clientConnectionGauge.Update(int64(activeCount))
 	p.connectedAt = mclock.Now()
 
 	var wg sync.WaitGroup // Wait group used to track all in-flight task routines.
@@ -162,8 +162,8 @@ func (h *serverHandler) handle(p *clientPeer) error {
 		h.server.clientPool.Unregister(p)
 		h.server.peers.unregister(p.ID())
 		p.balance = nil
-		//activeCount, _ := h.server.clientPool.Active()
-		//clientConnectionGauge.Update(int64(activeCount))
+		activeCount, _ := h.server.clientPool.Active()
+		clientConnectionGauge.Update(int64(activeCount))
 		connectionTimer.Update(time.Duration(mclock.Now() - p.connectedAt))
 	}()
 

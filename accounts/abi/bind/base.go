@@ -63,6 +63,8 @@ type TransactOpts struct {
 
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 
+	NoSend bool // Do all transact steps but do not send the transaction
+
 	// Quorum
 	PrivateFrom              string   // The public key of the Tessera/Constellation identity to send this tx from.
 	PrivateFor               []string // The public keys of the Tessera/Constellation identities this tx is intended for.
@@ -292,6 +294,9 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	signedTx, err := opts.Signer(opts.From, rawTx)
 	if err != nil {
 		return nil, err
+	}
+	if opts.NoSend {
+		return signedTx, nil
 	}
 	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx, PrivateTxArgs{PrivateFor: opts.PrivateFor}); err != nil {
 		return nil, err

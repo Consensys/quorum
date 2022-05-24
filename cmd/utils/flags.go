@@ -535,6 +535,8 @@ var (
 		Name:  "nocompaction",
 		Usage: "Disables db compaction after import",
 	}
+
+	// Quorum
 	// RPC Client Settings
 	RPCClientToken = cli.StringFlag{
 		Name:  "rpcclitoken",
@@ -556,6 +558,8 @@ var (
 		Name:  "rpcclitls.insecureskipverify",
 		Usage: "Disable verification of server's TLS certificate on connection by client",
 	}
+	// End Quorum
+
 	// RPC settings
 	IPCDisabledFlag = cli.BoolFlag{
 		Name:  "ipcdisable",
@@ -2254,6 +2258,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
 		return backend.ApiBackend, nil
 	}
+
+	// Quorum
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+	cfg.Istanbul.Client = ethclient.NewClient(client)
+	// End Quorum
+
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
@@ -2563,11 +2576,14 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 		cache.TrieDirtyLimit = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
 	}
 	vmcfg := vm.Config{EnablePreimageRecording: ctx.GlobalBool(VMEnableDebugFlag.Name)}
+
+	// Quorum
 	var limit *uint64
-	if ctx.GlobalIsSet(TxLookupLimitFlag.Name) /* TODO : && !readOnly */ {
+	if ctx.GlobalIsSet(TxLookupLimitFlag.Name) {
 		l := ctx.GlobalUint64(TxLookupLimitFlag.Name)
 		limit = &l
 	}
+	// End Quorum
 
 	// TODO(rjl493456442) disable snapshot generation/wiping if the chain is read only.
 	// Disable transaction indexing/unindexing by default.
