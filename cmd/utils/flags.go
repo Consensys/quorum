@@ -1215,11 +1215,11 @@ func SplitAndTrim(input string) (ret []string) {
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setHTTP(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalBool(LegacyRPCEnabledFlag.Name) && cfg.HTTPHost == "" {
-		log.Warn("The flag --rpc is deprecated and will be removed June 2021, please use --http")
+		log.Warn("The flag --rpc is deprecated and will be removed in the future, please use --http")
 		cfg.HTTPHost = "127.0.0.1"
 		if ctx.GlobalIsSet(LegacyRPCListenAddrFlag.Name) {
 			cfg.HTTPHost = ctx.GlobalString(LegacyRPCListenAddrFlag.Name)
-			log.Warn("The flag --rpcaddr is deprecated and will be removed June 2021, please use --http.addr")
+			log.Warn("The flag --rpcaddr is deprecated and will be removed in the future, please use --http.addr")
 		}
 	}
 	if ctx.GlobalBool(HTTPEnabledFlag.Name) && cfg.HTTPHost == "" {
@@ -1231,7 +1231,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCPortFlag.Name) {
 		cfg.HTTPPort = ctx.GlobalInt(LegacyRPCPortFlag.Name)
-		log.Warn("The flag --rpcport is deprecated and will be removed June 2021, please use --http.port")
+		log.Warn("The flag --rpcport is deprecated and will be removed in the future, please use --http.port")
 	}
 	if ctx.GlobalIsSet(HTTPPortFlag.Name) {
 		cfg.HTTPPort = ctx.GlobalInt(HTTPPortFlag.Name)
@@ -1239,7 +1239,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCCORSDomainFlag.Name) {
 		cfg.HTTPCors = SplitAndTrim(ctx.GlobalString(LegacyRPCCORSDomainFlag.Name))
-		log.Warn("The flag --rpccorsdomain is deprecated and will be removed June 2021, please use --http.corsdomain")
+		log.Warn("The flag --rpccorsdomain is deprecated and will be removed in the future, please use --http.corsdomain")
 	}
 	if ctx.GlobalIsSet(HTTPCORSDomainFlag.Name) {
 		cfg.HTTPCors = SplitAndTrim(ctx.GlobalString(HTTPCORSDomainFlag.Name))
@@ -1247,7 +1247,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCApiFlag.Name) {
 		cfg.HTTPModules = SplitAndTrim(ctx.GlobalString(LegacyRPCApiFlag.Name))
-		log.Warn("The flag --rpcapi is deprecated and will be removed June 2021, please use --http.api")
+		log.Warn("The flag --rpcapi is deprecated and will be removed in the future, please use --http.api")
 	}
 	if ctx.GlobalIsSet(HTTPApiFlag.Name) {
 		cfg.HTTPModules = SplitAndTrim(ctx.GlobalString(HTTPApiFlag.Name))
@@ -1255,7 +1255,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCVirtualHostsFlag.Name) {
 		cfg.HTTPVirtualHosts = SplitAndTrim(ctx.GlobalString(LegacyRPCVirtualHostsFlag.Name))
-		log.Warn("The flag --rpcvhosts is deprecated and will be removed June 2021, please use --http.vhosts")
+		log.Warn("The flag --rpcvhosts is deprecated and will be removed in the future, please use --http.vhosts")
 	}
 	if ctx.GlobalIsSet(HTTPVirtualHostsFlag.Name) {
 		cfg.HTTPVirtualHosts = SplitAndTrim(ctx.GlobalString(HTTPVirtualHostsFlag.Name))

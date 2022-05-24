@@ -81,7 +81,6 @@ func NewLesServer(node *node.Node, e ethBackend, config *ethconfig.Config) (*Les
 	if err != nil {
 		return nil, err
 	}
-	//ns := nodestate.NewNodeStateMachine(nil, nil, mclock.System{}, serverSetup)
 	// Calculate the number of threads used to service the light client
 	// requests based on the user-specified value.
 	threads := config.LightServ * 4 / 100
