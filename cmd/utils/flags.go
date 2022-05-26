@@ -2016,6 +2016,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if cfg.QuorumLightClient.Enabled() && cfg.SyncMode != downloader.FullSync {
 		Fatalf("Only the 'full' syncmode is supported for the qlight client.")
 	}
+	if private.IsQuorumPrivacyEnabled() && cfg.SyncMode != downloader.FullSync {
+		Fatalf("Only the 'full' syncmode is supported when quorum privacy is enabled.")
+	}
 	// End Quorum
 
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
