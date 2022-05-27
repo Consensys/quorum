@@ -518,6 +518,15 @@ func TestDeriveFieldsMPS(t *testing.T) {
 }
 
 func testReceiptFields(t *testing.T, receipt *Receipt, txs Transactions, txIndex int, receiptName string, blockHash common.Hash, blockNumber *big.Int, signer Signer) {
+	if receipt.Type != txs[txIndex].Type() {
+		t.Errorf("%s.Type = %d, want %d", receiptName, receipt.Type, txs[txIndex].Type())
+	}
+	if receipt.TxHash != txs[txIndex].Hash() {
+		t.Errorf("%s.TxHash = %s, want %s", receiptName, receipt.TxHash.String(), txs[txIndex].Hash().String())
+	}
+	if receipt.BlockHash != blockHash {
+		t.Errorf("%s.BlockHash = %s, want %s", receiptName, receipt.BlockHash.String(), blockHash.String())
+	}
 	if receipt.BlockNumber.Cmp(blockNumber) != 0 {
 		t.Errorf("%s.BlockNumber = %s, want %s", receiptName, receipt.BlockNumber.String(), blockNumber.String())
 	}
