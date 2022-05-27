@@ -9,7 +9,7 @@ RUN cd /go-ethereum && make geth bootnode
 # Pull Geth into a second stage deploy alpine container
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates curl
+RUN apk add --no-cache ca-certificates curl bash
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 COPY --from=builder /go-ethereum/build/bin/bootnode /usr/local/bin/
 
