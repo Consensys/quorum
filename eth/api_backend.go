@@ -458,8 +458,7 @@ func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, re
 }
 
 func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
-	msg, blockCtx, state, privateState, privateStateRepository, err := b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
-	return msg, blockCtx, state, privateState, privateStateRepository, err
+	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
 }
 
 // Quorum
