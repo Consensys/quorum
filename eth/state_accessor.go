@@ -70,7 +70,12 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		if !checkLive {
 			statedb, err = state.New(current.Root(), database, nil)
 			if err == nil {
-				return
+				// Quorum
+				_, privateStateDB, err = eth.blockchain.StateAt(current.Root())
+				if err == nil {
+					return statedb, privateStateDB, nil
+				}
+				// End Quorum
 			}
 		}
 		// Database does not have the state for the given block, try to regenerate
@@ -86,7 +91,12 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 
 			statedb, err = state.New(current.Root(), database, nil)
 			if err == nil {
-				break
+				// Quorum
+				_, privateStateDB, err = eth.blockchain.StateAt(current.Root())
+				if err == nil {
+					break
+				}
+				// End Quorum
 			}
 		}
 		if err != nil {
@@ -103,8 +113,6 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		start  = time.Now()
 		logged time.Time
 		parent common.Hash
-
-		privateStateRepo mps.PrivateStateRepository
 	)
 	defer func() {
 		if err != nil && parent != (common.Hash{}) {
@@ -137,18 +145,12 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", current.NumberU64(), err)
 		}
 
-		// If we have the state fully available, use that
-		statedb, privateStateRepo, err = eth.blockchain.StateAt(block.Root())
-		if err != nil {
-			return
-		}
-
 		// Quorum
-		err = privateStateRepo.Commit(eth.blockchain.Config().IsEIP158(block.Number()), block)
+		err = privateStateDB.Commit(eth.blockchain.Config().IsEIP158(block.Number()), block)
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := privateStateRepo.Reset(); err != nil {
+		if err := privateStateDB.Reset(); err != nil {
 			return nil, nil, fmt.Errorf("private state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		// End Quorum
@@ -163,7 +165,7 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		nodes, imgs := database.TrieDB().Size()
 		log.Info("Historical state regenerated", "block", current.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
 	}
-	return statedb, privateStateRepo, nil
+	return statedb, privateStateDB, nil
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
