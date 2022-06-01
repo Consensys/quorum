@@ -161,6 +161,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			// Quorum
 			utils.RPCClientToken,
 			utils.RPCClientTLSInsecureSkipVerify,
 			utils.RPCClientTLSCert,
@@ -190,6 +191,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.MiningEnabledFlag,
 			utils.MinerThreadsFlag,
 			utils.MinerNotifyFlag,
+			utils.MinerNotifyFullFlag,
 			utils.MinerGasPriceFlag,
 			utils.MinerGasTargetFlag,
 			utils.MinerGasLimitFlag,

@@ -52,13 +52,17 @@ import (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize         = 4096
+	txChanSize = 4096
+
+	// Quorum
 	protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 )
 
 var (
 	syncChallengeTimeout = 15 * time.Second // Time allowance for a node to reply to the sync progress challenge
-	errMsgTooLarge       = errors.New("message too long")
+
+	// Quorum
+	errMsgTooLarge = errors.New("message too long")
 )
 
 // txPool defines the methods needed from a transaction pool implementation to
@@ -87,17 +91,18 @@ type txPool interface {
 // handlerConfig is the collection of initialization parameters to create a full
 // node network handler.
 type handlerConfig struct {
-	Database          ethdb.Database            // Database for direct sync insertions
-	Chain             *core.BlockChain          // Blockchain to serve data from
-	TxPool            txPool                    // Transaction pool to propagate from
-	Network           uint64                    // Network identifier to adfvertise
-	Sync              downloader.SyncMode       // Whether to fast or full sync
-	BloomCache        uint64                    // Megabytes to alloc for fast sync bloom
-	EventMux          *event.TypeMux            // Legacy event mux, deprecate for `feed`
-	Checkpoint        *params.TrustedCheckpoint // Hard coded checkpoint for sync challenges
-	AuthorizationList map[uint64]common.Hash    // Hard coded authorizationList for sync challenged
+	Database   ethdb.Database            // Database for direct sync insertions
+	Chain      *core.BlockChain          // Blockchain to serve data from
+	TxPool     txPool                    // Transaction pool to propagate from
+	Network    uint64                    // Network identifier to adfvertise
+	Sync       downloader.SyncMode       // Whether to fast or full sync
+	BloomCache uint64                    // Megabytes to alloc for fast sync bloom
+	EventMux   *event.TypeMux            // Legacy event mux, deprecate for `feed`
+	Checkpoint *params.TrustedCheckpoint // Hard coded checkpoint for sync challenges
 
 	// Quorum
+	AuthorizationList map[uint64]common.Hash // Hard coded authorization list for sync challenged
+
 	Engine   consensus.Engine
 	RaftMode bool
 
@@ -172,16 +177,17 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
 	h := &handler{
-		networkID:         config.Network,
-		forkFilter:        forkid.NewFilter(config.Chain),
-		eventMux:          config.EventMux,
-		database:          config.Database,
-		txpool:            config.TxPool,
-		chain:             config.Chain,
-		peers:             newPeerSet(),
+		networkID:  config.Network,
+		forkFilter: forkid.NewFilter(config.Chain),
+		eventMux:   config.EventMux,
+		database:   config.Database,
+		txpool:     config.TxPool,
+		chain:      config.Chain,
+		peers:      newPeerSet(),
+		txsyncCh:   make(chan *txsync),
+		quitSync:   make(chan struct{}),
+		// Quorum
 		authorizationList: config.AuthorizationList,
-		txsyncCh:          make(chan *txsync),
-		quitSync:          make(chan struct{}),
 		raftMode:          config.RaftMode,
 		engine:            config.Engine,
 		tokenHolder:       config.tokenHolder,
@@ -227,7 +233,11 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	// Construct the downloader (long sync) and its backing state bloom if fast
 	// sync is requested. The downloader is responsible for deallocating the state
 	// bloom when it's done.
-	if atomic.LoadUint32(&h.fastSync) == 1 {
+	// Note: we don't enable it if snap-sync is performed, since it's very heavy
+	// and the heal-portion of the snap sync is much lighter than fast. What we particularly
+	// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
+	// indexing the entire trie
+	if atomic.LoadUint32(&h.fastSync) == 1 && atomic.LoadUint32(&h.snapSync) == 0 {
 		h.stateBloom = trie.NewSyncBloom(config.BloomCache, config.Database)
 	}
 	h.downloader = downloader.New(h.checkpointNumber, config.Database, h.stateBloom, h.eventMux, h.chain, nil, h.removePeer)
@@ -341,7 +351,6 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		// When the Register() returns an error, the Run method corresponding to `eth` protocol returns with the error, causing the peer to drop, signal subprotocol as well to exit the `Run` method
 		peer.EthPeerDisconnected <- struct{}{}
 		// End Quorum
-
 		return err
 	}
 	defer h.unregisterPeer(peer.ID()) // Quorum: changed by https://github.com/bnb-chain/bsc/pull/856
@@ -808,7 +817,6 @@ func (h *handler) handleConsensusMsg(p *eth.Peer, msg p2p.Msg) (bool, error) {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
 		handled, err := handler.HandleMsg(addr, msg)
-
 		return handled, err
 	}
 	return false, nil

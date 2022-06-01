@@ -172,19 +172,6 @@ func (tx *Transaction) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-// Quorum
-func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
-	return &PrivacyMetadata{
-		PrivacyFlag: privacyFlag,
-	}
-}
-
-func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
-	tx.privacyMetadata = pm
-}
-
-// End Quorum
-
 // decodeTyped decodes a typed transaction from the canonical format.
 func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 	if len(b) == 0 {
@@ -284,9 +271,6 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
-// PrivacyMetadata returns the privacy metadata of the transaction. (Quorum)
-func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
-
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
 func (tx *Transaction) To() *common.Address {
@@ -314,20 +298,12 @@ func (tx *Transaction) RawSignatureValues() (v, r, s *big.Int) {
 
 // GasPriceCmp compares the gas prices of two transactions.
 func (tx *Transaction) GasPriceCmp(other *Transaction) int {
-	return tx.inner.gasPrice().Cmp(other.GasPrice())
+	return tx.inner.gasPrice().Cmp(other.inner.gasPrice())
 }
 
 // GasPriceIntCmp compares the gas price of the transaction against the given price.
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.inner.gasPrice().Cmp(other)
-}
-
-// From returns the sender address of the transaction. (Quorum)
-func (tx *Transaction) From() common.Address {
-	if from, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err == nil {
-		return from
-	}
-	return common.Address{}
 }
 
 // Hash returns the transaction hash.
@@ -368,57 +344,6 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	cpy := tx.inner.copy()
 	cpy.setSignatureValues(signer.ChainID(), v, r, s)
 	return &Transaction{inner: cpy, time: tx.time}, nil
-}
-
-// String returns the string representation of the transaction. (Quorum)
-func (tx *Transaction) String() string {
-	var from, to string
-	v, r, s := tx.RawSignatureValues()
-	if v != nil {
-		if f, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err != nil {
-			from = "[invalid sender: invalid sig]"
-		} else {
-			from = fmt.Sprintf("%x", f[:])
-		}
-	} else {
-		from = "[invalid sender: nil V field]"
-	}
-
-	if tx.To() == nil {
-		to = "[contract creation]"
-	} else {
-		to = fmt.Sprintf("%x", tx.To())
-	}
-	enc, _ := rlp.EncodeToBytes(&tx.inner)
-	return fmt.Sprintf(`
-	TX(%x)
-	Contract: %v
-	From:     %s
-	To:       %s
-	Nonce:    %v
-	GasPrice: %#x
-	GasLimit  %#x
-	Value:    %#x
-	Data:     0x%x
-	V:        %#x
-	R:        %#x
-	S:        %#x
-	Hex:      %x
-`,
-		tx.Hash(),
-		tx.To() == nil,
-		from,
-		to,
-		tx.Nonce(),
-		tx.Cost(),
-		tx.Gas(),
-		tx.Value(),
-		tx.Data(),
-		v,
-		r,
-		s,
-		enc,
-	)
 }
 
 // Transactions implements DerivableList for transactions.
@@ -621,6 +546,81 @@ func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) CheckNonce() bool       { return m.checkNonce }
 
 // Quorum
+
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		PrivacyFlag: privacyFlag,
+	}
+}
+
+func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
+	tx.privacyMetadata = pm
+}
+
+// PrivacyMetadata returns the privacy metadata of the transaction. (Quorum)
+func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata {
+	return tx.privacyMetadata
+}
+
+// From returns the sender address of the transaction. (Quorum)
+func (tx *Transaction) From() common.Address {
+	if from, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err == nil {
+		return from
+	}
+	return common.Address{}
+}
+
+// String returns the string representation of the transaction. (Quorum)
+func (tx *Transaction) String() string {
+	var from, to string
+	v, r, s := tx.RawSignatureValues()
+	if v != nil {
+		if f, err := Sender(NewEIP2930Signer(tx.ChainId()), tx); err != nil {
+			from = "[invalid sender: invalid sig]"
+		} else {
+			from = fmt.Sprintf("%x", f[:])
+		}
+	} else {
+		from = "[invalid sender: nil V field]"
+	}
+
+	if tx.To() == nil {
+		to = "[contract creation]"
+	} else {
+		to = fmt.Sprintf("%x", tx.To())
+	}
+	enc, _ := rlp.EncodeToBytes(&tx.inner)
+	return fmt.Sprintf(`
+	TX(%x)
+	Contract: %v
+	From:     %s
+	To:       %s
+	Nonce:    %v
+	GasPrice: %#x
+	GasLimit  %#x
+	Value:    %#x
+	Data:     0x%x
+	V:        %#x
+	R:        %#x
+	S:        %#x
+	Hex:      %x
+`,
+		tx.Hash(),
+		tx.To() == nil,
+		from,
+		to,
+		tx.Nonce(),
+		tx.Cost(),
+		tx.Gas(),
+		tx.Value(),
+		tx.Data(),
+		v,
+		r,
+		s,
+		enc,
+	)
+}
+
 func (m Message) IsPrivate() bool {
 	return m.isPrivate
 }

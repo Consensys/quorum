@@ -912,6 +912,8 @@ type StubBackend struct {
 	CurrentHeadNumber *big.Int
 }
 
+var _ Backend = &StubBackend{}
+
 func (sb *StubBackend) UnprotectedAllowed() bool {
 	return sb.allowUnprotectedTxs
 }
@@ -936,7 +938,7 @@ func (sb *StubBackend) IsAuthorized(authToken *proto.PreAuthenticatedAuthenticat
 	panic("implement me")
 }
 
-func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmconfig *vm.Config) (*vm.EVM, func() error, error) {
 	sb.getEVMCalled = true
 	vmCtx := core.NewEVMBlockContext(&types.Header{
 		Coinbase:   arbitraryFrom,

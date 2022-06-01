@@ -603,6 +603,8 @@ func TestHash_Format(t *testing.T) {
 	}
 }
 
+// Quorum
+
 func TestFormatTerminalString_Value(t *testing.T) {
 	assert.Equal(t, "", FormatTerminalString(nil))
 	assert.Equal(t, "", FormatTerminalString([]byte{}))

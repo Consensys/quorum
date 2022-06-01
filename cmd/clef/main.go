@@ -253,12 +253,12 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			testFlag,
 			advancedMode,
 			acceptFlag,
-			// <Quorum>
+
+			// Quorum
 			utils.PluginSettingsFlag,
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.PluginSkipVerifyFlag,
-			// </Quorum>
 		},
 	},
 }
@@ -288,12 +288,12 @@ func init() {
 		testFlag,
 		advancedMode,
 		acceptFlag,
-		// <Quorum>
+
+		// Quorum
 		utils.PluginSettingsFlag,
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
 		utils.PluginSkipVerifyFlag,
-		// </Quorum>
 	}
 	app.Action = signer
 	app.Commands = []cli.Command{initCommand,

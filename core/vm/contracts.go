@@ -128,6 +128,25 @@ func init() {
 	}
 }
 
+// ActivePrecompiles returns the precompiles enabled with the current configuration.
+func ActivePrecompiles(rules params.Rules) []common.Address {
+	var result []common.Address
+	switch {
+	case rules.IsBerlin:
+		result = PrecompiledAddressesBerlin
+	case rules.IsIstanbul:
+		result = PrecompiledAddressesIstanbul
+	case rules.IsByzantium:
+		result = PrecompiledAddressesByzantium
+	default:
+		result = PrecompiledAddressesHomestead
+	}
+	if rules.IsPrivacyPrecompile {
+		result = append(result, common.QuorumPrivacyPrecompileContractAddress())
+	}
+	return result
+}
+
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
 // It returns
 // - the returned bytes,

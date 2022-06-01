@@ -309,9 +309,8 @@ Fatal: Failed to unlock account 0 (could not decrypt key with given password)
 
 func TestUnlockFlagAmbiguous(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
-	datadir := tmpDatadirWithKeystore(t)
 	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
-	geth := runMinimalGethWithRaftConsensus(t, "--datadir", datadir, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"js", "testdata/empty.js")

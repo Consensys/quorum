@@ -90,7 +90,7 @@ func TestActivePrecompiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.evm.ActivePrecompiles()
+			got := ActivePrecompiles(tt.evm.chainRules)
 			require.ElementsMatchf(t, tt.want, got, "want: %v, got: %v", tt.want, got)
 		})
 	}
