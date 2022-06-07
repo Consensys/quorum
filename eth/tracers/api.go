@@ -948,15 +948,15 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *txTrac
 	}
 
 	// Run the transaction with tracing enabled.
-	vmconf := vm.Config{Debug: true, Tracer: tracer, ApplyOnPartyOverride: &psm.ID}
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.backend.ChainConfig(), vmconf)
+	vmconf := &vm.Config{Debug: true, Tracer: tracer, ApplyOnPartyOverride: &psm.ID}
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, privateStateDbToUse, api.backend.ChainConfig(), *vmconf)
 	vmenv.SetCurrentTX(txctx.tx)
 	vmenv.InnerApply = func(innerTx *types.Transaction) error {
-		header, err := api.backend.HeaderByHash(ctx, txctx.hash)
+		header, err := api.backend.HeaderByHash(ctx, txctx.block)
 		if err != nil {
 			return err
 		}
-		return applyInnerTransaction(api.backend.GetBlockchain(), statedb, privateStateDbToUse, header, txctx.tx, vmconf, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, txctx.index)
+		return applyInnerTransaction(api.backend.GetBlockchain(), statedb, privateStateDbToUse, header, txctx.tx, *vmconf, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, txctx.index)
 	}
 	// End Quorum
 
