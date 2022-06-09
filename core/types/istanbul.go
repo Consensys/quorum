@@ -17,6 +17,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 
@@ -127,9 +128,22 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 type QBFTExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
-	Vote          *ValidatorVote
-	Round         uint32
+	Vote          *ValidatorVote `rlp:"nilString"`
+	Round         []byte
 	CommittedSeal [][]byte
+}
+
+type QBFTExtraNoSealsNoRound struct {
+	VanityData []byte
+	Validators []common.Address
+	Vote       *ValidatorVote `rlp:"nilString"`
+}
+
+type QBFTExtraNoSeals struct {
+	VanityData []byte
+	Validators []common.Address
+	Vote       *ValidatorVote `rlp:"nilString"`
+	Round      []byte
 }
 
 type ValidatorVote struct {
@@ -139,6 +153,15 @@ type ValidatorVote struct {
 
 // EncodeRLP serializes qist into the Ethereum RLP format.
 func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
+	if qst.Vote == nil {
+		return rlp.Encode(w, []interface{}{
+			qst.VanityData,
+			qst.Validators,
+			make([]byte, 0),
+			qst.Round,
+			qst.CommittedSeal,
+		})
+	}
 	return rlp.Encode(w, []interface{}{
 		qst.VanityData,
 		qst.Validators,
@@ -148,13 +171,45 @@ func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 	})
 }
 
+func (qst *QBFTExtraNoSeals) EncodeRLP(w io.Writer) error {
+	if qst.Vote == nil {
+		return rlp.Encode(w, []interface{}{
+			qst.VanityData,
+			qst.Validators,
+			make([]byte, 0),
+			qst.Round,
+		})
+	}
+	return rlp.Encode(w, []interface{}{
+		qst.VanityData,
+		qst.Validators,
+		qst.Vote,
+		qst.Round,
+	})
+}
+
+func (qst *QBFTExtraNoSealsNoRound) EncodeRLP(w io.Writer) error {
+	if qst.Vote == nil {
+		return rlp.Encode(w, []interface{}{
+			qst.VanityData,
+			qst.Validators,
+			make([]byte, 0),
+		})
+	}
+	return rlp.Encode(w, []interface{}{
+		qst.VanityData,
+		qst.Validators,
+		qst.Vote,
+	})
+}
+
 // DecodeRLP implements rlp.Decoder, and load the QBFTExtra fields from a RLP stream.
 func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData    []byte
 		Validators    []common.Address
-		Vote          *ValidatorVote `rlp:"nil"`
-		Round         uint32
+		Vote          *ValidatorVote `rlp:"nilString"`
+		Round         []byte
 		CommittedSeal [][]byte
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
@@ -167,6 +222,11 @@ func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 
 // EncodeRLP serializes ValidatorVote into the Ethereum RLP format.
 func (vv *ValidatorVote) EncodeRLP(w io.Writer) error {
+	if vv.VoteType == 0 {
+		// It's easier to process this edge case in such a way in order not to introduce extra logic to RLP module for only this case
+		_, err := w.Write(append(append([]byte{0xd6, 0x94}, vv.RecipientAddress.Bytes()...), vv.VoteType))
+		return err
+	}
 	return rlp.Encode(w, []interface{}{
 		vv.RecipientAddress,
 		vv.VoteType,
@@ -179,9 +239,11 @@ func (vv *ValidatorVote) DecodeRLP(s *rlp.Stream) error {
 		RecipientAddress common.Address
 		VoteType         byte
 	}
+	s.IgnoreCanonIntForByte = true
 	if err := s.Decode(&validatorVote); err != nil {
 		return err
 	}
+	s.IgnoreCanonIntForByte = false
 	vv.RecipientAddress, vv.VoteType = validatorVote.RecipientAddress, validatorVote.VoteType
 	return nil
 }
@@ -202,7 +264,24 @@ func ExtractQBFTExtra(h *Header) (*QBFTExtra, error) {
 // are clean to fulfill the Istanbul hash rules. It returns nil if the extra-data cannot be
 // decoded/encoded by rlp.
 func QBFTFilteredHeader(h *Header) *Header {
-	return QBFTFilteredHeaderWithRound(h, 0)
+	newHeader := CopyHeader(h)
+	qbftExtra, err := ExtractQBFTExtra(newHeader)
+	if err != nil {
+		return nil
+	}
+
+	qbftFiltered := new(QBFTExtraNoSealsNoRound)
+
+	qbftFiltered.Validators, qbftFiltered.VanityData, qbftFiltered.Vote = qbftExtra.Validators, qbftExtra.VanityData, qbftExtra.Vote
+
+	payload, err := rlp.EncodeToBytes(&qbftFiltered)
+	if err != nil {
+		return nil
+	}
+
+	newHeader.Extra = payload
+
+	return newHeader
 }
 
 // QBFTFilteredHeaderWithRound returns the copy of the header with round number set to the given round number
@@ -214,10 +293,16 @@ func QBFTFilteredHeaderWithRound(h *Header, round uint32) *Header {
 		return nil
 	}
 
-	qbftExtra.CommittedSeal = [][]byte{}
-	qbftExtra.Round = round
+	qbftFiltered := new(QBFTExtraNoSeals)
 
-	payload, err := rlp.EncodeToBytes(&qbftExtra)
+	qbftFiltered.Validators, qbftFiltered.VanityData, qbftFiltered.Vote = qbftExtra.Validators, qbftExtra.VanityData, qbftExtra.Vote
+
+	a := make([]byte, 4)
+	binary.BigEndian.PutUint32(a, round)
+
+	qbftFiltered.Round = a
+
+	payload, err := rlp.EncodeToBytes(&qbftFiltered)
 	if err != nil {
 		return nil
 	}
