@@ -21,5 +21,6 @@ func TestSetBFT(t *testing.T) {
 	assert.Equal(t, config.Epoch, bftConfig.EpochLength)
 	assert.Equal(t, config.RequestTimeout, bftConfig.RequestTimeoutSeconds*1000)
 	assert.Equal(t, config.BlockPeriod, istanbul.DefaultConfig.BlockPeriod)
+	assert.Equal(t, config.EmptyBlockPeriod, istanbul.DefaultConfig.EmptyBlockPeriod)
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 }

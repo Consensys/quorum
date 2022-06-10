@@ -90,6 +90,9 @@ type core struct {
 	pendingRequestsMu *sync.Mutex
 
 	consensusTimestamp time.Time
+
+	newRoundMutex sync.Mutex
+	newRoundTimer *time.Timer
 }
 
 func (c *core) currentView() *istanbul.View {
@@ -250,6 +253,10 @@ func (c *core) stopTimer() {
 
 func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
+
+	for c.current == nil { // wait because it is asynchronous in handleRequest
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	// set timeout based on the round number
 	baseTimeout := time.Duration(c.config.GetConfig(c.current.Sequence()).RequestTimeout) * time.Millisecond
