@@ -112,7 +112,7 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	}
 	// End Quorum
 
-	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, privateDb, b.header, tx, &b.header.GasUsed, vm.Config{}, false, nil)
+	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, privateDb, b.header, tx, &b.header.GasUsed, vm.Config{}, false, nil, false)
 	if err != nil {
 		panic(err)
 	}

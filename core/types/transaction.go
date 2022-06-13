@@ -564,16 +564,17 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
-	to         *common.Address
-	from       common.Address
-	nonce      uint64
-	amount     *big.Int
-	gasLimit   uint64
-	gasPrice   *big.Int
-	data       []byte
-	accessList AccessList
-	checkNonce bool
-	isPrivate  bool
+	to             *common.Address
+	from           common.Address
+	nonce          uint64
+	amount         *big.Int
+	gasLimit       uint64
+	gasPrice       *big.Int
+	data           []byte
+	accessList     AccessList
+	checkNonce     bool
+	isPrivate      bool
+	isInnerPrivate bool
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, accessList AccessList, checkNonce bool) Message {
@@ -623,6 +624,17 @@ func (m Message) CheckNonce() bool       { return m.checkNonce }
 // Quorum
 func (m Message) IsPrivate() bool {
 	return m.isPrivate
+}
+
+// Quorum
+func (m Message) IsInnerPrivate() bool {
+	return m.isInnerPrivate
+}
+
+// Quorum
+func (m Message) WithInnerPrivateFlag(isInnerPrivateTxn bool) Message {
+	m.isInnerPrivate = isInnerPrivateTxn
+	return m
 }
 
 // overriding msg.data so that when tesseera.receive is invoked we get nothing back

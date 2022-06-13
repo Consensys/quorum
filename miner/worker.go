@@ -845,7 +845,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	privateStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	publicStateDB.Prepare(tx.Hash(), common.Hash{}, workerEnv.tcount)
 	privateStateSnaphots[privateStateRepo.DefaultStateMetadata().ID] = privateStateDB.Snapshot()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo)
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDB, privateStateDB, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo.IsMPS(), privateStateRepo, false)
 	if err != nil {
 		publicStateDB.RevertToSnapshot(snap)
 		w.revertToPrivateStateSnapshots(privateStateSnaphots)
@@ -1212,7 +1212,7 @@ func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address, apply
 			privateStateSnaphots[psi] = db.Snapshot()
 			return db, nil
 		}
-		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo, applyOnPartyOnly)
+		mpsReceipt, err = core.ApplyTransactionOnMPS(w.chainConfig, w.chain, &coinbase, workerEnv.gasPool, publicStateDBFactory, privateStateDBFactory, workerEnv.header, tx, &workerEnv.header.GasUsed, *w.chain.GetVMConfig(), privateStateRepo, applyOnPartyOnly, false)
 	}
 	return
 }

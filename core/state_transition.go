@@ -115,6 +115,7 @@ func (result *ExecutionResult) Revert() []byte {
 type PrivateMessage interface {
 	Message
 	IsPrivate() bool
+	IsInnerPrivate() bool
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -352,7 +353,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		} else {
 			to = st.to()
 		}
-		//if input is empty for the smart contract call, return
+		//if input is empty for the smart contract call, return (refunding any gas deducted)
 		if len(data) == 0 && isPrivate {
 			st.refundGas()
 			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
@@ -422,12 +423,20 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 }
 
 func (st *StateTransition) refundGas() {
-	// Apply refund counter, capped to half of the used gas.
-	refund := st.gasUsed() / 2
-	if refund > st.state.GetRefund() {
-		refund = st.state.GetRefund()
+	// Quorum
+	if msg, ok := st.msg.(PrivateMessage); ok && msg.IsInnerPrivate() {
+		// Quorum
+		// This is the inner private transaction of a PMT, need to ensure that ALL gas is refunded to prevent
+		// a mismatch between a (non-participant) minter and (participant) validator.
+		st.gas += st.gasUsed()
+	} else { // run original code
+		// Apply refund counter, capped to half of the used gas.
+		refund := st.gasUsed() / 2
+		if refund > st.state.GetRefund() {
+			refund = st.state.GetRefund()
+		}
+		st.gas += refund
 	}
-	st.gas += refund
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)

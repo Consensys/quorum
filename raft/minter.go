@@ -415,7 +415,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	var vmConf vm.Config
 	txnStart := time.Now()
 	// Note that raft minter doesn't care about private state etc, hence can pass forceNonParty=true and privateStateRepo=nil
-	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, true, nil)
+	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, false, nil, false)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)
