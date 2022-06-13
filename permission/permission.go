@@ -105,7 +105,7 @@ func (p *PermissionCtrl) asyncStart() {
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
-	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
+	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().IBFT == nil && p.eth.BlockChain().Config().QBFT == nil && p.eth.BlockChain().Config().Clique == nil
 	p.updateBackEnd()
 }
 
