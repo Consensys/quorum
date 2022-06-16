@@ -8,6 +8,7 @@ on:
       - '.gitignore'
     branches:
       - master
+      - enable-gas-price-v2
 env:
   GO_VERSION: 1.16
   GOPATH: ${{ github.workspace }}/go
