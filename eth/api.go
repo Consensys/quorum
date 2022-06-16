@@ -173,6 +173,7 @@ func (api *PrivateMinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
 
 // SetEtherbase sets the etherbase of the miner
 func (api *PrivateMinerAPI) SetEtherbase(etherbase common.Address) bool {
+	// Quorum: Set return value, so user can be notified if it is disallowed.
 	return api.e.SetEtherbase(etherbase)
 }
 
