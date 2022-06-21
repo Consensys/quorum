@@ -2,6 +2,7 @@ package qbftengine
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -91,6 +92,14 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return 0, istanbulcommon.ErrInvalidUncleHash
 	}
 
+	if len(block.Transactions()) == 0 {
+		// empty block verification
+		parentHeader := chain.GetHeaderByHash(block.ParentHash())
+		if parentHeader != nil && block.Header().Time >= parentHeader.Time+uint64(e.cfg.EmptyBlockPeriod-e.cfg.BlockPeriod) {
+			return time.Until(time.Unix(int64(block.Header().Time), 0)), fmt.Errorf("empty block verification fail")
+		}
+	}
+
 	// verify the header of proposed block
 	err := e.VerifyHeader(chain, block.Header(), nil, validators)
 	if err == nil || err == istanbulcommon.ErrEmptyCommittedSeals {
@@ -118,6 +127,9 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 
 	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
 	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
+	/*if emptyBlock {
+		adjustedTimeNow = adjustedTimeNow + int64(e.cfg.EmptyBlockPeriod-e.cfg.BlockPeriod)
+	}*/
 	if header.Time > uint64(adjustedTimeNow) {
 		return consensus.ErrFutureBlock
 	}
@@ -195,8 +207,10 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
+	blockPeriod := e.cfg.GetConfig(parent.Number).BlockPeriod
+
 	// Ensure that the block's timestamp isn't too close to it's parent
-	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
+	if parent.Time+blockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
 	}
 
@@ -317,7 +331,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 
 	// set header's timestamp
-	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
+	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod // TODO use block period is block is not empty
 	if header.Time < uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
 	}
@@ -381,6 +395,15 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 
 	// Set Coinbase
 	header.Coinbase = e.signer
+
+	/*if len(block.Transactions()) > 0 {
+		header.Time += e.cfg.BlockPeriod - e.cfg.EmptyBlockPeriod // use block period
+	}*/
+	/*if len(block.Transactions()) == 0 {
+		next := header.Time + e.cfg.EmptyBlockPeriod - e.cfg.BlockPeriod
+		log.Debug("empty block", "next", next)
+		time.Sleep(time.Duration(int64(next)-time.Now().Unix()) * time.Second)
+	}*/
 
 	return block.WithSeal(header), nil
 }
