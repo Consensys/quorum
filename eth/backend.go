@@ -211,7 +211,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	// force to set the istanbul etherbase to node key address
-	if chainConfig.Istanbul != nil {
+	if chainConfig.Istanbul != nil || chainConfig.IBFT != nil || chainConfig.QBFT != nil {
 		eth.etherbase = crypto.PubkeyToAddress(stack.GetNodeKey().PublicKey)
 	}
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
