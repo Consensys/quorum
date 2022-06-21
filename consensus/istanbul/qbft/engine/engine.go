@@ -95,7 +95,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 	if len(block.Transactions()) == 0 {
 		// empty block verification
 		parentHeader := chain.GetHeaderByHash(block.ParentHash())
-		if parentHeader != nil && block.Header().Time >= parentHeader.Time+uint64(e.cfg.EmptyBlockPeriod-e.cfg.BlockPeriod) {
+		if parentHeader != nil && block.Header().Time >= parentHeader.Time+e.cfg.EmptyBlockPeriod-e.cfg.BlockPeriod {
 			return time.Until(time.Unix(int64(block.Header().Time), 0)), fmt.Errorf("empty block verification fail")
 		}
 	}
@@ -127,9 +127,6 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 
 	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
 	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
-	/*if emptyBlock {
-		adjustedTimeNow = adjustedTimeNow + int64(e.cfg.EmptyBlockPeriod-e.cfg.BlockPeriod)
-	}*/
 	if header.Time > uint64(adjustedTimeNow) {
 		return consensus.ErrFutureBlock
 	}
@@ -395,15 +392,6 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 
 	// Set Coinbase
 	header.Coinbase = e.signer
-
-	/*if len(block.Transactions()) > 0 {
-		header.Time += e.cfg.BlockPeriod - e.cfg.EmptyBlockPeriod // use block period
-	}*/
-	/*if len(block.Transactions()) == 0 {
-		next := header.Time + e.cfg.EmptyBlockPeriod - e.cfg.BlockPeriod
-		log.Debug("empty block", "next", next)
-		time.Sleep(time.Duration(int64(next)-time.Now().Unix()) * time.Second)
-	}*/
 
 	return block.WithSeal(header), nil
 }
