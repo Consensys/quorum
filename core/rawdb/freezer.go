@@ -275,12 +275,13 @@ func (f *freezer) SyncRetry(retry int8) error {
 	hasError := len(errs) > 0
 	if hasError && retry < 10 {
 		log.Info("sync", "retry", retry, "errors", errs)
-		return f.SyncRetry(retry+1)
+		return f.SyncRetry(retry + 1)
 	} else if hasError {
 		return fmt.Errorf("%v", errs)
 	}
 	return nil
 }
+
 // End Quorum
 
 // freeze is a background thread that periodically checks the blockchain for any
