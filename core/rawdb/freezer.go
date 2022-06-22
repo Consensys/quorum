@@ -280,7 +280,7 @@ func (f *freezer) SyncRetry(retry int8) error {
 	}
 	return nil
 }
-// Quorum
+// End Quorum
 
 // freeze is a background thread that periodically checks the blockchain for any
 // import progress and moves ancient data from the fast database into the freezer.
