@@ -272,11 +272,12 @@ func (f *freezer) SyncRetry(retry int8) error {
 			errs = append(errs, err)
 		}
 	}
-	if errs != nil && retry < 10 {
-		return fmt.Errorf("%v", errs)
-	} else if errs != nil {
-		log.Info("RETRY %i %v", retry, errs)
+	hasError := len(errs) > 0
+	if hasError && retry < 10 {
+		log.Info("sync", "retry", retry, "errors", errs)
 		return f.SyncRetry(retry+1)
+	} else if hasError {
+		return fmt.Errorf("%v", errs)
 	}
 	return nil
 }
