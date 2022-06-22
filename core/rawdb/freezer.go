@@ -259,13 +259,13 @@ func (f *freezer) TruncateAncients(items uint64) error {
 
 // Sync flushes all data tables to disk.
 func (f *freezer) Sync() error {
-	return f.SyncRetry(1)
+	return f.SyncRetry(1, 1*time.Second)
 }
 
 // SyncRetry
 // Quorum
 // add retry to sync
-func (f *freezer) SyncRetry(retry int8) error {
+func (f *freezer) SyncRetry(retry uint8, delay time.Duration) error {
 	var errs []error
 	for _, table := range f.tables {
 		if err := table.Sync(); err != nil {
@@ -273,9 +273,10 @@ func (f *freezer) SyncRetry(retry int8) error {
 		}
 	}
 	hasError := len(errs) > 0
-	if hasError && retry < 10 {
+	if hasError && retry < 5 {
 		log.Info("sync", "retry", retry, "errors", errs)
-		return f.SyncRetry(retry + 1)
+		time.Sleep(delay)
+		return f.SyncRetry(retry+1, delay*2)
 	} else if hasError {
 		return fmt.Errorf("%v", errs)
 	}
