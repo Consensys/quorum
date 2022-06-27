@@ -362,7 +362,7 @@ type ChainConfig struct {
 	PrivacyEnhancementsBlock *big.Int              `json:"privacyEnhancementsBlock,omitempty"`
 	IsMPS                    bool                  `json:"isMPS"`                            // multiple private states flag
 	PrivacyPrecompileBlock   *big.Int              `json:"privacyPrecompileBlock,omitempty"` // Switch block to enable privacy precompiled contract to process privacy marker transactions
-	EnableGasPriceBlock      *big.Int              `json:"enableGasPrice,omitempty"`         // Switch block to enable usage of gas price
+	EnableGasPriceBlock      *big.Int              `json:"enableGasPriceBlock,omitempty"`    // Switch block to enable usage of gas price
 
 	// End of Quorum specific configs
 }
