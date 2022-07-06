@@ -60,14 +60,19 @@ func TestGetConfig(t *testing.T) {
 		Block:              big.NewInt(3),
 		BlockPeriodSeconds: 5,
 	}, {
-		Block:                 big.NewInt(5),
-		RequestTimeoutSeconds: 15000,
+		Block:                   big.NewInt(5),
+		RequestTimeoutSeconds:   15000,
+		EmptyBlockPeriodSeconds: 1,
 	}}
 	config1 := *DefaultConfig
 	config1.Epoch = 40000
+	config1.BlockPeriod = 1       // default value
+	config1.EmptyBlockPeriod = 10 // default value
 	config3 := config1
 	config3.BlockPeriod = 5
+	config3.EmptyBlockPeriod = 10
 	config5 := config3
+	config5.EmptyBlockPeriod = 5 // equals to block period because it can be lower than this active value (5) from block 3
 	config5.RequestTimeout = 15000
 
 	type test struct {
