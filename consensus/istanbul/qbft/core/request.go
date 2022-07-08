@@ -57,7 +57,8 @@ func (c *core) handleRequest(request *Request) error {
 
 		block, ok := request.Proposal.(*types.Block)
 		if ok && len(block.Transactions()) == 0 { // if empty block
-			delay = -time.Since(time.Unix(int64(block.Time()), 0)) + time.Duration(c.config.EmptyBlockPeriod-c.config.BlockPeriod)*time.Second
+			config := c.config.GetConfig(c.current.Sequence())
+			delay = -time.Since(time.Unix(int64(block.Time()), 0)) + time.Duration(config.EmptyBlockPeriod-config.BlockPeriod)*time.Second
 		}
 
 		c.newRoundTimer = time.AfterFunc(delay, func() {

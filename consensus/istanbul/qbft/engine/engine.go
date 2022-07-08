@@ -101,10 +101,11 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
 	}
 
-	if e.cfg.EmptyBlockPeriod > e.cfg.BlockPeriod && len(block.Transactions()) == 0 {
+	config := e.cfg.GetConfig(block.Number())
+	if config.EmptyBlockPeriod > config.BlockPeriod && len(block.Transactions()) == 0 {
 		// empty block verification
 		parentHeader := chain.GetHeaderByHash(block.ParentHash())
-		if parentHeader != nil && block.Header().Time < parentHeader.Time+e.cfg.EmptyBlockPeriod {
+		if parentHeader != nil && block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
 			return 0, fmt.Errorf("empty block verification fail")
 		}
 	}
