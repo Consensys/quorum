@@ -329,7 +329,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 
 	// set header's timestamp
-	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod // TODO use block period is block is not empty
+	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
 	if header.Time < uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
 	}
