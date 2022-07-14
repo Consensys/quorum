@@ -625,16 +625,15 @@ var (
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 
+	//NOTE: this code will be executed for Raft on Quorum, so the static block reward also applies to Raft
 	blockReward := big.NewInt(0)
-	if !config.IsQuorum { //disable block reward for Quorum as this impacts Raft
-		// Select the correct block reward based on chain progression
-		blockReward = FrontierBlockReward
-		if config.IsByzantium(header.Number) {
-			blockReward = ByzantiumBlockReward
-		}
-		if config.IsConstantinople(header.Number) {
-			blockReward = ConstantinopleBlockReward
-		}
+	// Select the correct block reward based on chain progression
+	blockReward = FrontierBlockReward
+	if config.IsByzantium(header.Number) {
+		blockReward = ByzantiumBlockReward
+	}
+	if config.IsConstantinople(header.Number) {
+		blockReward = ConstantinopleBlockReward
 	}
 
 	// Accumulate the rewards for the miner and any included uncles
