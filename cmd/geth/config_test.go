@@ -293,7 +293,9 @@ func TestFlagsConfig(t *testing.T) {
 	// [Eth]
 	eth := cfg.Eth
 	assert.Equal(t, uint64(1), eth.NetworkId) // mainnet true
-	assert.Equal(t, downloader.FastSync, eth.SyncMode)
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	assert.Equal(t, downloader.FullSync, eth.SyncMode)
+	// End Quorum
 	assert.Equal(t, []string{"enrtree://AKA3AM6LPBYEUDMVNU3BSVQJ5AD45Y7YPOHJLEF6W26QOE4VTUDPE@all.mainnet.ethdisco.net"}, eth.EthDiscoveryURLs)
 	assert.Equal(t, false, eth.NoPruning)
 	assert.Equal(t, false, eth.NoPrefetch)

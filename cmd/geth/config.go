@@ -151,6 +151,8 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
+
+	// Quorum
 	if cfg.Eth.QuorumLightServer {
 		p2p.SetQLightTLSConfig(readQLightServerTLSConfig(ctx))
 		// permissioning for the qlight P2P server
@@ -168,55 +170,9 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		p2p.SetQLightTLSConfig(readQLightClientTLSConfig(ctx))
 		stack.Server().SetNewTransportFunc(p2p.NewQlightClientTransport)
 	}
+	// End Quorum
 
 	return stack, cfg
-}
-
-func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
-		return nil
-	}
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
-		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
-	}
-	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
-		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
-		CertFileName:   ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
-		KeyFileName:    ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
-		ServerName:     enode.MustParse(ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)).IP().String(),
-		CipherSuites:   ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
-	})
-
-	if err != nil {
-		utils.Fatalf("Unable to load the specified tls configuration: %v", err)
-	}
-	return tlsConfig
-}
-
-func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
-		return nil
-	}
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
-		utils.Fatalf("QLight TLS is enabled but no server certificate has been provided")
-	}
-	if !ctx.GlobalIsSet(utils.QuorumLightTLSKeyFlag.Name) {
-		utils.Fatalf("QLight TLS is enabled but no server key has been provided")
-	}
-
-	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
-		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
-		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
-		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
-		ClientAuth:           ctx.GlobalInt(utils.QuorumLightTLSClientAuthFlag.Name),
-		CipherSuites:         ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
-	})
-
-	if err != nil {
-		utils.Fatalf("QLight TLS - unable to read server tls configuration: %v", err)
-	}
-
-	return tlsConfig
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
@@ -226,7 +182,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		cfg.Eth.OverrideBerlin = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideBerlinFlag.Name))
 	}
 
-	//Must occur before registering the extension service, as it needs an initialised PTM to be enabled
+	// Quorum: Must occur before registering the extension service, as it needs an initialised PTM to be enabled
 	if err := quorumInitialisePrivacy(ctx); err != nil {
 		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
@@ -330,6 +286,55 @@ func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 	if ctx.GlobalIsSet(utils.MetricsInfluxDBTagsFlag.Name) {
 		cfg.Metrics.InfluxDBTags = ctx.GlobalString(utils.MetricsInfluxDBTagsFlag.Name)
 	}
+}
+
+// Quorum
+
+func readQLightClientTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCACertsFlag.Name) {
+		utils.Fatalf("QLight tls flag is set but no client certificate authorities has been provided")
+	}
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
+		CACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
+		CertFileName:   ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:    ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		ServerName:     enode.MustParse(ctx.GlobalString(utils.QuorumLightClientServerNodeFlag.Name)).IP().String(),
+		CipherSuites:   ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
+	})
+
+	if err != nil {
+		utils.Fatalf("Unable to load the specified tls configuration: %v", err)
+	}
+	return tlsConfig
+}
+
+func readQLightServerTLSConfig(ctx *cli.Context) *tls.Config {
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSFlag.Name) {
+		return nil
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSCertFlag.Name) {
+		utils.Fatalf("QLight TLS is enabled but no server certificate has been provided")
+	}
+	if !ctx.GlobalIsSet(utils.QuorumLightTLSKeyFlag.Name) {
+		utils.Fatalf("QLight TLS is enabled but no server key has been provided")
+	}
+
+	tlsConfig, err := qlight.NewTLSConfig(&qlight.TLSConfig{
+		CertFileName:         ctx.GlobalString(utils.QuorumLightTLSCertFlag.Name),
+		KeyFileName:          ctx.GlobalString(utils.QuorumLightTLSKeyFlag.Name),
+		ClientCACertFileName: ctx.GlobalString(utils.QuorumLightTLSCACertsFlag.Name),
+		ClientAuth:           ctx.GlobalInt(utils.QuorumLightTLSClientAuthFlag.Name),
+		CipherSuites:         ctx.GlobalString(utils.QuorumLightTLSCipherSuitesFlag.Name),
+	})
+
+	if err != nil {
+		utils.Fatalf("QLight TLS - unable to read server tls configuration: %v", err)
+	}
+
+	return tlsConfig
 }
 
 // quorumValidateEthService checks quorum features that depend on the ethereum service

@@ -13,6 +13,8 @@ var (
 	ErrTestQBFTBlockAndTransitions     = errors.New("can't use transition algorithm and testQBFTBlock at the same time")
 	ErrMaxCodeSizeConfigAndTransitions = errors.New("can't use transition ContractSizeLimit and MaxCodeSizeConfig at the same time")
 	ErrContractSizeLimit               = errors.New("transition contract code size must be between 24 and 128")
+	ErrValidatorSelectionMode          = errors.New("validator selection mode is invalid, should be either `contract` or `blockheader`")
+	ErrMissingValidatorSelectionMode   = errors.New("validator selection mode is missing, should specify `contract` when using validatorcontractaddress")
 )
 
 func ErrTransitionIncompatible(field string) error {

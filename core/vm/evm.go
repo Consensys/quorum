@@ -57,36 +57,6 @@ type (
 	GetHashFunc func(uint64) common.Hash
 )
 
-// ActivePrecompiles returns the addresses of the precompiles enabled with the current
-// configuration
-func (evm *EVM) ActivePrecompiles() []common.Address {
-	return append(evm.activePrecompiles(), evm.activeQuorumPrecompiles()...)
-}
-
-// (Quorum) moved upstream ActivePrecompiles() logic to new method activePrecompiles()
-// This functionality is part of an experimental feature so may be subject to future changes. Keeping the original code
-// untouched in a new method should flag any changes from future merges.
-func (evm *EVM) activePrecompiles() []common.Address {
-	switch {
-	case evm.chainRules.IsBerlin:
-		return PrecompiledAddressesBerlin
-	case evm.chainRules.IsIstanbul:
-		return PrecompiledAddressesIstanbul
-	case evm.chainRules.IsByzantium:
-		return PrecompiledAddressesByzantium
-	default:
-		return PrecompiledAddressesHomestead
-	}
-}
-
-func (evm *EVM) activeQuorumPrecompiles() []common.Address {
-	var p []common.Address
-	if evm.chainRules.IsPrivacyPrecompile {
-		p = append(p, common.QuorumPrivacyPrecompileContractAddress())
-	}
-	return p
-}
-
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 	var precompiles map[common.Address]PrecompiledContract
 	switch {
@@ -171,8 +141,12 @@ type TxContext struct {
 	Origin   common.Address // Provides information for ORIGIN
 	GasPrice *big.Int       // Provides information for GASPRICE
 }
+
+// Quorum
 type PublicState StateDB
 type PrivateState StateDB
+
+// End Quorum
 
 // EVM is the Ethereum Virtual Machine base object and provides
 // the necessary tools to run a contract on the given state with
@@ -335,7 +309,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		if !isPrecompile && !isQuorumPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if evm.vmConfig.Debug && evm.depth == 0 {
-				evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+				evm.vmConfig.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
 				evm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
 			}
 			return nil, gas, nil
@@ -363,7 +337,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Capture the tracer start/end events in debug mode
 	if evm.vmConfig.Debug && evm.depth == 0 {
-		evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+		evm.vmConfig.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
 		defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
 			evm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
 		}(gas, time.Now())
@@ -646,7 +620,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 
 	if evm.vmConfig.Debug && evm.depth == 0 {
-		evm.vmConfig.Tracer.CaptureStart(caller.Address(), address, true, codeAndHash.code, gas, value)
+		evm.vmConfig.Tracer.CaptureStart(evm, caller.Address(), address, true, codeAndHash.code, gas, value)
 	}
 	start := time.Now()
 

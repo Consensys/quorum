@@ -150,6 +150,20 @@ func (l *Log) Data(ctx context.Context) hexutil.Bytes {
 	return l.log.Data
 }
 
+// AccessTuple represents EIP-2930
+type AccessTuple struct {
+	address     common.Address
+	storageKeys *[]common.Hash
+}
+
+func (at *AccessTuple) Address(ctx context.Context) common.Address {
+	return at.address
+}
+
+func (at *AccessTuple) StorageKeys(ctx context.Context) *[]common.Hash {
+	return at.storageKeys
+}
+
 // Transaction represents an Ethereum transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
@@ -394,73 +408,30 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	return &ret, nil
 }
 
-// Quorum
-
-// (Quorum) PrivateTransaction returns the internal private transaction for privacy marker transactions
-func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
+func (t *Transaction) Type(ctx context.Context) (*int32, error) {
 	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return nil, err
-	}
-
-	if !tx.IsPrivacyMarker() {
-		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
-		return nil, nil
-	}
-
-	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
 	if err != nil {
 		return nil, err
 	}
-
-	if pvtTx == nil {
-		return nil, nil
-	}
-
-	return &Transaction{
-		backend:       t.backend,
-		hash:          t.hash,
-		tx:            pvtTx,
-		block:         t.block,
-		index:         t.index,
-		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
-	}, nil
+	txType := int32(tx.Type())
+	return &txType, nil
 }
 
-func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
-	ret := false
+func (t *Transaction) AccessList(ctx context.Context) (*[]*AccessTuple, error) {
 	tx, err := t.resolve(ctx)
 	if err != nil || tx == nil {
-		return &ret, err
+		return nil, err
 	}
-	ret = tx.IsPrivate()
+	accessList := tx.AccessList()
+	ret := make([]*AccessTuple, 0, len(accessList))
+	for _, al := range accessList {
+		ret = append(ret, &AccessTuple{
+			address:     al.Address,
+			storageKeys: &al.StorageKeys,
+		})
+	}
 	return &ret, nil
 }
-
-func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
-	tx, err := t.resolve(ctx)
-	if err != nil || tx == nil {
-		return &hexutil.Bytes{}, err
-	}
-	if tx.IsPrivate() {
-		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
-		if err != nil {
-			return &hexutil.Bytes{}, err
-		}
-		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
-		if err != nil || tx == nil {
-			return &hexutil.Bytes{}, err
-		}
-		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
-			return &hexutil.Bytes{}, nil
-		}
-		ret := hexutil.Bytes(privateInputData)
-		return &ret, nil
-	}
-	return &hexutil.Bytes{}, nil
-}
-
-// END QUORUM
 
 func (t *Transaction) R(ctx context.Context) (hexutil.Big, error) {
 	tx, err := t.resolve(ctx)
@@ -1251,4 +1222,70 @@ func (r *Resolver) Syncing() (*SyncState, error) {
 	}
 	// Otherwise gather the block sync stats
 	return &SyncState{progress}, nil
+}
+
+// Quorum
+
+// PrivateTransaction returns the internal private transaction for privacy marker transactions
+func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	if !tx.IsPrivacyMarker() {
+		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
+		return nil, nil
+	}
+
+	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
+	if err != nil {
+		return nil, err
+	}
+
+	if pvtTx == nil {
+		return nil, nil
+	}
+
+	return &Transaction{
+		backend:       t.backend,
+		hash:          t.hash,
+		tx:            pvtTx,
+		block:         t.block,
+		index:         t.index,
+		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
+	}, nil
+}
+
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	if tx.IsPrivate() {
+		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return &hexutil.Bytes{}, err
+		}
+		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if err != nil || tx == nil {
+			return &hexutil.Bytes{}, err
+		}
+		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
+			return &hexutil.Bytes{}, nil
+		}
+		ret := hexutil.Bytes(privateInputData)
+		return &ret, nil
+	}
+	return &hexutil.Bytes{}, nil
 }

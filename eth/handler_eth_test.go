@@ -614,14 +614,19 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	defer p2pLocal.Close()
 	defer p2pRemote.Close()
 
-	local := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{1}, "", nil), p2pLocal, handler.txpool)
-	remote := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{2}, "", nil), p2pRemote, handler.txpool)
+	local := eth.NewPeer(eth.ETH64, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pLocal), p2pLocal, handler.txpool)
+	remote := eth.NewPeer(eth.ETH64, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pRemote), p2pRemote, handler.txpool)
 	defer local.Close()
 	defer remote.Close()
 
-	go handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
-		return eth.Handle((*ethHandler)(handler.handler), peer)
-	})
+	handlerDone := make(chan struct{})
+	go func() {
+		defer close(handlerDone)
+		handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
+			err := eth.Handle((*ethHandler)(handler.handler), peer)
+			return err
+		})
+	}()
 	// Run the handshake locally to avoid spinning up a remote handler
 	var (
 		genesis = handler.chain.Genesis()
@@ -658,6 +663,7 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 
 	// Verify that the remote peer is maintained or dropped
 	if drop {
+		<-handlerDone
 		if peers := handler.handler.peers.len(); peers != 0 {
 			t.Fatalf("peer count mismatch: have %d, want %d", peers, 0)
 		}

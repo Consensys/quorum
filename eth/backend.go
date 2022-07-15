@@ -135,8 +135,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	log.Info("Allocated trie memory caches", "clean", common.StorageSize(config.TrieCleanCache)*1024*1024, "dirty", common.StorageSize(config.TrieDirtyCache)*1024*1024)
 
+	// Transfer mining-related config to the ethash config.
+	ethashConfig := config.Ethash
+	ethashConfig.NotifyFull = config.Miner.NotifyFull
+
 	// Assemble the Ethereum object
-	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/")
+	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/", false)
 	if err != nil {
 		return nil, err
 	}
@@ -173,18 +177,19 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	eth := &Ethereum{
-		config:                          config,
-		chainDb:                         chainDb,
-		eventMux:                        stack.EventMux(),
-		accountManager:                  stack.AccountManager(),
-		engine:                          ethconfig.CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
-		closeBloomHandler:               make(chan struct{}),
-		networkID:                       config.NetworkId,
-		gasPrice:                        config.Miner.GasPrice,
-		etherbase:                       config.Miner.Etherbase,
-		bloomRequests:                   make(chan chan *bloombits.Retrieval),
-		bloomIndexer:                    core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
-		p2pServer:                       stack.Server(),
+		config:            config,
+		chainDb:           chainDb,
+		eventMux:          stack.EventMux(),
+		accountManager:    stack.AccountManager(),
+		engine:            ethconfig.CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		closeBloomHandler: make(chan struct{}),
+		networkID:         config.NetworkId,
+		gasPrice:          config.Miner.GasPrice,
+		etherbase:         config.Miner.Etherbase,
+		bloomRequests:     make(chan chan *bloombits.Retrieval),
+		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
+		p2pServer:         stack.Server(),
+		// Quorum
 		qlightP2pServer:                 stack.QServer(),
 		consensusServicePendingLogsFeed: new(event.Feed),
 	}
@@ -206,7 +211,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	// force to set the istanbul etherbase to node key address
-	if chainConfig.Istanbul != nil {
+	if chainConfig.Istanbul != nil || chainConfig.IBFT != nil || chainConfig.QBFT != nil {
 		eth.etherbase = crypto.PubkeyToAddress(stack.GetNodeKey().PublicKey)
 	}
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
@@ -764,7 +769,7 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	// /Quorum
 	// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
 	if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
-		quorumProtos := s.quorumConsensusProtocols()
+		quorumProtos := s.quorumConsensusProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
 		protos = append(protos, quorumProtos...)
 	}
 	// /end Quorum

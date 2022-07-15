@@ -13,7 +13,7 @@ import (
 type Engine interface {
 	Address() common.Address
 	Author(header *types.Header) (common.Address, error)
-	Validators(header *types.Header) ([]common.Address, error)
+	ExtractGenesisValidators(header *types.Header) ([]common.Address, error)
 	Signers(header *types.Header) ([]common.Address, error)
 	CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error
 	VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators ValidatorSet) (time.Duration, error)

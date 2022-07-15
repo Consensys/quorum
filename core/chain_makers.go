@@ -109,6 +109,8 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	privateDb := b.privateStatedb
 	if privateDb == nil {
 		privateDb = b.statedb
+	} else {
+		b.privateStatedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
 	}
 	// End Quorum
 
@@ -118,6 +120,11 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	}
 	b.txs = append(b.txs, tx)
 	b.receipts = append(b.receipts, receipt)
+}
+
+// GetBalance returns the balance of the given address at the generated block.
+func (b *BlockGen) GetBalance(addr common.Address) *big.Int {
+	return b.statedb.GetBalance(addr)
 }
 
 // AddUncheckedTx forcefully adds a transaction to the block without any

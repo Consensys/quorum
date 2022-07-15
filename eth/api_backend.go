@@ -35,8 +35,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
@@ -61,6 +63,9 @@ type EthAPIBackend struct {
 	// Quorum
 	proxyClient *rpc.Client
 }
+
+var _ ethapi.Backend = &EthAPIBackend{}
+var _ tracers.Backend = &EthAPIBackend{}
 
 func (b *EthAPIBackend) ProxyEnabled() bool {
 	return b.eth.config.QuorumLightClient.Enabled()
@@ -283,25 +288,28 @@ func (b *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	return b.eth.blockchain.GetTdByHash(hash)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
 	statedb := state.(EthAPIState)
 	vmError := func() error { return nil }
-
+	if vmConfig == nil {
+		vmConfig = b.eth.blockchain.GetVMConfig()
+	}
 	txContext := core.NewEVMTxContext(msg)
 	context := core.NewEVMBlockContext(header, b.eth.BlockChain(), nil)
 
+	// Quorum
 	// Set the private state to public state if contract address is not present in the private state
 	to := common.Address{}
 	if msg.To() != nil {
 		to = *msg.To()
 	}
-
 	privateState := statedb.privateState
 	if !privateState.Exist(to) {
 		privateState = statedb.state
 	}
+	// End Quorum
 
-	return vm.NewEVM(context, txContext, statedb.state, privateState, b.eth.blockchain.Config(), *b.eth.blockchain.GetVMConfig()), vmError, nil
+	return vm.NewEVM(context, txContext, statedb.state, privateState, b.eth.blockchain.Config(), *vmConfig), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
@@ -406,10 +414,6 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
-func (b *EthAPIBackend) CallTimeOut() time.Duration {
-	return b.evmCallTimeOut
-}
-
 func (b *EthAPIBackend) UnprotectedAllowed() bool {
 	return b.allowUnprotectedTxs
 }
@@ -449,16 +453,18 @@ func (b *EthAPIBackend) StartMining(threads int) error {
 	return b.eth.StartMining(threads)
 }
 
-func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error) {
-	return b.eth.stateAtBlock(block, reexec)
+func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, mps.PrivateStateRepository, error) {
+	return b.eth.stateAtBlock(block, reexec, base, checkLive)
 }
 
-func (b *EthAPIBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
-	return b.eth.statesInRange(fromBlock, toBlock, reexec)
-}
-
-func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
 	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
+}
+
+// Quorum
+
+func (b *EthAPIBackend) CallTimeOut() time.Duration {
+	return b.evmCallTimeOut
 }
 
 func (b *EthAPIBackend) GetBlockchain() *core.BlockChain {
@@ -613,5 +619,3 @@ func (s EthAPIState) GetCodeHash(addr common.Address) common.Hash {
 	}
 	return s.state.GetCodeHash(addr)
 }
-
-//func (s MinimalApiState) Error

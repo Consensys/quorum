@@ -316,7 +316,6 @@ func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, 
 		return nil, err
 	}
 	defer zeroKey(key.PrivateKey)
-
 	if tx.IsPrivate() {
 		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key.PrivateKey)
 	}

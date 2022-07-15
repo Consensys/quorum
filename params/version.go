@@ -23,12 +23,12 @@ import (
 const (
 	VersionMajor = 1        // Major version component of the current release
 	VersionMinor = 10       // Minor version component of the current release
-	VersionPatch = 1        // Patch version component of the current release
+	VersionPatch = 2        // Patch version component of the current release
 	VersionMeta  = "stable" // Version metadata to append to the version string
 
 	QuorumVersionMajor = 22
 	QuorumVersionMinor = 4
-	QuorumVersionPatch = 1
+	QuorumVersionPatch = 4
 )
 
 // Version holds the textual version string.

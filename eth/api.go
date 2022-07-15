@@ -61,53 +61,6 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
-// Quorum
-// StorageRoot returns the storage root of an account on the the given (optional) block height.
-// If block number is not given the latest block is used.
-func (s *PublicEthereumAPI) StorageRoot(ctx context.Context, addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
-	var (
-		pub, priv *state.StateDB
-		err       error
-	)
-
-	psm, err := s.e.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
-		pub, priv, err = s.e.blockchain.StatePSI(psm.ID)
-	} else {
-		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
-			pub, priv, err = s.e.blockchain.StateAtPSI(ch.Root, psm.ID)
-		} else {
-			return common.Hash{}, fmt.Errorf("invalid block number")
-		}
-	}
-
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	if priv.Exist(addr) {
-		return priv.GetStorageRoot(addr)
-	}
-	return pub.GetStorageRoot(addr)
-}
-
-// Hashrate returns the POW hashrate
-func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
-	return hexutil.Uint64(api.e.Miner().HashRate())
-}
-
-// ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
-func (api *PublicEthereumAPI) ChainId() (hexutil.Uint64, error) {
-	// if current block is at or past the EIP-155 replay-protection fork block, return chainID from config
-	if config := api.e.blockchain.Config(); config.IsEIP155(api.e.blockchain.CurrentBlock().Number()) {
-		return (hexutil.Uint64)(config.ChainID.Uint64()), nil
-	}
-	return hexutil.Uint64(0), fmt.Errorf("chain not synced beyond EIP-155 replay-protection fork block")
-}
-
 // PublicMinerAPI provides an API to control the miner.
 // It offers only methods that operate on data that pose no security risk when it is publicly accessible.
 type PublicMinerAPI struct {
@@ -180,11 +133,6 @@ func (api *PrivateMinerAPI) SetEtherbase(etherbase common.Address) bool {
 // SetRecommitInterval updates the interval for miner sealing work recommitting.
 func (api *PrivateMinerAPI) SetRecommitInterval(interval int) {
 	api.e.Miner().SetRecommitInterval(time.Duration(interval) * time.Millisecond)
-}
-
-// GetHashrate returns the current hashrate of the miner.
-func (api *PrivateMinerAPI) GetHashrate() uint64 {
-	return api.e.miner.HashRate()
 }
 
 // PrivateAdminAPI is the collection of Ethereum full node-related APIs
@@ -363,52 +311,6 @@ func (api *PublicDebugAPI) DefaultStateRoot(ctx context.Context, blockNr rpc.Blo
 	return privateState.IntermediateRoot(true), nil
 }
 
-// Quorum
-// DumpAddress retrieves the state of an address at a given block.
-// Quorum adds an additional parameter to support private state dump
-func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
-	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
-	if err != nil {
-		return state.DumpAccount{}, err
-	}
-
-	if accountDump, ok := privateState.DumpAddress(address); ok {
-		return accountDump, nil
-	}
-	if accountDump, ok := publicState.DumpAddress(address); ok {
-		return accountDump, nil
-	}
-	return state.DumpAccount{}, errors.New("error retrieving state")
-}
-
-//Quorum
-//Taken from DumpBlock, as it was reused in DumpAddress.
-//Contains modifications from the original to return the private state db, as well as public.
-func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
-	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	if blockNr == rpc.PendingBlockNumber {
-		// If we're dumping the pending state, we need to request
-		// both the pending block as well as the pending state from
-		// the miner and operate on those
-		_, publicState, privateState := api.eth.miner.Pending(psm.ID)
-		return publicState, privateState, nil
-	}
-
-	var block *types.Block
-	if blockNr == rpc.LatestBlockNumber {
-		block = api.eth.blockchain.CurrentBlock()
-	} else {
-		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
-	}
-	if block == nil {
-		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
-	}
-	return api.eth.BlockChain().StateAtPSI(block.Root(), psm.ID)
-}
-
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
 // the private debugging endpoint.
 type PrivateDebugAPI struct {
@@ -537,11 +439,10 @@ func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common
 	if block == nil {
 		return StorageRangeResult{}, fmt.Errorf("block %#x not found", blockHash)
 	}
-	_, _, statedb, _, _, release, err := api.eth.stateAtTransaction(ctx, block, txIndex, 0)
+	_, _, statedb, _, _, err := api.eth.stateAtTransaction(ctx, block, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
-	defer release()
 	st := statedb.StorageTrie(contractAddress)
 	if st == nil {
 		return StorageRangeResult{}, fmt.Errorf("account %x doesn't exist", contractAddress)
@@ -653,4 +554,82 @@ func (api *PrivateDebugAPI) getModifiedAccounts(startBlock, endBlock *types.Bloc
 		dirty = append(dirty, common.BytesToAddress(key))
 	}
 	return dirty, nil
+}
+
+// Quorum
+
+// StorageRoot returns the storage root of an account on the the given (optional) block height.
+// If block number is not given the latest block is used.
+func (s *PublicEthereumAPI) StorageRoot(ctx context.Context, addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
+	var (
+		pub, priv *state.StateDB
+		err       error
+	)
+
+	psm, err := s.e.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
+		pub, priv, err = s.e.blockchain.StatePSI(psm.ID)
+	} else {
+		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
+			pub, priv, err = s.e.blockchain.StateAtPSI(ch.Root, psm.ID)
+		} else {
+			return common.Hash{}, fmt.Errorf("invalid block number")
+		}
+	}
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if priv.Exist(addr) {
+		return priv.GetStorageRoot(addr)
+	}
+	return pub.GetStorageRoot(addr)
+}
+
+// DumpAddress retrieves the state of an address at a given block.
+// Quorum adds an additional parameter to support private state dump
+func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
+	if err != nil {
+		return state.DumpAccount{}, err
+	}
+
+	if accountDump, ok := privateState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	if accountDump, ok := publicState.DumpAddress(address); ok {
+		return accountDump, nil
+	}
+	return state.DumpAccount{}, errors.New("error retrieving state")
+}
+
+//Taken from DumpBlock, as it was reused in DumpAddress.
+//Contains modifications from the original to return the private state db, as well as public.
+func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
+	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if blockNr == rpc.PendingBlockNumber {
+		// If we're dumping the pending state, we need to request
+		// both the pending block as well as the pending state from
+		// the miner and operate on those
+		_, publicState, privateState := api.eth.miner.Pending(psm.ID)
+		return publicState, privateState, nil
+	}
+
+	var block *types.Block
+	if blockNr == rpc.LatestBlockNumber {
+		block = api.eth.blockchain.CurrentBlock()
+	} else {
+		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+	}
+	if block == nil {
+		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
+	}
+	return api.eth.BlockChain().StateAtPSI(block.Root(), psm.ID)
 }

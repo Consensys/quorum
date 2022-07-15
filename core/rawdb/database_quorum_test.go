@@ -17,7 +17,6 @@
 package rawdb
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -91,8 +90,6 @@ func TestAccountExtraDataLinker_whenLinkingRoots(t *testing.T) {
 		t.Fatal("the privacy metadata root does not have the expected value")
 	}
 }
-
-var errReadOnly = errors.New("unable to write")
 
 type ReadOnlyDB struct {
 	memorydb.Database

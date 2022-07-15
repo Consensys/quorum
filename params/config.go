@@ -76,10 +76,10 @@ var (
 
 	// MainnetTrustedCheckpoint contains the light client trusted checkpoint for the main network.
 	MainnetTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 364,
-		SectionHead:  common.HexToHash("0x3fd20ff221f5e962bb66f57a61973bfc2ba959879a6509384a80a45d208b5afc"),
-		CHTRoot:      common.HexToHash("0xe35b3b807f4e9427fb4e2929961c78a9dc10f503a538319031cc7d00946a0591"),
-		BloomRoot:    common.HexToHash("0x340553b378b2db214b898be15c80ac5be7caffc2e6448fd6f7aff23290d89296"),
+		SectionIndex: 371,
+		SectionHead:  common.HexToHash("0x50fd3cec5376ede90ef9129772022690cd1467f22c18abb7faa11e793c51e9c9"),
+		CHTRoot:      common.HexToHash("0xb57b4b22a77b5930847b1ca9f62daa11eae6578948cb7b18997f2c0fe5757025"),
+		BloomRoot:    common.HexToHash("0xa338f8a868a194fa90327d0f5877f656a9f3640c618d2a01a01f2e76ef9ef954"),
 	}
 
 	// MainnetCheckpointOracle contains a set of configs for the main network oracle.
@@ -159,10 +159,10 @@ var (
 
 	// RinkebyTrustedCheckpoint contains the light client trusted checkpoint for the Rinkeby test network.
 	RinkebyTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 248,
-		SectionHead:  common.HexToHash("0x26874cf023695778cc3175d1bec19894204d8d0b756b587e81e35f300dc5b33c"),
-		CHTRoot:      common.HexToHash("0xc129d1ed6673c5d3e1068e9d97244e72952b7ca08acbd7b3bfa58bc3085c442c"),
-		BloomRoot:    common.HexToHash("0x1dafe79dcd7d348782aa834a4a4397890d9ad90643736791132ed5c16879a037"),
+		SectionIndex: 254,
+		SectionHead:  common.HexToHash("0x0cba01dd71baa22ac8fa0b105bc908e94f9ecfbc79b4eb97427fe07b5851dd10"),
+		CHTRoot:      common.HexToHash("0x5673d8fc49c9c7d8729068640e4b392d46952a5a38798973bac1cf1d0d27ad7d"),
+		BloomRoot:    common.HexToHash("0x70e01232b66df9a7778ae3291c9217afb9a2d9f799f32d7b912bd37e7bce83a8"),
 	}
 
 	// RinkebyCheckpointOracle contains a set of configs for the Rinkeby test network oracle.
@@ -200,10 +200,10 @@ var (
 
 	// GoerliTrustedCheckpoint contains the light client trusted checkpoint for the Görli test network.
 	GoerliTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 132,
-		SectionHead:  common.HexToHash("0x29fa240c97b47ecbfef3fea8b3cff035d93154d1d48b25e3333cf2f7067c5324"),
-		CHTRoot:      common.HexToHash("0x85e5c59e5b202284291405dadc40dc36ab6417bd189fb18be24f6dcab6b80511"),
-		BloomRoot:    common.HexToHash("0x0b7afdd200477f46e982e2cabc822ac454424986fa50d899685dfaeede1f882d"),
+		SectionIndex: 138,
+		SectionHead:  common.HexToHash("0xb7ea0566abd7d0def5b3c9afa3431debb7bb30b65af35f106ca93a59e6c859a7"),
+		CHTRoot:      common.HexToHash("0x378c7ea9081242beb982e2e39567ba12f2ed3e59e5aba3f9db1d595646d7c9f4"),
+		BloomRoot:    common.HexToHash("0x523c169286cfca52e8a6579d8c35dc8bf093412d8a7478163bfa81ae91c2492d"),
 	}
 
 	// GoerliCheckpointOracle contains a set of configs for the Goerli test network oracle.
@@ -401,11 +401,12 @@ func (c *IstanbulConfig) String() string {
 }
 
 type BFTConfig struct {
-	EpochLength           uint64   `json:"epochlength"`              // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds    uint64   `json:"blockperiodseconds"`       // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds"`    // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ProposerPolicy        uint64   `json:"policy"`                   // The policy for proposer selection
-	Ceil2Nby3Block        *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	EpochLength              uint64         `json:"epochlength"`              // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds"`       // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds"`    // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ProposerPolicy           uint64         `json:"policy"`                   // The policy for proposer selection
+	Ceil2Nby3Block           *big.Int       `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"` // Smart contract address for list of validators
 }
 
 type IBFTConfig struct {
@@ -427,15 +428,20 @@ func (c QBFTConfig) String() string {
 const (
 	IBFT string = "ibft"
 	QBFT        = "qbft"
+
+	ContractMode    = "contract"
+	BlockHeaderMode = "blockheader"
 )
 
 type Transition struct {
-	Block                 *big.Int `json:"block"`
-	Algorithm             string   `json:"algorithm,omitempty"`
-	EpochLength           uint64   `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds    uint64   `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds uint64   `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit     uint64   `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	Block                    *big.Int       `json:"block"`
+	Algorithm                string         `json:"algorithm,omitempty"`
+	EpochLength              uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit        uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
+	ValidatorSelectionMode   string         `json:"validatorselectionmode"`          // Validator selection mode to switch to
 }
 
 // String implements the fmt.Stringer interface.
@@ -635,6 +641,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
 			return ErrTransitionAlgorithm
 		}
+		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
+			return ErrValidatorSelectionMode
+		}
 		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
 			return ErrTestQBFTBlockAndTransitions
 		}
@@ -655,6 +664,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
 			return ErrContractSizeLimit
+		}
+		if transition.ValidatorContractAddress != (common.Address{}) && transition.ValidatorSelectionMode != ContractMode {
+			return ErrMissingValidatorSelectionMode
 		}
 		prevBlock = transition.Block
 	}
@@ -777,6 +789,12 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].ContractSizeLimit != c2.Transitions[i].ContractSizeLimit {
 			return ErrTransitionIncompatible("ContractSizeLimit"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ValidatorContractAddress != c2.Transitions[i].ValidatorContractAddress {
+			return ErrTransitionIncompatible("ValidatorContractAddress"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].ValidatorSelectionMode != c2.Transitions[i].ValidatorSelectionMode {
+			return ErrTransitionIncompatible("ValidatorSelectionMode"), head, head
 		}
 	}
 

@@ -57,7 +57,9 @@ var LightClientGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode: downloader.FastSync,
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	SyncMode: downloader.FullSync,
+	// End Quorum
 	Ethash: ethash.Config{
 		CacheDir:         "ethash",
 		CachesInMem:      2,
@@ -182,11 +184,6 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
-	RaftMode             bool
-	EnableNodePermission bool
-	// Istanbul options
-	Istanbul istanbul.Config
-
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
 
@@ -197,11 +194,11 @@ type Config struct {
 	EVMInterpreter string
 
 	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap uint64 `toml:",omitempty"`
+	RPCGasCap uint64
 
 	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 	// send-transction variants. The unit is ether.
-	RPCTxFeeCap float64 `toml:",omitempty"`
+	RPCTxFeeCap float64
 
 	// Checkpoint is a hardcoded checkpoint which can be nil.
 	Checkpoint *params.TrustedCheckpoint `toml:",omitempty"`
@@ -213,6 +210,12 @@ type Config struct {
 	OverrideBerlin *big.Int `toml:",omitempty"`
 
 	// Quorum
+
+	RaftMode             bool
+	EnableNodePermission bool
+	// Istanbul options
+	Istanbul istanbul.Config
+
 	// timeout value for call
 	EVMCallTimeOut time.Duration
 
@@ -222,25 +225,6 @@ type Config struct {
 	// QuorumLight
 	QuorumLightServer bool               `toml:",omitempty"`
 	QuorumLightClient *QuorumLightClient `toml:",omitempty"`
-}
-
-type QuorumLightClient struct {
-	Use                      bool   `toml:",omitempty"`
-	PSI                      string `toml:",omitempty"`
-	TokenEnabled             bool   `toml:",omitempty"`
-	TokenValue               string `toml:",omitempty"`
-	TokenManagement          string `toml:",omitempty"`
-	RPCTLS                   bool   `toml:",omitempty"`
-	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
-	RPCTLSCACert             string `toml:",omitempty"`
-	RPCTLSCert               string `toml:",omitempty"`
-	RPCTLSKey                string `toml:",omitempty"`
-	ServerNode               string `toml:",omitempty"`
-	ServerNodeRPC            string `toml:",omitempty"`
-}
-
-func (q *QuorumLightClient) Enabled() bool {
-	return q != nil && q.Use
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
@@ -269,31 +253,46 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	if chainConfig.IBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = nil
+		if chainConfig.IBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.IBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	if chainConfig.QBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
 		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
+		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
-	// Otherwise assume proof-of-work
-	switch config.Ethash.PowMode {
-	case ethash.ModeFake:
-		log.Warn("Ethash used in fake mode")
-		return ethash.NewFaker()
-	case ethash.ModeTest:
-		log.Warn("Ethash used in test mode")
-		return ethash.NewTester(nil, noverify)
-	case ethash.ModeShared:
-		log.Warn("Ethash used in shared mode")
-		return ethash.NewShared()
-	default:
-		// For Quorum, Raft run as a separate service, so
-		// the Ethereum service still needs a consensus engine,
-		// use the consensus with the lightest overhead
-		log.Warn("Ethash used in full fake mode")
-		return ethash.NewFullFaker()
-	}
+	// For Quorum, Raft run as a separate service, so
+	// the Ethereum service still needs a consensus engine,
+	// use the consensus with the lightest overhead
+	engine := ethash.NewFullFaker()
+	engine.SetThreads(-1) // Disable CPU Mining
+	return engine
+}
+
+// Quorum
+
+type QuorumLightClient struct {
+	Use                      bool   `toml:",omitempty"`
+	PSI                      string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
+	RPCTLS                   bool   `toml:",omitempty"`
+	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	RPCTLSCACert             string `toml:",omitempty"`
+	RPCTLSCert               string `toml:",omitempty"`
+	RPCTLSKey                string `toml:",omitempty"`
+	ServerNode               string `toml:",omitempty"`
+	ServerNodeRPC            string `toml:",omitempty"`
+}
+
+func (q *QuorumLightClient) Enabled() bool {
+	return q != nil && q.Use
 }
 
 func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) {

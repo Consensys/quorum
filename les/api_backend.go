@@ -34,8 +34,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -48,6 +50,9 @@ type LesApiBackend struct {
 	eth                 *LightEthereum
 	gpo                 *gasprice.Oracle
 }
+
+var _ ethapi.Backend = &LesApiBackend{}
+var _ tracers.Backend = &LesApiBackend{}
 
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
@@ -178,11 +183,14 @@ func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	return nil
 }
 
-func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
 	statedb := apiState.(*state.StateDB)
+	if vmConfig == nil {
+		vmConfig = new(vm.Config)
+	}
 	txContext := core.NewEVMTxContext(msg)
 	context := core.NewEVMBlockContext(header, b.eth.blockchain, nil)
-	return vm.NewEVM(context, txContext, statedb, statedb, b.eth.chainConfig, vm.Config{}), statedb.Error, nil
+	return vm.NewEVM(context, txContext, statedb, statedb, b.eth.chainConfig, *vmConfig), statedb.Error, nil
 }
 
 func (b *LesApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -280,13 +288,6 @@ func (b *LesApiBackend) UnprotectedAllowed() bool {
 	return b.allowUnprotectedTxs
 }
 
-// Quorum
-func (b *LesApiBackend) CallTimeOut() time.Duration {
-	return b.eth.config.EVMCallTimeOut
-}
-
-// End Quorum
-
 func (b *LesApiBackend) RPCGasCap() uint64 {
 	return b.eth.config.RPCGasCap
 }
@@ -317,15 +318,11 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
 
-func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64) (*state.StateDB, mps.PrivateStateRepository, func(), error) {
+func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, mps.PrivateStateRepository, error) {
 	return b.eth.stateAtBlock(ctx, block, reexec)
 }
 
-func (b *LesApiBackend) StatesInRange(ctx context.Context, fromBlock *types.Block, toBlock *types.Block, reexec uint64) ([]*state.StateDB, []mps.PrivateStateRepository, func(), error) {
-	return b.eth.statesInRange(ctx, fromBlock, toBlock, reexec)
-}
-
-func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, func(), error) {
+func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
 	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
 }
 
@@ -350,6 +347,10 @@ func (b *LesApiBackend) AccountExtraDataStateGetterByNumber(ctx context.Context,
 
 func (b *LesApiBackend) IsPrivacyMarkerTransactionCreationEnabled() bool {
 	return b.eth.config.QuorumChainConfig.PrivacyMarkerEnabled()
+}
+
+func (b *LesApiBackend) CallTimeOut() time.Duration {
+	return b.eth.config.EVMCallTimeOut
 }
 
 // End Quorum

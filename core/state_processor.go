@@ -118,7 +118,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 
 		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number))
 		if err != nil {
-			return nil, nil, nil, 0, err
+			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 
 		// Quorum: this tx needs to be applied as if we were not a party
@@ -352,7 +352,6 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
-
 	// Quorum
 	var privateReceipt *types.Receipt
 	if config.IsQuorum {
