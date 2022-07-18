@@ -609,7 +609,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 // GetMinerMinGasLimit returns the miners minGasLimit for the given block number
 func (c *ChainConfig) GetMinerMinGasLimit(num *big.Int, defaultValue uint64) uint64 {
 	minGasLimit := defaultValue
-	if len(c.Transitions) > 0 {
+	if c != nil && num != nil && len(c.Transitions) > 0 {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
 			if c.Transitions[i].MinerGasLimit != 0 {
 				minGasLimit = c.Transitions[i].MinerGasLimit
