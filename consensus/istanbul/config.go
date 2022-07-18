@@ -162,46 +162,58 @@ func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 			return true
 		}
 	}
-	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
-		if c.Transitions[i].Algorithm == params.QBFT {
-			return true
+
+	result := false
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		if transition.Algorithm == params.QBFT {
+			result = true
 		}
-	}
-	return false
+	})
+
+	return result
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
 	newConfig := c
-	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
-		if c.Transitions[i].RequestTimeoutSeconds != 0 {
-			newConfig.RequestTimeout = c.Transitions[i].RequestTimeoutSeconds
+
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		if transition.RequestTimeoutSeconds != 0 {
+			newConfig.RequestTimeout = transition.RequestTimeoutSeconds
 		}
-		if c.Transitions[i].EpochLength != 0 {
-			newConfig.Epoch = c.Transitions[i].EpochLength
+		if transition.EpochLength != 0 {
+			newConfig.Epoch = transition.EpochLength
 		}
-		if c.Transitions[i].BlockPeriodSeconds != 0 {
-			newConfig.BlockPeriod = c.Transitions[i].BlockPeriodSeconds
+		if transition.BlockPeriodSeconds != 0 {
+			newConfig.BlockPeriod = transition.BlockPeriodSeconds
 		}
-	}
+	})
 	return newConfig
 }
 
 func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address {
 	validatorContractAddress := c.ValidatorContract
-	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
-		if c.Transitions[i].ValidatorContractAddress != (common.Address{}) {
-			validatorContractAddress = c.Transitions[i].ValidatorContractAddress
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		if (transition.ValidatorContractAddress != common.Address{}) {
+			validatorContractAddress = transition.ValidatorContractAddress
 		}
-	}
+	})
 	return validatorContractAddress
 }
 
 func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 	mode := params.BlockHeaderMode
-	for i := 0; c.Transitions != nil && i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
-		if c.Transitions[i].ValidatorSelectionMode != "" {
-			mode = c.Transitions[i].ValidatorSelectionMode
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		if transition.ValidatorSelectionMode != "" {
+			mode = transition.ValidatorSelectionMode
+		}
+	})
+	return mode
+}
+
+func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
+	if c != nil && num != nil && c.Transitions != nil {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			callback(c.Transitions[i])
 		}
 	}
-	return mode
 }
