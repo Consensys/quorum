@@ -444,6 +444,7 @@ type Transition struct {
 	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`
+	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnalbed,omitempty"`
 }
 
 // String implements the fmt.Stringer interface.
@@ -603,6 +604,8 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	return maxCodeSize
 }
 
+// Quorum
+// gets value at or after a transition
 func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
@@ -823,8 +826,13 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 // Quorum
 //
 // Check whether num represents a block number after the PrivacyPrecompileBlock
-func (c *ChainConfig) IsPrivacyPrecompile(num *big.Int) bool {
-	return isForked(c.PrivacyPrecompileBlock, num)
+func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
+	isPrivacyPrecompileEnabled := false
+	c.getTransitionValue(num, func(transition Transition) {
+		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnalbed
+	})
+
+	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -1067,6 +1075,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		IsBerlin:         c.IsBerlin(num),
 		// Quorum
 		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
-		IsPrivacyPrecompile:          c.IsPrivacyPrecompile(num),
+		IsPrivacyPrecompile:          c.IsPrivacyPrecompileEnabled(num),
 	}
 }

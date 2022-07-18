@@ -330,10 +330,10 @@ func TestCheckTransitionsData(t *testing.T) {
 		wantErr error
 	}
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
-	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false}
-	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false}
-	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false}
-	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false}
+	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false}
+	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false}
+	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false}
+	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false}
 
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
@@ -393,7 +393,7 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockOrder,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false}}},
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false}}},
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
@@ -510,6 +510,7 @@ func TestIsQIP714(t *testing.T) {
 		{&config1, 11, true},
 		{&config2, 20, false},
 		{&config2, 21, true},
+		{&config2, 22, true},
 	}
 
 	for _, test := range tests {
@@ -541,12 +542,45 @@ func TestIsPrivacyEnhancementsEnabled(t *testing.T) {
 		{&config1, 11, true},
 		{&config2, 20, false},
 		{&config2, 21, true},
+		{&config2, 22, true},
 	}
 
 	for _, test := range tests {
 		isPrivacyEnhancementsEnabled := test.config.IsPrivacyEnhancementsEnabled(big.NewInt(test.blockNumber))
 		if !reflect.DeepEqual(isPrivacyEnhancementsEnabled, test.PrivacyEnhancementsEnabled) {
 			t.Errorf("error mismatch on %v:\nexpected: %v\nreceived: %v\n", test.blockNumber, test.PrivacyEnhancementsEnabled, isPrivacyEnhancementsEnabled)
+		}
+	}
+}
+
+func TestIsPrivacyPrecompileEnabled(t *testing.T) {
+	type test struct {
+		config                   *ChainConfig
+		blockNumber              int64
+		PrivacyPrecompileEnabled bool
+	}
+
+	config1, config2 := *TestChainConfig, *TestChainConfig
+	config1.PrivacyPrecompileBlock = big.NewInt(11)
+
+	config2.PrivacyPrecompileBlock = nil
+	config2.Transitions = []Transition{
+		{Block: big.NewInt(21), PrivacyPrecompileEnalbed: true},
+	}
+
+	tests := []test{
+		{MainnetChainConfig, 0, false},
+		{&config1, 10, false},
+		{&config1, 11, true},
+		{&config2, 20, false},
+		{&config2, 21, true},
+		{&config2, 22, true},
+	}
+
+	for _, test := range tests {
+		isPrivacyPrecompileEnabled := test.config.IsPrivacyPrecompileEnabled(big.NewInt(test.blockNumber))
+		if !reflect.DeepEqual(isPrivacyPrecompileEnabled, test.PrivacyPrecompileEnabled) {
+			t.Errorf("error mismatch on %v:\nexpected: %v\nreceived: %v\n", test.blockNumber, test.PrivacyPrecompileEnabled, isPrivacyPrecompileEnabled)
 		}
 	}
 }
