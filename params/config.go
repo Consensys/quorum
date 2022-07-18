@@ -434,14 +434,15 @@ const (
 )
 
 type Transition struct {
-	Block                    *big.Int       `json:"block"`
-	Algorithm                string         `json:"algorithm,omitempty"`
-	EpochLength              uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds       uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit        uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
-	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
-	ValidatorSelectionMode   string         `json:"validatorselectionmode"`          // Validator selection mode to switch to
+	Block                       *big.Int       `json:"block"`
+	Algorithm                   string         `json:"algorithm,omitempty"`
+	EpochLength                 uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds          uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds       uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit           uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
+	ValidatorContractAddress    common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
+	ValidatorSelectionMode      string         `json:"validatorselectionmode"`          // Validator selection mode to switch to
+	EnableEnhancedPermissioning bool           `json:"enableEnhancedPermissioning"`     // aka QIP714Block
 }
 
 // String implements the fmt.Stringer interface.
@@ -561,7 +562,11 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 //
 // IsQIP714 returns whether num represents a block number where permissions is enabled
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
-	return isForked(c.QIP714Block, num)
+	enableEnhancedPermissioning := false
+	c.getTransitionValue(num, func(transition Transition) {
+		enableEnhancedPermissioning = transition.EnableEnhancedPermissioning
+	})
+	return isForked(c.QIP714Block, num) || enableEnhancedPermissioning
 }
 
 // Quorum
