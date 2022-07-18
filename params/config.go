@@ -564,12 +564,6 @@ func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	return isForked(c.QIP714Block, num)
 }
 
-// IsMaxCodeSizeChangeBlock returns whether num represents a block number
-// where maxCodeSize change was done
-func (c *ChainConfig) IsMaxCodeSizeChangeBlock(num *big.Int) bool {
-	return isForked(c.MaxCodeSizeChangeBlock, num)
-}
-
 // Quorum
 //
 // GetMaxCodeSize returns maxCodeSize for the given block number
@@ -586,21 +580,29 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 		}
 	} else if c.MaxCodeSize > 0 {
 		if c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0 {
-			if c.IsMaxCodeSizeChangeBlock(num) {
+			if isForked(c.MaxCodeSizeChangeBlock, num) {
 				maxCodeSize = int(c.MaxCodeSize) * 1024
 			}
 		} else {
 			maxCodeSize = int(c.MaxCodeSize) * 1024
 		}
 	}
-	if len(c.Transitions) > 0 {
+
+	c.getTransitionValue(num, func(transition Transition) {
+		if transition.ContractSizeLimit != 0 {
+			maxCodeSize = int(transition.ContractSizeLimit) * 1024
+		}
+	})
+
+	return maxCodeSize
+}
+
+func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition Transition)) {
+	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
-			if c.Transitions[i].ContractSizeLimit != 0 {
-				maxCodeSize = int(c.Transitions[i].ContractSizeLimit) * 1024
-			}
+			callback(c.Transitions[i])
 		}
 	}
-	return maxCodeSize
 }
 
 // Quorum
