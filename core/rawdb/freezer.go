@@ -259,17 +259,31 @@ func (f *freezer) TruncateAncients(items uint64) error {
 
 // Sync flushes all data tables to disk.
 func (f *freezer) Sync() error {
+	return f.SyncRetry(1, 1*time.Second)
+}
+
+// SyncRetry
+// Quorum
+// add retry to sync
+func (f *freezer) SyncRetry(retry uint8, delay time.Duration) error {
 	var errs []error
 	for _, table := range f.tables {
 		if err := table.Sync(); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	if errs != nil {
+	hasError := len(errs) > 0
+	if hasError && retry < 5 {
+		log.Info("sync", "retry", retry, "errors", errs)
+		time.Sleep(delay)
+		return f.SyncRetry(retry+1, delay*2)
+	} else if hasError {
 		return fmt.Errorf("%v", errs)
 	}
 	return nil
 }
+
+// End Quorum
 
 // freeze is a background thread that periodically checks the blockchain for any
 // import progress and moves ancient data from the fast database into the freezer.
