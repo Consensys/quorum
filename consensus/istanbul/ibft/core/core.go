@@ -347,7 +347,7 @@ func (c *core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 }
 
 func (c *core) QuorumSize() int {
-	if c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
+	if c.config.GetCeil2Nby3Enabled(c.current.sequence) || c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
 		c.logger.Trace("Confirmation Formula used 2F+ 1")
 		return (2 * c.valSet.F()) + 1
 	}

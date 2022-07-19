@@ -98,7 +98,7 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     blockNumber,
-		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
+		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Time:       parent.Time() + config.GetConfig(blockNumber).BlockPeriod,
 		Difficulty: istanbulcommon.DefaultDifficulty,

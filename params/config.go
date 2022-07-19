@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -445,8 +446,10 @@ type Transition struct {
 	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
 	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
-	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`
-	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnalbed,omitempty"`
+	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
+	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
+	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
 }
 
 // String implements the fmt.Stringer interface.
@@ -618,6 +621,21 @@ func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition 
 
 // Quorum
 //
+// GetMinerMinGasLimit returns the miners minGasLimit for the given block number
+func (c *ChainConfig) GetMinerMinGasLimit(num *big.Int, defaultValue uint64) uint64 {
+	minGasLimit := defaultValue
+	if c != nil && num != nil && len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].MinerGasLimit != 0 {
+				minGasLimit = c.Transitions[i].MinerGasLimit
+			}
+		}
+	}
+	return minGasLimit
+}
+
+// Quorum
+//
 // validates the maxCodeSizeConfig data passed in config
 func (c *ChainConfig) CheckMaxCodeConfigData() error {
 	if c.MaxCodeSize != 0 || (c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0) {
@@ -650,19 +668,19 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	}
 	prevBlock := big.NewInt(0)
 	for _, transition := range c.Transitions {
-		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
+		if transition.Algorithm != "" && !strings.EqualFold(transition.Algorithm, IBFT) && !strings.EqualFold(transition.Algorithm, QBFT) {
 			return ErrTransitionAlgorithm
 		}
 		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
 			return ErrValidatorSelectionMode
 		}
-		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
+		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (strings.EqualFold(transition.Algorithm, IBFT) || strings.EqualFold(transition.Algorithm, QBFT)) {
 			return ErrTestQBFTBlockAndTransitions
 		}
 		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
 			return ErrMaxCodeSizeConfigAndTransitions
 		}
-		if transition.Algorithm == QBFT {
+		if strings.EqualFold(transition.Algorithm, QBFT) {
 			isQBFT = true
 		}
 		if transition.Block == nil {
@@ -671,7 +689,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Block.Cmp(prevBlock) < 0 {
 			return ErrBlockOrder
 		}
-		if transition.Algorithm == IBFT && isQBFT {
+		if isQBFT && strings.EqualFold(transition.Algorithm, IBFT) {
 			return ErrTransition
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
@@ -808,6 +826,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		if isSameBlock || c1.Transitions[i].ValidatorSelectionMode != c2.Transitions[i].ValidatorSelectionMode {
 			return ErrTransitionIncompatible("ValidatorSelectionMode"), head, head
 		}
+		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
+			return ErrTransitionIncompatible("Miner GasLimit"), head, head
+		}
 	}
 
 	return nil, big.NewInt(0), big.NewInt(0)
@@ -831,7 +852,7 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
 	c.getTransitionValue(num, func(transition Transition) {
-		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnalbed
+		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
