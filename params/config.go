@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -665,19 +666,19 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	}
 	prevBlock := big.NewInt(0)
 	for _, transition := range c.Transitions {
-		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
+		if transition.Algorithm != "" && !strings.EqualFold(transition.Algorithm, IBFT) && !strings.EqualFold(transition.Algorithm, QBFT) {
 			return ErrTransitionAlgorithm
 		}
 		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
 			return ErrValidatorSelectionMode
 		}
-		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
+		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (strings.EqualFold(transition.Algorithm, IBFT) || strings.EqualFold(transition.Algorithm, QBFT)) {
 			return ErrTestQBFTBlockAndTransitions
 		}
 		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
 			return ErrMaxCodeSizeConfigAndTransitions
 		}
-		if transition.Algorithm == QBFT {
+		if strings.EqualFold(transition.Algorithm, QBFT) {
 			isQBFT = true
 		}
 		if transition.Block == nil {
@@ -686,7 +687,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Block.Cmp(prevBlock) < 0 {
 			return ErrBlockOrder
 		}
-		if transition.Algorithm == IBFT && isQBFT {
+		if isQBFT && strings.EqualFold(transition.Algorithm, IBFT) {
 			return ErrTransition
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {

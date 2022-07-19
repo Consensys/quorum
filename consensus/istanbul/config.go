@@ -18,6 +18,7 @@ package istanbul
 
 import (
 	"math/big"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -165,9 +166,7 @@ func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 
 	result := false
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		if transition.Algorithm == params.QBFT {
-			result = true
-		}
+		result = strings.EqualFold(transition.Algorithm, params.QBFT)
 	})
 
 	return result
