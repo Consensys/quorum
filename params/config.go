@@ -444,8 +444,9 @@ type Transition struct {
 	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
-	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
 	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
+	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
 }
 
 // String implements the fmt.Stringer interface.
@@ -848,7 +849,7 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
 	c.getTransitionValue(num, func(transition Transition) {
-		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnalbed
+		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled

@@ -210,6 +210,14 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 	return mode
 }
 
+func (c Config) GetCeil2Nby3Enabled(blockNumber *big.Int) bool {
+	ceil2Nby3Block := false
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		ceil2Nby3Block = transition.Ceil2Nby3Enabled
+	})
+	return ceil2Nby3Block
+}
+
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
