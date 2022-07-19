@@ -625,10 +625,9 @@ var (
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 
-	//NOTE: this code will be executed for Raft on Quorum, so the static block reward also applies to Raft
-	blockReward := big.NewInt(0)
+	// NOTE: this code will be executed for Raft on Quorum, so the static block reward also applies to Raft
 	// Select the correct block reward based on chain progression
-	blockReward = FrontierBlockReward
+	blockReward := FrontierBlockReward
 	if config.IsByzantium(header.Number) {
 		blockReward = ByzantiumBlockReward
 	}
