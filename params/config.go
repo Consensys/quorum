@@ -443,8 +443,9 @@ type Transition struct {
 	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
 	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
-	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`
-	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnalbed,omitempty"`
+	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
+	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
 }
 
 // String implements the fmt.Stringer interface.
@@ -612,6 +613,21 @@ func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition 
 			callback(c.Transitions[i])
 		}
 	}
+}
+
+// Quorum
+//
+// GetMinerMinGasLimit returns the miners minGasLimit for the given block number
+func (c *ChainConfig) GetMinerMinGasLimit(num *big.Int, defaultValue uint64) uint64 {
+	minGasLimit := defaultValue
+	if c != nil && num != nil && len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].MinerGasLimit != 0 {
+				minGasLimit = c.Transitions[i].MinerGasLimit
+			}
+		}
+	}
+	return minGasLimit
 }
 
 // Quorum
@@ -805,6 +821,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		}
 		if isSameBlock || c1.Transitions[i].ValidatorSelectionMode != c2.Transitions[i].ValidatorSelectionMode {
 			return ErrTransitionIncompatible("ValidatorSelectionMode"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
+			return ErrTransitionIncompatible("Miner GasLimit"), head, head
 		}
 	}
 
