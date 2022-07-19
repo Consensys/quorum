@@ -265,7 +265,7 @@ func (b *LesApiBackend) ProtocolVersion() int {
 }
 
 func (b *LesApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	if b.ChainConfig().IsGasEnabled(b.eth.BlockChain().CurrentHeader().Number) { //Quorum
+	if !b.ChainConfig().IsQuorum || b.ChainConfig().IsGasEnabled(b.eth.BlockChain().CurrentHeader().Number) {
 		return b.gpo.SuggestPrice(ctx)
 	} else {
 		return big.NewInt(0), nil

@@ -391,7 +391,7 @@ func (b *EthAPIBackend) Downloader() *downloader.Downloader {
 }
 
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	if b.ChainConfig().IsGasEnabled(b.eth.blockchain.CurrentBlock().Number()) { //Quorum
+	if !b.ChainConfig().IsQuorum || b.ChainConfig().IsGasEnabled(b.eth.blockchain.CurrentBlock().Number()) {
 		return b.gpo.SuggestPrice(ctx)
 	} else {
 		return big.NewInt(0), nil

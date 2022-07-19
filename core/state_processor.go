@@ -112,7 +112,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			}
 		}
 
-		if !p.config.IsGasEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+		if p.config.IsQuorum && !p.config.IsGasEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), ErrInvalidGasPrice)
 		}
 
@@ -412,7 +412,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 		}
 	}
 
-	if !config.IsGasEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+	if config.IsQuorum && !config.IsGasEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
 	}
 
