@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -444,8 +445,9 @@ type Transition struct {
 	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
-	PrivacyPrecompileEnalbed     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
 	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
+	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
 }
 
 // String implements the fmt.Stringer interface.
@@ -664,19 +666,19 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	}
 	prevBlock := big.NewInt(0)
 	for _, transition := range c.Transitions {
-		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
+		if transition.Algorithm != "" && !strings.EqualFold(transition.Algorithm, IBFT) && !strings.EqualFold(transition.Algorithm, QBFT) {
 			return ErrTransitionAlgorithm
 		}
 		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
 			return ErrValidatorSelectionMode
 		}
-		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
+		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (strings.EqualFold(transition.Algorithm, IBFT) || strings.EqualFold(transition.Algorithm, QBFT)) {
 			return ErrTestQBFTBlockAndTransitions
 		}
 		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
 			return ErrMaxCodeSizeConfigAndTransitions
 		}
-		if transition.Algorithm == QBFT {
+		if strings.EqualFold(transition.Algorithm, QBFT) {
 			isQBFT = true
 		}
 		if transition.Block == nil {
@@ -685,7 +687,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Block.Cmp(prevBlock) < 0 {
 			return ErrBlockOrder
 		}
-		if transition.Algorithm == IBFT && isQBFT {
+		if isQBFT && strings.EqualFold(transition.Algorithm, IBFT) {
 			return ErrTransition
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
@@ -848,7 +850,7 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
 	c.getTransitionValue(num, func(transition Transition) {
-		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnalbed
+		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
