@@ -209,10 +209,10 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 	return mode
 }
 
-func (c Config) GetCeil2Nby3Enabled(blockNumber *big.Int) bool {
+func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {
 	ceil2Nby3Block := false
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		ceil2Nby3Block = transition.Ceil2Nby3Enabled
+		ceil2Nby3Block = transition.TwoFPlusOneEnabled
 	})
 	return ceil2Nby3Block
 }

@@ -442,13 +442,13 @@ type Transition struct {
 	RequestTimeoutSeconds        uint64         `json:"requesttimeoutseconds,omitempty"`        // Minimum request timeout for each IBFT or QBFT round in milliseconds
 	ContractSizeLimit            uint64         `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
 	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
-	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
+	ValidatorSelectionMode       string         `json:"validatorselectionmode,omitempty"`       // Validator selection mode to switch to
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
 	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
 	GasPriceEnabled              bool           `json:"gasPriceEnabled,omitempty"`              // enable gas price
-	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
-	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
+	MinerGasLimit                uint64         `json:"miner.gaslimit, omitempty"`              // Gas Limit
+	TwoFPlusOneEnabled           bool           `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
 }
 
 // String implements the fmt.Stringer interface.
