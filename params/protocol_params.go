@@ -25,7 +25,7 @@ const (
 
 	// modified values for Quorum
 	GasLimitBoundDivisor uint64 = 4096      // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit          uint64 = 700000000 // Minimum the gas limit may ever be.
+	DefaultMinGasLimit   uint64 = 700000000 // Minimum the gas limit may ever be.
 	GenesisGasLimit      uint64 = 800000000 // Gas limit of the Genesis block.
 
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.

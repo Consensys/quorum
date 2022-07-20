@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -434,14 +435,19 @@ const (
 )
 
 type Transition struct {
-	Block                    *big.Int       `json:"block"`
-	Algorithm                string         `json:"algorithm,omitempty"`
-	EpochLength              uint64         `json:"epochlength,omitempty"`           // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds       uint64         `json:"blockperiodseconds,omitempty"`    // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds,omitempty"` // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ContractSizeLimit        uint64         `json:"contractsizelimit,omitempty"`     // Maximum smart contract code size
-	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`        // Smart contract address for list of validators
-	ValidatorSelectionMode   string         `json:"validatorselectionmode"`          // Validator selection mode to switch to
+	Block                        *big.Int       `json:"block"`
+	Algorithm                    string         `json:"algorithm,omitempty"`
+	EpochLength                  uint64         `json:"epochlength,omitempty"`                  // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds           uint64         `json:"blockperiodseconds,omitempty"`           // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds        uint64         `json:"requesttimeoutseconds,omitempty"`        // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ContractSizeLimit            uint64         `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
+	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
+	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
+	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
+	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
+	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
+	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
 }
 
 // String implements the fmt.Stringer interface.
@@ -562,13 +568,11 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 //
 // IsQIP714 returns whether num represents a block number where permissions is enabled
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
-	return isForked(c.QIP714Block, num)
-}
-
-// IsMaxCodeSizeChangeBlock returns whether num represents a block number
-// where maxCodeSize change was done
-func (c *ChainConfig) IsMaxCodeSizeChangeBlock(num *big.Int) bool {
-	return isForked(c.MaxCodeSizeChangeBlock, num)
+	enableEnhancedPermissioning := false
+	c.getTransitionValue(num, func(transition Transition) {
+		enableEnhancedPermissioning = transition.EnhancedPermissioningEnabled
+	})
+	return isForked(c.QIP714Block, num) || enableEnhancedPermissioning
 }
 
 // Quorum
@@ -587,21 +591,46 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 		}
 	} else if c.MaxCodeSize > 0 {
 		if c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0 {
-			if c.IsMaxCodeSizeChangeBlock(num) {
+			if isForked(c.MaxCodeSizeChangeBlock, num) {
 				maxCodeSize = int(c.MaxCodeSize) * 1024
 			}
 		} else {
 			maxCodeSize = int(c.MaxCodeSize) * 1024
 		}
 	}
-	if len(c.Transitions) > 0 {
+
+	c.getTransitionValue(num, func(transition Transition) {
+		if transition.ContractSizeLimit != 0 {
+			maxCodeSize = int(transition.ContractSizeLimit) * 1024
+		}
+	})
+
+	return maxCodeSize
+}
+
+// Quorum
+// gets value at or after a transition
+func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition Transition)) {
+	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
-			if c.Transitions[i].ContractSizeLimit != 0 {
-				maxCodeSize = int(c.Transitions[i].ContractSizeLimit) * 1024
+			callback(c.Transitions[i])
+		}
+	}
+}
+
+// Quorum
+//
+// GetMinerMinGasLimit returns the miners minGasLimit for the given block number
+func (c *ChainConfig) GetMinerMinGasLimit(num *big.Int, defaultValue uint64) uint64 {
+	minGasLimit := defaultValue
+	if c != nil && num != nil && len(c.Transitions) > 0 {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
+			if c.Transitions[i].MinerGasLimit != 0 {
+				minGasLimit = c.Transitions[i].MinerGasLimit
 			}
 		}
 	}
-	return maxCodeSize
+	return minGasLimit
 }
 
 // Quorum
@@ -638,19 +667,19 @@ func (c *ChainConfig) CheckTransitionsData() error {
 	}
 	prevBlock := big.NewInt(0)
 	for _, transition := range c.Transitions {
-		if transition.Algorithm != "" && transition.Algorithm != IBFT && transition.Algorithm != QBFT {
+		if transition.Algorithm != "" && !strings.EqualFold(transition.Algorithm, IBFT) && !strings.EqualFold(transition.Algorithm, QBFT) {
 			return ErrTransitionAlgorithm
 		}
 		if transition.ValidatorSelectionMode != "" && transition.ValidatorSelectionMode != ContractMode && transition.ValidatorSelectionMode != BlockHeaderMode {
 			return ErrValidatorSelectionMode
 		}
-		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (transition.Algorithm == IBFT || transition.Algorithm == QBFT) {
+		if c.Istanbul != nil && c.Istanbul.TestQBFTBlock != nil && (strings.EqualFold(transition.Algorithm, IBFT) || strings.EqualFold(transition.Algorithm, QBFT)) {
 			return ErrTestQBFTBlockAndTransitions
 		}
 		if len(c.MaxCodeSizeConfig) > 0 && transition.ContractSizeLimit != 0 {
 			return ErrMaxCodeSizeConfigAndTransitions
 		}
-		if transition.Algorithm == QBFT {
+		if strings.EqualFold(transition.Algorithm, QBFT) {
 			isQBFT = true
 		}
 		if transition.Block == nil {
@@ -659,7 +688,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.Block.Cmp(prevBlock) < 0 {
 			return ErrBlockOrder
 		}
-		if transition.Algorithm == IBFT && isQBFT {
+		if isQBFT && strings.EqualFold(transition.Algorithm, IBFT) {
 			return ErrTransition
 		}
 		if transition.ContractSizeLimit != 0 && (transition.ContractSizeLimit < 24 || transition.ContractSizeLimit > 128) {
@@ -796,6 +825,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		if isSameBlock || c1.Transitions[i].ValidatorSelectionMode != c2.Transitions[i].ValidatorSelectionMode {
 			return ErrTransitionIncompatible("ValidatorSelectionMode"), head, head
 		}
+		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
+			return ErrTransitionIncompatible("Miner GasLimit"), head, head
+		}
 	}
 
 	return nil, big.NewInt(0), big.NewInt(0)
@@ -805,14 +837,24 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 //
 // IsPrivacyEnhancementsEnabled returns whether num represents a block number after the PrivacyEnhancementsEnabled fork
 func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
-	return isForked(c.PrivacyEnhancementsBlock, num)
+	isPrivacyEnhancementsEnabled := false
+	c.getTransitionValue(num, func(transition Transition) {
+		isPrivacyEnhancementsEnabled = transition.PrivacyEnhancementsEnabled
+	})
+
+	return isForked(c.PrivacyEnhancementsBlock, num) || isPrivacyEnhancementsEnabled
 }
 
 // Quorum
 //
 // Check whether num represents a block number after the PrivacyPrecompileBlock
-func (c *ChainConfig) IsPrivacyPrecompile(num *big.Int) bool {
-	return isForked(c.PrivacyPrecompileBlock, num)
+func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
+	isPrivacyPrecompileEnabled := false
+	c.getTransitionValue(num, func(transition Transition) {
+		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
+	})
+
+	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
 }
 
 // Quorum
@@ -1062,6 +1104,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		IsBerlin:         c.IsBerlin(num),
 		// Quorum
 		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
-		IsPrivacyPrecompile:          c.IsPrivacyPrecompile(num),
+		IsPrivacyPrecompile:          c.IsPrivacyPrecompileEnabled(num),
 	}
 }

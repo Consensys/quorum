@@ -839,7 +839,11 @@ func (s *Ethereum) Stop() error {
 }
 
 func (s *Ethereum) CalcGasLimit(block *types.Block) uint64 {
-	return core.CalcGasLimit(block, s.config.Miner.GasFloor, s.config.Miner.GasCeil)
+	minGasLimit := params.DefaultMinGasLimit
+	if s != nil && s.config != nil && s.config.Genesis != nil {
+		minGasLimit = s.config.Genesis.Config.GetMinerMinGasLimit(block.Number(), params.DefaultMinGasLimit)
+	}
+	return core.CalcGasLimit(block, minGasLimit, s.config.Miner.GasFloor, s.config.Miner.GasCeil)
 }
 
 // (Quorum)
