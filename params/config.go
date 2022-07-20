@@ -257,7 +257,7 @@ var (
 	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 
 	// Quorum chainID should 10
-	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, big.NewInt(0)}
+	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 
 	QuorumTestChainConfig    = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), false, nil, nil}
@@ -446,6 +446,7 @@ type Transition struct {
 	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
 	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	GasPriceEnabled              bool           `json:"gasPriceEnabled,omitempty"`              // enable gas price
 	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
 	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
 }
@@ -860,8 +861,13 @@ func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 // Quorum
 //
 // Check whether num represents a block number after the EnableGasPriceBlock
-func (c *ChainConfig) IsGasEnabled(num *big.Int) bool {
-	return isForked(c.EnableGasPriceBlock, num)
+func (c *ChainConfig) IsGasPriceEnabled(num *big.Int) bool {
+	isGasEnabled := false
+	c.getTransitionValue(num, func(transition Transition) {
+		isGasEnabled = transition.GasPriceEnabled
+	})
+
+	return isForked(c.EnableGasPriceBlock, num) || isGasEnabled
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -1083,6 +1089,7 @@ type Rules struct {
 	// Quorum
 	IsPrivacyEnhancementsEnabled bool
 	IsPrivacyPrecompile          bool
+	IsGasPriceEnabled            bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1105,5 +1112,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		// Quorum
 		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
 		IsPrivacyPrecompile:          c.IsPrivacyPrecompileEnabled(num),
+		IsGasPriceEnabled:            c.IsGasPriceEnabled(num),
 	}
 }

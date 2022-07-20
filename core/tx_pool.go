@@ -444,7 +444,7 @@ func (pool *TxPool) GasPrice() *big.Int {
 // new transaction, and drops all transactions below this threshold.
 func (pool *TxPool) SetGasPrice(price *big.Int) {
 	//Quorum
-	if pool.chainconfig.IsQuorum && !pool.chainconfig.IsGasEnabled(pool.chain.CurrentBlock().Header().Number) {
+	if pool.chainconfig.IsQuorum && !pool.chainconfig.IsGasPriceEnabled(pool.chain.CurrentBlock().Header().Number) {
 		log.Info("Transaction pool price threshold not updated as gasPrice is not enabled")
 		return
 	}
@@ -592,7 +592,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 		// Quorum
 		// Reject transaction if gas price is disabled, but gas price is specified
-		if (!pool.chainconfig.IsGasEnabled(pool.chain.CurrentBlock().Header().Number)) && tx.GasPriceIntCmp(common.Big0) != 0 {
+		if (!pool.chainconfig.IsGasPriceEnabled(pool.chain.CurrentBlock().Header().Number)) && tx.GasPriceIntCmp(common.Big0) != 0 {
 			return ErrInvalidGasPrice
 		}
 		// Ether value is not currently supported on private transactions
@@ -604,7 +604,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			return err
 		}
 	}
-	if !pool.chainconfig.IsQuorum || pool.chainconfig.IsGasEnabled(pool.chain.CurrentBlock().Header().Number) {
+	if !pool.chainconfig.IsQuorum || pool.chainconfig.IsGasPriceEnabled(pool.chain.CurrentBlock().Header().Number) {
 		// Drop non-local transactions under our own minimal accepted gas price
 		local = local || pool.locals.contains(from)
 		if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
@@ -659,7 +659,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()+numSlots(tx)) > pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
-		if (!pool.chainconfig.IsQuorum || pool.chainconfig.IsGasEnabled(pool.chain.CurrentBlock().Header().Number)) && !isLocal && pool.priced.Underpriced(tx) {
+		if (!pool.chainconfig.IsQuorum || pool.chainconfig.IsGasPriceEnabled(pool.chain.CurrentBlock().Header().Number)) && !isLocal && pool.priced.Underpriced(tx) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxMeter.Mark(1)
 			return false, ErrUnderpriced
@@ -1295,7 +1295,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
 		var drops types.Transactions
-		if !pool.chainconfig.IsQuorum || pool.chainconfig.IsGasEnabled(pool.chain.CurrentBlock().Header().Number) {
+		if !pool.chainconfig.IsQuorum || pool.chainconfig.IsGasPriceEnabled(pool.chain.CurrentBlock().Header().Number) {
 			// Drop all transactions that are too costly (low balance or out of gas)
 			drops, _ = list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 			for _, tx := range drops {
