@@ -447,8 +447,9 @@ type Transition struct {
 	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
 	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
 	GasPriceEnabled              bool           `json:"gasPriceEnabled,omitempty"`              // enable gas price
-	MinerGasLimit                uint64         `json:"miner.gaslimit, omitempty"`              // Gas Limit
+	MinerGasLimit                uint64         `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TwoFPlusOneEnabled           bool           `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
+	TransactionSizeLimit         uint64         `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 }
 
 // String implements the fmt.Stringer interface.
@@ -698,6 +699,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.ValidatorContractAddress != (common.Address{}) && transition.ValidatorSelectionMode != ContractMode {
 			return ErrMissingValidatorSelectionMode
 		}
+		if transition.TransactionSizeLimit != 0 && transition.TransactionSizeLimit < 32 || transition.TransactionSizeLimit > 128 {
+			return ErrTransactionSizeLimit
+		}
 		prevBlock = transition.Block
 	}
 	return nil
@@ -829,6 +833,12 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
 			return ErrTransitionIncompatible("Miner GasLimit"), head, head
 		}
+		if isSameBlock || c1.Transitions[i].TwoFPlusOneEnabled != c2.Transitions[i].TwoFPlusOneEnabled {
+			return ErrTransitionIncompatible("2FPlus1Enabled"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
+			return ErrTransitionIncompatible("TransactionSizeLimit"), head, head
+		}
 	}
 
 	return nil, big.NewInt(0), big.NewInt(0)
@@ -856,6 +866,24 @@ func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
+}
+
+// Quorum
+func (c *ChainConfig) GetTransactionSizeLimit(num *big.Int) uint64 {
+	transactionSizeLimit := uint64(0)
+	c.getTransitionValue(num, func(transition Transition) {
+		transactionSizeLimit = transition.TransactionSizeLimit
+	})
+
+	if transactionSizeLimit == 0 {
+		transactionSizeLimit = c.TransactionSizeLimit
+	}
+
+	if transactionSizeLimit == 0 {
+		transactionSizeLimit = 64
+	}
+
+	return transactionSizeLimit
 }
 
 // Quorum

@@ -15,6 +15,7 @@ var (
 	ErrContractSizeLimit               = errors.New("transition contract code size must be between 24 and 128")
 	ErrValidatorSelectionMode          = errors.New("validator selection mode is invalid, should be either `contract` or `blockheader`")
 	ErrMissingValidatorSelectionMode   = errors.New("validator selection mode is missing, should specify `contract` when using validatorcontractaddress")
+	ErrTransactionSizeLimit            = errors.New("genesis transaction size limit must be between 32 and 128")
 )
 
 func ErrTransitionIncompatible(field string) error {

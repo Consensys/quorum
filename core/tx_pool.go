@@ -166,9 +166,6 @@ type TxPoolConfig struct {
 
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 
-	// Quorum
-	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
-	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -186,10 +183,6 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	GlobalQueue:  1024,
 
 	Lifetime: 3 * time.Hour,
-
-	// Quorum
-	TransactionSizeLimit: 64,
-	MaxCodeSize:          24,
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -554,11 +547,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !pool.eip2718 && tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
 	}
+
 	// Quorum
-	sizeLimit := pool.chainconfig.TransactionSizeLimit
-	if sizeLimit == 0 {
-		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
-	}
+	sizeLimit := pool.chainconfig.GetTransactionSizeLimit(pool.chain.CurrentBlock().Number())
+
 	// Reject transactions over defined size to prevent DOS attacks
 	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
