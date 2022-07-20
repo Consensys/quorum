@@ -571,7 +571,7 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 // IsQIP714 returns whether num represents a block number where permissions is enabled
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	enableEnhancedPermissioning := false
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		enableEnhancedPermissioning = transition.EnhancedPermissioningEnabled
 	})
 	return isForked(c.QIP714Block, num) || enableEnhancedPermissioning
@@ -601,7 +601,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 		}
 	}
 
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		if transition.ContractSizeLimit != 0 {
 			maxCodeSize = int(transition.ContractSizeLimit) * 1024
 		}
@@ -612,7 +612,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 
 // Quorum
 // gets value at or after a transition
-func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition Transition)) {
+func (c *ChainConfig) GetTransitionValue(num *big.Int, callback func(transition Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
 			callback(c.Transitions[i])
@@ -849,7 +849,7 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 // IsPrivacyEnhancementsEnabled returns whether num represents a block number after the PrivacyEnhancementsEnabled fork
 func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 	isPrivacyEnhancementsEnabled := false
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		isPrivacyEnhancementsEnabled = transition.PrivacyEnhancementsEnabled
 	})
 
@@ -861,7 +861,7 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 // Check whether num represents a block number after the PrivacyPrecompileBlock
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
 	})
 
@@ -871,7 +871,7 @@ func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 // Quorum
 func (c *ChainConfig) GetTransactionSizeLimit(num *big.Int) uint64 {
 	transactionSizeLimit := uint64(0)
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		transactionSizeLimit = transition.TransactionSizeLimit
 	})
 

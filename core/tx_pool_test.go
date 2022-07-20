@@ -343,7 +343,7 @@ func TestQuorumTransactionSizeLimitTransition(t *testing.T) {
 	defer pool.Stop()
 
 	data := make([]byte, (64*1024)+1)
-	tx, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(0), data), types.HomesteadSigner{}, key)
+	tx, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(0), 283148, big.NewInt(0), data), types.HomesteadSigner{}, key)
 	if err := pool.AddRemote(tx); err != ErrOversizedData {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
