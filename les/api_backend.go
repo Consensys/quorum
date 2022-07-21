@@ -265,7 +265,11 @@ func (b *LesApiBackend) ProtocolVersion() int {
 }
 
 func (b *LesApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.gpo.SuggestPrice(ctx)
+	if !b.ChainConfig().IsQuorum || b.ChainConfig().IsGasPriceEnabled(b.eth.BlockChain().CurrentHeader().Number) {
+		return b.gpo.SuggestPrice(ctx)
+	} else {
+		return big.NewInt(0), nil
+	}
 }
 
 func (b *LesApiBackend) ChainDb() ethdb.Database {

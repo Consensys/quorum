@@ -84,7 +84,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 	blockContext := NewEVMBlockContext(header, p.bc, nil)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		mpsReceipt, err := handleMPS(i, tx, gp, usedGas, cfg, statedb, privateStateRepo, p.config, p.bc, header, false)
+		mpsReceipt, err := handleMPS(i, tx, gp, usedGas, cfg, statedb, privateStateRepo, p.config, p.bc, header, false, false)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -112,7 +112,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, pri
 			}
 		}
 
-		if p.config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+		if p.config.IsQuorum && !p.config.IsGasPriceEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 			return nil, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), ErrInvalidGasPrice)
 		}
 
@@ -207,7 +207,7 @@ func PrivateStateDBForTxn(isQuorum bool, tx *types.Transaction, stateDb, private
 // handling MPS scenario for a private transaction
 //
 // handleMPS returns the auxiliary receipt and not the standard receipt
-func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg vm.Config, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, config *params.ChainConfig, bc ChainContext, header *types.Header, applyOnPartiesOnly bool) (mpsReceipt *types.Receipt, err error) {
+func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg vm.Config, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, config *params.ChainConfig, bc ChainContext, header *types.Header, applyOnPartiesOnly bool, isInnerPrivateTxn bool) (mpsReceipt *types.Receipt, err error) {
 	if tx.IsPrivate() && privateStateRepo != nil && privateStateRepo.IsMPS() {
 		publicStateDBFactory := func() *state.StateDB {
 			db := statedb.Copy()
@@ -222,7 +222,7 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 			db.Prepare(tx.Hash(), header.Hash(), ti)
 			return db, nil
 		}
-		mpsReceipt, err = ApplyTransactionOnMPS(config, bc, nil, gp, publicStateDBFactory, privateStateDBFactory, header, tx, usedGas, cfg, privateStateRepo, applyOnPartiesOnly)
+		mpsReceipt, err = ApplyTransactionOnMPS(config, bc, nil, gp, publicStateDBFactory, privateStateDBFactory, header, tx, usedGas, cfg, privateStateRepo, applyOnPartiesOnly, isInnerPrivateTxn)
 	}
 	return
 }
@@ -239,7 +239,8 @@ func handleMPS(ti int, tx *types.Transaction, gp *GasPool, usedGas *uint64, cfg 
 // The originalGP gas pool will not be modified
 func ApplyTransactionOnMPS(config *params.ChainConfig, bc ChainContext, author *common.Address, originalGP *GasPool,
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
-	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository, applyOnPartiesOnly bool) (*types.Receipt, error) {
+	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository,
+	applyOnPartiesOnly bool, isInnerPrivateTxn bool) (*types.Receipt, error) {
 
 	mpsReceipt := &types.Receipt{
 		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
@@ -278,7 +279,7 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc ChainContext, author *
 		// use a clone of the gas pool (as we don't want to consume gas multiple times for each MPS execution, which might blow the block gasLimit on MPS node)
 		gp := new(GasPool).AddGas(originalGP.Gas())
 
-		_, privateReceipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo)
+		_, privateReceipt, err := ApplyTransaction(config, bc, author, gp, publicStateDB, privateStateDB, header, tx, usedGas, cfg, !applyAsParty, privateStateRepo, isInnerPrivateTxn)
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +400,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository) (*types.Receipt, *types.Receipt, error) {
+func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb, privateStateDB *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, isInnerPrivateTxn bool) (*types.Receipt, *types.Receipt, error) {
 	// Quorum - decide the privateStateDB to use
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx, statedb, privateStateDB)
 	// End Quorum
@@ -411,7 +412,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 		}
 	}
 
-	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
 	}
 
@@ -421,6 +422,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	}
 	// Quorum: this tx needs to be applied as if we were not a party
 	msg = msg.WithEmptyPrivateData(forceNonParty && tx.IsPrivate())
+	// Quorum: if this is the inner private txn of a PMT then need to indicate this
+	msg = msg.WithInnerPrivateFlag(isInnerPrivateTxn)
 
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
@@ -450,7 +453,7 @@ func ApplyInnerTransaction(bc ChainContext, author *common.Address, gp *GasPool,
 	singleUseGasPool := new(GasPool).AddGas(innerTx.Gas())
 
 	if privateStateRepo != nil && privateStateRepo.IsMPS() {
-		mpsReceipt, err := handleMPS(txIndex, innerTx, singleUseGasPool, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true)
+		mpsReceipt, err := handleMPS(txIndex, innerTx, singleUseGasPool, usedGas, evmConf, stateDB, privateStateRepo, bc.Config(), bc, header, true, true)
 		if err != nil {
 			return err
 		}
@@ -464,7 +467,7 @@ func ApplyInnerTransaction(bc ChainContext, author *common.Address, gp *GasPool,
 	prepareStates(innerTx, stateDB, privateStateDB, txIndex)
 
 	used := uint64(0)
-	_, innerPrivateReceipt, err := ApplyTransaction(bc.Config(), bc, author, singleUseGasPool, stateDB, privateStateDB, header, innerTx, &used, evmConf, forceNonParty, privateStateRepo)
+	_, innerPrivateReceipt, err := ApplyTransaction(bc.Config(), bc, author, singleUseGasPool, stateDB, privateStateDB, header, innerTx, &used, evmConf, forceNonParty, privateStateRepo, true)
 	if err != nil {
 		return err
 	}
