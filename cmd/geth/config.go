@@ -368,9 +368,12 @@ func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
 func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
 
-	for _, transition := range ethereum.BlockChain().Config().Transitions {
-		if transition.PrivacyPrecompileEnabled {
-			privacyEnhancementsBlock = transition.Block
+	if !privacyEnhancementsBlock {
+		for _, transition := range ethereum.BlockChain().Config().Transitions {
+			if transition.PrivacyPrecompileEnabled {
+				privacyEnhancementsBlock = transition.Block
+				break
+			}
 		}
 	}
 
