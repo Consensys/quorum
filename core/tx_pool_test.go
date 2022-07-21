@@ -1256,6 +1256,8 @@ func TestTransactionAllowedTxSize(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 
+	pool.chainconfig.Transitions = []params.Transition{}
+	pool.chainconfig.TransactionSizeLimit = params.QuorumTestChainConfig.TransactionSizeLimit
 	account := crypto.PubkeyToAddress(key.PublicKey)
 	pool.currentState.AddBalance(account, big.NewInt(1000000000))
 

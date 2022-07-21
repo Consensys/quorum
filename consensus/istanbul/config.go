@@ -210,11 +210,13 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 }
 
 func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {
-	ceil2Nby3Block := false
+	twoFPlusOneEnabled := false
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		ceil2Nby3Block = transition.TwoFPlusOneEnabled
+		if transition.TwoFPlusOneEnabled != nil {
+			twoFPlusOneEnabled = *transition.TwoFPlusOneEnabled
+		}
 	})
-	return ceil2Nby3Block
+	return twoFPlusOneEnabled
 }
 
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {

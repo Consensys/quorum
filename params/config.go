@@ -443,12 +443,12 @@ type Transition struct {
 	ContractSizeLimit            uint64         `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
 	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
 	ValidatorSelectionMode       string         `json:"validatorselectionmode,omitempty"`       // Validator selection mode to switch to
-	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
-	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
-	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
-	GasPriceEnabled              bool           `json:"gasPriceEnabled,omitempty"`              // enable gas price
+	EnhancedPermissioningEnabled *bool          `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
+	PrivacyEnhancementsEnabled   *bool          `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
+	PrivacyPrecompileEnabled     *bool          `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	GasPriceEnabled              *bool          `json:"gasPriceEnabled,omitempty"`              // enable gas price
 	MinerGasLimit                uint64         `json:"miner.gaslimit,omitempty"`               // Gas Limit
-	TwoFPlusOneEnabled           bool           `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
+	TwoFPlusOneEnabled           *bool          `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
 	TransactionSizeLimit         uint64         `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 }
 
@@ -572,7 +572,9 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	enableEnhancedPermissioning := false
 	c.GetTransitionValue(num, func(transition Transition) {
-		enableEnhancedPermissioning = transition.EnhancedPermissioningEnabled
+		if transition.EnhancedPermissioningEnabled != nil {
+			enableEnhancedPermissioning = *transition.EnhancedPermissioningEnabled
+		}
 	})
 	return isForked(c.QIP714Block, num) || enableEnhancedPermissioning
 }
@@ -850,7 +852,9 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 	isPrivacyEnhancementsEnabled := false
 	c.GetTransitionValue(num, func(transition Transition) {
-		isPrivacyEnhancementsEnabled = transition.PrivacyEnhancementsEnabled
+		if transition.PrivacyEnhancementsEnabled != nil {
+			isPrivacyEnhancementsEnabled = *transition.PrivacyEnhancementsEnabled
+		}
 	})
 
 	return isForked(c.PrivacyEnhancementsBlock, num) || isPrivacyEnhancementsEnabled
@@ -862,7 +866,9 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
 	c.GetTransitionValue(num, func(transition Transition) {
-		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
+		if transition.PrivacyPrecompileEnabled != nil {
+			isPrivacyPrecompileEnabled = *transition.PrivacyPrecompileEnabled
+		}
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
@@ -891,8 +897,10 @@ func (c *ChainConfig) GetTransactionSizeLimit(num *big.Int) uint64 {
 // Check whether num represents a block number after the EnableGasPriceBlock
 func (c *ChainConfig) IsGasPriceEnabled(num *big.Int) bool {
 	isGasEnabled := false
-	c.getTransitionValue(num, func(transition Transition) {
-		isGasEnabled = transition.GasPriceEnabled
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.GasPriceEnabled != nil {
+			isGasEnabled = *transition.GasPriceEnabled
+		}
 	})
 
 	return isForked(c.EnableGasPriceBlock, num) || isGasEnabled
