@@ -337,6 +337,28 @@ func TestQuorumInvalidTransactions(t *testing.T) {
 
 }
 
+//Test for transactions that are only invalid on Quorum
+func TestQuorumTransactionSizeLimitTransition(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+
+	data := make([]byte, (64*1024)+1)
+	tx, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(0), 283148, big.NewInt(0), data), types.HomesteadSigner{}, key)
+	if err := pool.AddRemote(tx); err != ErrOversizedData {
+		t.Error("expected", ErrOversizedData, "; got", err)
+	}
+
+	pool.chainconfig.Transitions = []params.Transition{{
+		Block:                big.NewInt(0),
+		TransactionSizeLimit: 128,
+	}}
+
+	if err := pool.AddRemote(tx); err != nil {
+		t.Error("expected no error; got", err)
+	}
+
+}
+
 func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
@@ -1234,6 +1256,8 @@ func TestTransactionAllowedTxSize(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 
+	pool.chainconfig.Transitions = []params.Transition{}
+	pool.chainconfig.TransactionSizeLimit = params.QuorumTestChainConfig.TransactionSizeLimit
 	account := crypto.PubkeyToAddress(key.PublicKey)
 	pool.currentState.AddBalance(account, big.NewInt(1000000000))
 

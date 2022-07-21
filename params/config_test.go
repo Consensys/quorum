@@ -330,10 +330,10 @@ func TestCheckTransitionsData(t *testing.T) {
 		wantErr error
 	}
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
-	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false, false, 0, true}
-	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false, false, 1, true}
-	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false, false, 0, true}
-	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false, false, 2, true}
+	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
+	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
+	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
+	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
 
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
@@ -393,7 +393,7 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockOrder,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50, common.Address{}, "", false, false, false, false, 0, false}}},
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}}},
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
@@ -501,7 +501,7 @@ func TestIsQIP714(t *testing.T) {
 
 	config2.QIP714Block = nil
 	config2.Transitions = []Transition{
-		{Block: big.NewInt(21), EnhancedPermissioningEnabled: true},
+		{Block: big.NewInt(21), EnhancedPermissioningEnabled: newPBool(true)},
 	}
 
 	tests := []test{
@@ -533,7 +533,7 @@ func TestIsPrivacyEnhancementsEnabled(t *testing.T) {
 
 	config2.PrivacyEnhancementsBlock = nil
 	config2.Transitions = []Transition{
-		{Block: big.NewInt(21), PrivacyEnhancementsEnabled: true},
+		{Block: big.NewInt(21), PrivacyEnhancementsEnabled: newPBool(true)},
 	}
 
 	tests := []test{
@@ -565,7 +565,7 @@ func TestIsPrivacyPrecompileEnabled(t *testing.T) {
 
 	config2.PrivacyPrecompileBlock = nil
 	config2.Transitions = []Transition{
-		{Block: big.NewInt(21), PrivacyPrecompileEnabled: true},
+		{Block: big.NewInt(21), PrivacyPrecompileEnabled: newPBool(true)},
 	}
 
 	tests := []test{
@@ -597,7 +597,7 @@ func TestIsGasPriceEnabled(t *testing.T) {
 
 	config2.EnableGasPriceBlock = nil
 	config2.Transitions = []Transition{
-		{Block: big.NewInt(21), GasPriceEnabled: true},
+		{Block: big.NewInt(21), GasPriceEnabled: newPBool(true)},
 	}
 
 	tests := []test{
@@ -615,4 +615,8 @@ func TestIsGasPriceEnabled(t *testing.T) {
 			t.Errorf("error mismatch on %v:\nexpected: %v\nreceived: %v\n", test.blockNumber, test.GasPriceEnabled, isGasPriceEnabled)
 		}
 	}
+}
+
+func newPBool(b bool) *bool {
+	return &b
 }

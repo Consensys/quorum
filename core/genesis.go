@@ -172,7 +172,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 
 		// Quorum: Set default transaction size limit if not set in genesis
 		if genesis.Config.TransactionSizeLimit == 0 {
-			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
+			genesis.Config.TransactionSizeLimit = 64
 		}
 
 		// Check transaction size limit and max contract code size
