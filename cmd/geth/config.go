@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -353,7 +354,11 @@ func quorumValidateEthService(stack *node.Node, isRaft bool) {
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
 func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
-	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().IBFT == nil && ethereum.BlockChain().Config().QBFT == nil && ethereum.BlockChain().Config().Clique == nil {
+	transitionAlgorithmOnBlockZero := false
+	ethereum.BlockChain().Config().GetTransitionValue(big.NewInt(0), func(transition params.Transition) {
+		transitionAlgorithmOnBlockZero = strings.EqualFold(transition.Algorithm, params.IBFT) || strings.EqualFold(transition.Algorithm, params.QBFT)
+	})
+	if !transitionAlgorithmOnBlockZero && !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().IBFT == nil && ethereum.BlockChain().Config().QBFT == nil && ethereum.BlockChain().Config().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
 }
@@ -362,6 +367,14 @@ func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
 // the PrivacyEnhancements feature
 func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
+
+	for _, transition := range ethereum.BlockChain().Config().Transitions {
+		if *transition.PrivacyPrecompileEnabled {
+			privacyEnhancementsBlock = transition.Block
+			break
+		}
+	}
+
 	if privacyEnhancementsBlock != nil {
 		log.Info("Privacy enhancements is configured to be enabled from block ", "height", privacyEnhancementsBlock)
 		if !private.P.HasFeature(engine.PrivacyEnhancements) {

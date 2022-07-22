@@ -345,8 +345,6 @@ func TestFlagsConfig(t *testing.T) {
 	assert.Equal(t, uint64(64), txPool.AccountQueue)
 	assert.Equal(t, uint64(1024), txPool.GlobalQueue)
 	assert.Equal(t, time.Duration(10800000000000), txPool.Lifetime)
-	assert.Equal(t, uint64(64), txPool.TransactionSizeLimit)
-	assert.Equal(t, uint64(24), txPool.MaxCodeSize)
 
 	// [Node]
 	node := cfg.Node
@@ -509,8 +507,6 @@ GlobalSlots = 4096
 AccountQueue = 64
 GlobalQueue = 1024
 Lifetime = 10800000000000
-TransactionSizeLimit = 64
-MaxCodeSize = 24
 
 [Eth.Istanbul]
 RequestTimeout = 10000
@@ -643,8 +639,6 @@ func testConfig(t *testing.T, cfg *gethConfig) {
 	assert.Equal(t, uint64(64), txPool.AccountQueue)
 	assert.Equal(t, uint64(1024), txPool.GlobalQueue)
 	assert.Equal(t, time.Duration(10800000000000), txPool.Lifetime)
-	assert.Equal(t, uint64(64), txPool.TransactionSizeLimit)
-	assert.Equal(t, uint64(24), txPool.MaxCodeSize)
 
 	// [Node]
 	node := cfg.Node

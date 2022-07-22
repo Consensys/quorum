@@ -77,7 +77,7 @@ type extraSeal struct {
 	Signature []byte // Signature of the block minter
 }
 
-func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
+func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration, etherbase common.Address) *minter {
 	minter := &minter{
 		config:           config,
 		eth:              eth,
@@ -87,6 +87,7 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
 		speculativeChain: newSpeculativeChain(),
+		coinbase:         etherbase, //Quorum
 
 		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
 		chainHeadChan:           make(chan core.ChainHeadEvent, core.GetChainHeadChannleSize()),
@@ -415,7 +416,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	var vmConf vm.Config
 	txnStart := time.Now()
 	// Note that raft minter doesn't care about private state etc, hence can pass forceNonParty=true and privateStateRepo=nil
-	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, true, nil)
+	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf, false, nil, false)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)

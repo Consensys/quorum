@@ -247,21 +247,21 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 35, big.NewInt(0), big.NewInt(0), nil, nil, false, nil}
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 35, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Clique consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil}
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 
 	// Quorum chainID should 10
-	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil}
+	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 
-	QuorumTestChainConfig    = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), false, nil}
-	QuorumMPSTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), true, nil}
+	QuorumTestChainConfig    = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), false, nil, nil}
+	QuorumMPSTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), true, nil, nil}
 )
 
 // TrustedCheckpoint represents a set of post-processed trie roots (CHT and
@@ -363,6 +363,7 @@ type ChainConfig struct {
 	PrivacyEnhancementsBlock *big.Int              `json:"privacyEnhancementsBlock,omitempty"`
 	IsMPS                    bool                  `json:"isMPS"`                            // multiple private states flag
 	PrivacyPrecompileBlock   *big.Int              `json:"privacyPrecompileBlock,omitempty"` // Switch block to enable privacy precompiled contract to process privacy marker transactions
+	EnableGasPriceBlock      *big.Int              `json:"enableGasPriceBlock,omitempty"`    // Switch block to enable usage of gas price
 
 	// End of Quorum specific configs
 }
@@ -371,7 +372,6 @@ type ChainConfig struct {
 type EthashConfig struct{}
 
 // String implements the stringer interface, returning the consensus engine details.
-
 func (c *EthashConfig) String() string {
 	return "ethash"
 }
@@ -444,12 +444,14 @@ type Transition struct {
 	RequestTimeoutSeconds        uint64         `json:"requesttimeoutseconds,omitempty"`        // Minimum request timeout for each IBFT or QBFT round in milliseconds
 	ContractSizeLimit            uint64         `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
 	ValidatorContractAddress     common.Address `json:"validatorcontractaddress"`               // Smart contract address for list of validators
-	ValidatorSelectionMode       string         `json:"validatorselectionmode"`                 // Validator selection mode to switch to
-	EnhancedPermissioningEnabled bool           `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
-	PrivacyEnhancementsEnabled   bool           `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
-	PrivacyPrecompileEnabled     bool           `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
-	MinerGasLimit                uint64         `json:"miner.gaslimit"`                         // Gas Limit
-	Ceil2Nby3Enabled             bool           `json:"ceil2Nby3Enabled,omitempty"`             // switch between Ceil(2N/3) and 2F + 1
+	ValidatorSelectionMode       string         `json:"validatorselectionmode,omitempty"`       // Validator selection mode to switch to
+	EnhancedPermissioningEnabled *bool          `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
+	PrivacyEnhancementsEnabled   *bool          `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)
+	PrivacyPrecompileEnabled     *bool          `json:"privacyPrecompileEnabled,omitempty"`     // enable marker transactions support
+	GasPriceEnabled              *bool          `json:"gasPriceEnabled,omitempty"`              // enable gas price
+	MinerGasLimit                uint64         `json:"miner.gaslimit,omitempty"`               // Gas Limit
+	TwoFPlusOneEnabled           *bool          `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
+	TransactionSizeLimit         uint64         `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 }
 
 // String implements the fmt.Stringer interface.
@@ -465,7 +467,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Berlin: %v YOLO v3: %v PrivacyEnhancements: %v PrivacyPrecompile: %v Engine: %v}",
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Berlin: %v YOLO v3: %v PrivacyEnhancements: %v PrivacyPrecompile: %v EnableGasPriceBlock: %v Engine: %v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -483,8 +485,9 @@ func (c *ChainConfig) String() string {
 		c.MuirGlacierBlock,
 		c.BerlinBlock,
 		c.YoloV3Block,
-		c.PrivacyEnhancementsBlock,
-		c.PrivacyPrecompileBlock,
+		c.PrivacyEnhancementsBlock, //Quorum
+		c.PrivacyPrecompileBlock,   //Quorum
+		c.EnableGasPriceBlock,      //Quorum
 		engine,
 	)
 }
@@ -570,8 +573,10 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 // IsQIP714 returns whether num represents a block number where permissions is enabled
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	enableEnhancedPermissioning := false
-	c.getTransitionValue(num, func(transition Transition) {
-		enableEnhancedPermissioning = transition.EnhancedPermissioningEnabled
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.EnhancedPermissioningEnabled != nil {
+			enableEnhancedPermissioning = *transition.EnhancedPermissioningEnabled
+		}
 	})
 	return isForked(c.QIP714Block, num) || enableEnhancedPermissioning
 }
@@ -600,7 +605,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 		}
 	}
 
-	c.getTransitionValue(num, func(transition Transition) {
+	c.GetTransitionValue(num, func(transition Transition) {
 		if transition.ContractSizeLimit != 0 {
 			maxCodeSize = int(transition.ContractSizeLimit) * 1024
 		}
@@ -611,7 +616,7 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 
 // Quorum
 // gets value at or after a transition
-func (c *ChainConfig) getTransitionValue(num *big.Int, callback func(transition Transition)) {
+func (c *ChainConfig) GetTransitionValue(num *big.Int, callback func(transition Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
 			callback(c.Transitions[i])
@@ -697,6 +702,9 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		}
 		if transition.ValidatorContractAddress != (common.Address{}) && transition.ValidatorSelectionMode != ContractMode {
 			return ErrMissingValidatorSelectionMode
+		}
+		if transition.TransactionSizeLimit != 0 && transition.TransactionSizeLimit < 32 || transition.TransactionSizeLimit > 128 {
+			return ErrTransactionSizeLimit
 		}
 		prevBlock = transition.Block
 	}
@@ -829,6 +837,12 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
 			return ErrTransitionIncompatible("Miner GasLimit"), head, head
 		}
+		if isSameBlock || c1.Transitions[i].TwoFPlusOneEnabled != c2.Transitions[i].TwoFPlusOneEnabled {
+			return ErrTransitionIncompatible("2FPlus1Enabled"), head, head
+		}
+		if isSameBlock || c1.Transitions[i].MinerGasLimit != c2.Transitions[i].MinerGasLimit {
+			return ErrTransitionIncompatible("TransactionSizeLimit"), head, head
+		}
 	}
 
 	return nil, big.NewInt(0), big.NewInt(0)
@@ -839,8 +853,10 @@ func isTransitionsConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 // IsPrivacyEnhancementsEnabled returns whether num represents a block number after the PrivacyEnhancementsEnabled fork
 func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 	isPrivacyEnhancementsEnabled := false
-	c.getTransitionValue(num, func(transition Transition) {
-		isPrivacyEnhancementsEnabled = transition.PrivacyEnhancementsEnabled
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.PrivacyEnhancementsEnabled != nil {
+			isPrivacyEnhancementsEnabled = *transition.PrivacyEnhancementsEnabled
+		}
 	})
 
 	return isForked(c.PrivacyEnhancementsBlock, num) || isPrivacyEnhancementsEnabled
@@ -851,11 +867,45 @@ func (c *ChainConfig) IsPrivacyEnhancementsEnabled(num *big.Int) bool {
 // Check whether num represents a block number after the PrivacyPrecompileBlock
 func (c *ChainConfig) IsPrivacyPrecompileEnabled(num *big.Int) bool {
 	isPrivacyPrecompileEnabled := false
-	c.getTransitionValue(num, func(transition Transition) {
-		isPrivacyPrecompileEnabled = transition.PrivacyPrecompileEnabled
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.PrivacyPrecompileEnabled != nil {
+			isPrivacyPrecompileEnabled = *transition.PrivacyPrecompileEnabled
+		}
 	})
 
 	return isForked(c.PrivacyPrecompileBlock, num) || isPrivacyPrecompileEnabled
+}
+
+// Quorum
+func (c *ChainConfig) GetTransactionSizeLimit(num *big.Int) uint64 {
+	transactionSizeLimit := uint64(0)
+	c.GetTransitionValue(num, func(transition Transition) {
+		transactionSizeLimit = transition.TransactionSizeLimit
+	})
+
+	if transactionSizeLimit == 0 {
+		transactionSizeLimit = c.TransactionSizeLimit
+	}
+
+	if transactionSizeLimit == 0 {
+		transactionSizeLimit = 64
+	}
+
+	return transactionSizeLimit
+}
+
+// Quorum
+//
+// Check whether num represents a block number after the EnableGasPriceBlock
+func (c *ChainConfig) IsGasPriceEnabled(num *big.Int) bool {
+	isGasEnabled := false
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.GasPriceEnabled != nil {
+			isGasEnabled = *transition.GasPriceEnabled
+		}
+	})
+
+	return isForked(c.EnableGasPriceBlock, num) || isGasEnabled
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -1077,6 +1127,7 @@ type Rules struct {
 	// Quorum
 	IsPrivacyEnhancementsEnabled bool
 	IsPrivacyPrecompile          bool
+	IsGasPriceEnabled            bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1099,5 +1150,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		// Quorum
 		IsPrivacyEnhancementsEnabled: c.IsPrivacyEnhancementsEnabled(num),
 		IsPrivacyPrecompile:          c.IsPrivacyPrecompileEnabled(num),
+		IsGasPriceEnabled:            c.IsGasPriceEnabled(num),
 	}
 }

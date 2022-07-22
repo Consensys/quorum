@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -727,11 +726,7 @@ func (bc *BlockChain) GasLimit() uint64 {
 	bc.chainmu.RLock()
 	defer bc.chainmu.RUnlock()
 
-	if bc.Config().IsQuorum {
-		return math.MaxBig256.Uint64() // HACK(joel) a very large number
-	} else {
-		return bc.CurrentBlock().GasLimit()
-	}
+	return bc.CurrentBlock().GasLimit()
 }
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
