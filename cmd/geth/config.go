@@ -369,7 +369,7 @@ func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
 
 	for _, transition := range ethereum.BlockChain().Config().Transitions {
-		if *transition.PrivacyPrecompileEnabled {
+		if transition.PrivacyPrecompileEnabled != nil && *transition.PrivacyEnhancementsEnabled {
 			privacyEnhancementsBlock = transition.Block
 			break
 		}
