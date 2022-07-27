@@ -1910,7 +1910,7 @@ type SendTxArgs struct {
 
 	// For non-legacy transactions
 	AccessList *types.AccessList `json:"accessList,omitempty"`
-	ChainID    *big.Int          `json:"chainId,omitempty"`
+	ChainID    *hexutil.Big      `json:"chainId,omitempty"`
 }
 
 func (s SendTxArgs) IsPrivate() bool {
@@ -2032,7 +2032,8 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		log.Trace("Estimate gas usage automatically", "gas", args.Gas)
 	}
 	if args.ChainID == nil {
-		args.ChainID = b.ChainConfig().ChainID
+		id := (*hexutil.Big)(b.ChainConfig().ChainID)
+		args.ChainID = id
 	}
 	// Quorum
 	if args.PrivateTxType == "" {
@@ -2064,7 +2065,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	} else {
 		data = &types.AccessListTx{
 			To:         args.To,
-			ChainID:    args.ChainID,
+			ChainID:    (*big.Int)(args.ChainID),
 			Nonce:      uint64(*args.Nonce),
 			Gas:        uint64(*args.Gas),
 			GasPrice:   (*big.Int)(args.GasPrice),
