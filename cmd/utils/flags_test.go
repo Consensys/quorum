@@ -204,5 +204,6 @@ func TestQuorumConfigFlags(t *testing.T) {
 	config := arbitraryEthConfig.Istanbul.GetConfig(nil)
 	assert.Equal(t, uint64(23), config.RequestTimeout, "IstanbulRequestTimeoutFlag value is incorrect")
 	assert.Equal(t, uint64(34), config.BlockPeriod, "IstanbulBlockPeriodFlag value is incorrect")
+	assert.Equal(t, uint64(34), config.EmptyBlockPeriod, "IstanbulEmptyBlockPeriodFlag value is incorrect")
 	assert.Equal(t, true, arbitraryEthConfig.RaftMode, "RaftModeFlag value is incorrect")
 }

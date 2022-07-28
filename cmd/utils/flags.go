@@ -2603,6 +2603,12 @@ func setBFTConfig(bftConfig *params.BFTConfig) *istanbul.Config {
 	if bftConfig.BlockPeriodSeconds != 0 {
 		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
 	}
+	if bftConfig.EmptyBlockPeriodSeconds != 0 {
+		istanbulConfig.EmptyBlockPeriod = bftConfig.EmptyBlockPeriodSeconds
+	}
+	if istanbulConfig.EmptyBlockPeriod < istanbulConfig.BlockPeriod {
+		istanbulConfig.EmptyBlockPeriod = istanbulConfig.BlockPeriod
+	}
 	if bftConfig.RequestTimeoutSeconds != 0 {
 		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds * 1000
 	}

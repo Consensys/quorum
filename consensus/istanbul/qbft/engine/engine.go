@@ -2,6 +2,7 @@ package qbftengine
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -100,6 +101,15 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
 	}
 
+	config := e.cfg.GetConfig(block.Number())
+	if config.EmptyBlockPeriod > config.BlockPeriod && len(block.Transactions()) == 0 {
+		// empty block verification
+		parentHeader := chain.GetHeaderByHash(block.ParentHash())
+		if parentHeader != nil && block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
+			return 0, fmt.Errorf("empty block verification fail")
+		}
+	}
+
 	return 0, err
 }
 
@@ -195,8 +205,10 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
+	blockPeriod := e.cfg.GetConfig(parent.Number).BlockPeriod
+
 	// Ensure that the block's timestamp isn't too close to it's parent
-	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
+	if parent.Time+blockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
 	}
 
