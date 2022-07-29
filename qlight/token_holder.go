@@ -21,7 +21,7 @@ type TokenHolder struct {
 	pluginManager       *plugin.PluginManager
 	peerUpdater         RunningPeerAuthUpdater
 	timer               *time.Timer
-	cancelTimer         func()
+	eta                 time.Time
 }
 
 func NewTokenHolder(psi string, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
@@ -94,6 +94,10 @@ func (h *TokenHolder) refreshPlugin(pluginManager plugin.PluginManagerInterface,
 func (h *TokenHolder) HttpCredentialsProvider(ctx context.Context) (string, error) {
 	if h.plugin != nil {
 		log.Debug("HttpCredentialsProvider using plugin")
+		err := h.updateTimer()
+		if err != nil {
+			log.Warn("update token timer", "err", err)
+		}
 		return h.plugin.TokenRefresh(ctx, h.token, h.psi)
 	}
 	log.Debug("HttpCredentialsProvider using token")
@@ -159,28 +163,28 @@ func (h *TokenHolder) updateTimer() error {
 	if err != nil {
 		return err
 	}
-	if expireIn <= 0 { // automatic refresh one second after if already expired
-		expireIn = time.Second
-	}
-	if h.timer != nil {
-		h.cancelTimer()
+	if h.timer != nil && time.Now().Add(expireIn).After(h.eta) {
 		if !h.timer.Stop() {
+			log.Debug("token updateTimer read timer.C", "expire in", expireIn)
 			<-h.timer.C
 		}
-		h.timer.Reset(expireIn)
-	} else {
-		h.timer = time.NewTimer(expireIn)
+		h.timer = nil
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-h.timer.C:
-			log.Debug("refresh token timer triggered")
-			h.CurrentToken()
+	if h.timer == nil {
+		if expireIn <= 0 { // automatic refresh one second after if already expired
+			expireIn = time.Second
+		} else {
+			expireIn = expireIn - time.Duration(h.refreshAnticipation)*time.Millisecond
 		}
-	}()
-	h.cancelTimer = cancel
+		h.eta = time.Now().Add(expireIn)
+		log.Debug("token updateTimer new", "expire in", expireIn, "eta", h.eta)
+		h.timer = time.AfterFunc(expireIn, func() {
+			log.Debug("token updateTimer triggered", "expire in", expireIn, "eta", h.eta)
+			h.timer = nil
+			h.eta = time.Now()
+			h.CurrentToken()
+		})
+	}
 	return nil
 }
 
