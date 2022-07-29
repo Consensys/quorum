@@ -336,7 +336,6 @@ func TestCheckTransitionsData(t *testing.T) {
 	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
 	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
 
-
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
 
