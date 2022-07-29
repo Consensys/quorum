@@ -625,12 +625,6 @@ var (
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 
-	// Quorum: Disable reward for Quorum if gas price is not enabled,
-	// otherwise static block reward will impact Raft (even though the gas price is zero)
-	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) {
-		return
-	}
-
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward
 	if config.IsByzantium(header.Number) {
