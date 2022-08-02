@@ -625,6 +625,14 @@ var (
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 
+	// Quorum:
+	// Historically, quorum was adding (static) reward to account 0x0.
+	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
+	headerCoinbase := header.Coinbase
+	if !config.IsGasPriceEnabled(header.Number) {
+		headerCoinbase = common.Address{0x0000000000000000000000}
+	}
+
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward
 	if config.IsByzantium(header.Number) {
@@ -647,7 +655,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
-	state.AddBalance(header.Coinbase, reward)
+	state.AddBalance(headerCoinbase, reward)
 }
 
 // Quorum: wrapper for accumulateRewards to be called by raft minter
