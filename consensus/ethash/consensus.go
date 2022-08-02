@@ -629,7 +629,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	// Historically, quorum was adding (static) reward to account 0x0.
 	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
 	headerCoinbase := header.Coinbase
-	if !config.IsGasPriceEnabled(header.Number) {
+	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) {
 		headerCoinbase = common.Address{0x0000000000000000000000}
 	}
 
