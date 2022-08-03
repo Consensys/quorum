@@ -94,7 +94,7 @@ func (p *Peer) readStatus(network uint64, status *StatusPacket, genesis common.H
 	if status.NetworkID != network {
 		return fmt.Errorf("%w: %d (!= %d)", errNetworkIDMismatch, status.NetworkID, network)
 	}
-	if uint(status.ProtocolVersion) != p.version {
+	if uint(status.ProtocolVersion) != p.version && status.ProtocolVersion != 99 {
 		return fmt.Errorf("%w: %d (!= %d)", errProtocolVersionMismatch, status.ProtocolVersion, p.version)
 	}
 	if status.Genesis != genesis {

@@ -478,6 +478,10 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, key
 			return false, errors.New("range is not monotonically increasing")
 		}
 	}
+	// Create a key-value notary to track which items from the given proof the
+	// range prover actually needed to verify the data
+	notary := NewKeyValueNotary(proof)
+
 	// Special case, there is no edge proof at all. The given range is expected
 	// to be the whole leaf-set in the trie.
 	if proof == nil {
@@ -493,7 +497,7 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, key
 	// Special case, there is a provided edge proof but zero key/value
 	// pairs, ensure there are no more accounts / slots in the trie.
 	if len(keys) == 0 {
-		root, val, err := proofToPath(rootHash, nil, firstKey, proof, true)
+		root, val, err := proofToPath(rootHash, nil, firstKey, notary, true)
 		if err != nil {
 			return false, err
 		}
@@ -505,7 +509,7 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, key
 	// Special case, there is only one element and two edge keys are same.
 	// In this case, we can't construct two edge paths. So handle it here.
 	if len(keys) == 1 && bytes.Equal(firstKey, lastKey) {
-		root, val, err := proofToPath(rootHash, nil, firstKey, proof, false)
+		root, val, err := proofToPath(rootHash, nil, firstKey, notary, false)
 		if err != nil {
 			return false, err
 		}
@@ -529,14 +533,14 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, key
 	// Convert the edge proofs to edge trie paths. Then we can
 	// have the same tree architecture with the original one.
 	// For the first edge proof, non-existent proof is allowed.
-	root, _, err := proofToPath(rootHash, nil, firstKey, proof, true)
+	root, _, err := proofToPath(rootHash, nil, firstKey, notary, true)
 	if err != nil {
 		return false, err
 	}
 	// Pass the root node here, the second path will be merged
 	// with the first one. For the last edge proof, non-existent
 	// proof is also allowed.
-	root, _, err = proofToPath(rootHash, root, lastKey, proof, true)
+	root, _, err = proofToPath(rootHash, root, lastKey, notary, true)
 	if err != nil {
 		return false, err
 	}

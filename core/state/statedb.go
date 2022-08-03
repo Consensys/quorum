@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -74,6 +75,12 @@ type StateDB struct {
 	snapAccounts  map[common.Hash][]byte
 	snapStorage   map[common.Hash]map[common.Hash][]byte
 
+	mutex        sync.Mutex
+	journalMutex sync.Mutex
+
+	// Quorum - a trie to hold extra account information that cannot be stored in the accounts trie
+	accountExtraDataTrie Trie
+
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects        map[common.Address]*stateObject
 	stateObjectsPending map[common.Address]struct{} // State objects finalized but not yet written to the trie
@@ -125,6 +132,16 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	// Quorum - Privacy Enhancements - retrieve the privacy metadata root corresponding to the account state root
+	extraDataRoot := db.AccountExtraDataLinker().GetAccountExtraDataRoot(root)
+	log.Debug("Account Extra Data root", "hash", extraDataRoot)
+	accountExtraDataTrie, err := db.OpenTrie(extraDataRoot)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to open privacy metadata trie: %v", err)
+	}
+	// End Quorum - Privacy Enhancements
+
 	sdb := &StateDB{
 		db:                  db,
 		trie:                tr,
@@ -138,6 +155,8 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		journal:             newJournal(),
 		accessList:          newAccessList(),
 		hasher:              crypto.NewKeccakState(),
+		// Quorum - Privacy Enhancements
+		accountExtraDataTrie: accountExtraDataTrie,
 	}
 	if sdb.snaps != nil {
 		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
@@ -267,6 +286,83 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
+// Quorum
+func (s *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.PrivacyMetadata()
+	}
+	return nil, nil
+}
+
+// Quorum
+func (s *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetCommittedPrivacyMetadata()
+	}
+	return nil, nil
+}
+
+// Quorum
+func (self *StateDB) GetManagedParties(addr common.Address) ([]string, error) {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.ManagedParties()
+	}
+	return nil, nil
+}
+
+func (s *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return nil, fmt.Errorf("no state found for %s", addr.Hex())
+	}
+	// When calculating the execution hash or simulating the transaction the stateOject state is not committed/updated
+	// In order to reflect the updated state invoke stateObject.updateRoot on a copy of the state object.
+	if len(stateObject.pendingStorage) > 0 || len(stateObject.dirtyStorage) > 0 || stateObject.dirtyCode {
+		cpy := stateObject.deepCopy(s)
+		cpy.updateRoot(s.db)
+		return rlp.EncodeToBytes(cpy)
+	}
+	return rlp.EncodeToBytes(stateObject)
+}
+
+// Reset clears out all ephemeral state objects from the state db, but keeps
+// the underlying state trie to avoid reloading data for the next operations.
+func (s *StateDB) Reset(root common.Hash) error {
+	tr, err := s.db.OpenTrie(root)
+	if err != nil {
+		return err
+	}
+	s.trie = tr
+	s.mutex.Lock()
+	s.stateObjects = make(map[common.Address]*stateObject)
+	s.stateObjectsPending = make(map[common.Address]struct{})
+	s.stateObjectsDirty = make(map[common.Address]struct{})
+	s.mutex.Unlock()
+	s.thash = common.Hash{}
+	s.bhash = common.Hash{}
+	s.txIndex = 0
+	s.logs = make(map[common.Hash][]*types.Log)
+	s.logSize = 0
+	s.preimages = make(map[common.Hash][]byte)
+	s.clearJournalAndRefund()
+
+	if s.snaps != nil {
+		s.snapAccounts, s.snapDestructs, s.snapStorage = nil, nil, nil
+		if s.snap = s.snaps.Snapshot(root); s.snap != nil {
+			s.snapDestructs = make(map[common.Hash]struct{})
+			s.snapAccounts = make(map[common.Hash][]byte)
+			s.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
+		}
+	}
+	s.accessList = newAccessList()
+	return nil
+}
+
+// End Quorum
+
 // TxIndex returns the current transaction index set by Prepare.
 func (s *StateDB) TxIndex() int {
 	return s.txIndex
@@ -378,6 +474,16 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 	return false
 }
 
+// Quorum
+// GetStorageRoot returns the root of the storage associated with the given address.
+func (s *StateDB) GetStorageRoot(addr common.Address) (common.Hash, error) {
+	so := s.getStateObject(addr)
+	if so == nil {
+		return common.Hash{}, fmt.Errorf("can't find state object")
+	}
+	return so.storageRoot(s.db), nil
+}
+
 /*
  * SETTERS
  */
@@ -409,6 +515,20 @@ func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
+	}
+}
+
+func (s *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetStatePrivacyMetadata(metadata)
+	}
+}
+
+func (self *StateDB) SetManagedParties(addr common.Address, managedParties []string) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil && len(managedParties) > 0 {
+		stateObject.SetManagedParties(managedParties)
 	}
 }
 
@@ -461,6 +581,8 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 //
 
 // updateStateObject writes the given object to the trie.
+// Quorum:
+// - update AccountExtraData trie
 func (s *StateDB) updateStateObject(obj *stateObject) {
 	// Track the amount of time wasted on updating the account from the trie
 	if metrics.EnabledExpensive {
@@ -484,9 +606,29 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	if s.snap != nil {
 		s.snapAccounts[obj.addrHash] = snapshot.SlimAccountRLP(obj.data.Nonce, obj.data.Balance, obj.data.Root, obj.data.CodeHash)
 	}
+
+	// Quorum - Privacy Enhancements - update the privacy metadata trie in case the privacy metadata is dirty
+	if err != nil {
+		return
+	}
+
+	if obj.dirtyAccountExtraData && obj.accountExtraData != nil {
+		extraDataBytes, err := rlp.EncodeToBytes(obj.accountExtraData)
+		if err != nil {
+			panic(fmt.Errorf("can't encode privacy metadata at %x: %v", addr[:], err))
+		}
+		err = s.accountExtraDataTrie.TryUpdate(addr[:], extraDataBytes)
+		if err != nil {
+			s.setError(err)
+			return
+		}
+	}
+
 }
 
 // deleteStateObject removes the given object from the state trie.
+// Quorum:
+// - delete the data from the extra data trie corresponding to the account address
 func (s *StateDB) deleteStateObject(obj *stateObject) {
 	// Track the amount of time wasted on deleting the account from the trie
 	if metrics.EnabledExpensive {
@@ -496,7 +638,9 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 	addr := obj.Address()
 	if err := s.trie.TryDelete(addr[:]); err != nil {
 		s.setError(fmt.Errorf("deleteStateObject (%x) error: %v", addr[:], err))
+		return
 	}
+	s.setError(s.accountExtraDataTrie.TryDelete(addr[:]))
 }
 
 // getStateObject retrieves a state object given by the address, returning nil if
@@ -572,6 +716,8 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 }
 
 func (s *StateDB) setStateObject(object *stateObject) {
+	defer s.mutex.Unlock()
+	s.mutex.Lock()
 	s.stateObjects[object.Address()] = object
 }
 
@@ -659,22 +805,38 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 // Copy creates a deep, independent copy of the state.
 // Snapshots of the copied state cannot be applied to the copy.
 func (s *StateDB) Copy() *StateDB {
+	s.journalMutex.Lock()
+	journal := s.journal
+	s.journalMutex.Unlock()
+
+	journal.mutex.Lock()
+	size := len(journal.dirties)
+	dirties := make([]common.Address, 0, size)
+	for addr := range journal.dirties {
+		dirties = append(dirties, addr)
+	}
+	journal.mutex.Unlock()
+
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
 		db:                  s.db,
 		trie:                s.db.CopyTrie(s.trie),
-		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjects:        make(map[common.Address]*stateObject, size),
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
-		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
+		stateObjectsDirty:   make(map[common.Address]struct{}, size),
 		refund:              s.refund,
 		logs:                make(map[common.Hash][]*types.Log, len(s.logs)),
 		logSize:             s.logSize,
 		preimages:           make(map[common.Hash][]byte, len(s.preimages)),
 		journal:             newJournal(),
 		hasher:              crypto.NewKeccakState(),
+		// Quorum - Privacy Enhancements
+		accountExtraDataTrie: s.db.CopyTrie(s.accountExtraDataTrie),
 	}
+
+	s.mutex.Lock()
 	// Copy the dirty states, logs, and preimages
-	for addr := range s.journal.dirties {
+	for _, addr := range dirties {
 		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
 		// and in the Finalise-method, there is a case where an object is in the journal but not
 		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
@@ -704,6 +866,7 @@ func (s *StateDB) Copy() *StateDB {
 		}
 		state.stateObjectsDirty[addr] = struct{}{}
 	}
+	s.mutex.Unlock()
 	for hash, logs := range s.logs {
 		cpy := make([]*types.Log, len(logs))
 		for i, l := range logs {
@@ -790,7 +953,13 @@ func (s *StateDB) GetRefund() uint64 {
 // into the tries just yet. Only IntermediateRoot or Commit will do that.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 	addressesToPrefetch := make([][]byte, 0, len(s.journal.dirties))
+	s.journal.mutex.Lock()
+	dirties := make([]common.Address, 0, len(s.journal.dirties))
 	for addr := range s.journal.dirties {
+		dirties = append(dirties, addr)
+	}
+	s.journal.mutex.Unlock()
+	for _, addr := range dirties {
 		obj, exist := s.stateObjects[addr]
 		if !exist {
 			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
@@ -816,8 +985,10 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 		} else {
 			obj.finalise(true) // Prefetch slots in the background
 		}
+		s.mutex.Lock()
 		s.stateObjectsPending[addr] = struct{}{}
 		s.stateObjectsDirty[addr] = struct{}{}
+		s.mutex.Unlock()
 
 		// At this point, also ship the address off to the precacher. The precacher
 		// will start loading tries, and when the change is eventually committed,
@@ -838,6 +1009,8 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// Finalise all the dirty storage states and write them into the tries
 	s.Finalise(deleteEmptyObjects)
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	// If there was a trie prefetcher operating, it gets aborted and irrevocably
 	// modified after we start retrieving tries. Remove it from the statedb after
 	// this round of use.
@@ -902,6 +1075,8 @@ func (s *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 }
 
 func (s *StateDB) clearJournalAndRefund() {
+	defer s.journalMutex.Unlock()
+	s.journalMutex.Lock()
 	if len(s.journal.entries) > 0 {
 		s.journal = newJournal()
 		s.refund = 0
@@ -910,6 +1085,8 @@ func (s *StateDB) clearJournalAndRefund() {
 }
 
 // Commit writes the state to the underlying in-memory trie database.
+// Quorum:
+// - linking state root and the AccountExtraData root
 func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if s.dbErr != nil {
 		return common.Hash{}, fmt.Errorf("commit aborted due to earlier error: %v", s.dbErr)
@@ -917,6 +1094,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	// Finalize any pending changes and merge everything into the tries
 	s.IntermediateRoot(deleteEmptyObjects)
 
+	s.mutex.Lock()
 	// Commit objects to the trie, measuring the elapsed time
 	codeWriter := s.db.TrieDB().DiskDB().NewBatch()
 	for addr := range s.stateObjectsDirty {
@@ -935,6 +1113,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if len(s.stateObjectsDirty) > 0 {
 		s.stateObjectsDirty = make(map[common.Address]struct{})
 	}
+	s.mutex.Unlock()
 	if codeWriter.ValueSize() > 0 {
 		if err := codeWriter.Write(); err != nil {
 			log.Crit("Failed to commit dirty codes", "error", err)
@@ -979,6 +1158,25 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 			}
 		}
 		s.snap, s.snapDestructs, s.snapAccounts, s.snapStorage = nil, nil, nil, nil
+	}
+
+	// Quorum
+	// linking the state root and the AccountExtraData root
+	if err == nil {
+		// commit the AccountExtraData trie
+		extraDataRoot, err := s.accountExtraDataTrie.Commit(nil)
+		if err != nil {
+			return common.Hash{}, fmt.Errorf("unable to commit the AccountExtraData trie: %v", err)
+		}
+		log.Debug("AccountExtraData root after trie commit", "root", extraDataRoot)
+		// link the new state root to the AccountExtraData root
+		err = s.db.AccountExtraDataLinker().Link(root, extraDataRoot)
+		if err != nil {
+			return common.Hash{}, fmt.Errorf("Unable to link the state root to the privacy metadata root: %v", err)
+		}
+		// add a reference from the AccountExtraData root to the state root so that when the state root is written
+		// to the DB the the AccountExtraData root is also written
+		s.db.TrieDB().Reference(extraDataRoot, root)
 	}
 	return root, err
 }

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -38,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/assert"
 )
 
 // Verify that Client implements the ethereum interfaces.
@@ -571,5 +573,35 @@ func sendTransaction(ec *Client) error {
 		return err
 	}
 	// Send transaction
-	return ec.SendTransaction(context.Background(), signedTx)
+	return ec.SendTransaction(context.Background(), signedTx, bind.PrivateTxArgs{PrivateFor: nil})
+}
+
+// Quorum
+
+func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
+	testObject := NewClient(nil)
+
+	_, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.Error(t, err)
+}
+
+func TestClient_PreparePrivateTransaction_whenClientIsConfigured(t *testing.T) {
+	expectedData := []byte("arbitrary payload")
+	expectedDataEPH := common.BytesToEncryptedPayloadHash(expectedData)
+	testObject := NewClient(nil)
+	testObject.pc = &privateTransactionManagerStubClient{expectedData}
+
+	actualData, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataEPH, actualData)
+}
+
+type privateTransactionManagerStubClient struct {
+	expectedData []byte
+}
+
+func (s *privateTransactionManagerStubClient) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.BytesToEncryptedPayloadHash(data), nil
 }

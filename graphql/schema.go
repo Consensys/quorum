@@ -121,6 +121,13 @@ const schema string = `
         # Logs is a list of log entries emitted by this transaction. If the
         # transaction has not yet been mined, this field will be null.
         logs: [Log!]
+		# IsPrivate is an indicator of Quorum private transaction
+		isPrivate: Boolean
+		# PrivateInputData is the actual payload of Quorum private transaction
+		privateInputData: Bytes
+		# PrivateTransaction is the internal private transaction of a public 
+        # marker transaction when privacy precompile is enabled
+		privateTransaction: Transaction
         r: BigInt!
         s: BigInt!
         v: BigInt!

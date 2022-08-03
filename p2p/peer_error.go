@@ -26,9 +26,22 @@ const (
 	errInvalidMsg
 )
 
+// Quorum
+//
+// Constants for peer connection errors
+const (
+	// When permissioning is enabled, and node is not permissioned in the network
+	errPermissionDenied = iota + 100
+	// Unauthorized node joining existing raft cluster
+	errNotInRaftCluster
+)
+
 var errorToString = map[int]string{
 	errInvalidMsgCode: "invalid message code",
 	errInvalidMsg:     "invalid message",
+	// Quorum
+	errPermissionDenied: "permission denied",
+	errNotInRaftCluster: "not in raft cluster",
 }
 
 type peerError struct {
@@ -69,7 +82,8 @@ const (
 	DiscUnexpectedIdentity
 	DiscSelf
 	DiscReadTimeout
-	DiscSubprotocolError = 0x10
+	DiscSubprotocolError            = 0x10
+	DiscAuthError        DiscReason = 0x20
 )
 
 var discReasonToString = [...]string{
@@ -86,6 +100,7 @@ var discReasonToString = [...]string{
 	DiscSelf:                "connected to self",
 	DiscReadTimeout:         "read timeout",
 	DiscSubprotocolError:    "subprotocol error",
+	DiscAuthError:           "invalid auth error",
 }
 
 func (d DiscReason) String() string {

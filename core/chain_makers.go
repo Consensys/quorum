@@ -46,6 +46,8 @@ type BlockGen struct {
 
 	config *params.ChainConfig
 	engine consensus.Engine
+
+	privateStatedb *state.StateDB // Quorum
 }
 
 // SetCoinbase sets the coinbase of the generated block.
@@ -87,7 +89,7 @@ func (b *BlockGen) SetDifficulty(diff *big.Int) {
 // added. Notably, contract code relying on the BLOCKHASH instruction
 // will panic during execution.
 func (b *BlockGen) AddTx(tx *types.Transaction) {
-	b.AddTxWithChain(nil, tx)
+	b.AddTxWithChain(&BlockChain{quorumConfig: &QuorumChainConfig{}}, tx)
 }
 
 // AddTxWithChain adds a transaction to the generated block. If no coinbase has
@@ -103,7 +105,16 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 		b.SetCoinbase(common.Address{})
 	}
 	b.statedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
-	receipt, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
+	// Quorum
+	privateDb := b.privateStatedb
+	if privateDb == nil {
+		privateDb = b.statedb
+	} else {
+		b.privateStatedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
+	}
+	// End Quorum
+
+	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, privateDb, b.header, tx, &b.header.GasUsed, vm.Config{}, false, nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -196,8 +207,9 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
 	chainreader := &fakeChainReader{config: config}
-	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
-		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
+	// Quorum: add `privateStatedb` argument
+	genblock := func(i int, parent *types.Block, statedb *state.StateDB, privateStatedb *state.StateDB) (*types.Block, types.Receipts) {
+		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, privateStatedb: privateStatedb, config: config, engine: engine}
 		b.header = makeHeader(chainreader, parent, statedb, b.engine)
 
 		// Mutate the state and block according to any hard-fork specs
@@ -237,7 +249,12 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if err != nil {
 			panic(err)
 		}
-		block, receipt := genblock(i, parent, statedb)
+		privateStatedb, err := state.New(parent.Root(), state.NewDatabase(db), nil) // Quorum
+		if err != nil {
+			panic(err)
+		}
+		// Quorum: add `privateStatedb` argument
+		block, receipt := genblock(i, parent, statedb, privateStatedb)
 		blocks[i] = block
 		receipts[i] = receipt
 		parent = block
@@ -263,7 +280,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 			Difficulty: parent.Difficulty(),
 			UncleHash:  parent.UncleHash(),
 		}),
-		GasLimit: CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
+		GasLimit: CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit(), parent.GasLimit()),
 		Number:   new(big.Int).Add(parent.Number(), common.Big1),
 		Time:     time,
 	}

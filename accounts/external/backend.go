@@ -211,6 +211,8 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 		GasPrice: hexutil.Big(*tx.GasPrice()),
 		To:       to,
 		From:     common.NewMixedcaseAddress(account.Address),
+		// Quorum
+		IsPrivate: tx.IsPrivate(),
 	}
 	// We should request the default chain id that we're operating with
 	// (the chain we're executing on)

@@ -29,6 +29,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -46,6 +48,12 @@ type httpConn struct {
 	closeCh   chan interface{}
 	mu        sync.Mutex // protects headers
 	headers   http.Header
+
+	// Quorum
+	// To return value being populated in Authorization request header
+	credentialsProvider HttpCredentialsProviderFunc
+	// psiProvider returns a value being populated in HttpPrivateStateIdentifierHeader
+	psiProvider PSIProviderFunc
 }
 
 // httpConn is treated specially by Client.
@@ -68,6 +76,15 @@ func (hc *httpConn) close() {
 
 func (hc *httpConn) closed() <-chan interface{} {
 	return hc.closeCh
+}
+
+func (hc *httpConn) Configure(_ SecurityContext) {
+	// Client doesn't need to implement this
+}
+
+func (hc *httpConn) Resolve() SecurityContext {
+	// Client doesn't need to implement this
+	return context.Background()
 }
 
 // HTTPTimeouts represents the configuration params for the HTTP RPC server.
@@ -111,7 +128,7 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 
-	initctx := context.Background()
+	initctx := resolvePSIProvider(context.Background(), endpoint)
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)
 	headers.Set("content-type", contentType)
@@ -164,6 +181,10 @@ func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonr
 	return nil
 }
 
+// Quorum
+//
+// Populate Authorization request header with value from credentials provider
+// Ignore if provider is unable to return the value
 func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadCloser, error) {
 	body, err := json.Marshal(msg)
 	if err != nil {
@@ -178,6 +199,24 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	// set headers
 	hc.mu.Lock()
 	req.Header = hc.headers.Clone()
+
+	// Quorum
+	if hc.credentialsProvider != nil {
+		if token, err := hc.credentialsProvider(ctx); err != nil {
+			log.Warn("unable to obtain http credentials from provider", "err", err)
+		} else {
+			req.Header.Set(HttpAuthorizationHeader, token)
+		}
+	}
+	if hc.psiProvider != nil {
+		if psi, err := hc.psiProvider(ctx); err != nil {
+			log.Warn("unable to obtain PSI from provider", "err", err)
+		} else {
+			req.Header.Set(HttpPrivateStateIdentifierHeader, psi.String())
+		}
+	}
+	// End Quorum
+
 	hc.mu.Unlock()
 
 	// do request
@@ -253,6 +292,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", contentType)
 	codec := newHTTPServerConn(r, w)
 	defer codec.close()
+	s.authenticateHttpRequest(r, codec)
 	s.serveSingleRequest(ctx, codec)
 }
 

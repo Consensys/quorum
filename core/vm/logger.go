@@ -124,6 +124,8 @@ type StructLogger struct {
 	err     error
 }
 
+var _ Tracer = &StructLogger{}
+
 // NewStructLogger returns a new logger
 func NewStructLogger(cfg *LogConfig) *StructLogger {
 	logger := &StructLogger{

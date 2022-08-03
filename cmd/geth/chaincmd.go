@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -28,11 +29,15 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -102,6 +107,20 @@ with several RLP-encoded blocks, or several files can be used.
 If only one file is used, import error will result in failure. If several files are used,
 processing will proceed even if an individual RLP-file import failure occurs.`,
 	}
+	mpsdbUpgradeCommand = cli.Command{
+		Action:    utils.MigrateFlags(mpsdbUpgrade),
+		Name:      "mpsdbupgrade",
+		Usage:     "Upgrade a standalone DB to an MPS DB",
+		ArgsUsage: "",
+		Flags: []cli.Flag{
+			utils.DataDirFlag,
+		},
+		Description: `
+Checks if the chain config isMPS parameter value.
+If false, it upgrades the DB to be MPS enabled (builds the trie of private states) and if successful sets isMPS to true.
+If true, exits displaying an error message that the DB is already MPS.`,
+		Category: "BLOCKCHAIN COMMANDS",
+	}
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
 		Name:      "export",
@@ -169,6 +188,24 @@ Use "ethereum dump 0" to dump the genesis block.`,
 	}
 )
 
+// In the regular Genesis / ChainConfig struct, due to the way go deserializes
+// json, IsQuorum defaults to false (when not specified). Here we specify it as
+// a pointer so we can make the distinction and default unspecified to true.
+func getIsQuorum(file io.Reader) bool {
+	altGenesis := new(struct {
+		Config *struct {
+			IsQuorum *bool `json:"isQuorum"`
+		} `json:"config"`
+	})
+
+	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	// unspecified defaults to true
+	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
+}
+
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
@@ -187,6 +224,39 @@ func initGenesis(ctx *cli.Context) error {
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
 		utils.Fatalf("invalid genesis file: %v", err)
 	}
+
+	// Quorum
+	file.Seek(0, 0)
+	genesis.Config.IsQuorum = getIsQuorum(file)
+
+	// check the data given as a part of newMaxConfigData to ensure that
+	// its in expected order
+	err = genesis.Config.CheckMaxCodeConfigData()
+	if err != nil {
+		utils.Fatalf("maxCodeSize data invalid: %v", err)
+	}
+	if genesis.Config.IsQuorum {
+		err = genesis.Config.CheckTransitionsData()
+		if err != nil {
+			utils.Fatalf("transitions data invalid: %v", err)
+		}
+		if genesis.Config.QBFT != nil && genesis.Config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftExtra := new(types.QBFTExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
+			if err != nil || len(qbftExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.qbft.validatorcontractaddress at the same time")
+			}
+		}
+		if genesis.Config.IBFT != nil && genesis.Config.IBFT.ValidatorContractAddress != (common.Address{}) {
+			istanbulExtra := new(types.IstanbulExtra)
+			err := rlp.DecodeBytes(genesis.ExtraData[:], istanbulExtra)
+			if err != nil || len(istanbulExtra.Validators) > 0 {
+				utils.Fatalf("invalid genesis file: cant combine extraData validators and config.ibft.validatorcontractaddress at the same time")
+			}
+		}
+	}
+	// End Quorum
+
 	// Open and initialise both full and light databases
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
@@ -230,7 +300,7 @@ func importChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack)
+	chain, db := utils.MakeChain(ctx, stack, true)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles
@@ -297,6 +367,25 @@ func importChain(ctx *cli.Context) error {
 	return importErr
 }
 
+func mpsdbUpgrade(ctx *cli.Context) error {
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	// initialise the tx manager with the dummy tx mgr
+	private.P = &notinuse.DBUpgradePrivateTransactionManager{}
+
+	chain, db := utils.MakeChain(ctx, stack, true)
+
+	if chain.Config().IsMPS {
+		utils.Fatalf("The database is already upgraded to support multiple private states.")
+	}
+
+	currentBlockNumber := chain.CurrentBlock().Number().Int64()
+	fmt.Printf("Current block number %v\n", currentBlockNumber)
+
+	return mps.UpgradeDB(db, chain)
+}
+
 func exportChain(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
@@ -305,7 +394,7 @@ func exportChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, _ := utils.MakeChain(ctx, stack)
+	chain, _ := utils.MakeChain(ctx, stack, true)
 	start := time.Now()
 
 	var err error

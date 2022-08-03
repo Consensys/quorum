@@ -259,17 +259,31 @@ func (f *freezer) TruncateAncients(items uint64) error {
 
 // Sync flushes all data tables to disk.
 func (f *freezer) Sync() error {
+	return f.SyncRetry(1, 1*time.Second)
+}
+
+// SyncRetry
+// Quorum
+// add retry to sync
+func (f *freezer) SyncRetry(retry uint8, delay time.Duration) error {
 	var errs []error
 	for _, table := range f.tables {
 		if err := table.Sync(); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	if errs != nil {
+	hasError := len(errs) > 0
+	if hasError && retry < 5 {
+		log.Info("sync", "retry", retry, "errors", errs)
+		time.Sleep(delay)
+		return f.SyncRetry(retry+1, delay*2)
+	} else if hasError {
 		return fmt.Errorf("%v", errs)
 	}
 	return nil
 }
+
+// End Quorum
 
 // freeze is a background thread that periodically checks the blockchain for any
 // import progress and moves ancient data from the fast database into the freezer.
@@ -313,7 +327,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		number := ReadHeaderNumber(nfdb, hash)
-		threshold := atomic.LoadUint64(&f.threshold)
+		threshold := int(atomic.LoadUint64(&f.threshold))
 
 		switch {
 		case number == nil:
@@ -321,12 +335,12 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			backoff = true
 			continue
 
-		case *number < threshold:
-			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", threshold)
+		case *number < uint64(params.GetImmutabilityThresholdWithDefault(threshold)):
+			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", params.GetImmutabilityThresholdWithDefault(threshold))
 			backoff = true
 			continue
 
-		case *number-threshold <= f.frozen:
+		case *number-uint64(params.GetImmutabilityThresholdWithDefault(threshold)) <= f.frozen:
 			log.Debug("Ancient blocks frozen already", "number", *number, "hash", hash, "frozen", f.frozen)
 			backoff = true
 			continue
@@ -338,7 +352,7 @@ func (f *freezer) freeze(db ethdb.KeyValueStore) {
 			continue
 		}
 		// Seems we have data ready to be frozen, process in usable batches
-		limit := *number - threshold
+		limit := *number - uint64(params.GetImmutabilityThresholdWithDefault(threshold))
 		if limit-f.frozen > freezerBatchLimit {
 			limit = f.frozen + freezerBatchLimit
 		}

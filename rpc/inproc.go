@@ -21,6 +21,9 @@ import (
 	"net"
 )
 
+type InProcServerReadyEvent struct {
+}
+
 // DialInProc attaches an in-process connection to the given RPC server.
 func DialInProc(handler *Server) *Client {
 	initctx := context.Background()

@@ -251,6 +251,10 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // stock Ethereum ethash engine.
 // See YP section 4.3.4. "Block Header Validity"
 func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header, uncle bool, seal bool, unixNow int64) error {
+	// Quorum: ethash consensus is only used in raft for Quorum, skip verifyHeader
+	if chain != nil && chain.Config().IsQuorum {
+		return nil
+	}
 	// Ensure that the header's extra-data section is of a reasonable size
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
@@ -285,9 +289,9 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if diff < 0 {
 		diff *= -1
 	}
-	limit := parent.GasLimit / params.GasLimitBoundDivisor
+	limit := parent.GasLimit / params.OriginalGasLimitBoundDivisor
 
-	if uint64(diff) >= limit || header.GasLimit < params.MinGasLimit {
+	if uint64(diff) >= limit || header.GasLimit < params.OriginalMinGasLimit {
 		return fmt.Errorf("invalid gas limit: have %d, want %d += %d", header.GasLimit, parent.GasLimit, limit)
 	}
 	// Verify that the block number is parent's +1
@@ -502,6 +506,10 @@ var DynamicDifficultyCalculator = makeDifficultyCalculator
 // either using the usual ethash cache for it, or alternatively using a full DAG
 // to make remote mining fast.
 func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *types.Header, fulldag bool) error {
+	// Quorum: ethash consensus is only used in raft for Quorum, skip verifySeal
+	if chain != nil && chain.Config().IsQuorum {
+		return nil
+	}
 	// If we're running a fake PoW, accept any seal as valid
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
 		time.Sleep(ethash.fakeDelay)
@@ -630,6 +638,19 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	if config.IsCatalyst(header.Number) {
 		return
 	}
+
+	// Quorum:
+	// Historically, quorum was adding (static) reward to account 0x0.
+	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
+	headerCoinbase := header.Coinbase
+	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) {
+		headerCoinbase = common.Address{0x0000000000000000000000}
+	}
+
+	// Skip block reward in catalyst mode
+	if config.IsCatalyst(header.Number) {
+		return
+	}
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward
 	if config.IsByzantium(header.Number) {
@@ -638,6 +659,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	if config.IsConstantinople(header.Number) {
 		blockReward = ConstantinopleBlockReward
 	}
+
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
 	r := new(big.Int)
@@ -651,5 +673,10 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
-	state.AddBalance(header.Coinbase, reward)
+	state.AddBalance(headerCoinbase, reward)
+}
+
+// Quorum: wrapper for accumulateRewards to be called by raft minter
+func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	accumulateRewards(config, state, header, uncles)
 }

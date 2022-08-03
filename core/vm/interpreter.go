@@ -17,11 +17,13 @@
 package vm
 
 import (
+	"fmt"
 	"hash"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -38,6 +40,8 @@ type Config struct {
 	EVMInterpreter   string // External EVM interpreter options
 
 	ExtraEips []int // Additional EIPS that are to be enabled
+
+	ApplyOnPartyOverride *types.PrivateStateIdentifier
 }
 
 // Interpreter is used to run Ethereum based contracts and will utilise the
@@ -226,6 +230,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		} else if sLen > operation.maxStack {
 			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
 		}
+
+		if in.evm.quorumReadOnly && operation.writes {
+			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
+		}
+
 		// If the operation is valid, enforce write restrictions
 		if in.readOnly && in.evm.chainRules.IsByzantium {
 			// If the interpreter is operating in readonly mode, make sure no

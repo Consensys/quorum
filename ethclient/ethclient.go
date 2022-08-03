@@ -25,6 +25,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,7 +34,8 @@ import (
 
 // Client defines typed wrappers for the Ethereum RPC API.
 type Client struct {
-	c *rpc.Client
+	c  *rpc.Client
+	pc privateTransactionManagerClient // Tessera/Constellation client
 }
 
 // Dial connects a client to the given URL.
@@ -51,8 +53,27 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 
 // NewClient creates a client that uses the given RPC client.
 func NewClient(c *rpc.Client) *Client {
-	return &Client{c}
+	return &Client{c, nil}
 }
+
+// Quorum
+//
+// NewClientWithPTM creates a client that uses the given RPC client and the privateTransactionManager client
+func NewClientWithPTM(c *rpc.Client, ptm privateTransactionManagerClient) *Client {
+	return &Client{c, ptm}
+}
+
+// provides support for private transactions
+func (ec *Client) WithPrivateTransactionManager(rawurl string) (*Client, error) {
+	var err error
+	ec.pc, err = newPrivateTransactionManagerClient(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	return ec, nil
+}
+
+// End Quorum
 
 func (ec *Client) Close() {
 	ec.c.Close()
@@ -519,12 +540,43 @@ func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
-func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, args bind.PrivateTxArgs) error {
 	data, err := tx.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
+	if args.PrivateFor != nil {
+		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+	} else {
+		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
+	}
+}
+
+// Quorum
+//
+// Retrieve encrypted payload hash from the private transaction manager if configured
+func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error) {
+	if ec.pc == nil {
+		return common.EncryptedPayloadHash{}, errors.New("missing private transaction manager client configuration")
+	}
+	payLoadHash, err := ec.pc.StoreRaw(data, privateFrom)
+	return payLoadHash, err
+}
+
+func (ec *Client) DistributeTransaction(ctx context.Context, tx *types.Transaction, args bind.PrivateTxArgs) (string, error) {
+	data, err := tx.MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+	retVal := ""
+	err = ec.c.CallContext(ctx, &retVal, "eth_distributePrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+	return retVal, err
+}
+
+func (ec *Client) GetPrivateTransaction(ctx context.Context, pmtHash common.Hash) (*types.Transaction, error) {
+	var privateTx types.Transaction
+	err := ec.c.CallContext(ctx, &privateTx, "eth_getPrivateTransactionByHash", pmtHash)
+	return &privateTx, err
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {

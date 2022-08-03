@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 const (
@@ -208,7 +209,9 @@ func (cs *chainSyncer) loop() {
 
 	for {
 		if op := cs.nextSyncOp(); op != nil {
-			cs.startSync(op)
+			if !cs.handler.raftMode {
+				cs.startSync(op)
+			}
 		}
 		select {
 		case <-cs.peerEventCh:
@@ -262,6 +265,10 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 	}
 	op := peerToSyncOp(mode, peer)
 	if op.td.Cmp(ourTD) <= 0 {
+		// Quorum
+		// added for permissions changes to indicate node sync up has started
+		// if peer's TD is smaller than ours, no sync will happen
+		core.SetSyncStatus()
 		return nil // We're in sync.
 	}
 	return op
@@ -329,10 +336,12 @@ func (h *handler) doSync(op *chainSyncOp) error {
 		log.Info("Fast sync complete, auto disabling")
 		atomic.StoreUint32(&h.fastSync, 0)
 	}
+	/* Disabled by Quorum
 	if atomic.LoadUint32(&h.snapSync) == 1 {
 		log.Info("Snap sync complete, auto disabling")
 		atomic.StoreUint32(&h.snapSync, 0)
 	}
+	*/
 	// If we've successfully finished a sync cycle and passed any required checkpoint,
 	// enable accepting transactions from the network.
 	head := h.chain.CurrentBlock()

@@ -22,17 +22,16 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -79,9 +78,9 @@ type Account struct {
 }
 
 // getState fetches the StateDB object for an account.
-func (a *Account) getState(ctx context.Context) (*state.StateDB, error) {
-	state, _, err := a.backend.StateAndHeaderByNumberOrHash(ctx, a.blockNrOrHash)
-	return state, err
+func (a *Account) getState(ctx context.Context) (vm.MinimalApiState, error) {
+	stat, _, err := a.backend.StateAndHeaderByNumberOrHash(ctx, a.blockNrOrHash)
+	return stat, err
 }
 
 func (a *Account) Address(ctx context.Context) (common.Address, error) {
@@ -168,11 +167,12 @@ func (at *AccessTuple) StorageKeys(ctx context.Context) *[]common.Hash {
 // Transaction represents an Ethereum transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	backend ethapi.Backend
-	hash    common.Hash
-	tx      *types.Transaction
-	block   *Block
-	index   uint64
+	backend       ethapi.Backend
+	hash          common.Hash
+	tx            *types.Transaction
+	block         *Block
+	index         uint64
+	receiptGetter receiptGetter
 }
 
 // resolve returns the internal transaction object, fetching it if needed.
@@ -286,19 +286,71 @@ func (t *Transaction) Index(ctx context.Context) (*int32, error) {
 	return &index, nil
 }
 
-// getReceipt returns the receipt associated with this transaction, if any.
-func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
-	if _, err := t.resolve(ctx); err != nil {
+// (Quorum) receiptGetter allows Transaction to have different behaviours for getting transaction receipts
+// (e.g. getting standard receipts or privacy precompile receipts from the db)
+type receiptGetter interface {
+	get(ctx context.Context) (*types.Receipt, error)
+}
+
+// (Quorum) transactionReceiptGetter implements receiptGetter and provides the standard behaviour for getting transaction
+// receipts from the db
+type transactionReceiptGetter struct {
+	tx *Transaction
+}
+
+func (g *transactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.tx.resolve(ctx); err != nil {
 		return nil, err
 	}
-	if t.block == nil {
+	if g.tx.block == nil {
 		return nil, nil
 	}
-	receipts, err := t.block.resolveReceipts(ctx)
+	receipts, err := g.tx.block.resolveReceipts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return receipts[t.index], nil
+	return receipts[g.tx.index], nil
+}
+
+// (Quorum) privateTransactionReceiptGetter implements receiptGetter and gets privacy precompile transaction receipts
+// from the the db
+type privateTransactionReceiptGetter struct {
+	pmt *Transaction
+}
+
+func (g *privateTransactionReceiptGetter) get(ctx context.Context) (*types.Receipt, error) {
+	if _, err := g.pmt.resolve(ctx); err != nil {
+		return nil, err
+	}
+	if g.pmt.block == nil {
+		return nil, nil
+	}
+	receipts, err := g.pmt.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	receipt := receipts[g.pmt.index]
+
+	psm, err := g.pmt.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	privateReceipt := receipt.PSReceipts[psm.ID]
+	if privateReceipt == nil {
+		return nil, errors.New("could not find receipt for private transaction")
+	}
+
+	return privateReceipt, nil
+}
+
+// getReceipt returns the receipt associated with this transaction, if any.
+func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
+	// default to standard receipt getter if one is not set
+	if t.receiptGetter == nil {
+		t.receiptGetter = &transactionReceiptGetter{tx: t}
+	}
+	return t.receiptGetter.get(ctx)
 }
 
 func (t *Transaction) Status(ctx context.Context) (*Long, error) {
@@ -809,7 +861,11 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 		hash = header.Hash()
 	}
 	// Construct the range filter
-	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics)
+	psm, err := b.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewBlockFilter(b.backend, hash, addresses, topics, psm.ID)
 
 	// Run the filter and return all the logs
 	return runFilter(ctx, b.backend, filter)
@@ -870,7 +926,9 @@ func (b *Block) Call(ctx context.Context, args struct {
 			return nil, err
 		}
 	}
-	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, 5*time.Second, b.backend.RPCGasCap())
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, b.backend.CallTimeOut(), b.backend.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -940,7 +998,9 @@ func (p *Pending) Call(ctx context.Context, args struct {
 	Data ethapi.CallArgs
 }) (*CallResult, error) {
 	pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, 5*time.Second, p.backend.RPCGasCap())
+
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, err := ethapi.DoCall(ctx, p.backend, args.Data, pendingBlockNr, nil, vm.Config{}, p.backend.CallTimeOut(), p.backend.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -1059,7 +1119,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := tx.UnmarshalBinary(args.Data); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, "", true)
 	return hash, err
 }
 
@@ -1102,7 +1162,11 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 	// Construct the range filter
-	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics)
+	psm, err := r.backend.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := filters.NewRangeFilter(filters.Backend(r.backend), begin, end, addresses, topics, psm.ID)
 	return runFilter(ctx, r.backend, filter)
 }
 
@@ -1158,4 +1222,70 @@ func (r *Resolver) Syncing() (*SyncState, error) {
 	}
 	// Otherwise gather the block sync stats
 	return &SyncState{progress}, nil
+}
+
+// Quorum
+
+// PrivateTransaction returns the internal private transaction for privacy marker transactions
+func (t *Transaction) PrivateTransaction(ctx context.Context) (*Transaction, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	if !tx.IsPrivacyMarker() {
+		// tx will not have a private tx so return early - no error to keep in line with other graphql behaviour (see PrivateInputData)
+		return nil, nil
+	}
+
+	pvtTx, _, _, err := private.FetchPrivateTransaction(tx.Data())
+	if err != nil {
+		return nil, err
+	}
+
+	if pvtTx == nil {
+		return nil, nil
+	}
+
+	return &Transaction{
+		backend:       t.backend,
+		hash:          t.hash,
+		tx:            pvtTx,
+		block:         t.block,
+		index:         t.index,
+		receiptGetter: &privateTransactionReceiptGetter{pmt: t},
+	}, nil
+}
+
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	if tx.IsPrivate() {
+		psm, err := t.backend.PSMR().ResolveForUserContext(ctx)
+		if err != nil {
+			return &hexutil.Bytes{}, err
+		}
+		_, managedParties, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if err != nil || tx == nil {
+			return &hexutil.Bytes{}, err
+		}
+		if t.backend.PSMR().NotIncludeAny(psm, managedParties...) {
+			return &hexutil.Bytes{}, nil
+		}
+		ret := hexutil.Bytes(privateInputData)
+		return &ret, nil
+	}
+	return &hexutil.Bytes{}, nil
 }

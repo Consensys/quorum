@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"text/template"
 )
@@ -110,6 +111,19 @@ func render(tpl *template.Template, outputFile string, outputPerm os.FileMode, x
 	}
 }
 
+// GoTool returns the command that runs a go tool. This uses go from GOROOT instead of PATH
+// so that go commands executed by build use the same version of Go as the 'host' that runs
+// build code. e.g.
+//
+//     /usr/lib/go-1.12.1/bin/go run build/ci.go ...
+//
+// runs using go 1.12.1 and invokes go 1.12.1 tools from the same GOROOT. This is also important
+// because runtime.Version checks on the host should match the tools that are run.
+func GoTool(tool string, args ...string) *exec.Cmd {
+	args = append([]string{tool}, args...)
+	return exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), args...)
+}
+
 // UploadSFTP uploads files to a remote host using the sftp command line tool.
 // The destination host may be specified either as [user@]host[: or as a URI in
 // the form sftp://[user@]host[:port].
@@ -164,4 +178,54 @@ func FindMainPackages(dir string) []string {
 		}
 	}
 	return commands
+}
+
+// ExpandPackagesNoVendor expands a cmd/go import path pattern, skipping
+// vendored packages.
+func ExpandPackagesNoVendor(patterns []string) []string {
+	expand := false
+	for _, pkg := range patterns {
+		if strings.Contains(pkg, "...") {
+			expand = true
+		}
+	}
+	if expand {
+		cmd := GoTool("list", patterns...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatalf("package listing failed: %v\n%s", err, string(out))
+		}
+		var packages []string
+		for _, line := range strings.Split(string(out), "\n") {
+			if !strings.Contains(line, "/vendor/") && !strings.Contains(line, "go: downloading") { // Quorum
+				packages = append(packages, strings.TrimSpace(line))
+			}
+		}
+		return packages
+	}
+	return patterns
+}
+
+// Read QUORUM_IGNORE_TEST_PACKAGES env and remove from packages
+func IgnorePackages(packages []string) []string {
+	ignore := os.Getenv("QUORUM_IGNORE_TEST_PACKAGES")
+	if ignore == "" {
+		return packages
+	}
+	ret := make([]string, 0, len(packages))
+	ignorePackages := strings.Split(ignore, ",")
+
+	for _, p := range packages {
+		mustInclude := true
+		for _, ig := range ignorePackages {
+			if strings.Index(p, strings.TrimSpace(ig)) == 0 {
+				mustInclude = false
+				break
+			}
+		}
+		if mustInclude {
+			ret = append(ret, p)
+		}
+	}
+	return ret
 }

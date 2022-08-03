@@ -19,12 +19,15 @@ package common
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBytesConversion(t *testing.T) {
@@ -195,6 +198,68 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 
 	}
 
+}
+
+func TestBytesToEncryptedPayloadHash_whenTypical(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	var expected EncryptedPayloadHash
+	expected[EncryptedPayloadHashLength-1] = 10
+
+	actual := BytesToEncryptedPayloadHash(arbitraryBytes)
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestEncryptedPayloadHash_Bytes(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+
+	actual := h.Bytes()
+
+	assert.Equal(t, arbitraryBytes[0], actual[EncryptedPayloadHashLength-1])
+}
+
+func TestEncryptedPayloadHash_BytesTypeRef(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+	expected := h.Hex()
+
+	bt := h.BytesTypeRef()
+	actual := bt.String()
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestEncryptedPayloadHash_ToBase64(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+	expected := base64.StdEncoding.EncodeToString(h.Bytes())
+
+	actual := h.ToBase64()
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestEmptyEncryptedPayloadHash(t *testing.T) {
+
+	emptyHash := EncryptedPayloadHash{}
+
+	assert.True(t, EmptyEncryptedPayloadHash(emptyHash))
+}
+
+func TestEncryptedPayloadHashes_whenTypical(t *testing.T) {
+	arbitraryBytes1 := []byte{10}
+	arbitraryBytes2 := []byte{5}
+	h, err := Base64sToEncryptedPayloadHashes([]string{base64.StdEncoding.EncodeToString(arbitraryBytes1), base64.StdEncoding.EncodeToString(arbitraryBytes2)})
+	if err != nil {
+		t.Fatalf("must be able to convert but fail due to %s", err)
+	}
+
+	arbitraryBytes3 := []byte{7}
+	newItem := BytesToEncryptedPayloadHash(arbitraryBytes3)
+	h.Add(newItem)
+
+	assert.False(t, h.NotExist(newItem))
 }
 
 func TestHash_Scan(t *testing.T) {
@@ -536,4 +601,18 @@ func TestHash_Format(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Quorum
+
+func TestFormatTerminalString_Value(t *testing.T) {
+	assert.Equal(t, "", FormatTerminalString(nil))
+	assert.Equal(t, "", FormatTerminalString([]byte{}))
+	b := []byte{
+		0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd,
+	}
+	str := FormatTerminalString(b)
+	assert.Equal(t, "123456…90abcd", str)
+	str = FormatTerminalString(b[1:])
+	assert.Equal(t, "34567890abcd", str)
 }

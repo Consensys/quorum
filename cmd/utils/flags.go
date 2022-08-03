@@ -19,11 +19,13 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"math/big"
+	"net/url"
 	"os"
 	"path/filepath"
 	godebug "runtime/debug"
@@ -37,9 +39,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
+	http2 "github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -49,8 +54,10 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/extension"
 	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
@@ -66,6 +73,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/permission/core/types"
+	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/raft"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"gopkg.in/urfave/cli.v1"
@@ -111,6 +123,11 @@ var (
 	DataDirFlag = DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
+		Value: DirectoryString(node.DefaultDataDir()),
+	}
+	RaftLogDirFlag = DirectoryFlag{
+		Name:  "raftlogdir",
+		Usage: "Raft log directory for the raft-state, raft-snap and raft-wal folders",
 		Value: DirectoryString(node.DefaultDataDir()),
 	}
 	AncientFlag = DirectoryFlag{
@@ -224,9 +241,13 @@ var (
 		Name:  "lightkdf",
 		Usage: "Reduce key-derivation RAM & CPU usage at some expense of KDF strength",
 	}
-	WhitelistFlag = cli.StringFlag{
+	DeprecatedAuthorizationListFlag = cli.StringFlag{
 		Name:  "whitelist",
-		Usage: "Comma separated block number-to-hash mappings to enforce (<number>=<hash>)",
+		Usage: "[DEPRECATED: will be replaced by 'authorizationlist'] Comma separated block number-to-hash mappings to authorize (<number>=<hash>)",
+	}
+	AuthorizationListFlag = cli.StringFlag{
+		Name:  "authorizationlist",
+		Usage: "Comma separated block number-to-hash mappings to authorize (<number>=<hash>)",
 	}
 	BloomFilterSizeFlag = cli.Uint64Flag{
 		Name:  "bloomfilter.size",
@@ -514,6 +535,31 @@ var (
 		Name:  "nocompaction",
 		Usage: "Disables db compaction after import",
 	}
+
+	// Quorum
+	// RPC Client Settings
+	RPCClientToken = cli.StringFlag{
+		Name:  "rpcclitoken",
+		Usage: "RPC Client access token",
+	}
+	RPCClientTLSCert = cli.StringFlag{
+		Name:  "rpcclitls.cert",
+		Usage: "Server's TLS certificate PEM file on connection by client",
+	}
+	RPCClientTLSCaCert = cli.StringFlag{
+		Name:  "rpcclitls.cacert",
+		Usage: "CA certificate PEM file for provided server's TLS certificate on connection by client",
+	}
+	RPCClientTLSCipherSuites = cli.StringFlag{
+		Name:  "rpcclitls.ciphersuites",
+		Usage: "Customize supported cipher suites when using TLS connection. Value is a comma-separated cipher suite string",
+	}
+	RPCClientTLSInsecureSkipVerify = cli.BoolFlag{
+		Name:  "rpcclitls.insecureskipverify",
+		Usage: "Disable verification of server's TLS certificate on connection by client",
+	}
+	// End Quorum
+
 	// RPC settings
 	IPCDisabledFlag = cli.BoolFlag{
 		Name:  "ipcdisable",
@@ -755,10 +801,272 @@ var (
 		Usage: "External EVM configuration (default = built-in interpreter)",
 		Value: "",
 	}
-
 	CatalystFlag = cli.BoolFlag{
 		Name:  "catalyst",
 		Usage: "Catalyst mode (eth2 integration testing)",
+	}
+
+	// Quorum - added configurable call timeout for execution of calls
+	EVMCallTimeOutFlag = cli.IntFlag{
+		Name:  "vm.calltimeout",
+		Usage: "Timeout duration in seconds for message call execution without creating a transaction. Value 0 means no timeout.",
+		Value: 5,
+	}
+
+	// Quorum
+	// immutability threshold which can be passed as a parameter at geth start
+	QuorumImmutabilityThreshold = cli.IntFlag{
+		Name:  "immutabilitythreshold",
+		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
+		Value: 3162240,
+	}
+	// Raft flags
+	RaftModeFlag = cli.BoolFlag{
+		Name:  "raft",
+		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
+	}
+	RaftBlockTimeFlag = cli.IntFlag{
+		Name:  "raftblocktime",
+		Usage: "Amount of time between raft block creations in milliseconds",
+		Value: 50,
+	}
+	RaftJoinExistingFlag = cli.IntFlag{
+		Name:  "raftjoinexisting",
+		Usage: "The raft ID to assume when joining an pre-existing cluster",
+		Value: 0,
+	}
+
+	EmitCheckpointsFlag = cli.BoolFlag{
+		Name:  "emitcheckpoints",
+		Usage: "If enabled, emit specially formatted logging checkpoints",
+	}
+	RaftPortFlag = cli.IntFlag{
+		Name:  "raftport",
+		Usage: "The port to bind for the raft transport",
+		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name:  "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
+	}
+
+	// Permission
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "permissioned",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
+	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "allowedfutureblocktime",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
+	}
+	// Plugins settings
+	PluginSettingsFlag = cli.StringFlag{
+		Name:  "plugins",
+		Usage: "The URI of configuration which describes plugins being used. E.g.: file:///opt/geth/plugins.json",
+	}
+	PluginLocalVerifyFlag = cli.BoolFlag{
+		Name:  "plugins.localverify",
+		Usage: "If enabled, verify plugin integrity from local file system. This requires plugin signature file and PGP public key file to be available",
+	}
+	PluginPublicKeyFlag = cli.StringFlag{
+		Name:  "plugins.publickey",
+		Usage: fmt.Sprintf("The URI of PGP public key for local plugin verification. E.g.: file:///opt/geth/pubkey.pgp.asc. This flag is only valid if --%s is set (default = file:///<pluginBaseDir>/%s)", PluginLocalVerifyFlag.Name, plugin.DefaultPublicKeyFile),
+	}
+	PluginSkipVerifyFlag = cli.BoolFlag{
+		Name:  "plugins.skipverify",
+		Usage: "If enabled, plugin integrity is NOT verified",
+	}
+	// account plugin flags
+	AccountPluginNewAccountConfigFlag = cli.StringFlag{
+		Name:  "plugins.account.config",
+		Usage: "Value will be passed to an account plugin if being used.  See the account plugin implementation's documentation for further details",
+	}
+	// Istanbul settings
+	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "istanbul.requesttimeout",
+		Usage: "[Deprecated] Timeout for each Istanbul round in milliseconds",
+		Value: ethconfig.Defaults.Istanbul.RequestTimeout,
+	}
+	IstanbulBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "istanbul.blockperiod",
+		Usage: "[Deprecated] Default minimum difference between two consecutive block's timestamps in seconds",
+		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
+	}
+	// Multitenancy setting
+	MultitenancyFlag = cli.BoolFlag{
+		Name:  "multitenancy",
+		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
+	}
+
+	// Revert Reason
+	RevertReasonFlag = cli.BoolFlag{
+		Name:  "revertreason",
+		Usage: "Enable saving revert reason in the transaction receipts for this node.",
+	}
+
+	QuorumEnablePrivateTrieCache = cli.BoolFlag{
+		Name:  "privatetriecache.enable",
+		Usage: "Enable use of private trie cache for this node.",
+	}
+
+	QuorumEnablePrivacyMarker = cli.BoolFlag{
+		Name:  "privacymarker.enable",
+		Usage: "Enable use of privacy marker transactions (PMT) for this node.",
+	}
+
+	// Quorum Private Transaction Manager connection options
+	QuorumPTMUnixSocketFlag = DirectoryFlag{
+		Name:  "ptm.socket",
+		Usage: "Path to the ipc file when using unix domain socket for the private transaction manager connection",
+	}
+	QuorumPTMUrlFlag = cli.StringFlag{
+		Name:  "ptm.url",
+		Usage: "URL when using http connection to private transaction manager",
+	}
+	QuorumPTMTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.timeout",
+		Usage: "Timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.Timeout,
+	}
+	QuorumPTMDialTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.dialtimeout",
+		Usage: "Dial timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.DialTimeout,
+	}
+	QuorumPTMHttpIdleTimeoutFlag = cli.UintFlag{
+		Name:  "ptm.http.idletimeout",
+		Usage: "Idle timeout (seconds) for the private transaction manager connection. Zero value means timeout disabled.",
+		Value: http2.DefaultConfig.HttpIdleConnTimeout,
+	}
+	QuorumPTMHttpWriteBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.writebuffersize",
+		Usage: "Size of the write buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+		Value: 0,
+	}
+	QuorumPTMHttpReadBufferSizeFlag = cli.IntFlag{
+		Name:  "ptm.http.readbuffersize",
+		Usage: "Size of the read buffer (bytes) for the private transaction manager connection. Zero value uses http.Transport default.",
+		Value: 0,
+	}
+	QuorumPTMTlsModeFlag = cli.StringFlag{
+		Name:  "ptm.tls.mode",
+		Usage: `If "off" then TLS disabled (default). If "strict" then will use TLS for http connection to private transaction manager`,
+	}
+	QuorumPTMTlsRootCaFlag = DirectoryFlag{
+		Name:  "ptm.tls.rootca",
+		Usage: "Path to file containing root CA certificate for TLS connection to private transaction manager (defaults to host's certificates)",
+	}
+	QuorumPTMTlsClientCertFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientcert",
+		Usage: "Path to file containing client certificate (or chain of certs) for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsClientKeyFlag = DirectoryFlag{
+		Name:  "ptm.tls.clientkey",
+		Usage: "Path to file containing client's private key for TLS connection to private transaction manager",
+	}
+	QuorumPTMTlsInsecureSkipVerify = cli.BoolFlag{
+		Name:  "ptm.tls.insecureskipverify",
+		Usage: "Disable verification of server's TLS certificate on connection to private transaction manager",
+	}
+	QuorumLightServerFlag = cli.BoolFlag{
+		Name:  "qlight.server",
+		Usage: "If enabled, the quorum light P2P protocol is started in addition to the other P2P protocols",
+	}
+	QuorumLightServerP2PListenPortFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.port",
+		Usage: "QLight Network listening port",
+		Value: 30305,
+	}
+	QuorumLightServerP2PMaxPeersFlag = cli.IntFlag{
+		Name:  "qlight.server.p2p.maxpeers",
+		Usage: "Maximum number of qlight peers",
+		Value: 10,
+	}
+	QuorumLightServerP2PNetrestrictFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.netrestrict",
+		Usage: "Restricts network communication to the given IP networks (CIDR masks)",
+	}
+	QuorumLightServerP2PPermissioningFlag = cli.BoolFlag{
+		Name:  "qlight.server.p2p.permissioning",
+		Usage: "If enabled, the qlight peers are checked against a permissioned list and a disallowed list.",
+	}
+	QuorumLightServerP2PPermissioningPrefixFlag = cli.StringFlag{
+		Name:  "qlight.server.p2p.permissioning.prefix",
+		Usage: "The prefix for the permissioned-nodes.json and disallowed-nodes.json files.",
+	}
+	QuorumLightClientFlag = cli.BoolFlag{
+		Name:  "qlight.client",
+		Usage: "If enabled, the quorum light client P2P protocol is started (only)",
+	}
+	QuorumLightClientPSIFlag = cli.StringFlag{
+		Name:  "qlight.client.psi",
+		Usage: "The PSI this client will use to connect to a server node.",
+	}
+	QuorumLightClientTokenEnabledFlag = cli.BoolFlag{
+		Name:  "qlight.client.token.enabled",
+		Usage: "Whether the client uses a token when connecting to the qlight server.",
+	}
+	QuorumLightClientTokenValueFlag = cli.StringFlag{
+		Name:  "qlight.client.token.value",
+		Usage: "The token this client will use to connect to a server node.",
+	}
+	QuorumLightClientTokenManagementFlag = cli.StringFlag{
+		Name:  "qlight.client.token.management",
+		Usage: "The mechanism used to refresh the token. Possible values: none (developer mode)/external (new token must be injected via the qlight RPC API)/client-security-plugin (the client security plugin must be deployed/configured).",
+	}
+	QuorumLightClientRPCTLSFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls",
+		Usage: "If enabled, the quorum light client RPC connection will be configured to use TLS",
+	}
+	QuorumLightClientRPCTLSInsecureSkipVerifyFlag = cli.BoolFlag{
+		Name:  "qlight.client.rpc.tls.insecureskipverify",
+		Usage: "If enabled, the quorum light client RPC connection skips TLS verification",
+	}
+	QuorumLightClientRPCTLSCACertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cacert",
+		Usage: "The quorum light client RPC client certificate authority.",
+	}
+	QuorumLightClientRPCTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.cert",
+		Usage: "The quorum light client RPC client certificate.",
+	}
+	QuorumLightClientRPCTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.client.rpc.tls.key",
+		Usage: "The quorum light client RPC client certificate private key.",
+	}
+	QuorumLightClientServerNodeFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNode",
+		Usage: "The node ID of the target server node",
+	}
+	QuorumLightClientServerNodeRPCFlag = cli.StringFlag{
+		Name:  "qlight.client.serverNodeRPC",
+		Usage: "The RPC URL of the target server node",
+	}
+	QuorumLightTLSFlag = cli.BoolFlag{
+		Name:  "qlight.tls",
+		Usage: "If enabled, the quorum light client P2P protocol will use tls",
+	}
+	QuorumLightTLSCertFlag = cli.StringFlag{
+		Name:  "qlight.tls.cert",
+		Usage: "The certificate file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSKeyFlag = cli.StringFlag{
+		Name:  "qlight.tls.key",
+		Usage: "The key file to use for the qlight P2P connection",
+	}
+	QuorumLightTLSCACertsFlag = cli.StringFlag{
+		Name:  "qlight.tls.cacerts",
+		Usage: "The certificate authorities file to use for validating P2P connection",
+	}
+	QuorumLightTLSClientAuthFlag = cli.IntFlag{
+		Name:  "qlight.tls.clientauth",
+		Usage: "The way the client is authenticated. Possible values: 0=NoClientCert(default) 1=RequestClientCert 2=RequireAnyClientCert 3=VerifyClientCertIfGiven 4=RequireAndVerifyClientCert",
+		Value: 0,
+	}
+	QuorumLightTLSCipherSuitesFlag = cli.StringFlag{
+		Name:  "qlight.tls.ciphersuites",
+		Usage: "The cipher suites to use for the qlight P2P connection",
 	}
 )
 
@@ -911,11 +1219,11 @@ func SplitAndTrim(input string) (ret []string) {
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setHTTP(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalBool(LegacyRPCEnabledFlag.Name) && cfg.HTTPHost == "" {
-		log.Warn("The flag --rpc is deprecated and will be removed June 2021, please use --http")
+		log.Warn("The flag --rpc is deprecated and will be removed in the future, please use --http")
 		cfg.HTTPHost = "127.0.0.1"
 		if ctx.GlobalIsSet(LegacyRPCListenAddrFlag.Name) {
 			cfg.HTTPHost = ctx.GlobalString(LegacyRPCListenAddrFlag.Name)
-			log.Warn("The flag --rpcaddr is deprecated and will be removed June 2021, please use --http.addr")
+			log.Warn("The flag --rpcaddr is deprecated and will be removed in the future, please use --http.addr")
 		}
 	}
 	if ctx.GlobalBool(HTTPEnabledFlag.Name) && cfg.HTTPHost == "" {
@@ -927,7 +1235,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCPortFlag.Name) {
 		cfg.HTTPPort = ctx.GlobalInt(LegacyRPCPortFlag.Name)
-		log.Warn("The flag --rpcport is deprecated and will be removed June 2021, please use --http.port")
+		log.Warn("The flag --rpcport is deprecated and will be removed in the future, please use --http.port")
 	}
 	if ctx.GlobalIsSet(HTTPPortFlag.Name) {
 		cfg.HTTPPort = ctx.GlobalInt(HTTPPortFlag.Name)
@@ -935,7 +1243,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCCORSDomainFlag.Name) {
 		cfg.HTTPCors = SplitAndTrim(ctx.GlobalString(LegacyRPCCORSDomainFlag.Name))
-		log.Warn("The flag --rpccorsdomain is deprecated and will be removed June 2021, please use --http.corsdomain")
+		log.Warn("The flag --rpccorsdomain is deprecated and will be removed in the future, please use --http.corsdomain")
 	}
 	if ctx.GlobalIsSet(HTTPCORSDomainFlag.Name) {
 		cfg.HTTPCors = SplitAndTrim(ctx.GlobalString(HTTPCORSDomainFlag.Name))
@@ -943,7 +1251,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCApiFlag.Name) {
 		cfg.HTTPModules = SplitAndTrim(ctx.GlobalString(LegacyRPCApiFlag.Name))
-		log.Warn("The flag --rpcapi is deprecated and will be removed June 2021, please use --http.api")
+		log.Warn("The flag --rpcapi is deprecated and will be removed in the future, please use --http.api")
 	}
 	if ctx.GlobalIsSet(HTTPApiFlag.Name) {
 		cfg.HTTPModules = SplitAndTrim(ctx.GlobalString(HTTPApiFlag.Name))
@@ -951,7 +1259,7 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.GlobalIsSet(LegacyRPCVirtualHostsFlag.Name) {
 		cfg.HTTPVirtualHosts = SplitAndTrim(ctx.GlobalString(LegacyRPCVirtualHostsFlag.Name))
-		log.Warn("The flag --rpcvhosts is deprecated and will be removed June 2021, please use --http.vhosts")
+		log.Warn("The flag --rpcvhosts is deprecated and will be removed in the future, please use --http.vhosts")
 	}
 	if ctx.GlobalIsSet(HTTPVirtualHostsFlag.Name) {
 		cfg.HTTPVirtualHosts = SplitAndTrim(ctx.GlobalString(HTTPVirtualHostsFlag.Name))
@@ -1201,15 +1509,48 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 }
 
+func SetQP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+	setNodeKey(ctx, cfg)
+	//setNAT(ctx, cfg)
+	cfg.NAT = nil
+	if ctx.GlobalIsSet(QuorumLightServerP2PListenPortFlag.Name) {
+		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(QuorumLightServerP2PListenPortFlag.Name))
+	}
+
+	cfg.EnableNodePermission = ctx.GlobalIsSet(QuorumLightServerP2PPermissioningFlag.Name)
+
+	cfg.MaxPeers = 10
+	if ctx.GlobalIsSet(QuorumLightServerP2PMaxPeersFlag.Name) {
+		cfg.MaxPeers = ctx.GlobalInt(QuorumLightServerP2PMaxPeersFlag.Name)
+	}
+
+	if netrestrict := ctx.GlobalString(QuorumLightServerP2PNetrestrictFlag.Name); netrestrict != "" {
+		list, err := netutil.ParseNetlist(netrestrict)
+		if err != nil {
+			Fatalf("Option %q: %v", QuorumLightServerP2PNetrestrictFlag.Name, err)
+		}
+		cfg.NetRestrict = list
+	}
+
+	cfg.MaxPendingPeers = 0
+	cfg.NoDiscovery = true
+	cfg.DiscoveryV5 = false
+	cfg.NoDial = true
+}
+
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
+	if cfg.QP2P != nil {
+		SetQP2PConfig(ctx, cfg.QP2P)
+	}
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)
 	setGraphQL(ctx, cfg)
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
 	setDataDir(ctx, cfg)
+	setRaftLogDir(ctx, cfg)
 	setSmartCard(ctx, cfg)
 
 	if ctx.GlobalIsSet(ExternalSignerFlag.Name) {
@@ -1230,6 +1571,14 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(InsecureUnlockAllowedFlag.Name) {
 		cfg.InsecureUnlockAllowed = ctx.GlobalBool(InsecureUnlockAllowedFlag.Name)
+	}
+
+	// Quorum
+	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
+		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
+	}
+	if ctx.GlobalIsSet(MultitenancyFlag.Name) {
+		cfg.EnableMultitenancy = ctx.GlobalBool(MultitenancyFlag.Name)
 	}
 }
 
@@ -1278,6 +1627,59 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalBool(YoloV3Flag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "yolo-v3")
 	}
+	if err := SetPlugins(ctx, cfg); err != nil {
+		Fatalf(err.Error())
+	}
+}
+
+func setRaftLogDir(ctx *cli.Context, cfg *node.Config) {
+	if ctx.GlobalIsSet(RaftLogDirFlag.Name) {
+		cfg.RaftLogDir = ctx.GlobalString(RaftLogDirFlag.Name)
+	} else {
+		cfg.RaftLogDir = cfg.DataDir
+	}
+}
+
+// Quorum
+//
+// Read plugin settings from --plugins flag. Overwrite settings defined in --config if any
+func SetPlugins(ctx *cli.Context, cfg *node.Config) error {
+	if ctx.GlobalIsSet(PluginSettingsFlag.Name) {
+		// validate flag combination
+		if ctx.GlobalBool(PluginSkipVerifyFlag.Name) && ctx.GlobalBool(PluginLocalVerifyFlag.Name) {
+			return fmt.Errorf("only --%s or --%s must be set", PluginSkipVerifyFlag.Name, PluginLocalVerifyFlag.Name)
+		}
+		if !ctx.GlobalBool(PluginLocalVerifyFlag.Name) && ctx.GlobalIsSet(PluginPublicKeyFlag.Name) {
+			return fmt.Errorf("--%s is required for setting --%s", PluginLocalVerifyFlag.Name, PluginPublicKeyFlag.Name)
+		}
+		pluginSettingsURL, err := url.Parse(ctx.GlobalString(PluginSettingsFlag.Name))
+		if err != nil {
+			return fmt.Errorf("plugins: Invalid URL for --%s due to %s", PluginSettingsFlag.Name, err)
+		}
+		var pluginSettings plugin.Settings
+		r, err := urlReader(pluginSettingsURL)
+		if err != nil {
+			return fmt.Errorf("plugins: unable to create reader due to %s", err)
+		}
+		defer func() {
+			_ = r.Close()
+		}()
+		if err := json.NewDecoder(r).Decode(&pluginSettings); err != nil {
+			return fmt.Errorf("plugins: unable to parse settings due to %s", err)
+		}
+		pluginSettings.SetDefaults()
+		cfg.Plugins = &pluginSettings
+	}
+	return nil
+}
+
+func urlReader(u *url.URL) (io.ReadCloser, error) {
+	s := u.Scheme
+	switch s {
+	case "file":
+		return os.Open(filepath.Join(u.Host, u.Path))
+	}
+	return nil, fmt.Errorf("unsupported scheme %s", s)
 }
 
 func setGPO(ctx *cli.Context, cfg *gasprice.Config, light bool) {
@@ -1391,29 +1793,64 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
 		cfg.Noverify = ctx.GlobalBool(MinerNoVerfiyFlag.Name)
 	}
+	if ctx.GlobalIsSet(AllowedFutureBlockTimeFlag.Name) {
+		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
+	}
 }
 
-func setWhitelist(ctx *cli.Context, cfg *ethconfig.Config) {
-	whitelist := ctx.GlobalString(WhitelistFlag.Name)
-	if whitelist == "" {
+func setAuthorizationList(ctx *cli.Context, cfg *ethconfig.Config) {
+	authorizationList := ctx.GlobalString(AuthorizationListFlag.Name)
+	if authorizationList == "" {
+		authorizationList = ctx.GlobalString(DeprecatedAuthorizationListFlag.Name)
+		if authorizationList != "" {
+			log.Warn("The flag --whitelist is deprecated and will be removed in the future, please use --authorizationlist")
+		}
+	}
+	if authorizationList == "" {
 		return
 	}
-	cfg.Whitelist = make(map[uint64]common.Hash)
-	for _, entry := range strings.Split(whitelist, ",") {
+	cfg.AuthorizationList = make(map[uint64]common.Hash)
+	for _, entry := range strings.Split(authorizationList, ",") {
 		parts := strings.Split(entry, "=")
 		if len(parts) != 2 {
-			Fatalf("Invalid whitelist entry: %s", entry)
+			Fatalf("Invalid authorized entry: %s", entry)
 		}
 		number, err := strconv.ParseUint(parts[0], 0, 64)
 		if err != nil {
-			Fatalf("Invalid whitelist block number %s: %v", parts[0], err)
+			Fatalf("Invalid authorized block number %s: %v", parts[0], err)
 		}
 		var hash common.Hash
 		if err = hash.UnmarshalText([]byte(parts[1])); err != nil {
-			Fatalf("Invalid whitelist hash %s: %v", parts[1], err)
+			Fatalf("Invalid authorized hash %s: %v", parts[1], err)
 		}
-		cfg.Whitelist[number] = hash
+		cfg.AuthorizationList[number] = hash
 	}
+}
+
+// Quorum
+func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
+	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		log.Warn("WARNING: The flag --istanbul.requesttimeout is deprecated and will be removed in the future, please use ibft.requesttimeoutseconds on genesis file")
+		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
+	}
+	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		log.Warn("WARNING: The flag --istanbul.blockperiod is deprecated and will be removed in the future, please use ibft.blockperiodseconds on genesis file")
+		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
+	}
+}
+
+func setRaft(ctx *cli.Context, cfg *eth.Config) {
+	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
+}
+
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) error {
+	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
+	cfg.QuorumChainConfig = core.NewQuorumChainConfig(ctx.GlobalBool(MultitenancyFlag.Name),
+		ctx.GlobalBool(RevertReasonFlag.Name), ctx.GlobalBool(QuorumEnablePrivacyMarker.Name),
+		ctx.GlobalBool(QuorumEnablePrivateTrieCache.Name))
+	setIstanbul(ctx, cfg)
+	setRaft(ctx, cfg)
+	return nil
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1457,6 +1894,106 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 	}
 }
 
+func SetQLightConfig(ctx *cli.Context, nodeCfg *node.Config, ethCfg *ethconfig.Config) {
+	if ctx.GlobalIsSet(QuorumLightServerFlag.Name) {
+		ethCfg.QuorumLightServer = ctx.GlobalBool(QuorumLightServerFlag.Name)
+	}
+
+	if ethCfg.QuorumLightServer {
+		if nodeCfg.QP2P == nil {
+			nodeCfg.QP2P = &p2p.Config{
+				ListenAddr:  ":30305",
+				MaxPeers:    10,
+				NAT:         nil,
+				NoDial:      true,
+				NoDiscovery: true,
+			}
+			SetQP2PConfig(ctx, nodeCfg.QP2P)
+		}
+	} else {
+		nodeCfg.QP2P = nil
+	}
+
+	ethCfg.QuorumLightClient = &ethconfig.QuorumLightClient{}
+	if ctx.GlobalIsSet(QuorumLightClientFlag.Name) {
+		ethCfg.QuorumLightClient.Use = ctx.GlobalBool(QuorumLightClientFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClient.PSI) == 0 {
+		ethCfg.QuorumLightClient.PSI = "private"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientPSIFlag.Name) {
+		ethCfg.QuorumLightClient.PSI = ctx.GlobalString(QuorumLightClientPSIFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenEnabledFlag.Name) {
+		ethCfg.QuorumLightClient.TokenEnabled = ctx.GlobalBool(QuorumLightClientTokenEnabledFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientTokenValueFlag.Name) {
+		ethCfg.QuorumLightClient.TokenValue = ctx.GlobalString(QuorumLightClientTokenValueFlag.Name)
+	}
+
+	if len(ethCfg.QuorumLightClient.TokenManagement) == 0 {
+		ethCfg.QuorumLightClient.TokenManagement = "client-security-plugin"
+	}
+	if ctx.GlobalIsSet(QuorumLightClientTokenManagementFlag.Name) {
+		ethCfg.QuorumLightClient.TokenManagement = ctx.GlobalString(QuorumLightClientTokenManagementFlag.Name)
+	}
+	if !isValidTokenManagement(ethCfg.QuorumLightClient.TokenManagement) {
+		Fatalf("Invalid value specified '%s' for flag '%s'.", ethCfg.QuorumLightClient.TokenManagement, QuorumLightClientTokenManagementFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLS = ctx.GlobalBool(QuorumLightClientRPCTLSFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCACertFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSCACert = ctx.GlobalString(QuorumLightClientRPCTLSCACertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSInsecureSkipVerify = ctx.GlobalBool(QuorumLightClientRPCTLSInsecureSkipVerifyFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) && ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		ethCfg.QuorumLightClient.RPCTLSCert = ctx.GlobalString(QuorumLightClientRPCTLSCertFlag.Name)
+		ethCfg.QuorumLightClient.RPCTLSKey = ctx.GlobalString(QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSCertFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSCertFlag.Name, QuorumLightClientRPCTLSKeyFlag.Name)
+	} else if ctx.GlobalIsSet(QuorumLightClientRPCTLSKeyFlag.Name) {
+		Fatalf("'%s' specified without specifying '%s'", QuorumLightClientRPCTLSKeyFlag.Name, QuorumLightClientRPCTLSCertFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeRPCFlag.Name) {
+		ethCfg.QuorumLightClient.ServerNodeRPC = ctx.GlobalString(QuorumLightClientServerNodeRPCFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(QuorumLightClientServerNodeFlag.Name) {
+		ethCfg.QuorumLightClient.ServerNode = ctx.GlobalString(QuorumLightClientServerNodeFlag.Name)
+		// This is already done in geth/config - before the node.New invocation (at which point the StaticNodes is already copied)
+		//stack.Config().P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClientServerNode)}
+	}
+
+	if ethCfg.QuorumLightClient.Enabled() {
+		if ctx.GlobalBool(MiningEnabledFlag.Name) {
+			Fatalf("QLight clients do not support mining")
+		}
+		if len(ethCfg.QuorumLightClient.ServerNode) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeFlag.Name)
+		}
+		if len(ethCfg.QuorumLightClient.ServerNodeRPC) == 0 {
+			Fatalf("Please specify the '%s' when running a qlight client.", QuorumLightClientServerNodeRPCFlag.Name)
+		}
+
+		nodeCfg.P2P.StaticNodes = []*enode.Node{enode.MustParse(ethCfg.QuorumLightClient.ServerNode)}
+		log.Info("The node is configured to run as a qlight client. 'maxpeers' is overridden to `1` and the P2P listener is disabled.")
+		nodeCfg.P2P.MaxPeers = 1
+		// force the qlight client node to disable the local P2P listener
+		nodeCfg.P2P.ListenAddr = ""
+	}
+}
+
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
@@ -1479,7 +2016,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
 	setMiner(ctx, &cfg.Miner)
-	setWhitelist(ctx, cfg)
+	setAuthorizationList(ctx, cfg)
 	setLes(ctx, cfg)
 
 	// Cap the cache allowance and tune the garbage collector
@@ -1502,9 +2039,25 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 	godebug.SetGCPercent(int(gogc))
 
+	// Quorum
+	err = setQuorumConfig(ctx, cfg)
+	if err != nil {
+		Fatalf("Quorum configuration has an error: %v", err)
+	}
+
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
+
+	// Quorum
+	if cfg.QuorumLightClient.Enabled() && cfg.SyncMode != downloader.FullSync {
+		Fatalf("Only the 'full' syncmode is supported for the qlight client.")
+	}
+	if private.IsQuorumPrivacyEnabled() && cfg.SyncMode != downloader.FullSync {
+		Fatalf("Only the 'full' syncmode is supported when quorum privacy is enabled.")
+	}
+	// End Quorum
+
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
 	}
@@ -1527,7 +2080,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	// Read the value from the flag no matter if it's set or not.
 	cfg.Preimages = ctx.GlobalBool(CachePreimagesFlag.Name)
-	if cfg.NoPruning && !cfg.Preimages {
+	if true || cfg.NoPruning && !cfg.Preimages { // TODO: Quorum; force preimages for contract extension and dump of states compatibility, until a fix is found
 		cfg.Preimages = true
 		log.Info("Enabling recording of key preimages since archive mode is used")
 	}
@@ -1594,6 +2147,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
 	}
+
+	// set immutability threshold in config
+	params.SetQuorumImmutabilityThreshold(ctx.GlobalInt(QuorumImmutabilityThreshold.Name))
+
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.GlobalBool(MainnetFlag.Name):
@@ -1662,7 +2219,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		if ctx.GlobalIsSet(DataDirFlag.Name) {
 			// Check if we have an already initialized chain and fall back to
 			// that if so. Otherwise we need to generate a new genesis spec.
-			chaindb := MakeChainDatabase(ctx, stack, false) // TODO (MariusVanDerWijden) make this read only
+			chaindb := MakeChainDatabase(ctx, stack, true)
 			if rawdb.ReadCanonicalHash(chaindb, 0) != (common.Hash{}) {
 				cfg.Genesis = nil // fallback to db content
 			}
@@ -1695,6 +2252,7 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
+// Quorum => returns also the ethereum service which is used by the raft service
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
 func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
@@ -1706,6 +2264,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
 		return backend.ApiBackend, nil
 	}
+
+	// Quorum
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+	cfg.Istanbul.Client = ethclient.NewClient(client)
+	// End Quorum
+
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
@@ -1733,6 +2300,95 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, cfg node.C
 	if err := graphql.New(stack, backend, cfg.GraphQLCors, cfg.GraphQLVirtualHosts); err != nil {
 		Fatalf("Failed to register the GraphQL service: %v", err)
 	}
+}
+
+// Quorum
+//
+// Register plugin manager as a service in geth
+func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, localVerify bool, publicKey string) {
+	// ricardolyn: I can't adapt this Plugin Service construction to the new approach as there are circular dependencies between Node and Plugin
+	if err := cfg.ResolvePluginBaseDir(); err != nil {
+		Fatalf("plugins: unable to resolve plugin base dir due to %s", err)
+	}
+	pluginManager, err := plugin.NewPluginManager(cfg.UserIdent, cfg.Plugins, skipVerify, localVerify, publicKey)
+	if err != nil {
+		Fatalf("plugins: Failed to register the Plugins service: %v", err)
+	}
+	stack.SetPluginManager(pluginManager)
+	stack.RegisterAPIs(pluginManager.APIs())
+	stack.RegisterLifecycle(pluginManager)
+	log.Info("plugin service registered")
+}
+
+// Configure smart-contract-based permissioning service
+func RegisterPermissionService(stack *node.Node, useDns bool, chainID *big.Int) {
+	permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
+	if err != nil {
+		Fatalf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
+	}
+	// start the permissions management service
+	_, err = permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns, chainID)
+	if err != nil {
+		Fatalf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
+	}
+	log.Info("permission service registered")
+}
+
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethService *eth.Ethereum) {
+	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
+	raftLogDir := nodeCfg.RaftLogDir // default value is set either 'datadir' or 'raftlogdir'
+	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
+	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
+	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
+
+	privkey := nodeCfg.NodeKey()
+	strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
+	blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+	peers := nodeCfg.StaticNodes()
+
+	var myId uint16
+	var joinExisting bool
+
+	if joinExistingId > 0 {
+		myId = uint16(joinExistingId)
+		joinExisting = true
+	} else if len(peers) == 0 {
+		Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+	} else {
+		peerIds := make([]string, len(peers))
+
+		for peerIdx, peer := range peers {
+			if !peer.HasRaftPort() {
+				Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
+			}
+
+			peerId := peer.ID().String()
+			peerIds[peerIdx] = peerId
+			if peerId == strId {
+				myId = uint16(peerIdx) + 1
+			}
+		}
+
+		if myId == 0 {
+			Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+		}
+	}
+
+	_, err := raft.New(stack, ethService.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethService, peers, raftLogDir, useDns)
+	if err != nil {
+		Fatalf("raft: Failed to register the Raft service: %v", err)
+	}
+
+	log.Info("raft service registered")
+}
+
+func RegisterExtensionService(stack *node.Node, ethService *eth.Ethereum) {
+	_, err := extension.NewServicesFactory(stack, private.P, ethService)
+	if err != nil {
+		Fatalf("Failed to register the Extension service: %v", err)
+	}
+
+	log.Info("extension service registered")
 }
 
 func SetupMetrics(ctx *cli.Context) {
@@ -1821,17 +2477,69 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	return genesis
 }
 
-// MakeChain creates a chain manager from set command line flags.
-func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chainDb ethdb.Database) {
+func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.BlockChain, chainDb ethdb.Database) {
 	var err error
+	var config *params.ChainConfig
 	chainDb = MakeChainDatabase(ctx, stack, false) // TODO(rjl493456442) support read-only database
-	config, _, err := core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
-	if err != nil {
-		Fatalf("%v", err)
+	if useExist {
+		stored := rawdb.ReadCanonicalHash(chainDb, 0)
+		if (stored == common.Hash{}) {
+			Fatalf("No existing genesis")
+		}
+		config = rawdb.ReadChainConfig(chainDb, stored)
+	} else {
+		config, _, err = core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
+		if err != nil {
+			Fatalf("%v", err)
+		}
 	}
+
 	var engine consensus.Engine
+
+	client, err := stack.Attach()
+	if err != nil {
+		Fatalf("Failed to attach to self: %v", err)
+	}
+
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
+	} else if config.Istanbul != nil {
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
+		// for IBFT
+		istanbulConfig := istanbul.DefaultConfig
+		if config.Istanbul.Epoch != 0 {
+			istanbulConfig.Epoch = config.Istanbul.Epoch
+		}
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.Istanbul.ProposerPolicy))
+		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
+		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			istanbulConfig.Transitions = config.Transitions
+		}
+		istanbulConfig.Client = ethclient.NewClient(client)
+		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IBFT != nil {
+		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
+		ibftConfig.TestQBFTBlock = nil
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			ibftConfig.Transitions = config.Transitions
+		}
+		ibftConfig.Client = ethclient.NewClient(client)
+		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
+	} else if config.QBFT != nil {
+		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		qbftConfig.TestQBFTBlock = big.NewInt(0)
+		if config.Transitions != nil && len(config.Transitions) != 0 {
+			qbftConfig.Transitions = config.Transitions
+		}
+		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		}
+		qbftConfig.Client = ethclient.NewClient(client)
+		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IsQuorum {
+		// for Raft
+		engine = ethash.NewFullFaker()
 	} else {
 		engine = ethash.NewFaker()
 		if !ctx.GlobalBool(FakePoWFlag.Name) {
@@ -1859,7 +2567,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
 		Preimages:           ctx.GlobalBool(CachePreimagesFlag.Name),
 	}
-	if cache.TrieDirtyDisabled && !cache.Preimages {
+	if true || cache.TrieDirtyDisabled && !cache.Preimages { // TODO: Quorum; force preimages for contract extension and dump of states compatibility, until a fix is found
 		cache.Preimages = true
 		log.Info("Enabling recording of key preimages since archive mode is used")
 	}
@@ -1874,13 +2582,48 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	}
 	vmcfg := vm.Config{EnablePreimageRecording: ctx.GlobalBool(VMEnableDebugFlag.Name)}
 
+	// Quorum
+	var limit *uint64
+	if ctx.GlobalIsSet(TxLookupLimitFlag.Name) {
+		l := ctx.GlobalUint64(TxLookupLimitFlag.Name)
+		limit = &l
+	}
+	// End Quorum
+
 	// TODO(rjl493456442) disable snapshot generation/wiping if the chain is read only.
 	// Disable transaction indexing/unindexing by default.
-	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, nil)
+	// TODO should multiple private states work with import/export/inspect commands
+	chain, err = core.NewBlockChain(chainDb, cache, config, engine, vmcfg, nil, limit, nil)
 	if err != nil {
 		Fatalf("Can't create BlockChain: %v", err)
 	}
 	return chain, chainDb
+}
+
+func setBFTConfig(bftConfig *params.BFTConfig) *istanbul.Config {
+	istanbulConfig := istanbul.DefaultConfig
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.EmptyBlockPeriodSeconds != 0 {
+		istanbulConfig.EmptyBlockPeriod = bftConfig.EmptyBlockPeriodSeconds
+	}
+	if istanbulConfig.EmptyBlockPeriod < istanbulConfig.BlockPeriod {
+		istanbulConfig.EmptyBlockPeriod = istanbulConfig.BlockPeriod
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds * 1000
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
+	}
+	return istanbulConfig
 }
 
 // MakeConsolePreloads retrieves the absolute paths for the console JavaScript
@@ -1921,4 +2664,15 @@ func MigrateFlags(action func(ctx *cli.Context) error) func(*cli.Context) error 
 		}
 		return action(ctx)
 	}
+}
+
+func isValidTokenManagement(value string) bool {
+	switch value {
+	case
+		"none",
+		"external",
+		"client-security-plugin":
+		return true
+	}
+	return false
 }

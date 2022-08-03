@@ -29,6 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -55,7 +57,9 @@ var LightClientGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode: downloader.FastSync,
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	SyncMode: downloader.FullSync,
+	// End Quorum
 	Ethash: ethash.Config{
 		CacheDir:         "ethash",
 		CachesInMem:      2,
@@ -65,11 +69,11 @@ var Defaults = Config{
 		DatasetsOnDisk:   2,
 		DatasetsLockMmap: false,
 	},
-	NetworkId:               1,
+	NetworkId:               1337,
 	TxLookupLimit:           2350000,
 	LightPeers:              100,
 	UltraLightFraction:      75,
-	DatabaseCache:           512,
+	DatabaseCache:           768,
 	TrieCleanCache:          154,
 	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,
@@ -77,8 +81,8 @@ var Defaults = Config{
 	TrieTimeout:             60 * time.Minute,
 	SnapshotCache:           102,
 	Miner: miner.Config{
-		GasFloor: 8000000,
-		GasCeil:  8000000,
+		GasFloor: params.DefaultMinGasLimit,
+		GasCeil:  params.GenesisGasLimit,
 		GasPrice: big.NewInt(params.GWei),
 		Recommit: 3 * time.Second,
 	},
@@ -86,6 +90,9 @@ var Defaults = Config{
 	RPCGasCap:   25000000,
 	GPO:         FullNodeGPO,
 	RPCTxFeeCap: 1, // 1 ether
+
+	// Quorum
+	Istanbul: *istanbul.DefaultConfig, // Quorum
 }
 
 func init() {
@@ -131,8 +138,8 @@ type Config struct {
 
 	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
-	// Whitelist of required block number -> hash values to accept
-	Whitelist map[uint64]common.Hash `toml:"-"`
+	// AuthorizationList of required block number -> hash values to accept
+	AuthorizationList map[uint64]common.Hash `toml:"-"` // not in the TOML configuration
 
 	// Light client options
 	LightServ          int  `toml:",omitempty"` // Maximum percentage of time allowed for serving LES requests
@@ -201,35 +208,113 @@ type Config struct {
 
 	// Berlin block override (TODO: remove after the fork)
 	OverrideBerlin *big.Int `toml:",omitempty"`
+
+	// Quorum
+
+	RaftMode             bool
+	EnableNodePermission bool
+	// Istanbul options
+	Istanbul istanbul.Config
+
+	// timeout value for call
+	EVMCallTimeOut time.Duration
+
+	// Quorum
+	core.QuorumChainConfig `toml:"-"`
+
+	// QuorumLight
+	QuorumLightServer bool               `toml:",omitempty"`
+	QuorumLightClient *QuorumLightClient `toml:",omitempty"`
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
-func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
+func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
+		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
-	// Otherwise assume proof-of-work
-	switch config.PowMode {
-	case ethash.ModeFake:
-		log.Warn("Ethash used in fake mode")
-	case ethash.ModeTest:
-		log.Warn("Ethash used in test mode")
-	case ethash.ModeShared:
-		log.Warn("Ethash used in shared mode")
+	if chainConfig.Transitions != nil && len(chainConfig.Transitions) != 0 {
+		config.Istanbul.Transitions = chainConfig.Transitions
 	}
-	engine := ethash.New(ethash.Config{
-		PowMode:          config.PowMode,
-		CacheDir:         stack.ResolvePath(config.CacheDir),
-		CachesInMem:      config.CachesInMem,
-		CachesOnDisk:     config.CachesOnDisk,
-		CachesLockMmap:   config.CachesLockMmap,
-		DatasetDir:       config.DatasetDir,
-		DatasetsInMem:    config.DatasetsInMem,
-		DatasetsOnDisk:   config.DatasetsOnDisk,
-		DatasetsLockMmap: config.DatasetsLockMmap,
-		NotifyFull:       config.NotifyFull,
-	}, notify, noverify)
-	engine.SetThreads(-1) // Disable CPU mining
+	// If Istanbul is requested, set it up
+	if chainConfig.Istanbul != nil {
+		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
+		if chainConfig.Istanbul.Epoch != 0 {
+			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
+		}
+		config.Istanbul.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(chainConfig.Istanbul.ProposerPolicy))
+		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
+		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
+		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
+
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.IBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = nil
+		if chainConfig.IBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.IBFT.ValidatorContractAddress
+		}
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.QBFT != nil {
+		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)
+		config.Istanbul.TestQBFTBlock = big.NewInt(0)
+		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
+			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
+		}
+		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	// For Quorum, Raft run as a separate service, so
+	// the Ethereum service still needs a consensus engine,
+	// use the consensus with the lightest overhead
+	engine := ethash.NewFullFaker()
+	engine.SetThreads(-1) // Disable CPU Mining
 	return engine
+}
+
+// Quorum
+
+type QuorumLightClient struct {
+	Use                      bool   `toml:",omitempty"`
+	PSI                      string `toml:",omitempty"`
+	TokenEnabled             bool   `toml:",omitempty"`
+	TokenValue               string `toml:",omitempty"`
+	TokenManagement          string `toml:",omitempty"`
+	RPCTLS                   bool   `toml:",omitempty"`
+	RPCTLSInsecureSkipVerify bool   `toml:",omitempty"`
+	RPCTLSCACert             string `toml:",omitempty"`
+	RPCTLSCert               string `toml:",omitempty"`
+	RPCTLSKey                string `toml:",omitempty"`
+	ServerNode               string `toml:",omitempty"`
+	ServerNodeRPC            string `toml:",omitempty"`
+}
+
+func (q *QuorumLightClient) Enabled() bool {
+	return q != nil && q.Use
+}
+
+func setBFTConfig(istanbulConfig *istanbul.Config, bftConfig *params.BFTConfig) {
+	if bftConfig.BlockPeriodSeconds != 0 {
+		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.EmptyBlockPeriodSeconds != 0 {
+		istanbulConfig.EmptyBlockPeriod = bftConfig.EmptyBlockPeriodSeconds
+	}
+	if bftConfig.EmptyBlockPeriodSeconds < bftConfig.BlockPeriodSeconds {
+		istanbulConfig.EmptyBlockPeriod = bftConfig.BlockPeriodSeconds
+	}
+	if bftConfig.RequestTimeoutSeconds != 0 {
+		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds * 1000
+	}
+	if bftConfig.EpochLength != 0 {
+		istanbulConfig.Epoch = bftConfig.EpochLength
+	}
+	if bftConfig.ProposerPolicy != 0 {
+		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(bftConfig.ProposerPolicy))
+	}
+	if bftConfig.Ceil2Nby3Block != nil {
+		istanbulConfig.Ceil2Nby3Block = bftConfig.Ceil2Nby3Block
+	}
 }

@@ -17,16 +17,19 @@
 package eth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -35,7 +38,7 @@ import (
 // are attempted to be reexecuted to generate the desired state. The optional
 // base layer statedb can be passed then it's regarded as the statedb of the
 // parent block.
-func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (statedb *state.StateDB, err error) {
+func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (statedb *state.StateDB, privateStateDB mps.PrivateStateRepository, err error) {
 	var (
 		current  *types.Block
 		database state.Database
@@ -44,9 +47,9 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 	)
 	// Check the live database first if we have the state fully available, use that.
 	if checkLive {
-		statedb, err = eth.blockchain.StateAt(block.Root())
+		statedb, privateStateDB, err = eth.blockchain.StateAt(block.Root())
 		if err == nil {
-			return statedb, nil
+			return
 		}
 	}
 	if base != nil {
@@ -67,31 +70,41 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		if !checkLive {
 			statedb, err = state.New(current.Root(), database, nil)
 			if err == nil {
-				return statedb, nil
+				// Quorum
+				_, privateStateDB, err = eth.blockchain.StateAt(current.Root())
+				if err == nil {
+					return statedb, privateStateDB, nil
+				}
+				// End Quorum
 			}
 		}
 		// Database does not have the state for the given block, try to regenerate
 		for i := uint64(0); i < reexec; i++ {
 			if current.NumberU64() == 0 {
-				return nil, errors.New("genesis state is missing")
+				return nil, nil, errors.New("genesis state is missing")
 			}
 			parent := eth.blockchain.GetBlock(current.ParentHash(), current.NumberU64()-1)
 			if parent == nil {
-				return nil, fmt.Errorf("missing block %v %d", current.ParentHash(), current.NumberU64()-1)
+				return nil, nil, fmt.Errorf("missing block %v %d", current.ParentHash(), current.NumberU64()-1)
 			}
 			current = parent
 
 			statedb, err = state.New(current.Root(), database, nil)
 			if err == nil {
-				break
+				// Quorum
+				_, privateStateDB, err = eth.blockchain.StateAt(current.Root())
+				if err == nil {
+					break
+				}
+				// End Quorum
 			}
 		}
 		if err != nil {
 			switch err.(type) {
 			case *trie.MissingNodeError:
-				return nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
+				return nil, nil, fmt.Errorf("required historical state unavailable (reexec=%d)", reexec)
 			default:
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
@@ -110,21 +123,33 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		// Retrieve the next block to regenerate and process it
 		next := current.NumberU64() + 1
 		if current = eth.blockchain.GetBlockByNumber(next); current == nil {
-			return nil, fmt.Errorf("block #%d not found", next)
+			return nil, nil, fmt.Errorf("block #%d not found", next)
 		}
-		_, _, _, err := eth.blockchain.Processor().Process(current, statedb, vm.Config{})
+		_, _, _, _, err = eth.blockchain.Processor().Process(current, statedb, privateStateDB, vm.Config{})
 		if err != nil {
-			return nil, fmt.Errorf("processing block %d failed: %v", current.NumberU64(), err)
+			return nil, nil, fmt.Errorf("processing block %d failed: %v", current.NumberU64(), err)
 		}
+		var root common.Hash
 		// Finalize the state so any modifications are written to the trie
-		root, err := statedb.Commit(eth.blockchain.Config().IsEIP158(current.Number()))
+		root, err = statedb.Commit(eth.blockchain.Config().IsEIP158(current.Number()))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		statedb, err = state.New(root, database, nil)
 		if err != nil {
-			return nil, fmt.Errorf("state reset after block %d failed: %v", current.NumberU64(), err)
+			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", current.NumberU64(), err)
 		}
+
+		// Quorum
+		err = privateStateDB.Commit(eth.blockchain.Config().IsEIP158(block.Number()), block)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := privateStateDB.Reset(); err != nil {
+			return nil, nil, fmt.Errorf("private state reset after block %d failed: %v", block.NumberU64(), err)
+		}
+		// End Quorum
+
 		database.TrieDB().Reference(root, common.Hash{})
 		if parent != (common.Hash{}) {
 			database.TrieDB().Dereference(parent)
@@ -135,48 +160,93 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		nodes, imgs := database.TrieDB().Size()
 		log.Info("Historical state regenerated", "block", current.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
 	}
-	return statedb, nil
+	return statedb, privateStateDB, nil
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
-func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
+func (eth *Ethereum) stateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, *state.StateDB, mps.PrivateStateRepository, error) {
 	// Short circuit if it's genesis block.
 	if block.NumberU64() == 0 {
-		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
+		return nil, vm.BlockContext{}, nil, nil, nil, errors.New("no transaction in genesis")
 	}
 	// Create the parent state database
 	parent := eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
-		return nil, vm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
+		return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
-	// Lookup the statedb of parent block from the live database,
-	// otherwise regenerate it on the flight.
-	statedb, err := eth.stateAtBlock(parent, reexec, nil, true)
+	// Quorum
+	statedb, privateStateRepo, err := eth.stateAtBlock(parent, reexec, nil, true)
 	if err != nil {
-		return nil, vm.BlockContext{}, nil, err
+		return nil, vm.BlockContext{}, nil, nil, nil, err
 	}
+	psm, err := eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, nil, err
+	}
+	privateStateDb, err := privateStateRepo.StatePSI(psm.ID)
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, nil, nil, err
+	}
+	// End Quorum
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.BlockContext{}, statedb, nil
+		return nil, vm.BlockContext{}, statedb, privateStateDb, privateStateRepo, nil
 	}
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(eth.blockchain.Config(), block.Number())
 	for idx, tx := range block.Transactions() {
+		// Quorum
+		privateStateDbToUse := core.PrivateStateDBForTxn(eth.blockchain.Config().IsQuorum, tx, statedb, privateStateDb)
+		// End Quorum
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
+		msg = eth.clearMessageDataIfNonParty(msg, psm) // Quorum
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil)
 		if idx == txIndex {
-			return msg, context, statedb, nil
+			return msg, context, statedb, privateStateDb, privateStateRepo, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, eth.blockchain.Config(), vm.Config{})
-		statedb.Prepare(tx.Hash(), block.Hash(), idx)
+		vmenv := vm.NewEVM(context, txContext, statedb, privateStateDbToUse, eth.blockchain.Config(), vm.Config{})
+		vmenv.SetCurrentTX(tx)
+		vmenv.InnerApply = func(innerTx *types.Transaction) error {
+			return applyInnerTransaction(eth.blockchain, statedb, privateStateDbToUse, block.Header(), tx, vm.Config{}, privateStateRepo.IsMPS(), privateStateRepo, vmenv, innerTx, idx)
+		}
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
-	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, vm.BlockContext{}, nil, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+}
+
+// Quorum
+
+func (eth *Ethereum) GetBlockchain() *core.BlockChain {
+	return eth.BlockChain()
+}
+
+func applyInnerTransaction(bc *core.BlockChain, stateDB *state.StateDB, privateStateDB *state.StateDB, header *types.Header, outerTx *types.Transaction, evmConf vm.Config, forceNonParty bool, privateStateRepo mps.PrivateStateRepository, vmenv *vm.EVM, innerTx *types.Transaction, txIndex int) error {
+	var (
+		author  *common.Address = nil // ApplyTransaction will determine the author from the header so we won't do it here
+		gp      *core.GasPool   = new(core.GasPool).AddGas(outerTx.Gas())
+		usedGas uint64          = 0
+	)
+	return core.ApplyInnerTransaction(bc, author, gp, stateDB, privateStateDB, header, outerTx, &usedGas, evmConf, forceNonParty, privateStateRepo, vmenv, innerTx, txIndex)
+}
+
+// clearMessageDataIfNonParty sets the message data to empty hash in case the private state is not party to the
+// transaction. The effect is that when the private tx payload is resolved using the privacy manager the private part of
+// the transaction is not retrieved and the transaction is being executed as if the node/private state is not party to
+// the transaction.
+func (eth *Ethereum) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateStateMetadata) types.Message {
+	if msg.IsPrivate() {
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
+
+		if eth.GetBlockchain().PrivateStateManager().NotIncludeAny(psm, managedParties...) {
+			return msg.WithEmptyPrivateData(true)
+		}
+	}
+	return msg
 }

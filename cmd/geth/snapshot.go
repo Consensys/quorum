@@ -153,6 +153,13 @@ func pruneState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, false)
+
+	// Quorum
+	if config.Eth.Genesis.Config.IsQuorum {
+		log.Error("Can not prune state when using GoQuorum as this has an impact on private state")
+		return errors.New("prune-state is not available when IsQuorum is enabled")
+	}
+
 	pruner, err := pruner.NewPruner(chaindb, stack.ResolvePath(""), stack.ResolvePath(config.Eth.TrieCleanCacheJournal), ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)

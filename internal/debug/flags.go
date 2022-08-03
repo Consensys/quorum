@@ -175,7 +175,6 @@ func Setup(ctx *cli.Context) error {
 		ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	}
 	glogger.SetHandler(ostream)
-
 	// logging
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))

@@ -85,7 +85,6 @@ var (
 	// storageConcurrency is the number of chunks to split the a large contract
 	// storage trie into to allow concurrent retrievals.
 	storageConcurrency = 16
-
 	// requestTimeout is the maximum time a peer is allowed to spend on serving
 	// a single network request.
 	requestTimeout = 15 * time.Second // TODO(karalabe): Make it dynamic ala fast-sync?

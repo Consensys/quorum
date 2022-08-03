@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/mps"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -75,21 +76,33 @@ type blockExecutionEnv struct {
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
+
+	// Quorum
+	privateStateRepo  mps.PrivateStateRepository
+	privateState      *state.StateDB
+	forceNonParty     bool
+	isInnerPrivateTxn bool
+	privateReceipts   []*types.Receipt
 }
 
 func (env *blockExecutionEnv) commitTransaction(tx *types.Transaction, coinbase common.Address) error {
 	vmconfig := *env.chain.GetVMConfig()
-	receipt, err := core.ApplyTransaction(env.chain.Config(), env.chain, &coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, vmconfig)
+	receipt, privateReceipt, err := core.ApplyTransaction(env.chain.Config(), env.chain, &coinbase, env.gasPool, env.state, env.privateState, env.header, tx, &env.header.GasUsed, vmconfig, env.forceNonParty, env.privateStateRepo, env.isInnerPrivateTxn)
 	if err != nil {
 		return err
 	}
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
+	env.privateReceipts = append(env.privateReceipts, privateReceipt)
 	return nil
 }
 
 func (api *consensusAPI) makeEnv(parent *types.Block, header *types.Header) (*blockExecutionEnv, error) {
-	state, err := api.eth.BlockChain().StateAt(parent.Root())
+	state, mpsr, err := api.eth.BlockChain().StateAt(parent.Root())
+	if err != nil {
+		return nil, err
+	}
+	privateState, err := mpsr.DefaultState() // TODO merge add PSI?
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +111,8 @@ func (api *consensusAPI) makeEnv(parent *types.Block, header *types.Header) (*bl
 		state:   state,
 		header:  header,
 		gasPool: new(core.GasPool).AddGas(header.GasLimit),
+		// Quorum
+		privateState: privateState,
 	}
 	return env, nil
 }

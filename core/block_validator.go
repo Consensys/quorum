@@ -78,6 +78,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // transition, such as amount of used gas, the receipt roots and the state root
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
+//
+// For quorum it also verifies if the canonical hash in the blocks state points to a valid parent hash.
 func (v *BlockValidator) ValidateState(block *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	header := block.Header()
 	if block.GasUsed() != usedGas {
@@ -106,11 +108,11 @@ func (v *BlockValidator) ValidateState(block *types.Block, statedb *state.StateD
 // to keep the baseline gas above the provided floor, and increase it towards the
 // ceil if the blocks are full. If the ceil is exceeded, it will always decrease
 // the gas allowance.
-func CalcGasLimit(parent *types.Block, gasFloor, gasCeil uint64) uint64 {
-	// contrib = (parentGasUsed * 3 / 2) / 1024
+func CalcGasLimit(parent *types.Block, minGasLimit, gasFloor, gasCeil uint64) uint64 {
+	// contrib = (parentGasUsed * 3 / 2) / 4096
 	contrib := (parent.GasUsed() + parent.GasUsed()/2) / params.GasLimitBoundDivisor
 
-	// decay = parentGasLimit / 1024 -1
+	// decay = parentGasLimit / 4096 -1
 	decay := parent.GasLimit()/params.GasLimitBoundDivisor - 1
 
 	/*
@@ -121,8 +123,8 @@ func CalcGasLimit(parent *types.Block, gasFloor, gasCeil uint64) uint64 {
 		from parentGasLimit * (2/3) parentGasUsed is.
 	*/
 	limit := parent.GasLimit() - decay + contrib
-	if limit < params.MinGasLimit {
-		limit = params.MinGasLimit
+	if limit < minGasLimit {
+		limit = minGasLimit
 	}
 	// If we're outside our allowed gas range, we try to hone towards them
 	if limit < gasFloor {
