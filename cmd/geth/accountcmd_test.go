@@ -257,6 +257,7 @@ func TestUnlockFlagMultiIndex(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--unlock", "0,2", "js", "testdata/empty.js")
+
 	geth.Expect(`
 Unlocking account 0 | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -282,6 +283,7 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 	defer SetResetPrivateConfig("ignore")()
 	geth := runMinimalGethWithRaftConsensus(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "testdata/passwords.txt", "--unlock", "0,2", "js", "testdata/empty.js")
+
 	geth.ExpectExit()
 
 	wantMessages := []string{

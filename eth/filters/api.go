@@ -72,8 +72,8 @@ func NewPublicFilterAPI(backend Backend, lightMode bool, timeout time.Duration) 
 	return api
 }
 
-// timeoutLoop runs every 5 minutes and deletes filters that have not been recently used.
-// Tt is started when the api is created.
+// timeoutLoop runs at the interval set by 'timeout' and deletes filters
+// that have not been recently used. It is started when the API is created.
 func (api *PublicFilterAPI) timeoutLoop(timeout time.Duration) {
 	var toUninstall []*Subscription
 	ticker := time.NewTicker(timeout)
@@ -304,7 +304,7 @@ func (api *PublicFilterAPI) NewFilter(ctx context.Context, crit FilterCriteria) 
 	logs := make(chan []*types.Log)
 	psm, err := api.backend.PSMR().ResolveForUserContext(ctx)
 	if err != nil {
-		return rpc.ID(""), err
+		return "", err
 	}
 	crit.PSI = psm.ID
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
@@ -443,7 +443,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 // (pending)Log filters return []Log.
 //
 // https://eth.wiki/json-rpc/API#eth_getfilterchanges
-func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (interface{}, error) {
+func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
 

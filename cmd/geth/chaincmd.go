@@ -466,7 +466,7 @@ func dump(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	db := utils.MakeChainDatabase(ctx, stack, false)
+	db := utils.MakeChainDatabase(ctx, stack, true)
 	for _, arg := range ctx.Args() {
 		var header *types.Header
 		if hashish(arg) {

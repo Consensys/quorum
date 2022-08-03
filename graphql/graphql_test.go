@@ -325,7 +325,6 @@ func createGQLServiceWithTransactions(t *testing.T, stack *node.Node) {
 		TrieTimeout:             60 * time.Minute,
 		SnapshotCache:           5,
 	}
-
 	ethBackend, err := eth.New(stack, ethConf)
 	if err != nil {
 		t.Fatalf("could not create eth backend: %v", err)
@@ -405,6 +404,91 @@ func doHTTPRequest(t *testing.T, req *http.Request) *http.Response {
 	}
 	return resp
 }
+
+/*
+func createGQLServiceWithTransactions(t *testing.T, stack *node.Node) {
+	// create backend
+	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	address := crypto.PubkeyToAddress(key.PublicKey)
+	funds := big.NewInt(1000000000)
+	dad := common.HexToAddress("0x0000000000000000000000000000000000000dad")
+
+	ethConf := &ethconfig.Config{
+		Genesis: &core.Genesis{
+			Config:     params.AllEthashProtocolChanges,
+			GasLimit:   11500000,
+			Difficulty: big.NewInt(1048576),
+			Alloc: core.GenesisAlloc{
+				address: {Balance: funds},
+				// The address 0xdad sloads 0x00 and 0x01
+				dad: {
+					Code: []byte{
+						byte(vm.PC),
+						byte(vm.PC),
+						byte(vm.SLOAD),
+						byte(vm.SLOAD),
+					},
+					Nonce:   0,
+					Balance: big.NewInt(0),
+				},
+			},
+		},
+		Ethash: ethash.Config{
+			PowMode: ethash.ModeFake,
+		},
+		NetworkId:               1337,
+		TrieCleanCache:          5,
+		TrieCleanCacheJournal:   "triecache",
+		TrieCleanCacheRejournal: 60 * time.Minute,
+		TrieDirtyCache:          5,
+		TrieTimeout:             60 * time.Minute,
+		SnapshotCache:           5,
+	}
+
+	ethBackend, err := eth.New(stack, ethConf)
+	if err != nil {
+		t.Fatalf("could not create eth backend: %v", err)
+	}
+	signer := types.LatestSigner(ethConf.Genesis.Config)
+
+	legacyTx, _ := types.SignNewTx(key, signer, &types.LegacyTx{
+		Nonce:    uint64(0),
+		To:       &dad,
+		Value:    big.NewInt(100),
+		Gas:      50000,
+		GasPrice: big.NewInt(1),
+	})
+	envelopTx, _ := types.SignNewTx(key, signer, &types.AccessListTx{
+		ChainID:  ethConf.Genesis.Config.ChainID,
+		Nonce:    uint64(1),
+		To:       &dad,
+		Gas:      30000,
+		GasPrice: big.NewInt(1),
+		Value:    big.NewInt(50),
+		AccessList: types.AccessList{{
+			Address:     dad,
+			StorageKeys: []common.Hash{{0}},
+		}},
+	})
+
+	// Create some blocks and import them
+	chain, _ := core.GenerateChain(params.AllEthashProtocolChanges, ethBackend.BlockChain().Genesis(),
+		ethash.NewFaker(), ethBackend.ChainDb(), 1, func(i int, b *core.BlockGen) {
+			b.SetCoinbase(common.Address{1})
+			b.AddTx(legacyTx)
+			b.AddTx(envelopTx)
+		})
+
+	_, err = ethBackend.BlockChain().InsertChain(chain)
+	if err != nil {
+		t.Fatalf("could not create import blocks: %v", err)
+	}
+	// create gql service
+	err = New(stack, ethBackend.APIBackend, []string{}, []string{})
+	if err != nil {
+		t.Fatalf("could not create graphql service: %v", err)
+	}
+}*/
 
 func TestQuorumSchema_PublicTransaction(t *testing.T) {
 	saved := private.P
