@@ -259,13 +259,23 @@ func (minter *minter) createWork() *work {
 	parentNumber := parent.Number()
 	tstamp := generateNanoTimestamp(parent)
 
+	// Quorum:
+	// If gas price is enabled on next block then set correct etherbase for reward
+	// Note that historically, quorum was setting coinbase to 0x0,
+	// so need to ensure this is still the case if gas price is not enabled.
+	coinbase := common.Address{0x0000000000000000000000}
+	newBlockNumber := parentNumber.Add(parentNumber, common.Big1)
+	if minter.config.IsGasPriceEnabled(newBlockNumber) {
+		coinbase = minter.coinbase
+	}
+
 	header := &types.Header{
 		ParentHash: parent.Hash(),
-		Number:     parentNumber.Add(parentNumber, common.Big1),
+		Number:     newBlockNumber,
 		Difficulty: ethash.CalcDifficulty(minter.config, uint64(tstamp), parent.Header()),
 		GasLimit:   minter.eth.calcGasLimitFunc(parent),
 		GasUsed:    0,
-		Coinbase:   minter.coinbase,
+		Coinbase:   coinbase,
 		Time:       uint64(tstamp),
 	}
 

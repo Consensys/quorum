@@ -124,6 +124,7 @@ func (p *ProposerPolicy) ClearRegistry() {
 type Config struct {
 	RequestTimeout         uint64          `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod            uint64          `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	EmptyBlockPeriod       uint64          `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
 	ProposerPolicy         *ProposerPolicy `toml:",omitempty"` // The policy for proposer selection
 	Epoch                  uint64          `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
@@ -137,6 +138,7 @@ type Config struct {
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
 	BlockPeriod:            1,
+	EmptyBlockPeriod:       10,
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
@@ -163,11 +165,17 @@ func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 			return true
 		}
 	}
-
 	result := false
-	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		result = strings.EqualFold(transition.Algorithm, params.QBFT)
-	})
+	if c != nil && blockNumber != nil && c.Transitions != nil {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
+			if strings.EqualFold(c.Transitions[i].Algorithm, params.QBFT) && len(c.Transitions[i].Algorithm) > 0 {
+				result = true
+			}
+			if strings.EqualFold(c.Transitions[i].Algorithm, params.IBFT) {
+				result = false
+			}
+		}
+	}
 
 	return result
 }
@@ -185,7 +193,13 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockPeriodSeconds != 0 {
 			newConfig.BlockPeriod = transition.BlockPeriodSeconds
 		}
+		if transition.EmptyBlockPeriodSeconds != 0 {
+			newConfig.EmptyBlockPeriod = transition.EmptyBlockPeriodSeconds
+		}
 	})
+	if newConfig.EmptyBlockPeriod < newConfig.BlockPeriod {
+		newConfig.EmptyBlockPeriod = newConfig.BlockPeriod
+	}
 	return newConfig
 }
 
