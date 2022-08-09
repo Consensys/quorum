@@ -153,6 +153,7 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		utils.MinerNotifyFullFlag,
+		utils.CatalystFlag,
 		configFileFlag,
 		// Quorum
 		utils.QuorumImmutabilityThreshold,

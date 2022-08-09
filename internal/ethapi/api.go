@@ -383,7 +383,7 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 		return false
 	}
 
-	return true
+	return false
 }
 
 func (s *PrivateAccountAPI) lockAccount(addr common.Address) error {
@@ -924,13 +924,13 @@ func (args *CallArgs) ToMessage(globalGasCap uint64) types.Message {
 	return msg
 }
 
-// account indicates the overriding fields of account during the execution of
-// a message call.
+// OverrideAccount indicates the overriding fields of account during the execution
+// of a message call.
 // Note, state and stateDiff can't be specified at the same time. If state is
 // set, message execution will only use the data in the given state. Otherwise
 // if statDiff is set, all diff will be applied first and then execute the call
 // message.
-type account struct {
+type OverrideAccount struct {
 	Nonce     *hexutil.Uint64              `json:"nonce"`
 	Code      *hexutil.Bytes               `json:"code"`
 	Balance   **hexutil.Big                `json:"balance"`
@@ -938,18 +938,15 @@ type account struct {
 	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
 }
 
-// Quorum - Multitenancy
-// Before returning the result, we need to inspect the EVM and
-// perform verification check
-func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides map[common.Address]account, vmCfg vm.Config, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
+// StateOverride is the collection of overridden accounts.
+type StateOverride map[common.Address]OverrideAccount
 
-	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-	if state == nil || err != nil {
-		return nil, err
+// Apply overrides the fields of specified accounts into the given state.
+func (diff *StateOverride) Apply(state *state.StateDB) error {
+	if diff == nil {
+		return nil
 	}
-	// Override the fields of specified contracts before execution.
-	for addr, account := range overrides {
+	for addr, account := range *diff {
 		// Override account nonce.
 		if account.Nonce != nil {
 			state.SetNonce(addr, uint64(*account.Nonce))
@@ -963,7 +960,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 			state.SetBalance(addr, (*big.Int)(*account.Balance))
 		}
 		if account.State != nil && account.StateDiff != nil {
-			return nil, fmt.Errorf("account %s has both 'state' and 'stateDiff'", addr.Hex())
+			return fmt.Errorf("account %s has both 'state' and 'stateDiff'", addr.Hex())
 		}
 		// Replace entire state if caller requires.
 		if account.State != nil {
@@ -976,6 +973,22 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 			}
 		}
 	}
+	return nil
+}
+
+// Quorum - Multitenancy
+// Before returning the result, we need to inspect the EVM and
+// perform verification check
+func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, vmCfg vm.Config, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
+
+	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	/*if err := overrides.Apply(state.(eth.EthAPIState)); err != nil {
+		return nil, err
+	}*/
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	var cancel context.CancelFunc
@@ -988,8 +1001,8 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
-	msg := args.ToMessage(globalGasCap)
 	// Get a new instance of the EVM.
+	msg := args.ToMessage(globalGasCap)
 	evm, vmError, err := b.GetEVM(ctx, msg, state, header, nil)
 	if err != nil {
 		return nil, err
@@ -1057,13 +1070,8 @@ func (e *revertError) ErrorData() interface{} {
 // Quorum
 // - replaced the default 5s time out with the value passed in vm.calltimeout
 // - multi tenancy verification
-func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *map[common.Address]account) (hexutil.Bytes, error) {
-	var accounts map[common.Address]account
-	if overrides != nil {
-		accounts = *overrides
-	}
-
-	result, err := DoCall(ctx, s.b, args, blockNrOrHash, accounts, vm.Config{}, s.b.CallTimeOut(), s.b.RPCGasCap())
+func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
+	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -1556,6 +1564,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 			}
 		}
 		// Copy the original db so we don't modify it
+		// statedb := db.Copy()
 		statedb := db.(*state.StateDB)
 		msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), input, accessList, false)
 
@@ -2006,7 +2015,6 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			return errors.New(`contract creation without any data provided`)
 		}
 	}
-
 	// Estimate the gas usage if necessary.
 	if args.Gas == nil {
 		// For backwards-compatibility reason, we try both input and data
@@ -2035,6 +2043,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		id := (*hexutil.Big)(b.ChainConfig().ChainID)
 		args.ChainID = id
 	}
+
 	// Quorum
 	if args.PrivateTxType == "" {
 		args.PrivateTxType = "restricted"
@@ -2077,7 +2086,6 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	return types.NewTx(data)
 }
 
-// TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
 func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateFrom string, isRaw bool) (common.Hash, error) {
 	// If the transaction fee cap is already specified, ensure the
@@ -2151,7 +2159,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		log.EmitCheckpoint(log.TxCreated, "tx", tx.Hash().Hex(), "to", tx.To().Hex())
 	}
 	return tx.Hash(), nil
-
 }
 
 // runSimulation runs a simulation of the given transaction.
@@ -2229,6 +2236,16 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if replaceDataWithHash {
+		// replace the original payload with encrypted payload hash
+		args.Data = data.BytesTypeRef()
+	}
+	// /Quorum
+
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -2240,17 +2257,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-
-	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	if replaceDataWithHash {
-		// replace the original payload with encrypted payload hash
-		args.Data = data.BytesTypeRef()
-	}
-	// /Quorum
-
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
@@ -2269,7 +2275,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
-
 	// Quorum
 	if signed.IsPrivate() && s.b.IsPrivacyMarkerTransactionCreationEnabled() {
 		pmt, err := createPrivacyMarkerTransaction(s.b, signed, &args.PrivateTxArgs)
@@ -2319,7 +2324,6 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 		tx.SetPrivate()
 	}
 	// /Quorum
-
 	data, err := tx.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -2456,14 +2460,13 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 		args.Gas = &gas
 	}
 	// End Quorum
-
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
+	// Before actually sign the transaction, ensure the transaction fee is reasonable.
 	if err := checkTxFee(args.GasPrice.ToInt(), uint64(*args.Gas), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
-
 	// Quorum
 	toSign := args.toTransaction()
 	if args.IsPrivate() {
