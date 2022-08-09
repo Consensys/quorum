@@ -153,6 +153,13 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 	hc := c.writeConn.(*httpConn)
 	respBody, err := hc.doRequest(ctx, msg)
 	if err != nil {
+		if respBody != nil {
+			defer respBody.Close()
+			buf := new(bytes.Buffer)
+			if _, err2 := buf.ReadFrom(respBody); err2 == nil {
+				return fmt.Errorf("%v: %v", err, buf.String())
+			}
+		}
 		return err
 	}
 	defer respBody.Close()

@@ -888,27 +888,24 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHa
 			return nil, err
 		}
 	}
-
 	// Execute the trace
 	msg := args.ToMessage(api.backend.RPCGasCap())
 	vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 
 	// Quorum: we run the call with privateState as publicState to check if we have a result, if it is not empty, then it is a private call
 	var noTracerConfig *TraceConfig
-	if config != nil {
-		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
-		noTracerConfig = &TraceConfig{
-			LogConfig: config.LogConfig,
-			Reexec:    config.Reexec,
-			Timeout:   config.Timeout,
-		}
-	}
 	var traceConfig *TraceConfig
 	if config != nil {
 		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
 		traceConfig = &TraceConfig{
 			LogConfig: config.LogConfig,
 			Tracer:    config.Tracer,
+			Timeout:   config.Timeout,
+			Reexec:    config.Reexec,
+		}
+		// create a new config with the tracer so that we have a ExecutionResult returned by api.traceTx
+		noTracerConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
 			Timeout:   config.Timeout,
 			Reexec:    config.Reexec,
 		}
@@ -973,7 +970,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *txTrac
 
 	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("tracing failed: %v", err)
+		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
 
 	// Run the transaction with tracing enabled.

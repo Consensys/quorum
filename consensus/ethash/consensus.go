@@ -639,12 +639,10 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		return
 	}
 
-	// Quorum:
-	// Historically, quorum was adding (static) reward to account 0x0.
-	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
-	headerCoinbase := header.Coinbase
+	// Quorum: Disable reward for Quorum if gas price is not enabled,
+	// otherwise static block reward will impact Raft (even though the gas price is zero)
 	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) {
-		headerCoinbase = common.Address{0x0000000000000000000000}
+		return
 	}
 
 	// Select the correct block reward based on chain progression
@@ -669,7 +667,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
-	state.AddBalance(headerCoinbase, reward)
+	state.AddBalance(header.Coinbase, reward)
 }
 
 // Quorum: wrapper for accumulateRewards to be called by raft minter

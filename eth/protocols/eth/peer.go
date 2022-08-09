@@ -470,6 +470,10 @@ func (p *Peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 	return p2p.Send(p.rw, GetBlockHeadersMsg, &query)
 }
 
+func (p *Peer) ExpectPeerMessage(code uint64, content types.Transactions) error {
+	return p2p.ExpectMsg(p.rw, code, content)
+}
+
 // ExpectRequestHeadersByNumber is a testing method to mirror the recipient side
 // of the RequestHeadersByNumber operation.
 func (p *Peer) ExpectRequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
@@ -480,10 +484,6 @@ func (p *Peer) ExpectRequestHeadersByNumber(origin uint64, amount int, skip int,
 		Reverse: reverse,
 	}
 	return p2p.ExpectMsg(p.rw, GetBlockHeadersMsg, req)
-}
-
-func (p *Peer) ExpectPeerMessage(code uint64, content types.Transactions) error {
-	return p2p.ExpectMsg(p.rw, code, content)
 }
 
 // RequestBodies fetches a batch of blocks' bodies corresponding to the hashes

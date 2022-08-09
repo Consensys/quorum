@@ -801,6 +801,7 @@ var (
 		Usage: "External EVM configuration (default = built-in interpreter)",
 		Value: "",
 	}
+
 	CatalystFlag = cli.BoolFlag{
 		Name:  "catalyst",
 		Usage: "Catalyst mode (eth2 integration testing)",
@@ -2252,6 +2253,8 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
+// The second return value is the full node instance, which may be nil if the
+// node is running as a light client.
 // Quorum => returns also the ethereum service which is used by the raft service
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.

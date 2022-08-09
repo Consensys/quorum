@@ -141,7 +141,6 @@ func (c *route53Client) submitChanges(changes []types.Change, comment string) er
 		return nil
 	}
 
-	// Submit all change batches.
 	var err error
 	batches := splitChanges(changes, route53ChangeSizeLimit, route53ChangeCountLimit)
 	changesToCheck := make([]*route53.ChangeResourceRecordSetsOutput, len(batches))
@@ -149,7 +148,7 @@ func (c *route53Client) submitChanges(changes []types.Change, comment string) er
 		log.Info(fmt.Sprintf("Submitting %d changes to Route53", len(changes)))
 		batch := &types.ChangeBatch{
 			Changes: changes,
-			Comment: aws.String(fmt.Sprintf("enrtree update %d/%d of %s", i+1, len(batches), comment)),
+			Comment: aws.String(fmt.Sprintf("%s (%d/%d)", comment, i+1, len(batches))),
 		}
 		req := &route53.ChangeResourceRecordSetsInput{HostedZoneId: &c.zoneID, ChangeBatch: batch}
 		changesToCheck[i], err = c.api.ChangeResourceRecordSets(context.TODO(), req)
@@ -178,7 +177,6 @@ func (c *route53Client) submitChanges(changes []types.Change, comment string) er
 			time.Sleep(30 * time.Second)
 		}
 	}
-
 	return nil
 }
 

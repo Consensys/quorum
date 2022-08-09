@@ -132,7 +132,9 @@ func (h *serverHandler) handle(p *clientPeer) error {
 		h.server.serverset.unregister(p)
 		return err
 	}
-	defer p.fcClient.Disconnect() // set by handshake if it's not another server
+	// Setup flow control mechanism for the peer
+	p.fcClient = flowcontrol.NewClientNode(h.server.fcManager, p.fcParams)
+	defer p.fcClient.Disconnect()
 
 	// Setup flow control mechanism for the peer
 	p.fcClient = flowcontrol.NewClientNode(h.server.fcManager, p.fcParams)

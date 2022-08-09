@@ -214,7 +214,7 @@ func TestTraceCall(t *testing.T) {
 	var testSuite = []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.CallArgs
-		config      *TraceConfig
+		config      *TraceCallConfig
 		expectErr   error
 		expect      interface{}
 	}{

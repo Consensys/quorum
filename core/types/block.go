@@ -179,6 +179,10 @@ type Block struct {
 	ReceivedFrom interface{}
 }
 
+func (b *Block) String() string {
+	return fmt.Sprintf("{Header: %v}", b.header)
+}
+
 // "external" block encoding. used for eth protocol, etc.
 type extblock struct {
 	Header *Header
