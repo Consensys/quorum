@@ -775,50 +775,6 @@ func TestEmptyRangeProof(t *testing.T) {
 		if !c.err && err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
-		// If no error was returned, ensure the returned trie and database contains
-		// the entire proof, since there's no value
-		if !c.err {
-			if err := trie.Prove(first, 0, memorydb.New()); err != nil {
-				t.Errorf("returned trie doesn't contain original proof: %v", err)
-			}
-			if memdb := db.(*memorydb.Database); memdb.Len() != proof.Len() {
-				t.Errorf("database entry count mismatch: have %d, want %d", memdb.Len(), proof.Len())
-			}
-			if not == nil {
-				t.Errorf("missing notary")
-			}
-		}
-	}
-}
-
-// TestBloatedProof tests a malicious proof, where the proof is more or less the
-// whole trie.
-func TestBloatedProof(t *testing.T) {
-	// Use a small trie
-	trie, kvs := nonRandomTrie(100)
-	var entries entrySlice
-	for _, kv := range kvs {
-		entries = append(entries, kv)
-	}
-	sort.Sort(entries)
-	var keys [][]byte
-	var vals [][]byte
-
-	proof := memorydb.New()
-	for i, entry := range entries {
-		trie.Prove(entry.k, 0, proof)
-		if i == 50 {
-			keys = append(keys, entry.k)
-			vals = append(vals, entry.v)
-		}
-	}
-	want := memorydb.New()
-	trie.Prove(keys[0], 0, want)
-	trie.Prove(keys[len(keys)-1], 0, want)
-
-	_, _, notary, _, _ := VerifyRangeProof(trie.Hash(), keys[0], keys[len(keys)-1], keys, vals, proof)
-	if used := notary.Accessed().(*memorydb.Database); used.Len() != want.Len() {
-		t.Fatalf("notary proof size mismatch: have %d, want %d", used.Len(), want.Len())
 	}
 }
 

@@ -38,9 +38,9 @@ import (
 
 // Client discovers nodes by querying DNS servers.
 type Client struct {
-	cfg       Config
-	clock     mclock.Clock
-	entries   *lru.Cache
+	cfg          Config
+	clock        mclock.Clock
+	entries      *lru.Cache
 	ratelimit    *rate.Limiter
 	singleflight singleflight.Group
 }

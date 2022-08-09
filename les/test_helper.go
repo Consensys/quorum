@@ -324,10 +324,6 @@ func alwaysTrueFn() bool {
 	return true
 }
 
-func alwaysTrueFn() bool {
-	return true
-}
-
 // testPeer is a simulated peer to allow testing direct network calls.
 type testPeer struct {
 	cpeer *clientPeer

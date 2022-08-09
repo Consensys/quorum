@@ -489,15 +489,15 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
-	to             *common.Address
-	from           common.Address
-	nonce          uint64
-	amount         *big.Int
-	gasLimit       uint64
-	gasPrice       *big.Int
-	data           []byte
-	accessList     AccessList
-	checkNonce     bool
+	to         *common.Address
+	from       common.Address
+	nonce      uint64
+	amount     *big.Int
+	gasLimit   uint64
+	gasPrice   *big.Int
+	data       []byte
+	accessList AccessList
+	checkNonce bool
 	// Quorum
 	isPrivate      bool
 	isInnerPrivate bool

@@ -218,9 +218,9 @@ func (s *Suite) waitAnnounce66(t *utesting.T, conn *Conn, blockAnnouncement *New
 		case *NewPooledTransactionHashes:
 			// ignore old txs being propagated
 			continue
-        default:
-            t.Fatalf("unexpected: %s", pretty.Sdump(msg))
-        }
+		default:
+			t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+		}
 	}
 }
 

@@ -177,7 +177,6 @@ func (c *route53Client) submitChanges(changes []types.Change, comment string) er
 
 			time.Sleep(30 * time.Second)
 		}
-		}
 	}
 
 	return nil

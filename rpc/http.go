@@ -128,7 +128,6 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 
-	initctx := resolvePSIProvider(context.Background(), endpoint)
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)
 	headers.Set("content-type", contentType)
@@ -221,26 +220,7 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 
 	hc.mu.Unlock()
 
-	// Quorum
 	// do request
-	if hc.credentialsProvider != nil {
-		if token, err := hc.credentialsProvider(ctx); err != nil {
-			log.Warn("unable to obtain http credentials from provider", "err", err)
-		} else {
-			req.Header.Set(HttpAuthorizationHeader, token)
-		}
-	}
-	if hc.psiProvider != nil {
-		if psi, err := hc.psiProvider(ctx); err != nil {
-			log.Warn("unable to obtain PSI from provider", "err", err)
-		} else {
-			req.Header.Set(HttpPrivateStateIdentifierHeader, psi.String())
-		}
-	}
-	// End Quorum
-
-	hc.mu.Unlock()
-
 	resp, err := hc.client.Do(req)
 	if err != nil {
 		return nil, err

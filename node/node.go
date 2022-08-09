@@ -412,11 +412,6 @@ func (n *Node) startRPC() error {
 		return err
 	}
 
-	tls, auth, err := n.GetSecuritySupports()
-	if err != nil {
-		return err
-	}
-
 	// Configure HTTP.
 	if n.config.HTTPHost != "" {
 		config := httpConfig{
