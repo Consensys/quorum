@@ -301,7 +301,7 @@ contract NodeManager {
             return false;
         }
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if (nodeList[nodeIndex].status == 2 && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
+        if (nodeList[nodeIndex].status == 2) {
             return true;
         }
 
