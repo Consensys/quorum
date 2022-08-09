@@ -646,7 +646,6 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, false, timeout)
 		done    = make(chan struct{})
-		ctx     = context.TODO()
 	)
 
 	go func() {
@@ -673,7 +672,7 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 		fids[i] = fid
 		// Wait for at least one tx to arrive in filter
 		for {
-			hashes, err := api.GetFilterChanges(ctx, fid)
+			hashes, err := api.GetFilterChanges(fid)
 			if err != nil {
 				t.Fatalf("Filter should exist: %v\n", err)
 			}
@@ -693,7 +692,7 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 	case done <- struct{}{}:
 		// Check that all filters have been uninstalled
 		for _, fid := range fids {
-			if _, err := api.GetFilterChanges(ctx, fid); err == nil {
+			if _, err := api.GetFilterChanges(fid); err == nil {
 				t.Errorf("Filter %s should have been uninstalled\n", fid)
 			}
 		}

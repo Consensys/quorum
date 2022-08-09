@@ -372,7 +372,7 @@ func TestFlagsConfig(t *testing.T) {
 
 	assert.Equal(t, bootNodes(t).Nodes, p2p.BootstrapNodes)
 	//assert.Equal(t, bootNodesV5(t).Nodes, p2p.BootstrapNodesV5)
-	assert.Equal(t, ":0", p2p.ListenAddr)
+	assert.Equal(t, "", p2p.ListenAddr)
 	assert.Equal(t, false, p2p.EnableMsgEvents)
 
 	type NetRestrictType struct {

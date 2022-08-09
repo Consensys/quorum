@@ -599,14 +599,15 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		directCount += len(hashes)
 		peer.AsyncSendTransactions(hashes)
 	}
+	for peer, hashes := range txset {
+		directPeers++
+		directCount += len(hashes)
+		peer.AsyncSendTransactions(hashes)
+	}
 	for peer, hashes := range annos {
 		annoPeers++
 		annoCount += len(hashes)
-		if peer.Version() >= eth.ETH65 {
-			peer.AsyncSendPooledTransactionHashes(hashes)
-		} else {
-			peer.AsyncSendTransactions(hashes)
-		}
+		peer.AsyncSendPooledTransactionHashes(hashes)
 	}
 	log.Debug("Transaction broadcast", "txs", len(txs),
 		"announce packs", annoPeers, "announced hashes", annoCount,

@@ -128,6 +128,7 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 
+	initctx := resolvePSIProvider(context.Background(), endpoint)
 	headers := make(http.Header, 2)
 	headers.Set("accept", contentType)
 	headers.Set("content-type", contentType)
@@ -152,19 +153,11 @@ func DialHTTP(endpoint string) (*Client, error) {
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
 	hc := c.writeConn.(*httpConn)
 	respBody, err := hc.doRequest(ctx, msg)
-	if respBody != nil {
-		defer respBody.Close()
-	}
-
 	if err != nil {
-		if respBody != nil {
-			buf := new(bytes.Buffer)
-			if _, err2 := buf.ReadFrom(respBody); err2 == nil {
-				return fmt.Errorf("%v: %v", err, buf.String())
-			}
-		}
 		return err
 	}
+	defer respBody.Close()
+
 	var respmsg jsonrpcMessage
 	if err := json.NewDecoder(respBody).Decode(&respmsg); err != nil {
 		return err
@@ -210,6 +203,25 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	req.Header = hc.headers.Clone()
 
 	// Quorum
+	if hc.credentialsProvider != nil {
+		if token, err := hc.credentialsProvider(ctx); err != nil {
+			log.Warn("unable to obtain http credentials from provider", "err", err)
+		} else {
+			req.Header.Set(HttpAuthorizationHeader, token)
+		}
+	}
+	if hc.psiProvider != nil {
+		if psi, err := hc.psiProvider(ctx); err != nil {
+			log.Warn("unable to obtain PSI from provider", "err", err)
+		} else {
+			req.Header.Set(HttpPrivateStateIdentifierHeader, psi.String())
+		}
+	}
+	// End Quorum
+
+	hc.mu.Unlock()
+
+	// Quorum
 	// do request
 	if hc.credentialsProvider != nil {
 		if token, err := hc.credentialsProvider(ctx); err != nil {
@@ -234,7 +246,17 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return resp.Body, errors.New(resp.Status)
+		var buf bytes.Buffer
+		var body []byte
+		if _, err := buf.ReadFrom(resp.Body); err == nil {
+			body = buf.Bytes()
+		}
+
+		return nil, HTTPError{
+			Status:     resp.Status,
+			StatusCode: resp.StatusCode,
+			Body:       body,
+		}
 	}
 	return resp.Body, nil
 }

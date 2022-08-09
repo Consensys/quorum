@@ -30,6 +30,29 @@ Run `devp2p dns to-route53 <directory>` to publish a tree to Amazon Route53.
 
 You can find more information about these commands in the [DNS Discovery Setup Guide][dns-tutorial].
 
+### Node Set Utilities
+
+There are several commands for working with JSON node set files. These files are generated
+by the discovery crawlers and DNS client commands. Node sets also used as the input of the
+DNS deployer commands.
+
+Run `devp2p nodeset info <nodes.json>` to display statistics of a node set.
+
+Run `devp2p nodeset filter <nodes.json> <filter flags...>` to write a new, filtered node
+set to standard output. The following filters are supported:
+
+- `-limit <N>` limits the output set to N entries, taking the top N nodes by score
+- `-ip <CIDR>` filters nodes by IP subnet
+- `-min-age <duration>` filters nodes by 'first seen' time
+- `-eth-network <mainnet/rinkeby/goerli/ropsten>` filters nodes by "eth" ENR entry
+- `-les-server` filters nodes by LES server support
+- `-snap` filters nodes by snap protocol support
+
+For example, given a node set in `nodes.json`, you could create a filtered set containing
+up to 20 eth mainnet nodes which also support snap sync using this command:
+
+    devp2p nodeset filter nodes.json -eth-network mainnet -snap -limit 20
+
 ### Discovery v4 Utilities
 
 The `devp2p discv4 ...` command family deals with the [Node Discovery v4][discv4]

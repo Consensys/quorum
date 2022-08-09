@@ -114,11 +114,6 @@ func (eth *Ethereum) stateAtBlock(block *types.Block, reexec uint64, base *state
 		logged time.Time
 		parent common.Hash
 	)
-	defer func() {
-		if err != nil && parent != (common.Hash{}) {
-			database.TrieDB().Dereference(parent)
-		}
-	}()
 	for current.NumberU64() < origin {
 		// Print progress logs if long enough time elapsed
 		if time.Since(logged) > 8*time.Second && report {

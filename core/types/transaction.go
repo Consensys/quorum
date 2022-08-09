@@ -498,6 +498,7 @@ type Message struct {
 	data           []byte
 	accessList     AccessList
 	checkNonce     bool
+	// Quorum
 	isPrivate      bool
 	isInnerPrivate bool
 }

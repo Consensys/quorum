@@ -865,11 +865,6 @@ func DeleteBadBlocks(db ethdb.KeyValueWriter) {
 	}
 }
 
-// HasBadBlock returns whether the block with the hash is a bad block. dep: Istanbul
-func HasBadBlock(db ethdb.Reader, hash common.Hash) bool {
-	return ReadBadBlock(db, hash) != nil
-}
-
 // FindCommonAncestor returns the last common ancestor of two block headers
 func FindCommonAncestor(db ethdb.Reader, a, b *types.Header) *types.Header {
 	for bn := b.Number.Uint64(); a.Number.Uint64() > bn; {
@@ -910,7 +905,7 @@ func ReadHeadHeader(db ethdb.Reader) *types.Header {
 	return ReadHeader(db, headHeaderHash, *headHeaderNumber)
 }
 
-// ReadHeadHeader returns the current canonical head block.
+// ReadHeadBlock returns the current canonical head block.
 func ReadHeadBlock(db ethdb.Reader) *types.Block {
 	headBlockHash := ReadHeadBlockHash(db)
 	if headBlockHash == (common.Hash{}) {
