@@ -383,7 +383,7 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 		return false
 	}
 
-	return false
+	return true
 }
 
 func (s *PrivateAccountAPI) lockAccount(addr common.Address) error {

@@ -183,6 +183,12 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if ctx.GlobalIsSet(utils.OverrideBerlinFlag.Name) {
 		cfg.Eth.OverrideBerlin = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideBerlinFlag.Name))
 	}
+
+	// Quorum: Must occur before registering the extension service, as it needs an initialised PTM to be enabled
+	if err := quorumInitialisePrivacy(ctx); err != nil {
+		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
+	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Configure catalyst.
@@ -193,11 +199,6 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		if err := catalyst.Register(stack, eth); err != nil {
 			utils.Fatalf("%v", err)
 		}
-	}
-
-	// Quorum: Must occur before registering the extension service, as it needs an initialised PTM to be enabled
-	if err := quorumInitialisePrivacy(ctx); err != nil {
-		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
 	// Quorum
