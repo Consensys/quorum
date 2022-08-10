@@ -288,7 +288,7 @@ func doTest(cmdline []string) {
 	flag.CommandLine.Parse(cmdline)
 
 	// Configure the toolchain.
-	tc := build.GoToolchain{GOARCH: *arch, CC: *cc}
+	tc := &build.GoToolchain{GOARCH: *arch, CC: *cc}
 	if *dlgo {
 		csdb := build.MustLoadChecksums("build/checksums.txt")
 		tc.Root = build.DownloadGo(csdb, dlgoVersion)
@@ -311,7 +311,7 @@ func doTest(cmdline []string) {
 	}
 	// Quorum
 	// Ignore not Quorum related packages to accelerate build
-	packages = build.ExpandPackagesNoVendor(packages)
+	packages = build.ExpandPackagesNoVendor(tc, packages)
 	packages = build.IgnorePackages(packages)
 	gotest.Args = append(gotest.Args, packages...)
 	build.MustRun(gotest)
