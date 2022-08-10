@@ -1071,7 +1071,12 @@ func (e *revertError) ErrorData() interface{} {
 // - replaced the default 5s time out with the value passed in vm.calltimeout
 // - multi tenancy verification
 func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
-	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
+	var accounts map[common.Address]OverrideAccount
+	if overrides != nil {
+		accounts = *overrides
+	}
+	stateOverride := StateOverride(accounts)
+	result, err := DoCall(ctx, s.b, args, blockNrOrHash, &stateOverride, vm.Config{}, s.b.CallTimeOut(), s.b.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -2236,16 +2241,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 
-	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	if replaceDataWithHash {
-		// replace the original payload with encrypted payload hash
-		args.Data = data.BytesTypeRef()
-	}
-	// /Quorum
-
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -2257,6 +2252,17 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
+
+	_, replaceDataWithHash, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if replaceDataWithHash {
+		// replace the original payload with encrypted payload hash
+		args.Data = data.BytesTypeRef()
+	}
+	// /Quorum
+
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
