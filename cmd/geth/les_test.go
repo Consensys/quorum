@@ -93,10 +93,8 @@ func (g *gethrpc) waitSynced() {
 		g.geth.Log("Other 'syncing' event", ev)
 	case err := <-sub.Err():
 		g.geth.Fatalf("%v notification: %v", g.name, err)
-		break
 	case <-timeout:
 		g.geth.Fatalf("%v timeout syncing", g.name)
-		break
 	}
 }
 
