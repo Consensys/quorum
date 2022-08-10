@@ -136,10 +136,6 @@ func (h *serverHandler) handle(p *clientPeer) error {
 	p.fcClient = flowcontrol.NewClientNode(h.server.fcManager, p.fcParams)
 	defer p.fcClient.Disconnect()
 
-	// Setup flow control mechanism for the peer
-	p.fcClient = flowcontrol.NewClientNode(h.server.fcManager, p.fcParams)
-	defer p.fcClient.Disconnect()
-
 	// Reject light clients if server is not synced. Put this checking here, so
 	// that "non-synced" les-server peers are still allowed to keep the connection.
 	if !h.synced() {

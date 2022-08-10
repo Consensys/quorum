@@ -210,7 +210,7 @@ func doInstall(cmdline []string) {
 	flag.CommandLine.Parse(cmdline)
 
 	// Configure the toolchain.
-	tc := &build.GoToolchain{GOARCH: *arch, CC: *cc}
+	tc := build.GoToolchain{GOARCH: *arch, CC: *cc}
 	if *dlgo {
 		csdb := build.MustLoadChecksums("build/checksums.txt")
 		tc.Root = build.DownloadGo(csdb, dlgoVersion)
@@ -239,11 +239,6 @@ func doInstall(cmdline []string) {
 	if len(packages) == 0 {
 		packages = build.FindMainPackages("./cmd")
 	}
-
-	// Quorum
-	// Ignore not Quorum related packages to accelerate build
-	packages = build.ExpandPackagesNoVendor(tc, packages)
-	packages = build.IgnorePackages(packages)
 
 	// Do the build!
 	for _, pkg := range packages {
