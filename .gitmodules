@@ -1,3 +1,6 @@
 [submodule "tests"]
 	path = tests/testdata
 	url = https://github.com/ethereum/tests
+[submodule "plugin/definitions"]
+	path = plugin/definitions
+	url = https://github.com/ConsenSys/quorum-plugin-definitions.git

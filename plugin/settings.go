@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/lc"
 	"github.com/ethereum/go-ethereum/plugin/qlight"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -25,6 +26,7 @@ const (
 	SecurityPluginInterfaceName           = PluginInterfaceName("security")
 	AccountPluginInterfaceName            = PluginInterfaceName("account")
 	QLightTokenManagerPluginInterfaceName = PluginInterfaceName("qlighttokenmanager")
+	LCProtocolPluginInterfaceName         = PluginInterfaceName("lc")
 )
 
 var (
@@ -81,6 +83,27 @@ var (
 		QLightTokenManagerPluginInterfaceName: {
 			pluginSet: plugin.PluginSet{
 				qlight.ConnectorName: &qlight.PluginConnector{},
+			},
+		},
+		LCProtocolPluginInterfaceName: {
+			apiProviderFunc: func(ns string, pm *PluginManager) ([]rpc.API, error) {
+				template := new(HelloWorldPluginTemplate)
+				if err := pm.GetPluginTemplate(HelloWorldPluginInterfaceName, template); err != nil {
+					return nil, err
+				}
+				service, err := template.Get()
+				if err != nil {
+					return nil, err
+				}
+				return []rpc.API{{
+					Namespace: ns,
+					Version:   "1.0.0",
+					Service:   service,
+					Public:    true,
+				}}, nil
+			},
+			pluginSet: plugin.PluginSet{
+				lc.ConnectorName: &lc.PluginConnector{},
 			},
 		},
 	}
