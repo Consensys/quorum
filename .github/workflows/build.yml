@@ -23,7 +23,7 @@ jobs:
         # ###[error]    natupnp_test.go:165: not discovered
         # must be sommething with Github Actions VM networking setup.
         # Event Ubuntu requires a workaround
-        os: [ "ubuntu-18.04" ]
+        os: [ "ubuntu-20.04" ]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -51,7 +51,7 @@ jobs:
           make test all
   docker-build:
     name: 'Build Docker image'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
@@ -123,7 +123,7 @@ jobs:
           - 'mps-mixed-network-psr-check || networks/template::istanbul-4nodes-mps-mixed'
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v1
@@ -235,7 +235,7 @@ jobs:
             privacy-enhancements: false
             privacy-precompile: true
             privacy-marker-transactions: false # do not enable pmts as the test will do this on the necessary nodes
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v1
@@ -274,7 +274,7 @@ jobs:
     name: Run PEEPS tests
     needs:
       - docker-build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -313,7 +313,7 @@ jobs:
       - build
       - acceptance-tests-basic
       - acceptance-tests-extra
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -331,7 +331,7 @@ jobs:
     needs:
       - build
       - publish-docker
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: 'Setup metadata'
         id: setup
