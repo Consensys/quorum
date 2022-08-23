@@ -188,7 +188,7 @@ func (mpsr *MultiplePrivateStateRepository) CommitAndWrite(isEIP158 bool, block 
 		}
 	}
 	// commit the trie of states
-	mtRoot, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
+	mtRoot, err := mpsr.trie.Commit(func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error {
 		privateRoot := common.BytesToHash(leaf)
 		if privateRoot != emptyRoot {
 			mpsr.privateCacheProvider.Reference(privateRoot, parent)
@@ -224,7 +224,7 @@ func (mpsr *MultiplePrivateStateRepository) Commit(isEIP158 bool, block *types.B
 		}
 	}
 	// commit the trie of states
-	_, err := mpsr.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
+	_, err := mpsr.trie.Commit(func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error {
 		privateRoot := common.BytesToHash(leaf)
 		if privateRoot != emptyRoot {
 			mpsr.privateCacheProvider.Reference(privateRoot, parent)

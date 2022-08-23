@@ -81,8 +81,8 @@ func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // Tests that peers are correctly accepted (or rejected) based on the advertised
 // fork IDs in the protocol handshake.
-func TestForkIDSplit64(t *testing.T) { testForkIDSplit(t, 64) }
-func TestForkIDSplit65(t *testing.T) { testForkIDSplit(t, 65) }
+func TestForkIDSplit65(t *testing.T) { testForkIDSplit(t, eth.ETH65) }
+func TestForkIDSplit66(t *testing.T) { testForkIDSplit(t, eth.ETH66) }
 
 func testForkIDSplit(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -239,8 +239,8 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 }
 
 // Tests that received transactions are added to the local pool.
-func TestRecvTransactions64(t *testing.T) { testRecvTransactions(t, 64) }
-func TestRecvTransactions65(t *testing.T) { testRecvTransactions(t, 65) }
+func TestRecvTransactions65(t *testing.T) { testRecvTransactions(t, eth.ETH65) }
+func TestRecvTransactions66(t *testing.T) { testRecvTransactions(t, eth.ETH66) }
 
 func testRecvTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -297,8 +297,8 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 }
 
 // This test checks that pending transactions are sent.
-func TestSendTransactions64(t *testing.T) { testSendTransactions(t, 64) }
-func TestSendTransactions65(t *testing.T) { testSendTransactions(t, 65) }
+func TestSendTransactions65(t *testing.T) { testSendTransactions(t, eth.ETH65) }
+func TestSendTransactions66(t *testing.T) { testSendTransactions(t, eth.ETH66) }
 
 func testSendTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -357,19 +357,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	seen := make(map[common.Hash]struct{})
 	for len(seen) < len(insert) {
 		switch protocol {
-		case 63, 64:
-			select {
-			case <-anns:
-				t.Errorf("tx announce received on pre eth/65")
-			case txs := <-bcasts:
-				for _, tx := range txs {
-					if _, ok := seen[tx.Hash()]; ok {
-						t.Errorf("duplicate transaction announced: %x", tx.Hash())
-					}
-					seen[tx.Hash()] = struct{}{}
-				}
-			}
-		case 65:
+		case 65, 66:
 			select {
 			case hashes := <-anns:
 				for _, hash := range hashes {
@@ -395,8 +383,8 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 // Tests that transactions get propagated to all attached peers, either via direct
 // broadcasts or via announcements/retrievals.
-func TestTransactionPropagation64(t *testing.T) { testTransactionPropagation(t, 64) }
-func TestTransactionPropagation65(t *testing.T) { testTransactionPropagation(t, 65) }
+func TestTransactionPropagation65(t *testing.T) { testTransactionPropagation(t, eth.ETH65) }
+func TestTransactionPropagation66(t *testing.T) { testTransactionPropagation(t, eth.ETH66) }
 
 func testTransactionPropagation(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -614,19 +602,14 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	defer p2pLocal.Close()
 	defer p2pRemote.Close()
 
-	local := eth.NewPeer(eth.ETH64, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pLocal), p2pLocal, handler.txpool)
-	remote := eth.NewPeer(eth.ETH64, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pRemote), p2pRemote, handler.txpool)
+	local := eth.NewPeer(eth.ETH65, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pLocal), p2pLocal, handler.txpool)
+	remote := eth.NewPeer(eth.ETH65, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pRemote), p2pRemote, handler.txpool)
 	defer local.Close()
 	defer remote.Close()
 
-	handlerDone := make(chan struct{})
-	go func() {
-		defer close(handlerDone)
-		handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
-			err := eth.Handle((*ethHandler)(handler.handler), peer)
-			return err
-		})
-	}()
+	go handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
+		return eth.Handle((*ethHandler)(handler.handler), peer)
+	})
 	// Run the handshake locally to avoid spinning up a remote handler
 	var (
 		genesis = handler.chain.Genesis()
@@ -663,7 +646,6 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 
 	// Verify that the remote peer is maintained or dropped
 	if drop {
-		<-handlerDone
 		if peers := handler.handler.peers.len(); peers != 0 {
 			t.Fatalf("peer count mismatch: have %d, want %d", peers, 0)
 		}
@@ -710,8 +692,8 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 		defer sourcePipe.Close()
 		defer sinkPipe.Close()
 
-		sourcePeer := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{byte(i)}, "", nil), sourcePipe, nil)
-		sinkPeer := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{0}, "", nil), sinkPipe, nil)
+		sourcePeer := eth.NewPeer(eth.ETH65, p2p.NewPeer(enode.ID{byte(i)}, "", nil), sourcePipe, nil)
+		sinkPeer := eth.NewPeer(eth.ETH65, p2p.NewPeer(enode.ID{0}, "", nil), sinkPipe, nil)
 		defer sourcePeer.Close()
 		defer sinkPeer.Close()
 
@@ -762,8 +744,8 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 
 // Tests that a propagated malformed block (uncles or transactions don't match
 // with the hashes in the header) gets discarded and not broadcast forward.
-func TestBroadcastMalformedBlock64(t *testing.T) { testBroadcastMalformedBlock(t, 64) }
-func TestBroadcastMalformedBlock65(t *testing.T) { testBroadcastMalformedBlock(t, 65) }
+func TestBroadcastMalformedBlock65(t *testing.T) { testBroadcastMalformedBlock(t, eth.ETH65) }
+func TestBroadcastMalformedBlock66(t *testing.T) { testBroadcastMalformedBlock(t, eth.ETH66) }
 
 func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	t.Parallel()

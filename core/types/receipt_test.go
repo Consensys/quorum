@@ -560,11 +560,6 @@ func testReceiptFields(t *testing.T, receipt *Receipt, txs Transactions, txIndex
 		if receipt.Logs[j].TxIndex != uint(txIndex) {
 			t.Errorf("%s.Logs[%d].TransactionIndex = %d, want %d", receiptName, j, receipt.Logs[j].TxIndex, txIndex)
 		}
-		// TODO: @achraf have a look how to include this
-		//if receipts[i].Logs[j].Index != logIndex {
-		//	t.Errorf("receipts[%d].Logs[%d].Index = %d, want %d", i, j, receipts[i].Logs[j].Index, logIndex)
-		//}
-		//logIndex++
 	}
 }
 
@@ -579,6 +574,20 @@ func TestTypedReceiptEncodingDecoding(t *testing.T) {
 				t.Fatalf("bundle %d: got %x, want %x", i, got, want)
 			}
 		}
+	}
+	{
+		var bundle []*Receipt
+		rlp.DecodeBytes(payload, &bundle)
+		check(bundle)
+	}
+	{
+		var bundle []*Receipt
+		r := bytes.NewReader(payload)
+		s := rlp.NewStream(r, uint64(len(payload)))
+		if err := s.Decode(&bundle); err != nil {
+			t.Fatal(err)
+		}
+		check(bundle)
 	}
 	{
 		var bundle []*Receipt

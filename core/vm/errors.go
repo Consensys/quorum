@@ -23,9 +23,6 @@ import (
 
 // List evm execution errors
 var (
-	// ErrInvalidSubroutineEntry means that a BEGINSUB was reached via iteration,
-	// as opposed to from a JUMPSUB instruction
-	ErrInvalidSubroutineEntry   = errors.New("invalid subroutine entry")
 	ErrOutOfGas                 = errors.New("out of gas")
 	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
 	ErrDepth                    = errors.New("max call depth exceeded")
@@ -37,11 +34,8 @@ var (
 	ErrWriteProtection          = errors.New("write protection")
 	ErrReturnDataOutOfBounds    = errors.New("return data out of bounds")
 	ErrGasUintOverflow          = errors.New("gas uint64 overflow")
-	ErrInvalidRetsub            = errors.New("invalid retsub")
-	ErrReturnStackExceeded      = errors.New("return stack limit reached")
-
-	ErrReadOnlyValueTransfer   = errors.New("VM in read-only mode. Value transfer prohibited.")
-	ErrNoCompatibleInterpreter = errors.New("no compatible interpreter")
+	ErrReadOnlyValueTransfer    = errors.New("VM in read-only mode. Value transfer prohibited.")
+	ErrNoCompatibleInterpreter  = errors.New("no compatible interpreter")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

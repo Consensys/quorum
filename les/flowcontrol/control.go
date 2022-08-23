@@ -88,6 +88,9 @@ func NewClientNode(cm *ClientManager, params ServerParams) *ClientNode {
 
 // Disconnect should be called when a client is disconnected
 func (node *ClientNode) Disconnect() {
+	if node == nil {
+		return
+	}
 	node.lock.Lock()
 	defer node.lock.Unlock()
 

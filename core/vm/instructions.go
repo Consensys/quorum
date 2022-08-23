@@ -258,10 +258,8 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 
 func opBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
-	addr := common.Address(slot.Bytes20())
-	// Quorum: get public/private state db based on addr
-	balance := getDualState(interpreter.evm, addr).GetBalance(addr)
-	slot.SetFromBig(balance)
+	address := common.Address(slot.Bytes20())
+	slot.SetFromBig(getDualState(interpreter.evm, address).GetBalance(address)) // Quorum: get public/private state db based on addr
 	return nil, nil
 }
 
@@ -345,7 +343,7 @@ func opExtCodeSize(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext)
 	slot := scope.Stack.peek()
 	addr := slot.Bytes20()
 	// Quorum: get public/private state db based on addr
-	slot.SetUint64(uint64(getDualState(interpreter.evm, addr).GetCodeSize(addr)))
+	slot.SetUint64(uint64(getDualState(interpreter.evm, addr).GetCodeSize(slot.Bytes20()))) // Quorum: get public/private state db based on addr
 	return nil, nil
 }
 
@@ -385,8 +383,7 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext)
 		uint64CodeOffset = 0xffffffffffffffff
 	}
 	addr := common.Address(a.Bytes20())
-	codeCopy := getData(getDualState(interpreter.evm, addr).GetCode(addr), uint64CodeOffset, length.Uint64())
-	// Quorum: get public/private state db based on addr
+	codeCopy := getData(getDualState(interpreter.evm, addr).GetCode(addr), uint64CodeOffset, length.Uint64()) // Quorum: get public/private state db based on addr
 	scope.Memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
 	return nil, nil
@@ -514,8 +511,7 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 func opSload(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	loc := scope.Stack.peek()
 	hash := common.Hash(loc.Bytes32())
-	// Quorum: get public/private state db based on addr
-	val := getDualState(interpreter.evm, scope.Contract.Address()).GetState(scope.Contract.Address(), hash)
+	val := getDualState(interpreter.evm, scope.Contract.Address()).GetState(scope.Contract.Address(), hash) // Quorum: get public/private state db based on addr
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }

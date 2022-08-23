@@ -73,9 +73,9 @@ type LightEthereum struct {
 	accountManager *accounts.Manager
 	netRPCService  *ethapi.PublicNetAPI
 
-	udpEnabled bool
 	p2pServer  *p2p.Server
 	p2pConfig  *p2p.Config
+	udpEnabled bool
 }
 
 // New creates an instance of the light client.

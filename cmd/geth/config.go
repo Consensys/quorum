@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common/http"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -188,8 +189,17 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		utils.Fatalf("Error initialising Private Transaction Manager: %s", err.Error())
 	}
 
-	// Quorum - returning `ethService` too for the Raft and extension service
-	backend, ethService := utils.RegisterEthService(stack, &cfg.Eth)
+	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Configure catalyst.
+	if ctx.GlobalBool(utils.CatalystFlag.Name) {
+		if eth == nil {
+			utils.Fatalf("Catalyst does not work in light client mode.")
+		}
+		if err := catalyst.Register(stack, eth); err != nil {
+			utils.Fatalf("%v", err)
+		}
+	}
 
 	// Quorum
 	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
@@ -197,7 +207,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if cfg.Node.Plugins != nil {
 		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
 		log.Debug("plugin manager", "value", stack.PluginManager())
-		err := ethService.NotifyRegisteredPluginService(stack.PluginManager())
+		err := eth.NotifyRegisteredPluginService(stack.PluginManager())
 		if err != nil {
 			utils.Fatalf("Error initialising QLight Token Manager: %s", err.Error())
 		}
@@ -208,11 +218,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) && !cfg.Eth.QuorumLightClient.Enabled() {
-		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethService)
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, eth)
 	}
 
 	if private.IsQuorumPrivacyEnabled() {
-		utils.RegisterExtensionService(stack, ethService)
+		utils.RegisterExtensionService(stack, eth)
 	}
 	// End Quorum
 

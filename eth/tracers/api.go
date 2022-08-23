@@ -187,6 +187,16 @@ type TraceConfig struct {
 	Reexec  *uint64
 }
 
+// TraceCallConfig is the config for traceCall API. It holds one more
+// field to override the state for tracing.
+type TraceCallConfig struct {
+	*vm.LogConfig
+	Tracer         *string
+	Timeout        *string
+	Reexec         *uint64
+	StateOverrides *ethapi.StateOverride
+}
+
 // StdTraceConfig holds extra parameters to standard-json trace functions.
 type StdTraceConfig struct {
 	vm.LogConfig
@@ -302,7 +312,7 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer)
-					msg = api.clearMessageDataIfNonParty(msg, psm)
+					msg = api.clearMessageDataIfNonParty(msg, psm) // Quorum
 					txctx := &txTraceContext{
 						index: i,
 						hash:  tx.Hash(),
@@ -842,7 +852,7 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 // created during the execution of EVM if the given transaction was added on
 // top of the provided block and returns them as a JSON object.
 // You can provide -2 as a block number to trace on top of the pending block.
-func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceConfig) (interface{}, error) {
+func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
 	// Try to retrieve the specified block
 	var (
 		err   error
@@ -852,6 +862,8 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHa
 		block, err = api.blockByHash(ctx, hash)
 	} else if number, ok := blockNrOrHash.Number(); ok {
 		block, err = api.blockByNumber(ctx, number)
+	} else {
+		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
 	if err != nil {
 		return nil, err
@@ -870,24 +882,38 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHa
 		return nil, err
 	}
 
+	// Apply the customized state rules if required.
+	if config != nil {
+		if err := config.StateOverrides.Apply(statedb); err != nil {
+			return nil, err
+		}
+	}
 	// Execute the trace
 	msg := args.ToMessage(api.backend.RPCGasCap())
 	vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 
 	// Quorum: we run the call with privateState as publicState to check if we have a result, if it is not empty, then it is a private call
 	var noTracerConfig *TraceConfig
+	var traceConfig *TraceConfig
 	if config != nil {
 		// create a new config without the tracer so that we have a ExecutionResult returned by api.traceTx
+		traceConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
+			Tracer:    config.Tracer,
+			Timeout:   config.Timeout,
+			Reexec:    config.Reexec,
+		}
+		// create a new config with the tracer so that we have a ExecutionResult returned by api.traceTx
 		noTracerConfig = &TraceConfig{
 			LogConfig: config.LogConfig,
-			Reexec:    config.Reexec,
 			Timeout:   config.Timeout,
+			Reexec:    config.Reexec,
 		}
 	}
 	res, err := api.traceTx(ctx, msg, new(txTraceContext), vmctx, statedb, privateStateDb, privateStateRepo, noTracerConfig) // test private with no config
 	if exeRes, ok := res.(*ethapi.ExecutionResult); ok && err == nil && len(exeRes.StructLogs) > 0 {                         // check there is a result
 		if config != nil && config.Tracer != nil { // re-run the private call with the custom JS tracer
-			return api.traceTx(ctx, msg, new(txTraceContext), vmctx, statedb, privateStateDb, privateStateRepo, config) // re-run with trace
+			return api.traceTx(ctx, msg, new(txTraceContext), vmctx, statedb, privateStateDb, privateStateRepo, traceConfig) // re-run with trace
 		}
 		return res, err // return private result with no tracer
 	} else if err == nil && !ok {
@@ -895,7 +921,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.CallArgs, blockNrOrHa
 	}
 	// End Quorum
 
-	return api.traceTx(ctx, msg, new(txTraceContext), vmctx, statedb, privateStateDb, privateStateRepo, config)
+	return api.traceTx(ctx, msg, new(txTraceContext), vmctx, statedb, privateStateDb, privateStateRepo, traceConfig)
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
@@ -944,7 +970,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *txTrac
 
 	psm, err := api.chainContext(ctx).PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("tracing failed: %v", err)
+		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
 
 	// Run the transaction with tracing enabled.
@@ -966,7 +992,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *txTrac
 
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
-		return nil, fmt.Errorf("tracing failed: %v", err)
+		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
 
 	// Depending on the tracer type, format and return the output.

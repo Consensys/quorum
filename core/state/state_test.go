@@ -30,8 +30,6 @@ import (
 	checker "gopkg.in/check.v1"
 )
 
-var toAddr = common.BytesToAddress
-
 type stateTest struct {
 	db    ethdb.Database
 	state *StateDB
@@ -49,11 +47,11 @@ func TestDump(t *testing.T) {
 	s := &stateTest{db: db, state: sdb}
 
 	// generate a few entries
-	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
+	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
-	obj2 := s.state.GetOrNewStateObject(toAddr([]byte{0x01, 0x02}))
+	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
 	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
-	obj3 := s.state.GetOrNewStateObject(toAddr([]byte{0x02}))
+	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 
 	// write some of them to the trie
@@ -94,11 +92,11 @@ func TestDump(t *testing.T) {
 
 func (s *stateTest) TestDumpAddress(c *checker.C) {
 	// generate a few entries
-	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
+	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
-	obj2 := s.state.GetOrNewStateObject(toAddr([]byte{0x01, 0x02}))
+	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
 	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
-	obj3 := s.state.GetOrNewStateObject(toAddr([]byte{0x02}))
+	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 
 	// write some of them to the trie
@@ -106,7 +104,7 @@ func (s *stateTest) TestDumpAddress(c *checker.C) {
 	s.state.updateStateObject(obj2)
 	s.state.Commit(false)
 
-	addressToDump := toAddr([]byte{0x01})
+	addressToDump := common.BytesToAddress([]byte{0x01})
 	// check that dump contains the state objects that are in trie
 	got, _ := s.state.DumpAddress(addressToDump)
 	out, _ := json.Marshal(got)
@@ -120,11 +118,11 @@ func (s *stateTest) TestDumpAddress(c *checker.C) {
 
 func (s *stateTest) TestDumpAddressNotFound(c *checker.C) {
 	// generate a few entries
-	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
+	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
-	obj2 := s.state.GetOrNewStateObject(toAddr([]byte{0x01, 0x02}))
+	obj2 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01, 0x02}))
 	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
-	obj3 := s.state.GetOrNewStateObject(toAddr([]byte{0x02}))
+	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 
 	// write some of them to the trie
@@ -132,7 +130,7 @@ func (s *stateTest) TestDumpAddressNotFound(c *checker.C) {
 	s.state.updateStateObject(obj2)
 	s.state.Commit(false)
 
-	addressToDump := toAddr([]byte{0x09})
+	addressToDump := common.BytesToAddress([]byte{0x09})
 
 	// check that dump contains the state objects that are in trie
 	_, found := s.state.DumpAddress(addressToDump)
@@ -166,7 +164,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestSnapshot(t *testing.T) {
-	stateobjaddr := toAddr([]byte("aa"))
+	stateobjaddr := common.BytesToAddress([]byte("aa"))
 	var storageaddr common.Hash
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
@@ -208,8 +206,8 @@ func TestSnapshotEmpty(t *testing.T) {
 func TestSnapshot2(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
-	stateobjaddr0 := toAddr([]byte("so0"))
-	stateobjaddr1 := toAddr([]byte("so1"))
+	stateobjaddr0 := common.BytesToAddress([]byte("so0"))
+	stateobjaddr1 := common.BytesToAddress([]byte("so1"))
 	var storageaddr common.Hash
 
 	data0 := common.BytesToHash([]byte{17})
