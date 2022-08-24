@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -22,6 +23,7 @@ type TokenHolder struct {
 	peerUpdater         RunningPeerAuthUpdater
 	timer               *time.Timer
 	eta                 time.Time
+	lock                sync.Mutex
 }
 
 func NewTokenHolder(psi string, pluginManager *plugin.PluginManager) (*TokenHolder, error) {
@@ -92,16 +94,7 @@ func (h *TokenHolder) refreshPlugin(pluginManager plugin.PluginManagerInterface,
 }
 
 func (h *TokenHolder) HttpCredentialsProvider(ctx context.Context) (string, error) {
-	if h.plugin != nil {
-		log.Debug("HttpCredentialsProvider using plugin")
-		err := h.updateTimer()
-		if err != nil {
-			log.Warn("update token timer", "err", err)
-		}
-		return h.plugin.TokenRefresh(ctx, h.token, h.psi)
-	}
-	log.Debug("HttpCredentialsProvider using token")
-	return h.token, nil
+	return h.CurrentToken(), nil
 }
 
 func (h *TokenHolder) ReloadPlugin() error {
@@ -134,6 +127,8 @@ func (h *TokenHolder) CurrentToken() string {
 	if !expired {
 		return h.token
 	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	returnedToken, err := h.plugin.TokenRefresh(context.Background(), h.token, h.psi)
 	if err != nil {
 		log.Error("get token from plugin", "err", err)
@@ -221,7 +216,7 @@ func (h *TokenHolder) tokenExpirationDelay() (time.Duration, error) {
 func (h *TokenHolder) tokenExpired() (bool, error) {
 	expireIn, err := h.tokenExpirationDelay()
 	if err != nil {
-		return false, err
+		return true, err
 	}
 	return expireIn < time.Duration(h.refreshAnticipation)*time.Millisecond, nil
 }
