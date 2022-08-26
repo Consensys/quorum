@@ -12,25 +12,30 @@ env:
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
   publish-docker:
-    name: Publish Docker Image
+    name: Publish ARM Docker Image
     runs-on: ubuntu-20.04
     steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v2
+      - name: 'Check out project files'
+        uses: actions/checkout@v3
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: 'Extract Docker Image Tag'
         id: extract
         run: |
           REF=${{ github.ref }}
           echo ::set-output name=image_tag::$(echo $REF | sed 's/refs\/tags\/v//g')
           echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/')
-      - name: 'Build and publish to Docker Hub'
-        uses: docker/build-push-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-          repository: ${{ secrets.DOCKER_REPO }}
-          tags: ${{ steps.extract.outputs.image_tag }}, ${{ steps.extract.outputs.image_tag_minor_latest }}, latest
-          add_git_labels: true
+      - name: 'Build ARM image to Docker Hub'
+        id: build
+        run: |
+          output_dir=${{ runner.temp }}/docker
+          mkdir -p $output_dir
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          docker buildx build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
   build-binary:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
