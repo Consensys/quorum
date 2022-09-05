@@ -12,7 +12,7 @@ env:
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
   publish-docker:
-    name: Publish ARM Docker Image
+    name: Publish Docker Images
     runs-on: ubuntu-20.04
     steps:
       - name: 'Check out project files'
