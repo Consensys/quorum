@@ -639,12 +639,6 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		return
 	}
 
-	// Quorum: Disable reward for Quorum if gas price is not enabled,
-	// otherwise static block reward will impact Raft (even though the gas price is zero)
-	if config.IsQuorum && !config.IsGasPriceEnabled(header.Number) {
-		return
-	}
-
 	// Quorum:
 	// Historically, quorum was adding (static) reward to account 0x0.
 	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
