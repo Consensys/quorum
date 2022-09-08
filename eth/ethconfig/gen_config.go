@@ -46,7 +46,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TrieCleanCacheJournal   string        `toml:",omitempty"`
 		TrieCleanCacheRejournal time.Duration `toml:",omitempty"`
 		TrieDirtyCache          int
-		TrieTimeout             time.Duration
+		TrieTimeout             time.Duration `toml:",omitempty"`
 		SnapshotCache           int
 		Preimages               bool
 		Miner                   miner.Config
@@ -148,7 +148,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TrieCleanCacheJournal   *string        `toml:",omitempty"`
 		TrieCleanCacheRejournal *time.Duration `toml:",omitempty"`
 		TrieDirtyCache          *int
-		TrieTimeout             *time.Duration
+		TrieTimeout             *time.Duration `toml:",omitempty"`
 		SnapshotCache           *int
 		Preimages               *bool
 		Miner                   *miner.Config
