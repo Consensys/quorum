@@ -131,7 +131,7 @@ type Config struct {
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
-	MiningBeneficiary      common.Address  `toml:",omitempty"` // Wallet address of the mining beneficiary
+	MiningBeneficiary      *common.Address `toml:",omitempty"` // Wallet address of the mining beneficiary
 	Transitions            []params.Transition
 	ValidatorContract      common.Address
 	Client                 bind.ContractCaller `toml:",omitempty"`
@@ -201,7 +201,7 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockReward != nil {
 			newConfig.BlockReward = transition.BlockReward
 		}
-		if (transition.MiningBeneficiary != common.Address{}) {
+		if transition.MiningBeneficiary != nil {
 			newConfig.MiningBeneficiary = transition.MiningBeneficiary
 		}
 	})

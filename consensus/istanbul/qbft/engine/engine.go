@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -364,7 +363,6 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Accumulate any block and uncle rewards and commit the final state root
-	log.Info("finalize", "coinbase", header.Coinbase)
 	e.accumulateRewards(chain.Config(), state, header, uncles, e.cfg.GetConfig(header.Number))
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
@@ -540,13 +538,13 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 // included uncles. The coinbase of each uncle block is also rewarded.
 func (e *Engine) accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
 	blockReward := cfg.BlockReward
+	if blockReward == nil || cfg.MiningBeneficiary == nil || (*cfg.MiningBeneficiary == common.Address{}) {
+		return // no reward
+	}
 	// Quorum:
 	// Historically, quorum was adding (static) reward to account 0x0.
 	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
-	headerCoinbase := cfg.MiningBeneficiary
-	if blockReward == nil || (headerCoinbase == common.Address{}) {
-		return // no reward
-	}
+	headerCoinbase := *cfg.MiningBeneficiary
 	big8 := big.NewInt(8)
 	big32 := big.NewInt(32)
 	// Accumulate the rewards for the miner and any included uncles
@@ -562,6 +560,5 @@ func (e *Engine) accumulateRewards(config *params.ChainConfig, state *state.Stat
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
-	log.Info("add balance", "coinbase", headerCoinbase, "reward", reward)
 	state.AddBalance(headerCoinbase, reward)
 }
