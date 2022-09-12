@@ -2528,6 +2528,8 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		qbftConfig.BlockReward = config.QBFT.BlockReward
+		qbftConfig.MiningBeneficiary = config.QBFT.MiningBeneficiary
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			qbftConfig.Transitions = config.Transitions

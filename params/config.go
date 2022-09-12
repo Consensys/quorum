@@ -428,6 +428,8 @@ func (c IBFTConfig) String() string {
 
 type QBFTConfig struct {
 	*BFTConfig
+	BlockReward       *big.Int       `json:"blockReward"`       // Reward from start, works only on QBFT consensus protocol
+	MiningBeneficiary common.Address `json:"miningBeneficiary"` // Wallet address of the mining beneficiary
 }
 
 func (c QBFTConfig) String() string {
@@ -435,8 +437,8 @@ func (c QBFTConfig) String() string {
 }
 
 const (
-	IBFT string = "ibft"
-	QBFT        = "qbft"
+	IBFT = "ibft"
+	QBFT = "qbft"
 
 	ContractMode    = "contract"
 	BlockHeaderMode = "blockheader"
@@ -459,6 +461,8 @@ type Transition struct {
 	MinerGasLimit                uint64         `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TwoFPlusOneEnabled           *bool          `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
 	TransactionSizeLimit         uint64         `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
+	BlockReward                  *big.Int       `json:"blockReward,omitempty"`                  // validation rewards
+	MiningBeneficiary            common.Address `json:"miningBeneficiary"`                      // wallet address for validation rewards
 }
 
 // String implements the fmt.Stringer interface.
