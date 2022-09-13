@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 )
@@ -122,16 +123,18 @@ func (p *ProposerPolicy) ClearRegistry() {
 }
 
 type Config struct {
-	RequestTimeout         uint64          `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockReward            *big.Int        `toml:",omitempty"` // Reward
-	BlockPeriod            uint64          `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	EmptyBlockPeriod       uint64          `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
-	ProposerPolicy         *ProposerPolicy `toml:",omitempty"` // The policy for proposer selection
-	Epoch                  uint64          `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
-	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
-	MiningBeneficiary      *common.Address `toml:",omitempty"` // Wallet address of the mining beneficiary
+	RequestTimeout         uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
+	BlockReward            *math.HexOrDecimal256 `toml:",omitempty"` // Reward
+	BlockPeriod            uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	EmptyBlockPeriod       uint64                `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
+	ProposerPolicy         *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
+	Epoch                  uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
+	Ceil2Nby3Block         *big.Int              `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	AllowedFutureBlockTime uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	TestQBFTBlock          *big.Int              `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	BeneficiaryMode        *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
+	BeneficiaryList        []common.Address      `toml:",omitempty"` // List of wallet addresses that have benefit at every new block (list mode)
+	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
 	Transitions            []params.Transition
 	ValidatorContract      common.Address
 	Client                 bind.ContractCaller `toml:",omitempty"`
@@ -198,7 +201,13 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.EmptyBlockPeriodSeconds != 0 {
 			newConfig.EmptyBlockPeriod = transition.EmptyBlockPeriodSeconds
 		}
-		if transition.BlockReward != nil {
+		if transition.BeneficiaryMode != nil { // besu mode
+			newConfig.BeneficiaryMode = transition.BeneficiaryMode
+		}
+		if transition.BeneficiaryList != nil { // list mode
+			newConfig.BeneficiaryList = transition.BeneficiaryList
+		}
+		if transition.BlockReward != nil { // besu mode
 			newConfig.BlockReward = transition.BlockReward
 		}
 		if transition.MiningBeneficiary != nil {

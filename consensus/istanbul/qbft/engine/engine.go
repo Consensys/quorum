@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -363,7 +367,7 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Accumulate any block and uncle rewards and commit the final state root
-	e.accumulateRewards(chain.Config(), state, header, uncles, e.cfg.GetConfig(header.Number))
+	e.accumulateRewards(chain, state, header, uncles, e.cfg.GetConfig(header.Number))
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }
@@ -533,32 +537,83 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	return nil
 }
 
-// AccumulateRewards credits the coinbase of the given block with the mining
-// reward. The total reward consists of the static block reward and rewards for
-// included uncles. The coinbase of each uncle block is also rewarded.
-func (e *Engine) accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
+func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) ([]common.Address, error) {
+	var validators []common.Address
+	if config.ValidatorContract != (common.Address{}) && config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
+		log.Info("Initialising snap with contract validators", "address", config.ValidatorContract, "client", config.Client)
+
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(config.ValidatorContract, config.Client)
+
+		if err != nil {
+			return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
+		}
+
+		opts := bind.CallOpts{
+			Pending:     false,
+			BlockNumber: big.NewInt(0),
+		}
+		validators, err = validatorContractCaller.GetValidators(&opts)
+		if err != nil {
+			log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+			return nil, err
+		}
+	} else {
+		// Get the validators from genesis to create a snapshot
+		var err error
+		validators, err = e.ExtractGenesisValidators(genesis)
+		if err != nil {
+			log.Error("BFT: invalid genesis block", "err", err)
+			return nil, err
+		}
+	}
+	return validators, nil
+}
+
+// AccumulateRewards credits the beneficiary of the given block with a reward.
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
 	blockReward := cfg.BlockReward
-	if blockReward == nil || cfg.MiningBeneficiary == nil || (*cfg.MiningBeneficiary == common.Address{}) {
+	if blockReward == nil || cfg.BeneficiaryMode == nil {
 		return // no reward
 	}
-	// Quorum:
-	// Historically, quorum was adding (static) reward to account 0x0.
-	// So need to ensure this is still the case if gas price is not enabled, otherwise reward goes to coinbase.
-	headerCoinbase := *cfg.MiningBeneficiary
-	big8 := big.NewInt(8)
-	big32 := big.NewInt(32)
-	// Accumulate the rewards for the miner and any included uncles
-	reward := new(big.Int).Set(blockReward)
-	r := new(big.Int)
-	for _, uncle := range uncles {
-		r.Add(uncle.Number, big8)
-		r.Sub(r, header.Number)
-		r.Mul(r, blockReward)
-		r.Div(r, big8)
-		state.AddBalance(uncle.Coinbase, r)
-
-		r.Div(blockReward, big32)
-		reward.Add(reward, r)
+	// Accumulate the rewards for a beneficiary
+	reward := big.Int(*blockReward)
+	if reward.Cmp(big.NewInt(0)) < 0 {
+		log.Warn("negative block reward, no reward")
+		return // no negative reward
 	}
-	state.AddBalance(headerCoinbase, reward)
+	switch strings.ToLower(*cfg.BeneficiaryMode) {
+	case "besu":
+		if cfg.MiningBeneficiary != nil {
+			state.AddBalance(*cfg.MiningBeneficiary, &reward)
+		} else {
+			log.Warn("in besu mode, 'miningBeneficiary' has to be set in order to get the block reward")
+		}
+	case "list":
+		for _, b := range cfg.BeneficiaryList {
+			state.AddBalance(b, &reward)
+		}
+		if len(cfg.BeneficiaryList) == 0 {
+			log.Warn("in list mode, 'beneficiaryList' has to be set in order to add block reward to all wallets")
+		}
+	case "validators":
+		genesis := chain.GetHeaderByNumber(0)
+		if err := e.VerifyHeader(chain, genesis, nil, nil); err != nil {
+			log.Error("BFT: invalid genesis block", "err", err)
+			return
+		}
+		list, err := e.validatorsList(genesis, cfg)
+		if err != nil {
+			log.Error("get validators list", "err", err)
+			return
+		}
+		log.Debug("list of validators to reward", "validators", list)
+		for _, b := range list {
+			state.AddBalance(b, &reward)
+		}
+		if len(list) == 0 {
+			log.Warn("in validators mode, the list of signers should not be empty in order to add block reward to all validators")
+		}
+	default:
+		log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
+	}
 }

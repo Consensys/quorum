@@ -331,10 +331,10 @@ func TestCheckTransitionsData(t *testing.T) {
 	}
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
 
-	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil}
-	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil}
-	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil}
-	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil}
+	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil, nil, nil}
+	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil, nil, nil}
+	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, 5, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil, nil, nil}
+	tranQ8 := Transition{big.NewInt(8), QBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil, nil, nil}
 
 	ibftTransitionsConfig = append(ibftTransitionsConfig, tranI0, tranI10)
 	qbftTransitionsConfig = append(qbftTransitionsConfig, tranQ5, tranQ8)
@@ -394,7 +394,7 @@ func TestCheckTransitionsData(t *testing.T) {
 			wantErr: ErrBlockOrder,
 		},
 		{
-			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil}}},
+			stored:  &ChainConfig{Transitions: []Transition{{nil, IBFT, 30000, 5, 10, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0, nil, nil, nil, nil}}},
 			wantErr: ErrBlockNumberMissing,
 		},
 		{
