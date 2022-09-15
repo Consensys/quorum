@@ -137,8 +137,8 @@ type Config struct {
 
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
-	BlockPeriod:            1,
-	EmptyBlockPeriod:       10,
+	BlockPeriod:            5,
+	EmptyBlockPeriod:       0,
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
@@ -193,13 +193,11 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockPeriodSeconds != 0 {
 			newConfig.BlockPeriod = transition.BlockPeriodSeconds
 		}
-		if transition.EmptyBlockPeriodSeconds != 0 {
-			newConfig.EmptyBlockPeriod = transition.EmptyBlockPeriodSeconds
+		if transition.EmptyBlockPeriodSeconds != nil {
+			newConfig.EmptyBlockPeriod = *transition.EmptyBlockPeriodSeconds
 		}
 	})
-	if newConfig.EmptyBlockPeriod < newConfig.BlockPeriod {
-		newConfig.EmptyBlockPeriod = newConfig.BlockPeriod
-	}
+
 	return newConfig
 }
 

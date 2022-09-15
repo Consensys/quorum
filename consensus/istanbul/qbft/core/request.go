@@ -17,10 +17,11 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // handleRequest is called by proposer in reaction to `miner.Seal()`
@@ -58,7 +59,10 @@ func (c *core) handleRequest(request *Request) error {
 		block, ok := request.Proposal.(*types.Block)
 		if ok && len(block.Transactions()) == 0 { // if empty block
 			config := c.config.GetConfig(c.current.Sequence())
-			delay = time.Duration(config.EmptyBlockPeriod-config.BlockPeriod) * time.Second
+			if config.EmptyBlockPeriod > config.BlockPeriod {
+				log.Info("EmptyBlockPeriod detected adding delay to request", "EmptyBlockPeriod", config.EmptyBlockPeriod, "BlockTime", block.Time())
+				delay = time.Duration(config.EmptyBlockPeriod) * time.Second
+			}
 		}
 
 		c.newRoundTimer = time.AfterFunc(delay, func() {
