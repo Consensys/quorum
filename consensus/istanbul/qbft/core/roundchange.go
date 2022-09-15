@@ -17,6 +17,7 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 	"sort"
 	"sync"
@@ -26,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -150,7 +152,12 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 		// propose the block proposal that we generated
 		_, proposal := c.highestPrepared(currentRound)
 		if proposal == nil {
-			proposal = c.current.pendingRequest.Proposal
+			if c.current != nil && c.current.pendingRequest != nil {
+				proposal = c.current.pendingRequest.Proposal
+			} else {
+				log.Warn("round change returns an error: no proposal as pending request is nil")
+				return errors.New("no proposal as pending request is nil")
+			}
 		}
 
 		// Prepare justification for ROUND-CHANGE messages
