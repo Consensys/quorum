@@ -614,6 +614,11 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			log.Warn("in validators mode, the list of signers should not be empty in order to add block reward to all validators")
 		}
 	default:
-		log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
+		if cfg.MiningBeneficiary != nil {
+			state.AddBalance(*cfg.MiningBeneficiary, &reward)
+			log.Info("beneficiary mode not set but using besu as default because mining beneficiary is set")
+		} else {
+			log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
+		}
 	}
 }

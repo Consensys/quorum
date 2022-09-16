@@ -2531,7 +2531,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 		qbftConfig.BlockReward = config.QBFT.BlockReward
 		qbftConfig.BeneficiaryMode = config.QBFT.BeneficiaryMode     // beneficiary mode: list, besu, validators
 		qbftConfig.BeneficiaryList = config.QBFT.BeneficiaryList     // list mode
-		qbftConfig.MiningBeneficiary = config.QBFT.MiningBeneficiary // besu mode
+		qbftConfig.MiningBeneficiary = config.QBFT.MiningBeneficiary // auto (undefined mode) and besu mode
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
 		if config.Transitions != nil && len(config.Transitions) != 0 {
 			qbftConfig.Transitions = config.Transitions
