@@ -2,14 +2,22 @@ package qbftengine
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrepareExtra(t *testing.T) {
@@ -157,5 +165,126 @@ func TestWriteValidatorVote(t *testing.T) {
 	}
 	if !reflect.DeepEqual(istExtra.Vote, expectedIstExtra.Vote) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
+	}
+}
+
+func TestAccumulateRewards(t *testing.T) {
+	addr := common.HexToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
+	besuMode := "besu"
+	listMode := "list"
+	validatorsMode := "validators"
+	emptyMode := ""
+	dummyMode := "dummy"
+	m := []struct {
+		addr              common.Address
+		miningBeneficiary *common.Address
+		balance           *big.Int
+		blockReward       *math.HexOrDecimal256
+		mode              *string
+		list              []common.Address
+		expectedBalance   *big.Int
+	}{
+		{ // off
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              nil,
+			list:              nil,
+			expectedBalance:   big.NewInt(1),
+		},
+		{ // auto/default
+			addr:              addr,
+			miningBeneficiary: &addr,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              nil,
+			list:              nil,
+			expectedBalance:   big.NewInt(2),
+		},
+		{ // failing
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &besuMode,
+			list:              nil,
+			expectedBalance:   big.NewInt(1),
+		},
+		{
+			addr:              addr,
+			miningBeneficiary: &addr,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &besuMode,
+			list:              nil,
+			expectedBalance:   big.NewInt(2),
+		},
+		{ // failing
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &listMode,
+			list:              nil,
+			expectedBalance:   big.NewInt(1),
+		},
+		{
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &listMode,
+			list:              []common.Address{addr},
+			expectedBalance:   big.NewInt(2),
+		},
+		{
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &validatorsMode,
+			expectedBalance:   big.NewInt(1),
+		},
+		{
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &emptyMode,
+			expectedBalance:   big.NewInt(1),
+		},
+		{
+			addr:              addr,
+			miningBeneficiary: nil,
+			balance:           big.NewInt(1),
+			blockReward:       math.NewHexOrDecimal256(1),
+			mode:              &dummyMode,
+			expectedBalance:   big.NewInt(1),
+		},
+	}
+	var e *Engine
+	chain := &core.BlockChain{}
+	db := state.NewDatabaseWithConfig(rawdb.NewMemoryDatabase(), nil)
+	state, err := state.New(common.Hash{}, db, nil)
+	require.NoError(t, err)
+
+	header := &types.Header{
+		Number: big.NewInt(1),
+	}
+	for idx, te := range m {
+		if te.mode == &validatorsMode {
+			continue // skip, it's not testable yet
+		}
+		state.SetBalance(te.addr, te.balance)
+		cfg := istanbul.Config{
+			BlockReward:       te.blockReward,
+			BeneficiaryMode:   te.mode,
+			BeneficiaryList:   te.list,
+			MiningBeneficiary: te.miningBeneficiary,
+		}
+		e.accumulateRewards(chain, state, header, nil, cfg)
+		balance := state.GetBalance(te.addr)
+		assert.Equal(t, te.expectedBalance, balance, fmt.Sprintf("index: %d", idx), te)
 	}
 }

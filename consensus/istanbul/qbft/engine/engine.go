@@ -572,7 +572,7 @@ func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) (
 // AccumulateRewards credits the beneficiary of the given block with a reward.
 func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
 	blockReward := cfg.BlockReward
-	if blockReward == nil || cfg.BeneficiaryMode == nil {
+	if blockReward == nil {
 		return // no reward
 	}
 	// Accumulate the rewards for a beneficiary
@@ -580,6 +580,13 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	if reward.Cmp(big.NewInt(0)) < 0 {
 		log.Warn("negative block reward, no reward")
 		return // no negative reward
+	}
+	if cfg.BeneficiaryMode == nil {
+		if cfg.MiningBeneficiary != nil {
+			state.AddBalance(*cfg.MiningBeneficiary, &reward)
+			log.Info("beneficiary mode not set but using besu as default because mining beneficiary is set")
+		}
+		return
 	}
 	switch strings.ToLower(*cfg.BeneficiaryMode) {
 	case "besu":
@@ -614,11 +621,6 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			log.Warn("in validators mode, the list of signers should not be empty in order to add block reward to all validators")
 		}
 	default:
-		if cfg.MiningBeneficiary != nil {
-			state.AddBalance(*cfg.MiningBeneficiary, &reward)
-			log.Info("beneficiary mode not set but using besu as default because mining beneficiary is set")
-		} else {
-			log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
-		}
+		log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
 	}
 }
