@@ -189,7 +189,7 @@ func (c *core) startNewRound(round *big.Int) {
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.setState(StateAcceptRequest)
 
-	if round.Cmp(c.current.Round()) > 0 {
+	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
 		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
 	}
 
