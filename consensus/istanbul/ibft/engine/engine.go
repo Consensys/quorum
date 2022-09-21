@@ -156,7 +156,6 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
-
 	// Ensure that the block's timestamp isn't too close to it's parent
 	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp

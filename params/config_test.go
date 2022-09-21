@@ -332,7 +332,6 @@ func TestCheckTransitionsData(t *testing.T) {
 	var ibftTransitionsConfig, qbftTransitionsConfig, invalidTransition, invalidBlockOrder []Transition
 	var emptyBlockPeriodSeconds uint64 = 10
 
-
 	tranI0 := Transition{big.NewInt(0), IBFT, 30000, 5, nil, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
 	tranQ5 := Transition{big.NewInt(5), QBFT, 30000, 5, &emptyBlockPeriodSeconds, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}
 	tranI10 := Transition{big.NewInt(10), IBFT, 30000, 5, nil, 10, 50, common.Address{}, "", nil, nil, nil, nil, 0, nil, 0}

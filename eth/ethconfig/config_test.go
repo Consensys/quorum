@@ -25,10 +25,10 @@ func TestSetBFT(t *testing.T) {
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 
 	bftConfig = &params.BFTConfig{
-		EpochLength:             10000,
-		Ceil2Nby3Block:          big.NewInt(10),
-		RequestTimeoutSeconds:   100,
-		BlockPeriodSeconds:      5,
+		EpochLength:           10000,
+		Ceil2Nby3Block:        big.NewInt(10),
+		RequestTimeoutSeconds: 100,
+		BlockPeriodSeconds:    5,
 	}
 	setBFTConfig(config, bftConfig)
 	assert.Equal(t, config.Ceil2Nby3Block, bftConfig.Ceil2Nby3Block)
@@ -39,9 +39,9 @@ func TestSetBFT(t *testing.T) {
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 
 	bftConfig = &params.BFTConfig{
-		EpochLength:             10000,
-		Ceil2Nby3Block:          big.NewInt(10),
-		RequestTimeoutSeconds:   100,
+		EpochLength:           10000,
+		Ceil2Nby3Block:        big.NewInt(10),
+		RequestTimeoutSeconds: 100,
 	}
 	setBFTConfig(config, bftConfig)
 	assert.Equal(t, config.Ceil2Nby3Block, bftConfig.Ceil2Nby3Block)
