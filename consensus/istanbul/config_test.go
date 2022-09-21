@@ -62,7 +62,7 @@ func TestGetConfig(t *testing.T) {
 	}, {
 		Block:                   big.NewInt(5),
 		RequestTimeoutSeconds:   15000,
-		EmptyBlockPeriodSeconds: 1,
+		EmptyBlockPeriodSeconds: nil,
 	}}
 	config1 := *DefaultConfig
 	config1.Epoch = 40000
