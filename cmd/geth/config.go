@@ -226,6 +226,12 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 	// End Quorum
 
+	// FPT
+	if ctx.GlobalIsSet(utils.EnableLc.Name) {
+		utils.RegisterLcService(stack)
+	}
+	// FPT
+
 	// Configure GraphQL if requested
 	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
 		utils.RegisterGraphQLService(stack, backend, cfg.Node)

@@ -61,6 +61,7 @@ import (
 	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/lc"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -860,6 +861,13 @@ var (
 		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
 		Value: 0,
 	}
+
+	// FPT
+	EnableLc = cli.BoolFlag{
+		Name:  "lc",
+		Usage: "Enable LC smart contract rpc apis",
+	}
+
 	// Plugins settings
 	PluginSettingsFlag = cli.StringFlag{
 		Name:  "plugins",
@@ -2249,6 +2257,20 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 		cfg.EthDiscoveryURLs = []string{url}
 		cfg.SnapDiscoveryURLs = cfg.EthDiscoveryURLs
 	}
+}
+
+func RegisterLcService(stack *node.Node) {
+	cfg, err := lc.ParseLcConfig()
+	if err != nil {
+		Fatalf("Failed to parse LC config: %v", err)
+	}
+	lc, err := lc.NewLcService(cfg, stack)
+	if err != nil {
+		Fatalf("Failed to init LcService: %v", err)
+	}
+	stack.RegisterAPIs(lc.APIs())
+	stack.RegisterLifecycle(lc)
+	log.Info("lc service registered")
 }
 
 // RegisterEthService adds an Ethereum client to the stack.

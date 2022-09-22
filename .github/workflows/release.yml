@@ -96,44 +96,44 @@ jobs:
           path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
           if-no-files-found: error
-  deploy-cloudsmith:
-    name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
-    needs:
-      - build-binary
-    strategy:
-      fail-fast: false
-      matrix:
-        goarch: [ "linux_amd64", "darwin_amd64" ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Prepare environment'
-        id: env
-        run: |
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-          echo "::set-output name=version::${GITHUB_REF##*/}"
-      - name: 'Download artifacts'
-        uses: actions/download-artifact@v2
-        with:
-          path: artifact
-      - name: 'Upload artifacts to Cloudsmith'
-        id: push
-        uses: cloudsmith-io/action@master
-        with:
-          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
-          command: "push"
-          format: "raw"
-          owner: "consensys"
-          repo: "go-quorum"
-          file: "artifact/${{ matrix.goarch }}/geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
-          name: "geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
-          summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
-          description: "See https://github.com/ConsenSys/quorum/"
-          version: "${{ steps.env.outputs.version }}"
+  # deploy-cloudsmith:
+  #   name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
+  #   needs:
+  #     - build-binary
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       goarch: [ "linux_amd64", "darwin_amd64" ]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: 'Prepare environment'
+  #       id: env
+  #       run: |
+  #         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+  #         echo "::set-output name=version::${GITHUB_REF##*/}"
+  #     - name: 'Download artifacts'
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         path: artifact
+  #     - name: 'Upload artifacts to Cloudsmith'
+  #       id: push
+  #       uses: cloudsmith-io/action@master
+  #       with:
+  #         api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+  #         command: "push"
+  #         format: "raw"
+  #         owner: "consensys"
+  #         repo: "go-quorum"
+  #         file: "artifact/${{ matrix.goarch }}/geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
+  #         name: "geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
+  #         summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
+  #         description: "See https://github.com/ConsenSys/quorum/"
+  #         version: "${{ steps.env.outputs.version }}"
   draft-release:
     if: always()
     name: 'Draft Github release'
     needs:
-      - deploy-cloudsmith
+      # - deploy-cloudsmith
       - publish-docker
     runs-on: ubuntu-20.04
     steps:
@@ -180,213 +180,213 @@ jobs:
             ${{ steps.release_notes.outputs.content }}
           draft: true
           prerelease: false
-  notify:
-    if: always()
-    name: 'Notify'
-    needs:
-      - build-binary
-      - deploy-cloudsmith
-      - publish-docker
-      - draft-release
-    runs-on: ubuntu-20.04
-    steps:
-      - name: 'Setup metadata'
-        id: setup
-        run: |
-          gitref_path="${{ github.ref }}"
-          gitref_path=${gitref_path/refs\/heads/tree} # for refs/heads/my-branch
-          gitref_path=${gitref_path/refs\/tags/tree}  # for refs/tags/v1.0.0
-          gitref_path=${gitref_path#refs\/}           # for refs/pull/123/merge
-          gitref_path=${gitref_path%/merge}           # for refs/pull/123/merge
-          echo "::set-output name=gitref-path::$gitref_path"
-          echo "::set-output name=version::${GITHUB_REF##*/}"
-      - name: 'Prepare Slack message with full info'
-        id: status
-        uses: actions/github-script@0.8.0
-        with:
-          script: |
-            var gitref_path = "${{ steps.setup.outputs.gitref-path }}"
-            ////////////////////////////////////
-            // retrieve workflow run data
-            ////////////////////////////////////
-            console.log("get workflow run")
-            const wf_run = await github.actions.getWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: ${{ github.run_id }}
-            })
-            console.log(wf_run.data)
-            console.log("get jobs for workflow run:", wf_run.data.jobs_url)
-            const jobs_response = await github.request(wf_run.data.jobs_url)
-            ////////////////////////////////////
-            // build slack notification message
-            ////////////////////////////////////
-            // some utility functions
-            var date_diff_func = function(start, end) {
-                var duration = end - start
-                // format the duration
-                var delta = duration / 1000
-                var days = Math.floor(delta / 86400)
-                delta -= days * 86400
-                var hours = Math.floor(delta / 3600) % 24
-                delta -= hours * 3600
-                var minutes = Math.floor(delta / 60) % 60
-                delta -= minutes * 60
-                var seconds = Math.floor(delta % 60)
-                var format_func = function(v, text, check) {
-                    if (v <= 0 && check) {
-                        return ""
-                    } else {
-                        return v + text
-                    }
-                }
-                return format_func(days, "d", true) + format_func(hours, "h", true) + format_func(minutes, "m", true) + format_func(seconds, "s", false)
-            }
-            var status_icon_func = function(s) {
-                switch (s) {
-                case "w_success":
-                    return ":white_check_mark:"
-                case "w_failure":
-                    return ":no_entry:"
-                case "w_cancelled":
-                    return ":warning:"
-                case "success":
-                    return "\u2713"
-                case "failure":
-                    return "\u2717"
-                default:
-                    return "\u20e0"
-                }
-            }
-            // build the message
-            var job_blocks = []
-            var is_wf_success = true
-            var is_wf_failure = false
-            for (j of jobs_response.data.jobs) {
-                console.log(j.name, ":", j.status, j.conclusion, j.started_at, j.completed_at)
-                // ignore the current job running this script
-                if (j.status != "completed") {
-                    continue
-                }
-                if (j.conclusion != "success") {
-                  is_wf_success = false
-                }
-                if (j.conclusion == "failure") {
-                  is_wf_failure = true
-                }
-                job_blocks.push({
-                    type: "section",
-                    text: {
-                      type: "mrkdwn",
-                      text: `${status_icon_func(j.conclusion)} <${j.html_url}|${j.name}> took ${date_diff_func(new Date(j.started_at), new Date(j.completed_at))}`
-                    }
-                })
-            }
-            var workflow_status = "w_cancelled"
-            if (is_wf_success) {
-              workflow_status = "w_success"
-            } else if (is_wf_failure) {
-              workflow_status = "w_failure"
-            }
-            var context_elements = [
-              {
-                  "type": "mrkdwn",
-                  "text": "*Repo:* <https://github.com/${{ github.repository }}|${{ github.repository }}>"
-              },
-              {
-                  "type": "mrkdwn",
-                  "text": `*Branch:* <https://github.com/${{ github.repository }}/${gitref_path}|${{ github.ref }}>`
-              },
-              {
-                  "type": "mrkdwn",
-                  "text": `*Event:* ${wf_run.data.event}`
-              },
-              {
-                  "type": "mrkdwn",
-                  "text": `*Commit:* <https://github.com/${{ github.repository }}/commit/${wf_run.data.head_commit.id}|${wf_run.data.head_commit.id.substr(0, 8)}>`
-              },
-              {
-                  "type": "mrkdwn",
-                  "text": `*Author:* ${wf_run.data.head_commit.author.name}`
-              }
-            ]
-            var header_blocks = [
-                {
-                    type: "section",
-                    text: {
-                        type: "mrkdwn",
-                        text: `${status_icon_func(workflow_status)} *${{ github.workflow }} ${{ steps.setup.outputs.version }}* <${wf_run.data.html_url}|#${{ github.run_number }}> took ${date_diff_func(new Date(wf_run.data.created_at), new Date(wf_run.data.updated_at))}`
-                    }
-                },
-                {
-                    type: "context",
-                    elements: context_elements,
-                },
-                {
-                    type: "divider"
-                }
-            ]
-            var slack_msg = {
-                blocks: [].concat(header_blocks, job_blocks)
-            }
-            return slack_msg
-      - name: 'Prepare Slack message with partial info'
-        id: short_status
-        if: failure()
-        uses: actions/github-script@0.8.0
-        with:
-          script: |
-            ////////////////////////////////////
-            // retrieve workflow run data
-            ////////////////////////////////////
-            const wf_run = await github.actions.getWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: ${{ github.run_id }}
-            })
-            var date_diff_func = function(start, end) {
-                var duration = end - start
-                // format the duration
-                var delta = duration / 1000
-                var days = Math.floor(delta / 86400)
-                delta -= days * 86400
-                var hours = Math.floor(delta / 3600) % 24
-                delta -= hours * 3600
-                var minutes = Math.floor(delta / 60) % 60
-                delta -= minutes * 60
-                var seconds = Math.floor(delta % 60)
-                var format_func = function(v, text, check) {
-                    if (v <= 0 && check) {
-                        return ""
-                    } else {
-                        return v + text
-                    }
-                }
-                return format_func(days, "d", true) + format_func(hours, "h", true) + format_func(minutes, "m", true) + format_func(seconds, "s", false)
-            }
-            var slack_msg = {
-                blocks: [
-                  {
-                      type: "section",
-                      text: {
-                          type: "mrkdwn",
-                          text: `:skull_and_crossbones: *${{ github.workflow }}* <${wf_run.data.html_url}|#${{ github.run_number }}> (took ${date_diff_func(new Date(wf_run.data.created_at), new Date(wf_run.data.updated_at))})`
-                      }
-                  }
-                ]
-            }
-            return slack_msg
-      - name: 'Send to Slack'
-        if: always()
-        run: |
-          cat <<JSON > long_message.json
-          ${{ steps.status.outputs.result }}
-          JSON
-          cat <<JSON > short_message.json
-          ${{ steps.short_status.outputs.result }}
-          JSON
-          _post() {
-            curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -H "Content-type: application/json" --data "@${1}"
-          }
-          _post "long_message.json" || _post "short_message.json"
+  # notify:
+  #   if: always()
+  #   name: 'Notify'
+  #   needs:
+  #     - build-binary
+  #     # - deploy-cloudsmith
+  #     - publish-docker
+  #     - draft-release
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: 'Setup metadata'
+  #       id: setup
+  #       run: |
+  #         gitref_path="${{ github.ref }}"
+  #         gitref_path=${gitref_path/refs\/heads/tree} # for refs/heads/my-branch
+  #         gitref_path=${gitref_path/refs\/tags/tree}  # for refs/tags/v1.0.0
+  #         gitref_path=${gitref_path#refs\/}           # for refs/pull/123/merge
+  #         gitref_path=${gitref_path%/merge}           # for refs/pull/123/merge
+  #         echo "::set-output name=gitref-path::$gitref_path"
+  #         echo "::set-output name=version::${GITHUB_REF##*/}"
+  #     - name: 'Prepare Slack message with full info'
+  #       id: status
+  #       uses: actions/github-script@0.8.0
+  #       with:
+  #         script: |
+  #           var gitref_path = "${{ steps.setup.outputs.gitref-path }}"
+  #           ////////////////////////////////////
+  #           // retrieve workflow run data
+  #           ////////////////////////////////////
+  #           console.log("get workflow run")
+  #           const wf_run = await github.actions.getWorkflowRun({
+  #               owner: context.repo.owner,
+  #               repo: context.repo.repo,
+  #               run_id: ${{ github.run_id }}
+  #           })
+  #           console.log(wf_run.data)
+  #           console.log("get jobs for workflow run:", wf_run.data.jobs_url)
+  #           const jobs_response = await github.request(wf_run.data.jobs_url)
+  #           ////////////////////////////////////
+  #           // build slack notification message
+  #           ////////////////////////////////////
+  #           // some utility functions
+  #           var date_diff_func = function(start, end) {
+  #               var duration = end - start
+  #               // format the duration
+  #               var delta = duration / 1000
+  #               var days = Math.floor(delta / 86400)
+  #               delta -= days * 86400
+  #               var hours = Math.floor(delta / 3600) % 24
+  #               delta -= hours * 3600
+  #               var minutes = Math.floor(delta / 60) % 60
+  #               delta -= minutes * 60
+  #               var seconds = Math.floor(delta % 60)
+  #               var format_func = function(v, text, check) {
+  #                   if (v <= 0 && check) {
+  #                       return ""
+  #                   } else {
+  #                       return v + text
+  #                   }
+  #               }
+  #               return format_func(days, "d", true) + format_func(hours, "h", true) + format_func(minutes, "m", true) + format_func(seconds, "s", false)
+  #           }
+  #           var status_icon_func = function(s) {
+  #               switch (s) {
+  #               case "w_success":
+  #                   return ":white_check_mark:"
+  #               case "w_failure":
+  #                   return ":no_entry:"
+  #               case "w_cancelled":
+  #                   return ":warning:"
+  #               case "success":
+  #                   return "\u2713"
+  #               case "failure":
+  #                   return "\u2717"
+  #               default:
+  #                   return "\u20e0"
+  #               }
+  #           }
+  #           // build the message
+  #           var job_blocks = []
+  #           var is_wf_success = true
+  #           var is_wf_failure = false
+  #           for (j of jobs_response.data.jobs) {
+  #               console.log(j.name, ":", j.status, j.conclusion, j.started_at, j.completed_at)
+  #               // ignore the current job running this script
+  #               if (j.status != "completed") {
+  #                   continue
+  #               }
+  #               if (j.conclusion != "success") {
+  #                 is_wf_success = false
+  #               }
+  #               if (j.conclusion == "failure") {
+  #                 is_wf_failure = true
+  #               }
+  #               job_blocks.push({
+  #                   type: "section",
+  #                   text: {
+  #                     type: "mrkdwn",
+  #                     text: `${status_icon_func(j.conclusion)} <${j.html_url}|${j.name}> took ${date_diff_func(new Date(j.started_at), new Date(j.completed_at))}`
+  #                   }
+  #               })
+  #           }
+  #           var workflow_status = "w_cancelled"
+  #           if (is_wf_success) {
+  #             workflow_status = "w_success"
+  #           } else if (is_wf_failure) {
+  #             workflow_status = "w_failure"
+  #           }
+  #           var context_elements = [
+  #             {
+  #                 "type": "mrkdwn",
+  #                 "text": "*Repo:* <https://github.com/${{ github.repository }}|${{ github.repository }}>"
+  #             },
+  #             {
+  #                 "type": "mrkdwn",
+  #                 "text": `*Branch:* <https://github.com/${{ github.repository }}/${gitref_path}|${{ github.ref }}>`
+  #             },
+  #             {
+  #                 "type": "mrkdwn",
+  #                 "text": `*Event:* ${wf_run.data.event}`
+  #             },
+  #             {
+  #                 "type": "mrkdwn",
+  #                 "text": `*Commit:* <https://github.com/${{ github.repository }}/commit/${wf_run.data.head_commit.id}|${wf_run.data.head_commit.id.substr(0, 8)}>`
+  #             },
+  #             {
+  #                 "type": "mrkdwn",
+  #                 "text": `*Author:* ${wf_run.data.head_commit.author.name}`
+  #             }
+  #           ]
+  #           var header_blocks = [
+  #               {
+  #                   type: "section",
+  #                   text: {
+  #                       type: "mrkdwn",
+  #                       text: `${status_icon_func(workflow_status)} *${{ github.workflow }} ${{ steps.setup.outputs.version }}* <${wf_run.data.html_url}|#${{ github.run_number }}> took ${date_diff_func(new Date(wf_run.data.created_at), new Date(wf_run.data.updated_at))}`
+  #                   }
+  #               },
+  #               {
+  #                   type: "context",
+  #                   elements: context_elements,
+  #               },
+  #               {
+  #                   type: "divider"
+  #               }
+  #           ]
+  #           var slack_msg = {
+  #               blocks: [].concat(header_blocks, job_blocks)
+  #           }
+  #           return slack_msg
+  #     - name: 'Prepare Slack message with partial info'
+  #       id: short_status
+  #       if: failure()
+  #       uses: actions/github-script@0.8.0
+  #       with:
+  #         script: |
+  #           ////////////////////////////////////
+  #           // retrieve workflow run data
+  #           ////////////////////////////////////
+  #           const wf_run = await github.actions.getWorkflowRun({
+  #               owner: context.repo.owner,
+  #               repo: context.repo.repo,
+  #               run_id: ${{ github.run_id }}
+  #           })
+  #           var date_diff_func = function(start, end) {
+  #               var duration = end - start
+  #               // format the duration
+  #               var delta = duration / 1000
+  #               var days = Math.floor(delta / 86400)
+  #               delta -= days * 86400
+  #               var hours = Math.floor(delta / 3600) % 24
+  #               delta -= hours * 3600
+  #               var minutes = Math.floor(delta / 60) % 60
+  #               delta -= minutes * 60
+  #               var seconds = Math.floor(delta % 60)
+  #               var format_func = function(v, text, check) {
+  #                   if (v <= 0 && check) {
+  #                       return ""
+  #                   } else {
+  #                       return v + text
+  #                   }
+  #               }
+  #               return format_func(days, "d", true) + format_func(hours, "h", true) + format_func(minutes, "m", true) + format_func(seconds, "s", false)
+  #           }
+  #           var slack_msg = {
+  #               blocks: [
+  #                 {
+  #                     type: "section",
+  #                     text: {
+  #                         type: "mrkdwn",
+  #                         text: `:skull_and_crossbones: *${{ github.workflow }}* <${wf_run.data.html_url}|#${{ github.run_number }}> (took ${date_diff_func(new Date(wf_run.data.created_at), new Date(wf_run.data.updated_at))})`
+  #                     }
+  #                 }
+  #               ]
+  #           }
+  #           return slack_msg
+  #     - name: 'Send to Slack'
+  #       if: always()
+  #       run: |
+  #         cat <<JSON > long_message.json
+  #         ${{ steps.status.outputs.result }}
+  #         JSON
+  #         cat <<JSON > short_message.json
+  #         ${{ steps.short_status.outputs.result }}
+  #         JSON
+  #         _post() {
+  #           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -H "Content-type: application/json" --data "@${1}"
+  #         }
+  #         _post "long_message.json" || _post "short_message.json"
 
