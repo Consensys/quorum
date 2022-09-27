@@ -575,14 +575,9 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	}
 	// Accumulate the rewards for a beneficiary
 	reward := big.Int(*blockReward)
-	if reward.Cmp(big.NewInt(0)) < 0 {
-		log.Warn("negative block reward, no reward")
-		return // no negative reward
-	}
-	if cfg.BeneficiaryMode == nil {
+	if cfg.BeneficiaryMode == nil || *cfg.BeneficiaryMode == "" {
 		if cfg.MiningBeneficiary != nil {
-			state.AddBalance(*cfg.MiningBeneficiary, &reward)
-			log.Info("beneficiary mode not set but using besu as default because mining beneficiary is set")
+			state.AddBalance(*cfg.MiningBeneficiary, &reward) // implicit besu compatible mode
 		}
 		return
 	}
@@ -590,15 +585,10 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	case "besu":
 		if cfg.MiningBeneficiary != nil {
 			state.AddBalance(*cfg.MiningBeneficiary, &reward)
-		} else {
-			log.Warn("in besu mode, 'miningBeneficiary' has to be set in order to get the block reward")
 		}
 	case "list":
 		for _, b := range cfg.BeneficiaryList {
 			state.AddBalance(b, &reward)
-		}
-		if len(cfg.BeneficiaryList) == 0 {
-			log.Warn("in list mode, 'beneficiaryList' has to be set in order to add block reward to all wallets")
 		}
 	case "validators":
 		genesis := chain.GetHeaderByNumber(0)
@@ -611,14 +601,8 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			log.Error("get validators list", "err", err)
 			return
 		}
-		log.Debug("list of validators to reward", "validators", list)
 		for _, b := range list {
 			state.AddBalance(b, &reward)
 		}
-		if len(list) == 0 {
-			log.Warn("in validators mode, the list of signers should not be empty in order to add block reward to all validators")
-		}
-	default:
-		log.Warn("beneficiary mode not known", "mode", *cfg.BeneficiaryMode)
 	}
 }
