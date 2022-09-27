@@ -105,11 +105,11 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
 	}
 
-	config := e.cfg.GetConfig(block.Number())
+	parentHeader := chain.GetHeaderByHash(block.ParentHash())
+	config := e.cfg.GetConfig(parentHeader.Number)
+
 	if config.EmptyBlockPeriod > config.BlockPeriod && len(block.Transactions()) == 0 {
-		// empty block verification
-		parentHeader := chain.GetHeaderByHash(block.ParentHash())
-		if parentHeader != nil && block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
+		if block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
 			return 0, fmt.Errorf("empty block verification fail")
 		}
 	}
@@ -209,10 +209,8 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
-	blockPeriod := e.cfg.GetConfig(parent.Number).BlockPeriod
-
 	// Ensure that the block's timestamp isn't too close to it's parent
-	if parent.Time+blockPeriod > header.Time {
+	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
 	}
 

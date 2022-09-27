@@ -410,13 +410,13 @@ func (c *IstanbulConfig) String() string {
 }
 
 type BFTConfig struct {
-	EpochLength              uint64         `json:"epochlength"`              // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds       uint64         `json:"blockperiodseconds"`       // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	EmptyBlockPeriodSeconds  uint64         `json:"emptyblockperiodseconds"`  // Minimum time between two consecutive IBFT or QBFT a block and empty block’ timestamps in seconds
-	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds"`    // Minimum request timeout for each IBFT or QBFT round in milliseconds
-	ProposerPolicy           uint64         `json:"policy"`                   // The policy for proposer selection
-	Ceil2Nby3Block           *big.Int       `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	ValidatorContractAddress common.Address `json:"validatorcontractaddress"` // Smart contract address for list of validators
+	EpochLength              uint64         `json:"epochlength"`                       // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64         `json:"blockperiodseconds"`                // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
+	EmptyBlockPeriodSeconds  *uint64        `json:"emptyblockperiodseconds,omitempty"` // Minimum time between two consecutive IBFT or QBFT a block and empty block’ timestamps in seconds
+	RequestTimeoutSeconds    uint64         `json:"requesttimeoutseconds"`             // Minimum request timeout for each IBFT or QBFT round in milliseconds
+	ProposerPolicy           uint64         `json:"policy"`                            // The policy for proposer selection
+	Ceil2Nby3Block           *big.Int       `json:"ceil2Nby3Block,omitempty"`          // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	ValidatorContractAddress common.Address `json:"validatorcontractaddress"`          // Smart contract address for list of validators
 }
 
 type IBFTConfig struct {
@@ -453,7 +453,7 @@ type Transition struct {
 	Algorithm                    string                `json:"algorithm,omitempty"`
 	EpochLength                  uint64                `json:"epochlength,omitempty"`                  // Number of blocks that should pass before pending validator votes are reset
 	BlockPeriodSeconds           uint64                `json:"blockperiodseconds,omitempty"`           // Minimum time between two consecutive IBFT or QBFT blocks’ timestamps in seconds
-	EmptyBlockPeriodSeconds      uint64                `json:"emptyblockperiodseconds,omitempty"`      // Minimum time between two consecutive IBFT or QBFT a block and empty block’ timestamps in seconds
+	EmptyBlockPeriodSeconds      *uint64               `json:"emptyblockperiodseconds,omitempty"`      // Minimum time between two consecutive IBFT or QBFT a block and empty block’ timestamps in seconds
 	RequestTimeoutSeconds        uint64                `json:"requesttimeoutseconds,omitempty"`        // Minimum request timeout for each IBFT or QBFT round in milliseconds
 	ContractSizeLimit            uint64                `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
 	ValidatorContractAddress     common.Address        `json:"validatorcontractaddress"`               // Smart contract address for list of validators
@@ -465,11 +465,10 @@ type Transition struct {
 	MinerGasLimit                uint64                `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TwoFPlusOneEnabled           *bool                 `json:"2FPlus1Enabled,omitempty"`               // Ceil(2N/3) is the default you need to explicitly use 2F + 1
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
-	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
+  BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
 	BeneficiaryMode              *string               `json:"beneficiaryMode,omitempty"`              // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
 	BeneficiaryList              []common.Address      `json:"beneficiaryList,omitempty"`              // List of wallet addresses that have benefit at every new block (list mode)
 	MiningBeneficiary            *common.Address       `json:"miningBeneficiary,omitempty"`            // Wallet address that benefits at every new block (besu mode)
-
 }
 
 // String implements the fmt.Stringer interface.

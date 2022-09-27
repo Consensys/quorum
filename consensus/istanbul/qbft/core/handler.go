@@ -286,9 +286,12 @@ func (c *core) verifySignatures(m qbfttypes.QBFTMessage) error {
 }
 
 func (c *core) currentLogger(state bool, msg qbfttypes.QBFTMessage) log.Logger {
-	logCtx := []interface{}{
-		"current.round", c.current.Round().Uint64(),
-		"current.sequence", c.current.Sequence().Uint64(),
+	logCtx := []interface{}{}
+	if c.current != nil {
+		logCtx = append(logCtx,
+			"current.round", c.current.Round().Uint64(),
+			"current.sequence", c.current.Sequence().Uint64(),
+		)
 	}
 
 	if state {
