@@ -552,7 +552,7 @@ func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) (
 		}
 		validators, err = validatorContractCaller.GetValidators(&opts)
 		if err != nil {
-			log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
+			log.Error("QBFT: invalid smart contract in genesis alloc", "err", err)
 			return nil, err
 		}
 	} else {
