@@ -365,11 +365,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			}
 
 			var validators []common.Address
-			var targetBlockNumber = big.NewInt(0)
-			if sb.config.GetValidatorContractAddress(targetBlockNumber) != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockNumber) == params.ContractMode {
-				sb.logger.Info("Initialising snap with contract validators", "address", sb.config.GetValidatorContractAddress(targetBlockNumber), "client", sb.config.Client)
+			targetBlockHeight := new(big.Int).SetUint64(number)
+			validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
+			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
+				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
 
-				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.GetValidatorContractAddress(targetBlockNumber), sb.config.Client)
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.GetValidatorContractAddress(targetBlockHeight), sb.config.Client)
 
 				if err != nil {
 					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
