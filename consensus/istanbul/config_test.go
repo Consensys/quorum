@@ -27,6 +27,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestQbftTransitionAtBlockZero(t *testing.T) {
+	config := *DefaultConfig
+	config.TestQBFTBlock = nil
+	config.Transitions = []params.Transition{{
+		Block:     big.NewInt(0),
+		Algorithm: params.QBFT,
+	}}
+	assert.True(t, config.IsQBFTConsensusAt(big.NewInt(0)))
+	assert.True(t, config.IsQBFTConsensusAt(nil))
+}
+
 func TestProposerPolicy_UnmarshalTOML(t *testing.T) {
 	input := `id = 2
 `

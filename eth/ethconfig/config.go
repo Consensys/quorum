@@ -23,6 +23,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -234,7 +235,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		chainConfig.Clique.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
-	if chainConfig.Transitions != nil && len(chainConfig.Transitions) != 0 {
+	if len(chainConfig.Transitions) > 0 {
 		config.Istanbul.Transitions = chainConfig.Transitions
 	}
 	// If Istanbul is requested, set it up
@@ -247,8 +248,23 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
-
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.IBFT == nil && len(chainConfig.Transitions) > 0 {
+		chainConfig.GetTransitionValue(big.NewInt(0), func(t params.Transition) {
+			if strings.EqualFold(t.Algorithm, params.IBFT) {
+				chainConfig.IBFT = &params.IBFTConfig{
+					BFTConfig: &params.BFTConfig{
+						EpochLength:              t.EpochLength,
+						BlockPeriodSeconds:       t.BlockPeriodSeconds,
+						EmptyBlockPeriodSeconds:  t.EmptyBlockPeriodSeconds,
+						ValidatorContractAddress: t.ValidatorContractAddress,
+						RequestTimeoutSeconds:    t.RequestTimeoutSeconds,
+					},
+				}
+				log.Info("new chain config with", "ibft", *chainConfig.IBFT)
+			}
+		})
 	}
 	if chainConfig.IBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.IBFT.BFTConfig)
@@ -257,6 +273,22 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 			config.Istanbul.ValidatorContract = chainConfig.IBFT.ValidatorContractAddress
 		}
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+	}
+	if chainConfig.QBFT == nil && len(chainConfig.Transitions) > 0 {
+		chainConfig.GetTransitionValue(big.NewInt(0), func(t params.Transition) {
+			if strings.EqualFold(t.Algorithm, params.QBFT) {
+				chainConfig.QBFT = &params.QBFTConfig{
+					BFTConfig: &params.BFTConfig{
+						EpochLength:              t.EpochLength,
+						BlockPeriodSeconds:       t.BlockPeriodSeconds,
+						EmptyBlockPeriodSeconds:  t.EmptyBlockPeriodSeconds,
+						ValidatorContractAddress: t.ValidatorContractAddress,
+						RequestTimeoutSeconds:    t.RequestTimeoutSeconds,
+					},
+				}
+				log.Info("new chain config with", "qbft", *chainConfig.QBFT)
+			}
+		})
 	}
 	if chainConfig.QBFT != nil {
 		setBFTConfig(&config.Istanbul, chainConfig.QBFT.BFTConfig)

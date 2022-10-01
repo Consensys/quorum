@@ -307,6 +307,8 @@ func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Start(w.chain, w.chain.CurrentBlock, rawdb.HasBadBlock)
+	} else {
+		log.Warn("no start of engine", "engine", w.engine)
 	}
 	w.startCh <- struct{}{}
 }

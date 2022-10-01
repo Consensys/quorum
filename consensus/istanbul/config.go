@@ -171,16 +171,14 @@ func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 		}
 	}
 	result := false
-	if c != nil && blockNumber != nil && c.Transitions != nil {
-		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) <= 0; i++ {
-			if strings.EqualFold(c.Transitions[i].Algorithm, params.QBFT) && len(c.Transitions[i].Algorithm) > 0 {
-				result = true
-			}
-			if strings.EqualFold(c.Transitions[i].Algorithm, params.IBFT) {
-				result = false
-			}
-		}
+	if blockNumber == nil {
+		blockNumber = big.NewInt(0)
 	}
+	c.getTransitionValue(blockNumber, func(t params.Transition) {
+		if strings.EqualFold(t.Algorithm, params.QBFT) {
+			result = true
+		}
+	})
 
 	return result
 }

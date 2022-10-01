@@ -2500,9 +2500,36 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 	if err != nil {
 		Fatalf("Failed to attach to self: %v", err)
 	}
-
+	// Lazy logic
+	if config.Clique == nil && config.QBFT == nil && config.IBFT == nil && config.Istanbul == nil {
+		config.GetTransitionValue(big.NewInt(0), func(t params.Transition) {
+			if strings.EqualFold(t.Algorithm, params.QBFT) {
+				config.QBFT = &params.QBFTConfig{}
+			}
+			if strings.EqualFold(t.Algorithm, params.IBFT) {
+				config.IBFT = &params.IBFTConfig{}
+			}
+		})
+	}
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
+	} else if config.QBFT != nil {
+		log.Debug("setBFTConfig", "proto", "qbft")
+		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		qbftConfig.TestQBFTBlock = big.NewInt(0)
+		qbftConfig.Transitions = config.Transitions
+		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
+			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		}
+		qbftConfig.Client = ethclient.NewClient(client)
+		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
+	} else if config.IBFT != nil {
+		log.Debug("setBFTConfig", "proto", "ibft")
+		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
+		ibftConfig.TestQBFTBlock = nil
+		ibftConfig.Transitions = config.Transitions
+		ibftConfig.Client = ethclient.NewClient(client)
+		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.Istanbul != nil {
 		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		// for IBFT
@@ -2513,9 +2540,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.Istanbul.ProposerPolicy))
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			istanbulConfig.Transitions = config.Transitions
-		}
+		istanbulConfig.Transitions = config.Transitions
 		istanbulConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
