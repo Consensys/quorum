@@ -335,7 +335,6 @@ func (sb *Backend) storeSnap(snap *Snapshot) error {
 
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
-	targetBlockHeight := new(big.Int).SetUint64(number)
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -366,10 +365,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			}
 
 			var validators []common.Address
-			if sb.config.ValidatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
-				sb.logger.Info("Initialising snap with contract validators", "address", sb.config.ValidatorContract, "client", sb.config.Client)
+			targetBlockHeight := new(big.Int).SetUint64(number)
+			validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
+			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
+				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
 
-				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.ValidatorContract, sb.config.Client)
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.GetValidatorContractAddress(targetBlockHeight), sb.config.Client)
 
 				if err != nil {
 					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
@@ -385,7 +386,6 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					return nil, err
 				}
 			} else {
-				// Get the validators from genesis to create a snapshot
 				var err error
 				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
 				if err != nil {
@@ -433,8 +433,10 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	}
 	sb.recents.Add(snap.Hash, snap)
 
+	targetBlockHeight := new(big.Int).SetUint64(number)
 	validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
-	if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
+	// we only need to update the validator set if it's a new block
+	if len(headers) == 0 && validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
 		sb.logger.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
 
 		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
@@ -523,7 +525,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	logger = logger.New("header.author", validator)
 
 	if _, v := snap.ValSet.GetByAddress(validator); v == nil {
-		logger.Error("BFT: header author is not a validator")
+		logger.Error("BFT: header author is not a validator", "Validators", snap.ValSet, "Author", validator)
 		return istanbulcommon.ErrUnauthorized
 	}
 
