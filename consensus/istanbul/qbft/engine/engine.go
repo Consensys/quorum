@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -360,7 +364,8 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+	// Accumulate any block and uncle rewards and commit the final state root
+	e.accumulateRewards(chain, state, header, uncles, e.cfg.GetConfig(header.Number))
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }
@@ -368,10 +373,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	header.UncleHash = nilUncleHash
-
+	e.Finalize(chain, header, state, txs, uncles)
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
@@ -531,4 +533,76 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 
 	h.Extra = payload
 	return nil
+}
+
+func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) ([]common.Address, error) {
+	var validators []common.Address
+	if config.ValidatorContract != (common.Address{}) && config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
+		log.Info("Initialising snap with contract validators", "address", config.ValidatorContract, "client", config.Client)
+
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(config.ValidatorContract, config.Client)
+
+		if err != nil {
+			return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
+		}
+
+		opts := bind.CallOpts{
+			Pending:     false,
+			BlockNumber: big.NewInt(0),
+		}
+		validators, err = validatorContractCaller.GetValidators(&opts)
+		if err != nil {
+			log.Error("QBFT: invalid smart contract in genesis alloc", "err", err)
+			return nil, err
+		}
+	} else {
+		// Get the validators from genesis to create a snapshot
+		var err error
+		validators, err = e.ExtractGenesisValidators(genesis)
+		if err != nil {
+			log.Error("BFT: invalid genesis block", "err", err)
+			return nil, err
+		}
+	}
+	return validators, nil
+}
+
+// AccumulateRewards credits the beneficiary of the given block with a reward.
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
+	blockReward := cfg.BlockReward
+	if blockReward == nil {
+		return // no reward
+	}
+	// Accumulate the rewards for a beneficiary
+	reward := big.Int(*blockReward)
+	if cfg.BeneficiaryMode == nil || *cfg.BeneficiaryMode == "" {
+		if cfg.MiningBeneficiary != nil {
+			state.AddBalance(*cfg.MiningBeneficiary, &reward) // implicit besu compatible mode
+		}
+		return
+	}
+	switch strings.ToLower(*cfg.BeneficiaryMode) {
+	case "fixed":
+		if cfg.MiningBeneficiary != nil {
+			state.AddBalance(*cfg.MiningBeneficiary, &reward)
+		}
+	case "list":
+		for _, b := range cfg.BeneficiaryList {
+			state.AddBalance(b, &reward)
+		}
+	case "validators":
+		genesis := chain.GetHeaderByNumber(0)
+		if err := e.VerifyHeader(chain, genesis, nil, nil); err != nil {
+			log.Error("BFT: invalid genesis block", "err", err)
+			return
+		}
+		list, err := e.validatorsList(genesis, cfg)
+		if err != nil {
+			log.Error("get validators list", "err", err)
+			return
+		}
+		for _, b := range list {
+			state.AddBalance(b, &reward)
+		}
+	}
 }
