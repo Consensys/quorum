@@ -47,7 +47,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/graph-gophers/graphql-go v1.3.0
 	github.com/hashicorp/go-hclog v1.1.0
-	github.com/hashicorp/go-plugin v1.2.2
+	github.com/hashicorp/go-plugin v1.4.5
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/bloomfilter/v2 v2.0.3
 	github.com/holiman/uint256 v1.2.1
