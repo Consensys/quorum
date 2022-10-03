@@ -82,8 +82,8 @@ jobs:
         # More comprehensive suites are scheduled to run in master
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
-          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
-          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || empty-block-period || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul) || empty-block-period || block-reward || networks/typical::qbft'
           - 'gcmode && block-sync && networks/template::raft-3plus1'
           - 'gcmode && block-sync && networks/template::istanbul-3plus1'
           - 'gcmode && block-sync && networks/template::qbft-3plus1'

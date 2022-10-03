@@ -123,7 +123,7 @@ jobs:
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
           - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::istanbul'
-          - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || networks/typical::qbft'
+          - 'basic || basic-istanbul || (advanced && istanbul && !block-heights) || empty-block-period || block-reward || networks/typical::qbft'
           - 'validator-management && networks/template::istanbul-3plus1'
           - 'validator-management && networks/template::qbft-3plus1'
           - 'multitenancy && networks/plugins::raft-multitenancy'
