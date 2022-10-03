@@ -519,7 +519,7 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 			VanityData:    vanity,
 			Validators:    []common.Address{},
 			CommittedSeal: [][]byte{},
-			Round:         make([]byte, 4),
+			Round:         make([]byte, 0),
 			Vote:          nil,
 		}, nil
 	}

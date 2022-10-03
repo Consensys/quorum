@@ -62,7 +62,7 @@ func TestExtractToQBFTExtra(t *testing.T) {
 					common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 				},
 				CommittedSeal: [][]byte{},
-				Round:         0,
+				Round:         make([]byte, 0),
 				Vote:          nil,
 			},
 			nil,

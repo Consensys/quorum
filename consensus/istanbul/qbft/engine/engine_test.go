@@ -2,6 +2,7 @@ package qbftengine
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -27,7 +28,7 @@ func TestPrepareExtra(t *testing.T) {
 	validators[2] = common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6"))
 	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
 
-	expectedResult := hexutil.MustDecode("0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
+	expectedResult := "0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b4408080c0"
 
 	h := &types.Header{}
 	err := ApplyHeaderQBFTExtra(
@@ -37,13 +38,12 @@ func TestPrepareExtra(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want: nil", err)
 	}
-	if !reflect.DeepEqual(h.Extra, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", h.Extra, expectedResult)
-	}
+	result := hexutil.Encode(h.Extra)
+	assert.Equal(t, expectedResult, result)
 }
 
 func TestWriteCommittedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0")
+	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b4408080c0")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData: []byte{},
@@ -54,7 +54,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 		},
 		CommittedSeal: [][]byte{expectedCommittedSeal},
-		Round:         0,
+		Round:         make([]byte, 0),
 		Vote:          nil,
 	}
 
@@ -92,7 +92,9 @@ func TestWriteCommittedSeals(t *testing.T) {
 }
 
 func TestWriteRoundNumber(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c005c0")
+	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b4408005c0")
+	round := make([]byte, 4)
+	binary.BigEndian.PutUint32(round, 5)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData: []byte{},
 		Validators: []common.Address{
@@ -102,7 +104,7 @@ func TestWriteRoundNumber(t *testing.T) {
 			common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
 		},
 		CommittedSeal: [][]byte{},
-		Round:         5,
+		Round:         round,
 		Vote:          nil,
 	}
 
@@ -133,13 +135,13 @@ func TestWriteRoundNumber(t *testing.T) {
 
 func TestWriteValidatorVote(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c005c0")
+	istRawData := hexutil.MustDecode("0xf85a80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b4408005c0")
 	vote := &types.ValidatorVote{RecipientAddress: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f06777123456")), VoteType: types.QBFTAuthVote}
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:    vanity,
 		Validators:    []common.Address{},
 		CommittedSeal: [][]byte{},
-		Round:         0,
+		Round:         make([]byte, 0),
 		Vote:          vote,
 	}
 
