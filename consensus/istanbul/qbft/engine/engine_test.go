@@ -170,7 +170,7 @@ func TestWriteValidatorVote(t *testing.T) {
 
 func TestAccumulateRewards(t *testing.T) {
 	addr := common.HexToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
-	besuMode := "besu"
+	fixedMode := "fixed"
 	listMode := "list"
 	validatorsMode := "validators"
 	emptyMode := ""
@@ -207,7 +207,7 @@ func TestAccumulateRewards(t *testing.T) {
 			miningBeneficiary: nil,
 			balance:           big.NewInt(1),
 			blockReward:       math.NewHexOrDecimal256(1),
-			mode:              &besuMode,
+			mode:              &fixedMode,
 			list:              nil,
 			expectedBalance:   big.NewInt(1),
 		},
@@ -216,7 +216,7 @@ func TestAccumulateRewards(t *testing.T) {
 			miningBeneficiary: &addr,
 			balance:           big.NewInt(1),
 			blockReward:       math.NewHexOrDecimal256(1),
-			mode:              &besuMode,
+			mode:              &fixedMode,
 			list:              nil,
 			expectedBalance:   big.NewInt(2),
 		},

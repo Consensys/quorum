@@ -729,7 +729,7 @@ func (c *ChainConfig) CheckTransitionsData() error {
 		if transition.TransactionSizeLimit != 0 && transition.TransactionSizeLimit < 32 || transition.TransactionSizeLimit > 128 {
 			return ErrTransactionSizeLimit
 		}
-		if transition.BeneficiaryMode != nil && *transition.BeneficiaryMode != "besu" && *transition.BeneficiaryMode != "validators" && *transition.BeneficiaryMode != "" && *transition.BeneficiaryMode != "list" {
+		if transition.BeneficiaryMode != nil && *transition.BeneficiaryMode != "fixed" && *transition.BeneficiaryMode != "validators" && *transition.BeneficiaryMode != "" && *transition.BeneficiaryMode != "list" {
 			return ErrBeneficiaryMode
 		}
 		prevBlock = transition.Block

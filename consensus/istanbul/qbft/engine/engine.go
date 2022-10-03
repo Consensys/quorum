@@ -582,7 +582,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		return
 	}
 	switch strings.ToLower(*cfg.BeneficiaryMode) {
-	case "besu":
+	case "fixed":
 		if cfg.MiningBeneficiary != nil {
 			state.AddBalance(*cfg.MiningBeneficiary, &reward)
 		}
