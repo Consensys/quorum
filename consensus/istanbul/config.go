@@ -136,9 +136,9 @@ type Config struct {
 	BeneficiaryList        []common.Address      `toml:",omitempty"` // List of wallet addresses that have benefit at every new block (list mode)
 	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
 	Transitions            []params.Transition
-	ValidatorContract      common.Address
-	Validators             []common.Address
-	ValidatorSelectionMode *string
+	ValidatorContract      common.Address      `toml:",omitempty"`
+	Validators             []common.Address    `toml:",omitempty"`
+	ValidatorSelectionMode *string             `toml:",omitempty"`
 	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
