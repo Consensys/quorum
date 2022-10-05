@@ -137,6 +137,8 @@ type Config struct {
 	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
 	Transitions            []params.Transition
 	ValidatorContract      common.Address
+	Validators             []common.Address
+	ValidatorSelectionMode *string
 	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
@@ -211,6 +213,15 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MiningBeneficiary != nil {
 			newConfig.MiningBeneficiary = transition.MiningBeneficiary
 		}
+		if transition.ValidatorSelectionMode != "" {
+			newConfig.ValidatorSelectionMode = &transition.ValidatorSelectionMode
+		}
+		if transition.ValidatorContractAddress != (common.Address{}) {
+			newConfig.ValidatorContract = transition.ValidatorContractAddress
+		}
+		if len(transition.Validators) > 0 {
+			newConfig.Validators = transition.Validators
+		}
 	})
 
 	return newConfig
@@ -234,6 +245,16 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 		}
 	})
 	return mode
+}
+
+func (c Config) GetValidators(blockNumber *big.Int) []common.Address {
+	result := c.Validators
+	c.getTransitionValue(blockNumber, func(transition params.Transition) {
+		if len(transition.Validators) > 0 {
+			result = transition.Validators
+		}
+	})
+	return result
 }
 
 func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {

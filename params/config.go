@@ -429,11 +429,12 @@ func (c IBFTConfig) String() string {
 
 type QBFTConfig struct {
 	*BFTConfig
-	BlockReward       *math.HexOrDecimal256 `json:"blockReward,omitempty"`       // Reward from start, works only on QBFT consensus protocol
-	BeneficiaryMode   *string               `json:"beneficiaryMode,omitempty"`   // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
-	BeneficiaryList   []common.Address      `json:"beneficiaryList,omitempty"`   // List of wallet addresses that have benefit at every new block (list mode)
-	MiningBeneficiary *common.Address       `json:"miningBeneficiary,omitempty"` // Wallet address that benefits at every new block (besu mode)
-
+	BlockReward            *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
+	BeneficiaryMode        *string               `json:"beneficiaryMode,omitempty"`        // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
+	BeneficiaryList        []common.Address      `json:"beneficiaryList,omitempty"`        // List of wallet addresses that have benefit at every new block (list mode)
+	MiningBeneficiary      *common.Address       `json:"miningBeneficiary,omitempty"`      // Wallet address that benefits at every new block (besu mode)
+	ValidatorSelectionMode *string               `json:"validatorselectionmode,omitempty"` // Select model for validators
+	Validators             []common.Address      `json:"validators"`                       // Validators list
 }
 
 func (c QBFTConfig) String() string {
@@ -457,6 +458,7 @@ type Transition struct {
 	RequestTimeoutSeconds        uint64                `json:"requesttimeoutseconds,omitempty"`        // Minimum request timeout for each IBFT or QBFT round in milliseconds
 	ContractSizeLimit            uint64                `json:"contractsizelimit,omitempty"`            // Maximum smart contract code size
 	ValidatorContractAddress     common.Address        `json:"validatorcontractaddress"`               // Smart contract address for list of validators
+	Validators                   []common.Address      `json:"validators"`                             // List of validators
 	ValidatorSelectionMode       string                `json:"validatorselectionmode,omitempty"`       // Validator selection mode to switch to
 	EnhancedPermissioningEnabled *bool                 `json:"enhancedPermissioningEnabled,omitempty"` // aka QIP714Block
 	PrivacyEnhancementsEnabled   *bool                 `json:"privacyEnhancementsEnabled,omitempty"`   // privacy enhancements (mandatory party, private state validation)

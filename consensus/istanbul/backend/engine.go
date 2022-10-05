@@ -372,7 +372,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
 				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
 
-				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.GetValidatorContractAddress(targetBlockHeight), sb.config.Client)
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
 				if err != nil {
 					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
@@ -388,11 +388,15 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					return nil, err
 				}
 			} else {
-				var err error
-				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
-				if err != nil {
-					sb.logger.Error("BFT: invalid genesis block", "err", err)
-					return nil, err
+				if validatorsFromTransitions := sb.config.GetValidators(targetBlockHeight); len(validatorsFromTransitions) > 0 {
+					validators = validatorsFromTransitions
+				} else {
+					var err error
+					validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
+					if err != nil {
+						sb.logger.Error("BFT: invalid genesis block", "err", err)
+						return nil, err
+					}
 				}
 			}
 
