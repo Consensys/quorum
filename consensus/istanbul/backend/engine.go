@@ -389,6 +389,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				}
 			} else {
 				if validatorsFromTransitions := sb.config.GetValidators(targetBlockHeight); len(validatorsFromTransitions) > 0 {
+					var extraDataValidators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
+					if err == nil && len(extraDataValidators) > 0 {
+						sb.logger.Error("BFT: You can not specify validators in block 0 genesis transition and extradata genesis")
+						return nil,  istanbulcommon.ErrInvalidGenesis
+					}
+
 					validators = validatorsFromTransitions
 				} else {
 					var err error
