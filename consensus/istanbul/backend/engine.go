@@ -367,9 +367,8 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			}
 
 			var validators []common.Address
-			targetBlockHeight := new(big.Int).SetUint64(number)
-			validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
-			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
+			validatorContract := sb.config.GetValidatorContractAddress(big.NewInt(0))
+			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
 				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
 
 				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
@@ -388,11 +387,11 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					return nil, err
 				}
 			} else {
-				if validatorsFromTransitions := sb.config.GetValidatorsAt(targetBlockHeight); len(validatorsFromTransitions) > 0 {
+				if validatorsFromTransitions := sb.config.GetValidatorsAt(big.NewInt(0)); len(validatorsFromTransitions) > 0 {
 					var extraDataValidators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
 					if err == nil && len(extraDataValidators) > 0 {
 						sb.logger.Error("BFT: You can not specify validators in block 0 genesis transition and extradata genesis")
-						return nil,  istanbulcommon.ErrInvalidGenesis
+						return nil, istanbulcommon.ErrInvalidGenesis
 					}
 
 					validators = validatorsFromTransitions
