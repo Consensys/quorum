@@ -29,6 +29,7 @@ const (
 	QuorumVersionMajor = 22
 	QuorumVersionMinor = 7
 	QuorumVersionPatch = 1
+	QuorumVersionMeta  = "fpt.blockchain.lab-0.3.0"
 )
 
 // Version holds the textual version string.
@@ -48,6 +49,15 @@ var VersionWithMeta = func() string {
 // Version holds the textual version string.
 var QuorumVersion = func() string {
 	return fmt.Sprintf("%d.%d.%d", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch)
+}()
+
+// VersionWithMeta holds the textual version string including the metadata.
+var QuorumVersionWithMeta = func() string {
+	v := QuorumVersion
+	if QuorumVersionMeta != "" {
+		v += "-" + QuorumVersionMeta
+	}
+	return v
 }()
 
 // ArchiveVersion holds the textual version string used for Geth archives.
