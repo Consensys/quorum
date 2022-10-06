@@ -469,6 +469,9 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
+	} else if validatorsFromTransitions := sb.config.GetValidators(targetBlockHeight); len(validatorsFromTransitions) > 0 && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.BlockHeaderMode {
+		valSet := validator.NewSet(validatorsFromTransitions, sb.config.ProposerPolicy)
+		snap.ValSet = valSet
 	}
 
 	// If we've generated a new checkpoint snapshot, save to disk
