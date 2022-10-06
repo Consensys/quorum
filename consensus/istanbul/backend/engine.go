@@ -388,7 +388,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					return nil, err
 				}
 			} else {
-				if validatorsFromTransitions := sb.config.GetValidators(targetBlockHeight); len(validatorsFromTransitions) > 0 {
+				if validatorsFromTransitions := sb.config.GetValidatorsAt(targetBlockHeight); len(validatorsFromTransitions) > 0 {
 					var extraDataValidators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
 					if err == nil && len(extraDataValidators) > 0 {
 						sb.logger.Error("BFT: You can not specify validators in block 0 genesis transition and extradata genesis")
@@ -469,7 +469,10 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
-	} else if validatorsFromTransitions := sb.config.GetValidators(targetBlockHeight); len(validatorsFromTransitions) > 0 && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.BlockHeaderMode {
+	} else if validatorsFromTransitions := sb.config.GetValidatorsAt(targetBlockHeight); len(validatorsFromTransitions) > 0 && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.BlockHeaderMode {
+		//Note! we only want to set this once at this block height. Subsequent blocks will be propagated with the same
+		// 		validator as they are copied into the block header on the next block. Then normal voting can take place
+		// 		again.
 		valSet := validator.NewSet(validatorsFromTransitions, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
 	}

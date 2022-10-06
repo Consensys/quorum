@@ -247,12 +247,10 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 	return mode
 }
 
-func (c Config) GetValidators(blockNumber *big.Int) []common.Address {
+func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
 	result := c.Validators
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		if len(transition.Validators) > 0 {
-			result = transition.Validators
-		}
+		result = transition.Validators
 	})
 	return result
 }
