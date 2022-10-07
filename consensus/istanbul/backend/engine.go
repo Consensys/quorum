@@ -369,7 +369,6 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			var validators []common.Address
 			validatorContract := sb.config.GetValidatorContractAddress(big.NewInt(0))
 			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
-				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
 
 				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
@@ -382,22 +381,27 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					BlockNumber: big.NewInt(0),
 				}
 				validators, err = validatorContractCaller.GetValidators(&opts)
+				log.Trace("BFT: Initialising snap with contract validators", "address", validatorContract, "validators", validators)
 				if err != nil {
 					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
 					return nil, err
 				}
 			} else {
-				if validatorsFromConfig := sb.config.GetValidatorsAt(big.NewInt(0)); len(validatorsFromConfig) > 0 {
+				validatorsFromConfig := sb.config.GetValidatorsAt(big.NewInt(0))
+				if len(validatorsFromConfig) > 0 {
 					validators = validatorsFromConfig
+					log.Info("BFT: Initialising snap with config validators", "validators", validators)
 				} else {
 					var err error
 					validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
+					log.Info("BFT: Initialising snap with extradata","validators", validators)
 					if err != nil {
 						log.Error("BFT: invalid genesis block", "err", err)
 						return nil, err
 					}
 				}
 			}
+
 
 			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
 			if err := sb.storeSnap(snap); err != nil {
