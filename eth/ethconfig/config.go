@@ -296,6 +296,9 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
 			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
 		}
+		config.Istanbul.Validators = chainConfig.QBFT.Validators
+		config.Istanbul.ValidatorSelectionMode = chainConfig.QBFT.ValidatorSelectionMode
+
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// For Quorum, Raft run as a separate service, so
