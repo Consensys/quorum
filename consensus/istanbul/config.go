@@ -248,11 +248,16 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 }
 
 func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
-	result := c.Validators
-	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		result = transition.Validators
-	})
-	return result
+	if blockNumber.Cmp(big.NewInt(0)) == 0  && len(c.Validators) > 0 {
+		return c.Validators
+	}
+
+	if  blockNumber != nil && c.Transitions != nil {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
+			return c.Validators
+		}
+	}
+	return []common.Address{}
 }
 
 func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {
