@@ -394,14 +394,13 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				} else {
 					var err error
 					validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
-					log.Info("BFT: Initialising snap with extradata","validators", validators)
+					log.Info("BFT: Initialising snap with extradata", "validators", validators)
 					if err != nil {
 						log.Error("BFT: invalid genesis block", "err", err)
 						return nil, err
 					}
 				}
 			}
-
 
 			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
 			if err := sb.storeSnap(snap); err != nil {

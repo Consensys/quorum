@@ -248,11 +248,11 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 }
 
 func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
-	if blockNumber.Cmp(big.NewInt(0)) == 0  && len(c.Validators) > 0 {
+	if blockNumber.Cmp(big.NewInt(0)) == 0 && len(c.Validators) > 0 {
 		return c.Validators
 	}
 
-	if  blockNumber != nil && c.Transitions != nil {
+	if blockNumber != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
 			return c.Validators
 		}
