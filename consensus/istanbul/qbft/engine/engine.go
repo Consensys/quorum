@@ -336,17 +336,35 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
-	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(big.NewInt(0).SetUint64(number-1)) == params.ContractMode {
+	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)
+	validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
 		return ApplyHeaderQBFTExtra(
 			header,
 			WriteValidators([]common.Address{}),
 		)
 	} else {
+		for _, transition := range e.cfg.Transitions {
+			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
+				toRemove := make([]istanbul.Validator, 0, validators.Size())
+				l := validators.List()
+				for i := range l {
+					toRemove = append(toRemove, l[i])
+				}
+				for i := range toRemove {
+					validators.RemoveValidator(toRemove[i].Address())
+				}
+				for i := range transition.Validators {
+					validators.AddValidator(transition.Validators[i])
+				}
+				break
+			}
+		}
+		validatorsList := validator.SortedAddresses(validators.List())
 		// add validators in snapshot to extraData's validators section
 		return ApplyHeaderQBFTExtra(
 			header,
-			WriteValidators(validator.SortedAddresses(validators.List())),
+			WriteValidators(validatorsList),
 		)
 	}
 }
