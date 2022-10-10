@@ -254,9 +254,11 @@ func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
 
 	if blockNumber != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
-			return c.Validators
+			return c.Transitions[i].Validators
 		}
 	}
+
+	//Note! empty means we will get the valset from previous block header which contains votes, validators etc
 	return []common.Address{}
 }
 
