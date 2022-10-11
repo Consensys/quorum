@@ -136,7 +136,9 @@ type Config struct {
 	BeneficiaryList        []common.Address      `toml:",omitempty"` // List of wallet addresses that have benefit at every new block (list mode)
 	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
 	Transitions            []params.Transition
-	ValidatorContract      common.Address
+	ValidatorContract      common.Address      `toml:",omitempty"`
+	Validators             []common.Address    `toml:",omitempty"`
+	ValidatorSelectionMode *string             `toml:",omitempty"`
 	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
@@ -211,6 +213,15 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MiningBeneficiary != nil {
 			newConfig.MiningBeneficiary = transition.MiningBeneficiary
 		}
+		if transition.ValidatorSelectionMode != "" {
+			newConfig.ValidatorSelectionMode = &transition.ValidatorSelectionMode
+		}
+		if transition.ValidatorContractAddress != (common.Address{}) {
+			newConfig.ValidatorContract = transition.ValidatorContractAddress
+		}
+		if len(transition.Validators) > 0 {
+			newConfig.Validators = transition.Validators
+		}
 	})
 
 	return newConfig
@@ -234,6 +245,21 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 		}
 	})
 	return mode
+}
+
+func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
+	if blockNumber.Cmp(big.NewInt(0)) == 0 && len(c.Validators) > 0 {
+		return c.Validators
+	}
+
+	if blockNumber != nil && c.Transitions != nil {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
+			return c.Transitions[i].Validators
+		}
+	}
+
+	//Note! empty means we will get the valset from previous block header which contains votes, validators etc
+	return []common.Address{}
 }
 
 func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {
