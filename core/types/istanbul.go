@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -128,8 +129,16 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 type QBFTExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
-	Vote          *ValidatorVote `rlp:"nilString"`
+	Vote          *ValidatorVote `rlp:"nil"`
 	Round         []byte
+	CommittedSeal [][]byte
+}
+
+type qbftExtraFallback struct {
+	VanityData    []byte
+	Validators    []common.Address
+	Vote          *ValidatorVote `rlp:"nil"`
+	Round         uint32
 	CommittedSeal [][]byte
 }
 
@@ -208,12 +217,25 @@ func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData    []byte
 		Validators    []common.Address
-		Vote          *ValidatorVote `rlp:"nilString"`
+		Vote          *ValidatorVote `rlp:"nil"`
 		Round         []byte
 		CommittedSeal [][]byte
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
-		return err
+		var qbftExtraFallback struct {
+			VanityData    []byte
+			Validators    []common.Address
+			Vote          *ValidatorVote `rlp:"nil"`
+			Round         uint32
+			CommittedSeal [][]byte
+		}
+		if err := s.Decode(&qbftExtraFallback); err != nil {
+			return err
+		}
+		round := make([]byte, 4)
+		binary.BigEndian.PutUint32(round, qbftExtraFallback.Round)
+		qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal = qbftExtraFallback.VanityData, qbftExtraFallback.Validators, qbftExtraFallback.Vote, round, qbftExtraFallback.CommittedSeal
+		return nil
 	}
 	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal = qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal
 
@@ -255,7 +277,15 @@ func ExtractQBFTExtra(h *Header) (*QBFTExtra, error) {
 	qbftExtra := new(QBFTExtra)
 	err := rlp.DecodeBytes(h.Extra[:], qbftExtra)
 	if err != nil {
-		return nil, err
+		qbftExtraFallback := new(qbftExtraFallback)
+		err := rlp.DecodeBytes(h.Extra[:], qbftExtraFallback)
+		if err != nil {
+			return nil, err
+		}
+		log.Warn("qbft extra fallback to old version")
+		round := make([]byte, 4)
+		binary.BigEndian.PutUint32(round, qbftExtraFallback.Round)
+		qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal = qbftExtraFallback.VanityData, qbftExtraFallback.Validators, qbftExtraFallback.Vote, round, qbftExtraFallback.CommittedSeal
 	}
 	return qbftExtra, nil
 }

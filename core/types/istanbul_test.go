@@ -23,7 +23,25 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestExtraFallback(t *testing.T) {
+	{
+		h := &Header{
+			Extra: common.FromHex("0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b4408080c0"),
+		}
+		_, err := ExtractQBFTExtra(h)
+		assert.NoError(t, err)
+	}
+	{
+		h := &Header{
+			Extra: common.FromHex("0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0"),
+		}
+		_, err := ExtractQBFTExtra(h)
+		assert.NoError(t, err)
+	}
+}
 
 func TestHeaderHash(t *testing.T) {
 	// 0xcefefd3ade63a5955bca4562ed840b67f39e74df217f7e5f7241a6e9552cca70
