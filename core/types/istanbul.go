@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -129,7 +130,7 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 type QBFTExtra struct {
 	VanityData    []byte
 	Validators    []common.Address
-	Vote          *ValidatorVote `rlp:"nil"`
+	Vote          *ValidatorVote `rlp:"nilString"`
 	Round         []byte
 	CommittedSeal [][]byte
 }
@@ -217,7 +218,7 @@ func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData    []byte
 		Validators    []common.Address
-		Vote          *ValidatorVote `rlp:"nil"`
+		Vote          *ValidatorVote `rlp:"nilString"`
 		Round         []byte
 		CommittedSeal [][]byte
 	}
@@ -225,7 +226,7 @@ func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 		var qbftExtraFallback struct {
 			VanityData    []byte
 			Validators    []common.Address
-			Vote          *ValidatorVote `rlp:"nil"`
+			Vote          *ValidatorVote `rlp:"nilString"`
 			Round         uint32
 			CommittedSeal [][]byte
 		}
@@ -278,13 +279,16 @@ func ExtractQBFTExtra(h *Header) (*QBFTExtra, error) {
 	err := rlp.DecodeBytes(h.Extra[:], qbftExtra)
 	if err != nil {
 		qbftExtraFallback := new(qbftExtraFallback)
-		err := rlp.DecodeBytes(h.Extra[:], qbftExtraFallback)
-		if err != nil {
-			return nil, err
+		errFallback := rlp.DecodeBytes(h.Extra[:], qbftExtraFallback)
+		if errFallback != nil {
+			return nil, fmt.Errorf("got two decoding errors: 1=%w; 2=%v", err, errFallback)
 		}
 		log.Warn("qbft extra fallback to old version")
-		round := make([]byte, 4)
-		binary.BigEndian.PutUint32(round, qbftExtraFallback.Round)
+		round := make([]byte, 0)
+		if qbftExtraFallback.Round > 0 {
+			round = make([]byte, 4)
+			binary.BigEndian.PutUint32(round, qbftExtraFallback.Round)
+		}
 		qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal = qbftExtraFallback.VanityData, qbftExtraFallback.Validators, qbftExtraFallback.Vote, round, qbftExtraFallback.CommittedSeal
 	}
 	return qbftExtra, nil

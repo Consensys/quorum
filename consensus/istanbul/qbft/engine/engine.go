@@ -3,8 +3,10 @@ package qbftengine
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"time"
 
@@ -533,7 +535,15 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	if err != nil {
 		return err
 	}
-
+	// security check
+	t := &types.QBFTExtra{}
+	err = rlp.DecodeBytes(payload, t)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(t, qbftExtra) {
+		return errors.New("encoding of QBFT extra mismatch")
+	}
 	h.Extra = payload
 	return nil
 }
