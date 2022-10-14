@@ -647,6 +647,9 @@ func (m Message) WithEmptyPrivateData(b bool) Message {
 }
 
 func (tx *Transaction) IsPrivate() bool {
+	if tx == nil {
+		return false
+	}
 	v, _, _ := tx.RawSignatureValues()
 	if v == nil {
 		return false
@@ -675,7 +678,7 @@ func (tx *Transaction) SetPrivate() {
 }
 
 func (tx *Transaction) IsPrivacyMarker() bool {
-	return tx.To() != nil && *tx.To() == common.QuorumPrivacyPrecompileContractAddress()
+	return tx != nil && tx.To() != nil && *tx.To() == common.QuorumPrivacyPrecompileContractAddress()
 }
 
 // PrivacyMetadata encapsulates privacy information to be attached
