@@ -43,8 +43,10 @@ The state transitioning model does all the necessary work to work out a valid ne
 3) Create a new state object if the recipient is \0*32
 4) Value transfer
 == If contract creation ==
-  4a) Attempt to run transaction data
-  4b) If valid, use result as code for the new state object
+
+	4a) Attempt to run transaction data
+	4b) If valid, use result as code for the new state object
+
 == end ==
 5) Run Script section
 6) Derive new state root
@@ -224,27 +226,27 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
-// - used gas:
-//      total gas used (including gas being refunded)
-// - returndata:
-//      the returned data from evm
-// - concrete execution error:
-//      various **EVM** error which aborts the execution,
-//      e.g. ErrOutOfGas, ErrExecutionReverted
+//   - used gas:
+//     total gas used (including gas being refunded)
+//   - returndata:
+//     the returned data from evm
+//   - concrete execution error:
+//     various **EVM** error which aborts the execution,
+//     e.g. ErrOutOfGas, ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 //
 // Quorum:
-// 1. Intrinsic gas is calculated based on the encrypted payload hash
-//    and NOT the actual private payload.
-// 2. For private transactions, we only deduct intrinsic gas from the gas pool
-//    regardless the current node is party to the transaction or not.
-// 3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
-//    for the internal private transaction, regardless of whether the current node is a party.
-// 4. With multitenancy support, we enforce the party set in the contract index must contain all
-//    parties from the transaction. This is to detect unauthorized access from a legit proxy contract
-//    to an unauthorized contract.
+//  1. Intrinsic gas is calculated based on the encrypted payload hash
+//     and NOT the actual private payload.
+//  2. For private transactions, we only deduct intrinsic gas from the gas pool
+//     regardless the current node is party to the transaction or not.
+//  3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
+//     for the internal private transaction, regardless of whether the current node is a party.
+//  4. With multitenancy support, we enforce the party set in the contract index must contain all
+//     parties from the transaction. This is to detect unauthorized access from a legit proxy contract
+//     to an unauthorized contract.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
@@ -285,6 +287,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 		if err != nil {
+			log.Warn("execution result", "err", err)
 			return &ExecutionResult{
 				UsedGas:    0,
 				Err:        nil,
@@ -312,9 +315,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
 	if err != nil {
+		log.Warn("intrinsicgas", "gas", gas, "err", err)
 		return nil, err
 	}
 	if st.gas < gas {
+		log.Warn("intrinsicgas", "st.gas", st.gas, "gas", gas)
 		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
 	}
 	st.gas -= gas
@@ -340,6 +345,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	)
 	if contractCreation {
 		ret, _, leftoverGas, vmerr = evm.Create(sender, data, st.gas, st.value)
+		log.Warn("contract creation", "ret", ret, "err", err, "leftovergas", leftoverGas)
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
 		// If the transaction is private it has already been incremented on
@@ -367,7 +373,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, leftoverGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
 	}
 	if vmerr != nil {
-		log.Info("VM returned with error", "err", vmerr)
+		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
@@ -415,11 +421,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 	// End Quorum
 
-	return &ExecutionResult{
+	er := &ExecutionResult{
 		UsedGas:    st.gasUsed(),
 		Err:        vmerr,
 		ReturnData: ret,
-	}, nil
+	}
+	log.Warn("execution result", "er", er)
+	return er, nil
 }
 
 func (st *StateTransition) refundGas() {
