@@ -296,8 +296,11 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		if chainConfig.QBFT.ValidatorContractAddress != (common.Address{}) {
 			config.Istanbul.ValidatorContract = chainConfig.QBFT.ValidatorContractAddress
 		}
-		config.Istanbul.Validators = chainConfig.QBFT.Validators
+		config.Istanbul.BlockReward = chainConfig.QBFT.BlockReward
+		config.Istanbul.BeneficiaryMode = chainConfig.QBFT.BeneficiaryMode
+		config.Istanbul.MiningBeneficiary = chainConfig.QBFT.MiningBeneficiary
 		config.Istanbul.ValidatorSelectionMode = chainConfig.QBFT.ValidatorSelectionMode
+		config.Istanbul.Validators = chainConfig.QBFT.Validators
 
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
