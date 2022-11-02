@@ -401,10 +401,16 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if !isPrivate {
 		st.gas = leftoverGas
 	}
-	// End Quorum
+
+	// Quorum with gas enabled we can specify if it goes to coinbase(ie validators) or a fixed beneficiary
+	// Note the rewards here are only for transitions, any additional block rewards must go
+	rewardAccount, err := st.evm.ChainConfig().GetRewardAccount(st.evm.Context.BlockNumber, st.evm.Context.Coinbase)
+	if err != nil {
+		return nil, err
+	}
 
 	st.refundGas()
-	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+	st.state.AddBalance(rewardAccount, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	if isPrivate {
 		return &ExecutionResult{

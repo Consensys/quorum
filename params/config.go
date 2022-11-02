@@ -431,7 +431,6 @@ type QBFTConfig struct {
 	*BFTConfig
 	BlockReward            *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
 	BeneficiaryMode        *string               `json:"beneficiaryMode,omitempty"`        // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
-	BeneficiaryList        []common.Address      `json:"beneficiaryList,omitempty"`        // List of wallet addresses that have benefit at every new block (list mode)
 	MiningBeneficiary      *common.Address       `json:"miningBeneficiary,omitempty"`      // Wallet address that benefits at every new block (besu mode)
 	ValidatorSelectionMode *string               `json:"validatorselectionmode,omitempty"` // Select model for validators
 	Validators             []common.Address      `json:"validators"`                       // Validators list
@@ -469,7 +468,6 @@ type Transition struct {
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
 	BeneficiaryMode              *string               `json:"beneficiaryMode,omitempty"`              // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
-	BeneficiaryList              []common.Address      `json:"beneficiaryList,omitempty"`              // List of wallet addresses that have benefit at every new block (list mode)
 	MiningBeneficiary            *common.Address       `json:"miningBeneficiary,omitempty"`            // Wallet address that benefits at every new block (besu mode)
 }
 
@@ -637,6 +635,57 @@ func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	})
 
 	return maxCodeSize
+}
+
+func (c *ChainConfig) GetRewardAccount(num *big.Int, coinbase common.Address) (common.Address, error) {
+	beneficiaryMode := "validator"
+	miningBeneficiary := common.Address{}
+
+	if c.QBFT != nil && c.QBFT.MiningBeneficiary != nil {
+		miningBeneficiary = *c.QBFT.MiningBeneficiary
+		beneficiaryMode = "fixed"
+	}
+
+	if c.QBFT != nil && c.QBFT.BeneficiaryMode != nil {
+		beneficiaryMode = *c.QBFT.BeneficiaryMode
+	}
+
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.BeneficiaryMode != nil && (*transition.BeneficiaryMode == "validators" || *transition.BeneficiaryMode == "validator") {
+			beneficiaryMode = "validator"
+		}
+		if transition.MiningBeneficiary != nil && (transition.BeneficiaryMode == nil || *transition.BeneficiaryMode == "fixed") {
+			miningBeneficiary = *transition.MiningBeneficiary
+			beneficiaryMode = "fixed"
+		}
+	})
+
+	switch strings.ToLower(beneficiaryMode) {
+	case "fixed":
+		log.Trace("fixed beneficiary mode", "miningBeneficiary", miningBeneficiary)
+		return miningBeneficiary, nil
+	case "validator":
+		log.Trace("validator beneficiary mode", "coinbase", coinbase)
+		return coinbase, nil
+	}
+
+	return common.Address{}, errors.New("BeneficiaryMode must be coinbase|fixed")
+}
+
+func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
+	blockReward := *math.NewHexOrDecimal256(0)
+
+	if c.QBFT != nil && c.QBFT.BlockReward != nil {
+		blockReward = *c.QBFT.BlockReward
+	}
+
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.BlockReward != nil {
+			blockReward = *transition.BlockReward
+		}
+	})
+
+	return big.Int(blockReward)
 }
 
 // Quorum

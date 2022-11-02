@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -383,7 +382,7 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Accumulate any block and uncle rewards and commit the final state root
-	e.accumulateRewards(chain, state, header, uncles, e.cfg.GetConfig(header.Number))
+	e.accumulateRewards(chain, state, header)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }
@@ -586,41 +585,17 @@ func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) (
 }
 
 // AccumulateRewards credits the beneficiary of the given block with a reward.
-func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header, cfg istanbul.Config) {
-	blockReward := cfg.BlockReward
-	if blockReward == nil {
-		return // no reward
-	}
-	// Accumulate the rewards for a beneficiary
-	reward := big.Int(*blockReward)
-	if cfg.BeneficiaryMode == nil || *cfg.BeneficiaryMode == "" {
-		if cfg.MiningBeneficiary != nil {
-			state.AddBalance(*cfg.MiningBeneficiary, &reward) // implicit besu compatible mode
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
+
+	blockReward := chain.Config().GetBlockReward(header.Number)
+	if blockReward.Cmp(big.NewInt(0)) > 0 {
+		coinbase := header.Coinbase
+		if (coinbase == common.Address{}) {
+			coinbase = e.signer
 		}
-		return
-	}
-	switch strings.ToLower(*cfg.BeneficiaryMode) {
-	case "fixed":
-		if cfg.MiningBeneficiary != nil {
-			state.AddBalance(*cfg.MiningBeneficiary, &reward)
-		}
-	case "list":
-		for _, b := range cfg.BeneficiaryList {
-			state.AddBalance(b, &reward)
-		}
-	case "validators":
-		genesis := chain.GetHeaderByNumber(0)
-		if err := e.VerifyHeader(chain, genesis, nil, nil); err != nil {
-			log.Error("BFT: invalid genesis block", "err", err)
-			return
-		}
-		list, err := e.validatorsList(genesis, cfg)
-		if err != nil {
-			log.Error("get validators list", "err", err)
-			return
-		}
-		for _, b := range list {
-			state.AddBalance(b, &reward)
-		}
+		rewardAccount, _ := chain.Config().GetRewardAccount(header.Number, coinbase)
+		log.Trace("QBFT: accumulate rewards to", "rewardAccount", rewardAccount, "blockReward", blockReward)
+
+		state.AddBalance(rewardAccount, &blockReward)
 	}
 }
