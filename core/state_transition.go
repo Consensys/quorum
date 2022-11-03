@@ -287,7 +287,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 		if err != nil {
-			log.Warn("execution result", "err", err)
 			return &ExecutionResult{
 				UsedGas:    0,
 				Err:        nil,
@@ -315,11 +314,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
 	if err != nil {
-		log.Warn("intrinsicgas", "gas", gas, "err", err)
 		return nil, err
 	}
 	if st.gas < gas {
-		log.Warn("intrinsicgas", "st.gas", st.gas, "gas", gas)
 		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
 	}
 	st.gas -= gas
@@ -345,7 +342,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	)
 	if contractCreation {
 		ret, _, leftoverGas, vmerr = evm.Create(sender, data, st.gas, st.value)
-		log.Warn("contract creation", "ret", ret, "err", err, "leftovergas", leftoverGas)
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
 		// If the transaction is private it has already been incremented on
@@ -421,13 +417,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 	// End Quorum
 
-	er := &ExecutionResult{
+	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
 		Err:        vmerr,
 		ReturnData: ret,
-	}
-	log.Warn("execution result", "er", er)
-	return er, nil
+	}, nil
 }
 
 func (st *StateTransition) refundGas() {
