@@ -5,8 +5,14 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	bindings "github.com/ethereum/go-ethereum/lc/bind"
+	"github.com/go-playground/validator/v10"
+)
+
+var (
+	validate = validator.New()
 )
 
 type LcServiceApi struct {
@@ -22,40 +28,21 @@ type TransactionInput struct {
 	Data string `json:"data"` // Optional resource locator within a backend
 }
 
-func toTransactionInput(tx *types.Transaction) TransactionInput {
-	return TransactionInput{
+func toTransactionInput(tx *types.Transaction) *TransactionInput {
+	return &TransactionInput{
 		Data: fmt.Sprintf("0x%s", common.Bytes2Hex(tx.Data())),
 	}
 }
 
-type SliceOfHex []string
-type SliceOfHash []common.Hash
-
-func (s SliceOfHex) toSliceOfHashes() SliceOfHash {
-	hashes := make(SliceOfHash, len(s))
-	for i, hex := range s {
-		hashes[i] = common.HexToHash(hex)
-	}
-	return hashes
-}
-
-func (s SliceOfHash) toSliceByte32() [][32]byte {
-	byte32s := make([][32]byte, len(s))
-	for i, hash := range s {
-		byte32s[i] = hash
-	}
-	return byte32s
-}
-
 type IStageContractContentParams struct {
-	RootHash       string
-	SignedTime     *big.Int
-	PrevHash       string
-	NumOfDocuments *big.Int
-	ContentHash    SliceOfHex
-	Url            string
-	Acknowledge    []byte
-	Signature      []byte
+	RootHash       common.Hash   `validate:"required"`
+	SignedTime     *big.Int      `validate:"required"`
+	PrevHash       common.Hash   `validate:"required"`
+	NumOfDocuments *big.Int      `validate:"required"`
+	ContentHash    []common.Hash `validate:"required,gt=1,dive,required"`
+	Url            string        `validate:"url"`
+	Acknowledge    hexutil.Bytes `validate:"required"`
+	Signature      hexutil.Bytes `validate:"required"`
 }
 
 type IAmendRequestAmendStageParams struct {
@@ -66,11 +53,11 @@ type IAmendRequestAmendStageParams struct {
 
 func (i IStageContractContentParams) toBindingStageContractContent() bindings.IStageContractContent {
 	return bindings.IStageContractContent{
-		RootHash:       common.HexToHash(i.RootHash),
+		RootHash:       i.RootHash,
 		SignedTime:     i.SignedTime,
-		PrevHash:       common.HexToHash(i.PrevHash),
+		PrevHash:       i.PrevHash,
 		NumOfDocuments: i.NumOfDocuments,
-		ContentHash:    i.ContentHash.toSliceOfHashes().toSliceByte32(),
+		ContentHash:    commonHashToSliceByte32(i.ContentHash),
 		Url:            i.Url,
 		Acknowledge:    i.Acknowledge,
 		Signature:      i.Signature,
@@ -82,6 +69,35 @@ func (i IAmendRequestAmendStageParams) toAmendRequestAmendStage() bindings.IAmen
 		Stage:    i.Stage,
 		SubStage: i.SubStage,
 		Content:  i.Content.toBindingStageContractContent(),
+	}
+}
+
+func sliceByte32ToCommonHash(input [][common.HashLength]byte) []common.Hash {
+	hashes := make([]common.Hash, len(input))
+	for i, hex := range input {
+		hashes[i] = hex
+	}
+	return hashes
+}
+
+func commonHashToSliceByte32(input []common.Hash) [][common.HashLength]byte {
+	byte32s := make([][common.HashLength]byte, len(input))
+	for i, hash := range input {
+		byte32s[i] = hash
+	}
+	return byte32s
+}
+
+func bindingStageContractContent2IStageContractContentParams(i bindings.IStageContractContent) IStageContractContentParams {
+	return IStageContractContentParams{
+		RootHash:       i.RootHash,
+		SignedTime:     i.SignedTime,
+		PrevHash:       i.PrevHash,
+		NumOfDocuments: i.NumOfDocuments,
+		ContentHash: 		sliceByte32ToCommonHash(i.ContentHash),
+		Url:            i.Url,
+		Acknowledge:    i.Acknowledge,
+		Signature:      i.Signature,
 	}
 }
 
@@ -106,12 +122,14 @@ func (s *LcServiceApi) GetLcAddress(_documentId big.Int) (common.Address, error)
 	return result.Contract, err
 }
 
-func (s *LcServiceApi) GetRootHash(_documentId big.Int) ([32]byte, error) {
-	return s.routerServiceSession.GetRootHash(&_documentId)
+func (s *LcServiceApi) GetRootHash(_documentId big.Int) (string, error) {
+	result, err := s.routerServiceSession.GetRootHash(&_documentId)
+	return hexutil.Encode(result[:]), err
 }
 
-func (s *LcServiceApi) GetStageContent(_documentId big.Int, _stage big.Int, _subStage big.Int) (bindings.IStageContractContent, error) {
-	return s.routerServiceSession.GetStageContent(&_documentId, &_stage, &_subStage)
+func (s *LcServiceApi) GetStageContent(_documentId big.Int, _stage big.Int, _subStage big.Int) (IStageContractContentParams, error) {
+	result, err := s.routerServiceSession.GetStageContent(&_documentId, &_stage, &_subStage)
+	return bindingStageContractContent2IStageContractContentParams(result), err
 }
 
 func (s *LcServiceApi) GetAmendmentRequest(_documentId big.Int, _requestId big.Int) (bindings.IAmendRequestRequest, error) {
@@ -122,42 +140,55 @@ func (s *LcServiceApi) IsAmendApproved(_documentId big.Int, _requestId big.Int) 
 	return s.routerServiceSession.IsAmendApproved(&_documentId, &_requestId)
 }
 
-func (s *LcServiceApi) Approve(_documentId big.Int, _stage big.Int, _subStage big.Int, _content bindings.IStageContractContent) (TransactionInput, error) {
+func (s *LcServiceApi) Approve(_documentId big.Int, _stage big.Int, _subStage big.Int, _content bindings.IStageContractContent) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.Approve(&_documentId, &_stage, &_subStage, _content)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) ApproveAmendment(_documentId big.Int, _requestId big.Int, _signature []byte) (TransactionInput, error) {
+func (s *LcServiceApi) ApproveAmendment(_documentId big.Int, _requestId big.Int, _signature []byte) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.ApproveAmendment(&_documentId, &_requestId, _signature)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) CloseLC(_documentId big.Int) (TransactionInput, error) {
+func (s *LcServiceApi) CloseLC(_documentId big.Int) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.CloseLC(&_documentId)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) FulfillAmendment(_documentId big.Int, _requestId big.Int) (TransactionInput, error) {
+func (s *LcServiceApi) FulfillAmendment(_documentId big.Int, _requestId big.Int) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.FulfillAmendment(&_documentId, &_requestId)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) SetAMC(_amc common.Address) (TransactionInput, error) {
+func (s *LcServiceApi) SetAMC(_amc common.Address) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.SetAMC(_amc)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) SubmitAmendment(_documentId big.Int, _migratingStages SliceOfHex, _amendStage IAmendRequestAmendStageParams, _signature []byte) (TransactionInput, error) {
-	tx, err := s.routerServiceSession.SubmitAmendment(&_documentId, _migratingStages.toSliceOfHashes().toSliceByte32(), _amendStage.toAmendRequestAmendStage(), _signature)
+func (s *LcServiceApi) SubmitAmendment(_documentId big.Int, _migratingStages []common.Hash, _amendStage IAmendRequestAmendStageParams, _signature []byte) (*TransactionInput, error) {
+	err := validate.Struct(_amendStage)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.routerServiceSession.SubmitAmendment(&_documentId, commonHashToSliceByte32(_migratingStages), _amendStage.toAmendRequestAmendStage(), _signature)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) CreateLc(_parties SliceOfHex, _content IStageContractContentParams) (TransactionInput, error) {
-	tx, err := s.stdLcFacSession.Create(_parties.toSliceOfHashes().toSliceByte32(), _content.toBindingStageContractContent())
+func (s *LcServiceApi) CreateLc(_parties []common.Hash, _content IStageContractContentParams) (*TransactionInput, error) {
+	err := validate.Struct(_content)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.stdLcFacSession.Create(commonHashToSliceByte32(_parties), _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) CreateUpasLc(_parties SliceOfHex, _content IStageContractContentParams) (TransactionInput, error) {
-	tx, err := s.upasLcFacSession.Create(_parties.toSliceOfHashes().toSliceByte32(), _content.toBindingStageContractContent())
+func (s *LcServiceApi) CreateUpasLc(_parties []common.Hash, _content IStageContractContentParams) (*TransactionInput, error) {
+	err := validate.Struct(_content)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.upasLcFacSession.Create(commonHashToSliceByte32(_parties), _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
