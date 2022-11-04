@@ -61,7 +61,7 @@ func (c *core) handleRequest(request *Request) error {
 			config := c.config.GetConfig(c.current.Sequence())
 			if config.EmptyBlockPeriod > config.BlockPeriod {
 				log.Info("EmptyBlockPeriod detected adding delay to request", "EmptyBlockPeriod", config.EmptyBlockPeriod, "BlockTime", block.Time())
-				delay = time.Duration(config.EmptyBlockPeriod) * time.Second
+				delay = time.Duration(config.EmptyBlockPeriod-config.BlockPeriod) * time.Second
 			}
 		}
 
