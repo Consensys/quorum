@@ -43,8 +43,10 @@ The state transitioning model does all the necessary work to work out a valid ne
 3) Create a new state object if the recipient is \0*32
 4) Value transfer
 == If contract creation ==
-  4a) Attempt to run transaction data
-  4b) If valid, use result as code for the new state object
+
+	4a) Attempt to run transaction data
+	4b) If valid, use result as code for the new state object
+
 == end ==
 5) Run Script section
 6) Derive new state root
@@ -224,27 +226,27 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
-// - used gas:
-//      total gas used (including gas being refunded)
-// - returndata:
-//      the returned data from evm
-// - concrete execution error:
-//      various **EVM** error which aborts the execution,
-//      e.g. ErrOutOfGas, ErrExecutionReverted
+//   - used gas:
+//     total gas used (including gas being refunded)
+//   - returndata:
+//     the returned data from evm
+//   - concrete execution error:
+//     various **EVM** error which aborts the execution,
+//     e.g. ErrOutOfGas, ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 //
 // Quorum:
-// 1. Intrinsic gas is calculated based on the encrypted payload hash
-//    and NOT the actual private payload.
-// 2. For private transactions, we only deduct intrinsic gas from the gas pool
-//    regardless the current node is party to the transaction or not.
-// 3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
-//    for the internal private transaction, regardless of whether the current node is a party.
-// 4. With multitenancy support, we enforce the party set in the contract index must contain all
-//    parties from the transaction. This is to detect unauthorized access from a legit proxy contract
-//    to an unauthorized contract.
+//  1. Intrinsic gas is calculated based on the encrypted payload hash
+//     and NOT the actual private payload.
+//  2. For private transactions, we only deduct intrinsic gas from the gas pool
+//     regardless the current node is party to the transaction or not.
+//  3. For privacy marker transactions, we only deduct the PMT gas from the gas pool. No gas is deducted
+//     for the internal private transaction, regardless of whether the current node is a party.
+//  4. With multitenancy support, we enforce the party set in the contract index must contain all
+//     parties from the transaction. This is to detect unauthorized access from a legit proxy contract
+//     to an unauthorized contract.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
@@ -367,7 +369,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, leftoverGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
 	}
 	if vmerr != nil {
-		log.Info("VM returned with error", "err", vmerr)
+		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
@@ -401,10 +403,16 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if !isPrivate {
 		st.gas = leftoverGas
 	}
-	// End Quorum
+
+	// Quorum with gas enabled we can specify if it goes to coinbase(ie validators) or a fixed beneficiary
+	// Note the rewards here are only for transitions, any additional block rewards must go
+	rewardAccount, err := st.evm.ChainConfig().GetRewardAccount(st.evm.Context.BlockNumber, st.evm.Context.Coinbase)
+	if err != nil {
+		return nil, err
+	}
 
 	st.refundGas()
-	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+	st.state.AddBalance(rewardAccount, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	if isPrivate {
 		return &ExecutionResult{

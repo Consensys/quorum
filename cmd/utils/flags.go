@@ -2513,23 +2513,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 	}
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
-	} else if config.QBFT != nil {
-		log.Debug("setBFTConfig", "proto", "qbft")
-		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
-		qbftConfig.TestQBFTBlock = big.NewInt(0)
-		qbftConfig.Transitions = config.Transitions
-		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
-			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
-		}
-		qbftConfig.Client = ethclient.NewClient(client)
-		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
-	} else if config.IBFT != nil {
-		log.Debug("setBFTConfig", "proto", "ibft")
-		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
-		ibftConfig.TestQBFTBlock = nil
-		ibftConfig.Transitions = config.Transitions
-		ibftConfig.Client = ethclient.NewClient(client)
-		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.Istanbul != nil {
 		log.Warn("WARNING: The attribute config.istanbul is deprecated and will be removed in the future, please use config.ibft on genesis file")
 		// for IBFT
@@ -2546,24 +2529,19 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 	} else if config.IBFT != nil {
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
 		ibftConfig.TestQBFTBlock = nil
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			ibftConfig.Transitions = config.Transitions
-		}
+		ibftConfig.Transitions = config.Transitions
 		ibftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
 		qbftConfig.BlockReward = config.QBFT.BlockReward
 		qbftConfig.BeneficiaryMode = config.QBFT.BeneficiaryMode     // beneficiary mode: list, besu, validators
-		qbftConfig.BeneficiaryList = config.QBFT.BeneficiaryList     // list mode
 		qbftConfig.MiningBeneficiary = config.QBFT.MiningBeneficiary // auto (undefined mode) and besu mode
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			qbftConfig.Transitions = config.Transitions
-		}
-		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
-			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
-		}
+		qbftConfig.Transitions = config.Transitions
+		qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		qbftConfig.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
+		qbftConfig.Validators = config.QBFT.Validators
 		qbftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {

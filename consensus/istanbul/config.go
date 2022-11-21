@@ -124,7 +124,6 @@ func (p *ProposerPolicy) ClearRegistry() {
 
 type Config struct {
 	RequestTimeout         uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockReward            *math.HexOrDecimal256 `toml:",omitempty"` // Reward
 	BlockPeriod            uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
 	EmptyBlockPeriod       uint64                `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
 	ProposerPolicy         *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
@@ -133,11 +132,13 @@ type Config struct {
 	AllowedFutureBlockTime uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int              `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 	BeneficiaryMode        *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
-	BeneficiaryList        []common.Address      `toml:",omitempty"` // List of wallet addresses that have benefit at every new block (list mode)
+	BlockReward            *math.HexOrDecimal256 `toml:",omitempty"` // Reward
 	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
+	ValidatorContract      common.Address        `toml:",omitempty"`
+	Validators             []common.Address      `toml:",omitempty"`
+	ValidatorSelectionMode *string               `toml:",omitempty"`
+	Client                 bind.ContractCaller   `toml:",omitempty"`
 	Transitions            []params.Transition
-	ValidatorContract      common.Address
-	Client                 bind.ContractCaller `toml:",omitempty"`
 }
 
 var DefaultConfig = &Config{
@@ -199,17 +200,23 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.EmptyBlockPeriodSeconds != nil {
 			newConfig.EmptyBlockPeriod = *transition.EmptyBlockPeriodSeconds
 		}
-		if transition.BeneficiaryMode != nil { // besu mode
+		if transition.BeneficiaryMode != nil {
 			newConfig.BeneficiaryMode = transition.BeneficiaryMode
 		}
-		if transition.BeneficiaryList != nil { // list mode
-			newConfig.BeneficiaryList = transition.BeneficiaryList
-		}
-		if transition.BlockReward != nil { // besu mode
+		if transition.BlockReward != nil {
 			newConfig.BlockReward = transition.BlockReward
 		}
 		if transition.MiningBeneficiary != nil {
 			newConfig.MiningBeneficiary = transition.MiningBeneficiary
+		}
+		if transition.ValidatorSelectionMode != "" {
+			newConfig.ValidatorSelectionMode = &transition.ValidatorSelectionMode
+		}
+		if transition.ValidatorContractAddress != (common.Address{}) {
+			newConfig.ValidatorContract = transition.ValidatorContractAddress
+		}
+		if len(transition.Validators) > 0 {
+			newConfig.Validators = transition.Validators
 		}
 	})
 
@@ -234,6 +241,21 @@ func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 		}
 	})
 	return mode
+}
+
+func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
+	if blockNumber.Cmp(big.NewInt(0)) == 0 && len(c.Validators) > 0 {
+		return c.Validators
+	}
+
+	if blockNumber != nil && c.Transitions != nil {
+		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
+			return c.Transitions[i].Validators
+		}
+	}
+
+	//Note! empty means we will get the valset from previous block header which contains votes, validators etc
+	return []common.Address{}
 }
 
 func (c Config) Get2FPlus1Enabled(blockNumber *big.Int) bool {

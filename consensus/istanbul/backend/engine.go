@@ -367,12 +367,10 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			}
 
 			var validators []common.Address
-			targetBlockHeight := new(big.Int).SetUint64(number)
-			validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
-			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
-				sb.logger.Info("Initialising snap with contract validators", "address", validatorContract, "client", sb.config.Client)
+			validatorContract := sb.config.GetValidatorContractAddress(big.NewInt(0))
+			if validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
 
-				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(sb.config.GetValidatorContractAddress(targetBlockHeight), sb.config.Client)
+				validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
 				if err != nil {
 					return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
@@ -383,16 +381,24 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					BlockNumber: big.NewInt(0),
 				}
 				validators, err = validatorContractCaller.GetValidators(&opts)
+				log.Trace("BFT: Initialising snap with contract validators", "address", validatorContract, "validators", validators)
 				if err != nil {
 					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
 					return nil, err
 				}
 			} else {
-				var err error
-				validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
-				if err != nil {
-					sb.logger.Error("BFT: invalid genesis block", "err", err)
-					return nil, err
+				validatorsFromConfig := sb.config.GetValidatorsAt(big.NewInt(0))
+				if len(validatorsFromConfig) > 0 {
+					validators = validatorsFromConfig
+					log.Info("BFT: Initialising snap with config validators", "validators", validators)
+				} else {
+					var err error
+					validators, err = sb.EngineForBlockNumber(big.NewInt(0)).ExtractGenesisValidators(genesis)
+					log.Info("BFT: Initialising snap with extradata", "validators", validators)
+					if err != nil {
+						log.Error("BFT: invalid genesis block", "err", err)
+						return nil, err
+					}
 				}
 			}
 
@@ -458,6 +464,12 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		}
 		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+		snap.ValSet = valSet
+	} else if validatorsFromTransitions := sb.config.GetValidatorsAt(targetBlockHeight); len(validatorsFromTransitions) > 0 && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.BlockHeaderMode {
+		//Note! we only want to set this once at this block height. Subsequent blocks will be propagated with the same
+		// 		validator as they are copied into the block header on the next block. Then normal voting can take place
+		// 		again.
+		valSet := validator.NewSet(validatorsFromTransitions, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
 	}
 
