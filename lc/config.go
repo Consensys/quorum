@@ -8,13 +8,13 @@ import (
 )
 
 type Config struct {
-	AmendRequestAddress         common.Address `json:"amendRequestAddress"`
-	LCManagementAddress         common.Address `json:"managementAddress"`
-	StandardFactoryAddress      common.Address `json:"standardFactoryAddress"`
-	UPASFactoryAddress          common.Address `json:"upasFactoryAddress"`
-	RouterAddress               common.Address `json:"routerAddress"`
-	AccessRoleManagementAddress common.Address `json:"accessRoleManagementAddress"`
-	ModeAddress                 common.Address `json:"modeAddress"`
+	AmendRequestAddress    common.Address `json:"amendRequestAddress"`
+	LCManagementAddress    common.Address `json:"managementAddress"`
+	StandardFactoryAddress common.Address `json:"standardFactoryAddress"`
+	UPASFactoryAddress     common.Address `json:"upasFactoryAddress"`
+	RouterAddress          common.Address `json:"routerAddress"`
+	// AccessRoleManagementAddress common.Address `json:"accessRoleManagementAddress"`
+	ModeAddress common.Address `json:"modeAddress"`
 }
 
 func ParseLcConfig() (Config, error) {
@@ -43,23 +43,17 @@ func ParseLcConfig() (Config, error) {
 		log.Error("error reading environment variable LC_ROUTER_ADDRESS", "err", err)
 		return Config{}, err
 	}
-	accessRoleManagementAddress, err := common.NewMixedcaseAddressFromString(os.Getenv("LC_ACCESS_ROLE_MANAGEMENT_ADDRESS"))
-	if err != nil {
-		log.Error("error reading environment variable LC_ACCESS_ROLE_MANAGEMENT_ADDRESS", "err", err)
-		return Config{}, err
-	}
 	modeAddr, err := common.NewMixedcaseAddressFromString(os.Getenv("LC_MODE_ADDRESS"))
 	if err != nil {
 		log.Error("error reading environment variable LC_MODE_ADDRESS", "err", err)
 		return Config{}, err
 	}
 	return Config{
-		AmendRequestAddress:         amendRequestAddr.Address(),
-		LCManagementAddress:         lcManagementAddr.Address(),
-		StandardFactoryAddress:      stdFacAddr.Address(),
-		UPASFactoryAddress:          upasFacAddr.Address(),
-		RouterAddress:               routerAddr.Address(),
-		AccessRoleManagementAddress: accessRoleManagementAddress.Address(),
-		ModeAddress:                 modeAddr.Address(),
+		AmendRequestAddress:    amendRequestAddr.Address(),
+		LCManagementAddress:    lcManagementAddr.Address(),
+		StandardFactoryAddress: stdFacAddr.Address(),
+		UPASFactoryAddress:     upasFacAddr.Address(),
+		RouterAddress:          routerAddr.Address(),
+		ModeAddress:            modeAddr.Address(),
 	}, err
 }
