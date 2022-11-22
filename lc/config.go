@@ -18,9 +18,9 @@ type Config struct {
 }
 
 func ParseLcConfig() (Config, error) {
-	amendRequestAddr, err := common.NewMixedcaseAddressFromString(os.Getenv("ADMEND_REQUEST_ADDRESS"))
+	amendRequestAddr, err := common.NewMixedcaseAddressFromString(os.Getenv("LC_ADMEND_REQUEST_ADDRESS"))
 	if err != nil {
-		log.Error("error reading environment variable ADMEND_REQUEST_ADDRESS", "err", err)
+		log.Error("error reading environment variable LC_ADMEND_REQUEST_ADDRESS", "err", err)
 		return Config{}, err
 	}
 	lcManagementAddr, err := common.NewMixedcaseAddressFromString(os.Getenv("LC_MANAGEMENT_ADDRESS"))
