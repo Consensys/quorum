@@ -693,6 +693,8 @@ func (h *handler) getConsensusAlgorithm() string {
 
 func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
 	m := make(map[common.Address]consensus.Peer)
+	h.peers.lock.RLock()
+	defer h.peers.lock.RUnlock()
 	for _, p := range h.peers.peers {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)

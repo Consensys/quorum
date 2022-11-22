@@ -394,7 +394,7 @@ func TestFlagsConfig(t *testing.T) {
 	quorumIstanbul := eth.Istanbul
 	config := quorumIstanbul.GetConfig(nil)
 	assert.Equal(t, uint64(10000), config.RequestTimeout)
-	assert.Equal(t, uint64(1), config.BlockPeriod)
+	assert.Equal(t, uint64(5), config.BlockPeriod)
 	assert.Equal(t, uint64(30000), config.Epoch)
 	assert.Equal(t, big.NewInt(0), quorumIstanbul.Ceil2Nby3Block)
 	assert.Equal(t, istanbul.RoundRobin, quorumIstanbul.ProposerPolicy.Id) // conflict with genesis?

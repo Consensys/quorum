@@ -25,31 +25,29 @@ func TestSetBFT(t *testing.T) {
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 
 	bftConfig = &params.BFTConfig{
-		EpochLength:             10000,
-		Ceil2Nby3Block:          big.NewInt(10),
-		RequestTimeoutSeconds:   100,
-		EmptyBlockPeriodSeconds: 1, // less than block period is making this disable, will be replace by block period
-		BlockPeriodSeconds:      5,
+		EpochLength:           10000,
+		Ceil2Nby3Block:        big.NewInt(10),
+		RequestTimeoutSeconds: 100,
+		BlockPeriodSeconds:    5,
 	}
 	setBFTConfig(config, bftConfig)
 	assert.Equal(t, config.Ceil2Nby3Block, bftConfig.Ceil2Nby3Block)
 	assert.Equal(t, config.Epoch, bftConfig.EpochLength)
 	assert.Equal(t, config.RequestTimeout, bftConfig.RequestTimeoutSeconds*1000)
 	assert.Equal(t, config.BlockPeriod, uint64(5))
-	assert.Equal(t, config.EmptyBlockPeriod, uint64(5))
+	assert.Equal(t, config.EmptyBlockPeriod, uint64(0))
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 
 	bftConfig = &params.BFTConfig{
-		EpochLength:             10000,
-		Ceil2Nby3Block:          big.NewInt(10),
-		RequestTimeoutSeconds:   100,
-		EmptyBlockPeriodSeconds: 5,
+		EpochLength:           10000,
+		Ceil2Nby3Block:        big.NewInt(10),
+		RequestTimeoutSeconds: 100,
 	}
 	setBFTConfig(config, bftConfig)
 	assert.Equal(t, config.Ceil2Nby3Block, bftConfig.Ceil2Nby3Block)
 	assert.Equal(t, config.Epoch, bftConfig.EpochLength)
 	assert.Equal(t, config.RequestTimeout, bftConfig.RequestTimeoutSeconds*1000)
 	assert.Equal(t, config.BlockPeriod, istanbul.DefaultConfig.BlockPeriod)
-	assert.Equal(t, config.EmptyBlockPeriod, uint64(5))
+	assert.Equal(t, config.EmptyBlockPeriod, uint64(0))
 	assert.Equal(t, config.ProposerPolicy, istanbul.DefaultConfig.ProposerPolicy)
 }

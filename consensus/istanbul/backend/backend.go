@@ -367,7 +367,9 @@ func (sb *Backend) IsQBFTConsensus() bool {
 		return true
 	}
 	if sb.chain != nil {
-		return sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
+		qbftEnabled := sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
+		sb.qbftConsensusEnabled = qbftEnabled
+		return qbftEnabled
 	}
 	return false
 }

@@ -6,13 +6,16 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -101,11 +104,11 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
 	}
 
-	config := e.cfg.GetConfig(block.Number())
+	parentHeader := chain.GetHeaderByHash(block.ParentHash())
+	config := e.cfg.GetConfig(parentHeader.Number)
+
 	if config.EmptyBlockPeriod > config.BlockPeriod && len(block.Transactions()) == 0 {
-		// empty block verification
-		parentHeader := chain.GetHeaderByHash(block.ParentHash())
-		if parentHeader != nil && block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
+		if block.Header().Time < parentHeader.Time+config.EmptyBlockPeriod {
 			return 0, fmt.Errorf("empty block verification fail")
 		}
 	}
@@ -205,10 +208,8 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
-	blockPeriod := e.cfg.GetConfig(parent.Number).BlockPeriod
-
 	// Ensure that the block's timestamp isn't too close to it's parent
-	if parent.Time+blockPeriod > header.Time {
+	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
 	}
 
@@ -334,17 +335,35 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	validatorContract := e.cfg.GetValidatorContractAddress(big.NewInt(0).SetUint64(number - 1))
-	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(big.NewInt(0).SetUint64(number-1)) == params.ContractMode {
+	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)
+	validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
 		return ApplyHeaderQBFTExtra(
 			header,
 			WriteValidators([]common.Address{}),
 		)
 	} else {
+		for _, transition := range e.cfg.Transitions {
+			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
+				toRemove := make([]istanbul.Validator, 0, validators.Size())
+				l := validators.List()
+				for i := range l {
+					toRemove = append(toRemove, l[i])
+				}
+				for i := range toRemove {
+					validators.RemoveValidator(toRemove[i].Address())
+				}
+				for i := range transition.Validators {
+					validators.AddValidator(transition.Validators[i])
+				}
+				break
+			}
+		}
+		validatorsList := validator.SortedAddresses(validators.List())
 		// add validators in snapshot to extraData's validators section
 		return ApplyHeaderQBFTExtra(
 			header,
-			WriteValidators(validator.SortedAddresses(validators.List())),
+			WriteValidators(validatorsList),
 		)
 	}
 }
@@ -362,7 +381,8 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+	// Accumulate any block and uncle rewards and commit the final state root
+	e.accumulateRewards(chain, state, header)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }
@@ -370,10 +390,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	header.UncleHash = nilUncleHash
-
+	e.Finalize(chain, header, state, txs, uncles)
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
@@ -533,4 +550,52 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 
 	h.Extra = payload
 	return nil
+}
+
+func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) ([]common.Address, error) {
+	var validators []common.Address
+	if config.ValidatorContract != (common.Address{}) && config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
+		log.Info("Initialising snap with contract validators", "address", config.ValidatorContract, "client", config.Client)
+
+		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(config.ValidatorContract, config.Client)
+
+		if err != nil {
+			return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
+		}
+
+		opts := bind.CallOpts{
+			Pending:     false,
+			BlockNumber: big.NewInt(0),
+		}
+		validators, err = validatorContractCaller.GetValidators(&opts)
+		if err != nil {
+			log.Error("QBFT: invalid smart contract in genesis alloc", "err", err)
+			return nil, err
+		}
+	} else {
+		// Get the validators from genesis to create a snapshot
+		var err error
+		validators, err = e.ExtractGenesisValidators(genesis)
+		if err != nil {
+			log.Error("BFT: invalid genesis block", "err", err)
+			return nil, err
+		}
+	}
+	return validators, nil
+}
+
+// AccumulateRewards credits the beneficiary of the given block with a reward.
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
+
+	blockReward := chain.Config().GetBlockReward(header.Number)
+	if blockReward.Cmp(big.NewInt(0)) > 0 {
+		coinbase := header.Coinbase
+		if (coinbase == common.Address{}) {
+			coinbase = e.signer
+		}
+		rewardAccount, _ := chain.Config().GetRewardAccount(header.Number, coinbase)
+		log.Trace("QBFT: accumulate rewards to", "rewardAccount", rewardAccount, "blockReward", blockReward)
+
+		state.AddBalance(rewardAccount, &blockReward)
+	}
 }

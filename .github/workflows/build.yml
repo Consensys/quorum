@@ -82,8 +82,8 @@ jobs:
         # More comprehensive suites are scheduled to run in master
         tag:
           - 'basic || basic-raft || (advanced && raft) || networks/typical::raft'
-          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::istanbul'
-          - 'basic || basic-istanbul || (advanced && istanbul) || networks/typical::qbft'
+          - 'basic || basic-istanbul || (advanced && istanbul) || empty-block-period || networks/typical::istanbul'
+          - 'basic || basic-istanbul || (advanced && istanbul) || empty-block-period || block-reward || networks/typical::qbft'
           - 'gcmode && block-sync && networks/template::raft-3plus1'
           - 'gcmode && block-sync && networks/template::istanbul-3plus1'
           - 'gcmode && block-sync && networks/template::qbft-3plus1'
@@ -121,7 +121,6 @@ jobs:
           - 'mps-upgrade-txtrace || networks/template::istanbul-4nodes-mps'
           - 'mps-mixed-network-psr-check || networks/template::raft-4nodes-mps-mixed'
           - 'mps-mixed-network-psr-check || networks/template::istanbul-4nodes-mps-mixed'
-          - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-besu::ibft2'
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
     runs-on: ubuntu-20.04
     steps:

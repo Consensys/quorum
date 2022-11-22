@@ -46,6 +46,9 @@ func (w *wallet) Close() error {
 }
 
 func (w *wallet) Accounts() []accounts.Account {
+	if w.pluginService == nil {
+		return []accounts.Account{}
+	}
 	return w.pluginService.Accounts(context.Background())
 }
 

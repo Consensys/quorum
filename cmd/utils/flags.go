@@ -2522,7 +2522,17 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 	if err != nil {
 		Fatalf("Failed to attach to self: %v", err)
 	}
-
+	// Lazy logic
+	if config.Clique == nil && config.QBFT == nil && config.IBFT == nil && config.Istanbul == nil {
+		config.GetTransitionValue(big.NewInt(0), func(t params.Transition) {
+			if strings.EqualFold(t.Algorithm, params.QBFT) {
+				config.QBFT = &params.QBFTConfig{}
+			}
+			if strings.EqualFold(t.Algorithm, params.IBFT) {
+				config.IBFT = &params.IBFTConfig{}
+			}
+		})
+	}
 	if config.Clique != nil {
 		engine = clique.New(config.Clique, chainDb)
 	} else if config.Istanbul != nil {
@@ -2535,28 +2545,25 @@ func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.B
 		istanbulConfig.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.Istanbul.ProposerPolicy))
 		istanbulConfig.Ceil2Nby3Block = config.Istanbul.Ceil2Nby3Block
 		istanbulConfig.TestQBFTBlock = config.Istanbul.TestQBFTBlock
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			istanbulConfig.Transitions = config.Transitions
-		}
+		istanbulConfig.Transitions = config.Transitions
 		istanbulConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(istanbulConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IBFT != nil {
 		ibftConfig := setBFTConfig(config.IBFT.BFTConfig)
 		ibftConfig.TestQBFTBlock = nil
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			ibftConfig.Transitions = config.Transitions
-		}
+		ibftConfig.Transitions = config.Transitions
 		ibftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(ibftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.QBFT != nil {
 		qbftConfig := setBFTConfig(config.QBFT.BFTConfig)
+		qbftConfig.BlockReward = config.QBFT.BlockReward
+		qbftConfig.BeneficiaryMode = config.QBFT.BeneficiaryMode     // beneficiary mode: list, besu, validators
+		qbftConfig.MiningBeneficiary = config.QBFT.MiningBeneficiary // auto (undefined mode) and besu mode
 		qbftConfig.TestQBFTBlock = big.NewInt(0)
-		if config.Transitions != nil && len(config.Transitions) != 0 {
-			qbftConfig.Transitions = config.Transitions
-		}
-		if config.QBFT.ValidatorContractAddress != (common.Address{}) {
-			qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
-		}
+		qbftConfig.Transitions = config.Transitions
+		qbftConfig.ValidatorContract = config.QBFT.ValidatorContractAddress
+		qbftConfig.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
+		qbftConfig.Validators = config.QBFT.Validators
 		qbftConfig.Client = ethclient.NewClient(client)
 		engine = istanbulBackend.New(qbftConfig, stack.GetNodeKey(), chainDb)
 	} else if config.IsQuorum {
@@ -2627,11 +2634,8 @@ func setBFTConfig(bftConfig *params.BFTConfig) *istanbul.Config {
 	if bftConfig.BlockPeriodSeconds != 0 {
 		istanbulConfig.BlockPeriod = bftConfig.BlockPeriodSeconds
 	}
-	if bftConfig.EmptyBlockPeriodSeconds != 0 {
-		istanbulConfig.EmptyBlockPeriod = bftConfig.EmptyBlockPeriodSeconds
-	}
-	if istanbulConfig.EmptyBlockPeriod < istanbulConfig.BlockPeriod {
-		istanbulConfig.EmptyBlockPeriod = istanbulConfig.BlockPeriod
+	if bftConfig.EmptyBlockPeriodSeconds != nil {
+		istanbulConfig.EmptyBlockPeriod = *bftConfig.EmptyBlockPeriodSeconds
 	}
 	if bftConfig.RequestTimeoutSeconds != 0 {
 		istanbulConfig.RequestTimeout = bftConfig.RequestTimeoutSeconds * 1000
