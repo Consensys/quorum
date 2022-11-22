@@ -8,13 +8,13 @@ import (
 )
 
 type Config struct {
-	AmendRequestAddress    common.Address `json:"amendRequestAddress"`
-	LCManagementAddress    common.Address `json:"managementAddress"`
-	StandardFactoryAddress common.Address `json:"standardFactoryAddress"`
-	UPASFactoryAddress     common.Address `json:"upasFactoryAddress"`
-	RouterAddress          common.Address `json:"routerAddress"`
+	AmendRequestAddress    common.Address `json:"AmendRequestAddress"`
+	LCManagementAddress    common.Address `json:"ManagementAddress"`
+	StandardFactoryAddress common.Address `json:"StandardFactoryAddress"`
+	UPASFactoryAddress     common.Address `json:"UpasFactoryAddress"`
+	RouterAddress          common.Address `json:"RouterAddress"`
 	// AccessRoleManagementAddress common.Address `json:"accessRoleManagementAddress"`
-	ModeAddress common.Address `json:"modeAddress"`
+	ModeAddress common.Address `json:"ModeAddress"`
 }
 
 func ParseLcConfig() (Config, error) {
