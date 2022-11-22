@@ -1,476 +1,476 @@
 [
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_amc",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "documentId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "requestId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "approver",
-        "type": "address"
-      }
-    ],
-    "name": "ApprovedAmendment",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "proposer",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "documentId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "nonce",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "requestId",
-        "type": "uint256"
-      }
-    ],
-    "name": "SubmittedAmendment",
-    "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "amc",
-    "outputs": [
-      {
-        "internalType": "contract IAMC",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_approver",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes",
-        "name": "_signature",
-        "type": "bytes"
-      }
-    ],
-    "name": "approve",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      }
-    ],
-    "name": "fulfilled",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getAmendRequest",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "typeOf",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "proposer",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes32[]",
-            "name": "migratingStages",
-            "type": "bytes32[]"
-          },
-          {
-            "components": [
-              {
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "management_",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
                 "internalType": "uint256",
-                "name": "stage",
+                "name": "documentId",
                 "type": "uint256"
-              },
-              {
+            },
+            {
+                "indexed": true,
                 "internalType": "uint256",
-                "name": "subStage",
+                "name": "requestId",
                 "type": "uint256"
-              },
-              {
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "approver",
+                "type": "address"
+            }
+        ],
+        "name": "ApprovedAmendment",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "proposer",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            },
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "nonce",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "requestId",
+                "type": "uint256"
+            }
+        ],
+        "name": "SubmittedAmendment",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_approver",
+                "type": "address"
+            },
+            {
+                "internalType": "bytes",
+                "name": "_signature",
+                "type": "bytes"
+            }
+        ],
+        "name": "approve",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            }
+        ],
+        "name": "fulfilled",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getAmendRequest",
+        "outputs": [
+            {
                 "components": [
-                  {
-                    "internalType": "bytes32",
-                    "name": "rootHash",
-                    "type": "bytes32"
-                  },
-                  {
-                    "internalType": "uint256",
-                    "name": "signedTime",
-                    "type": "uint256"
-                  },
-                  {
-                    "internalType": "bytes32",
-                    "name": "prevHash",
-                    "type": "bytes32"
-                  },
-                  {
-                    "internalType": "uint256",
-                    "name": "numOfDocuments",
-                    "type": "uint256"
-                  },
-                  {
-                    "internalType": "bytes32[]",
-                    "name": "contentHash",
-                    "type": "bytes32[]"
-                  },
-                  {
-                    "internalType": "string",
-                    "name": "url",
-                    "type": "string"
-                  },
-                  {
-                    "internalType": "bytes",
-                    "name": "acknowledge",
-                    "type": "bytes"
-                  },
-                  {
-                    "internalType": "bytes",
-                    "name": "signature",
-                    "type": "bytes"
-                  }
+                    {
+                        "internalType": "uint256",
+                        "name": "typeOf",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "proposer",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bytes32[]",
+                        "name": "migratingStages",
+                        "type": "bytes32[]"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "stage",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "subStage",
+                                "type": "uint256"
+                            },
+                            {
+                                "components": [
+                                    {
+                                        "internalType": "bytes32",
+                                        "name": "rootHash",
+                                        "type": "bytes32"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "signedTime",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "bytes32",
+                                        "name": "prevHash",
+                                        "type": "bytes32"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "numOfDocuments",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "bytes32[]",
+                                        "name": "contentHash",
+                                        "type": "bytes32[]"
+                                    },
+                                    {
+                                        "internalType": "string",
+                                        "name": "url",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "internalType": "bytes",
+                                        "name": "acknowledge",
+                                        "type": "bytes"
+                                    },
+                                    {
+                                        "internalType": "bytes",
+                                        "name": "signature",
+                                        "type": "bytes"
+                                    }
+                                ],
+                                "internalType": "struct IStageContract.Content",
+                                "name": "content",
+                                "type": "tuple"
+                            }
+                        ],
+                        "internalType": "struct IAmendRequest.AmendStage",
+                        "name": "amendStage",
+                        "type": "tuple"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "bytes32",
+                                "name": "issuingBank",
+                                "type": "bytes32"
+                            },
+                            {
+                                "internalType": "bytes32",
+                                "name": "advisingBank",
+                                "type": "bytes32"
+                            },
+                            {
+                                "internalType": "bytes32",
+                                "name": "reimbursingBank",
+                                "type": "bytes32"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "issuingBankSig",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "advisingBankSig",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "reimbursingBankSig",
+                                "type": "bytes"
+                            }
+                        ],
+                        "internalType": "struct IAmendRequest.Confirmation",
+                        "name": "confirmed",
+                        "type": "tuple"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isFulfilled",
+                        "type": "bool"
+                    }
                 ],
-                "internalType": "struct IStageContract.Content",
-                "name": "content",
+                "internalType": "struct IAmendRequest.Request",
+                "name": "",
                 "type": "tuple"
-              }
-            ],
-            "internalType": "struct IAmendRequest.AmendStage",
-            "name": "amendStage",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bytes32",
-                "name": "issuingBank",
-                "type": "bytes32"
-              },
-              {
-                "internalType": "bytes32",
-                "name": "advisingBank",
-                "type": "bytes32"
-              },
-              {
-                "internalType": "bytes32",
-                "name": "reimbursingBank",
-                "type": "bytes32"
-              },
-              {
-                "internalType": "bytes",
-                "name": "issuingBankSig",
-                "type": "bytes"
-              },
-              {
-                "internalType": "bytes",
-                "name": "advisingBankSig",
-                "type": "bytes"
-              },
-              {
-                "internalType": "bytes",
-                "name": "reimbursingBankSig",
-                "type": "bytes"
-              }
-            ],
-            "internalType": "struct IAmendRequest.Confirmation",
-            "name": "confirmed",
-            "type": "tuple"
-          },
-          {
-            "internalType": "bool",
-            "name": "isFulfilled",
-            "type": "bool"
-          }
+            }
         ],
-        "internalType": "struct IAmendRequest.Request",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      }
-    ],
-    "name": "isApproved",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      }
-    ],
-    "name": "isFulfilled",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_requestId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_executor",
-        "type": "address"
-      }
-    ],
-    "name": "isProposer",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "nonces",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_amc",
-        "type": "address"
-      }
-    ],
-    "name": "setAMC",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_documentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_proposer",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "_migratingStages",
-        "type": "bytes32[]"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "stage",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "subStage",
-            "type": "uint256"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bytes32",
-                "name": "rootHash",
-                "type": "bytes32"
-              },
-              {
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "uint256",
-                "name": "signedTime",
+                "name": "_documentId",
                 "type": "uint256"
-              },
-              {
-                "internalType": "bytes32",
-                "name": "prevHash",
-                "type": "bytes32"
-              },
-              {
+            },
+            {
                 "internalType": "uint256",
-                "name": "numOfDocuments",
+                "name": "_requestId",
                 "type": "uint256"
-              },
-              {
+            }
+        ],
+        "name": "isApproved",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            }
+        ],
+        "name": "isFulfilled",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_executor",
+                "type": "address"
+            }
+        ],
+        "name": "isProposer",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "management",
+        "outputs": [
+            {
+                "internalType": "contract ILCManagement",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "nonces",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "management_",
+                "type": "address"
+            }
+        ],
+        "name": "setLCManagement",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_proposer",
+                "type": "address"
+            },
+            {
                 "internalType": "bytes32[]",
-                "name": "contentHash",
+                "name": "_migratingStages",
                 "type": "bytes32[]"
-              },
-              {
-                "internalType": "string",
-                "name": "url",
-                "type": "string"
-              },
-              {
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "stage",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "subStage",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "bytes32",
+                                "name": "rootHash",
+                                "type": "bytes32"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "signedTime",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "bytes32",
+                                "name": "prevHash",
+                                "type": "bytes32"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "numOfDocuments",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "bytes32[]",
+                                "name": "contentHash",
+                                "type": "bytes32[]"
+                            },
+                            {
+                                "internalType": "string",
+                                "name": "url",
+                                "type": "string"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "acknowledge",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "signature",
+                                "type": "bytes"
+                            }
+                        ],
+                        "internalType": "struct IStageContract.Content",
+                        "name": "content",
+                        "type": "tuple"
+                    }
+                ],
+                "internalType": "struct IAmendRequest.AmendStage",
+                "name": "_amendStage",
+                "type": "tuple"
+            },
+            {
                 "internalType": "bytes",
-                "name": "acknowledge",
+                "name": "_signature",
                 "type": "bytes"
-              },
-              {
-                "internalType": "bytes",
-                "name": "signature",
-                "type": "bytes"
-              }
-            ],
-            "internalType": "struct IStageContract.Content",
-            "name": "content",
-            "type": "tuple"
-          }
+            }
         ],
-        "internalType": "struct IAmendRequest.AmendStage",
-        "name": "_amendStage",
-        "type": "tuple"
-      },
-      {
-        "internalType": "bytes",
-        "name": "_signature",
-        "type": "bytes"
-      }
-    ],
-    "name": "submit",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
+        "name": "submit",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
 ]

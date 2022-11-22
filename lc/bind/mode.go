@@ -27,7 +27,7 @@ var (
 )
 
 // ModeABI is the input ABI used to generate the binding from.
-const ModeABI = "[{\"inputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"_permission\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_operator\",\"type\":\"address\"}],\"name\":\"checkAuthorization\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"dao\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"permission\",\"outputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_dao\",\"type\":\"address\"}],\"name\":\"setDAO\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_permission\",\"type\":\"address\"}],\"name\":\"setPermission\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"switchMode\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"switchedToDAO\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ModeABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_operator\",\"type\":\"address\"}],\"name\":\"checkAuthorization\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"dao\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"init\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialized\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_dao\",\"type\":\"address\"}],\"name\":\"setDAO\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"switchMode\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"switchedToDAO\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 var ModeParsedABI, _ = abi.JSON(strings.NewReader(ModeABI))
 
@@ -235,12 +235,43 @@ func (_Mode *ModeCallerSession) Dao() (common.Address, error) {
 	return _Mode.Contract.Dao(&_Mode.CallOpts)
 }
 
-// Permission is a free data retrieval call binding the contract method 0xf3b0c8b7.
+// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
 //
-// Solidity: function permission() view returns(address)
-func (_Mode *ModeCaller) Permission(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function initialized() view returns(bool)
+func (_Mode *ModeCaller) Initialized(opts *bind.CallOpts) (bool, error) {
 	var out []interface{}
-	err := _Mode.contract.Call(opts, &out, "permission")
+	err := _Mode.contract.Call(opts, &out, "initialized")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
+//
+// Solidity: function initialized() view returns(bool)
+func (_Mode *ModeSession) Initialized() (bool, error) {
+	return _Mode.Contract.Initialized(&_Mode.CallOpts)
+}
+
+// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
+//
+// Solidity: function initialized() view returns(bool)
+func (_Mode *ModeCallerSession) Initialized() (bool, error) {
+	return _Mode.Contract.Initialized(&_Mode.CallOpts)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_Mode *ModeCaller) Management(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _Mode.contract.Call(opts, &out, "management")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -252,18 +283,18 @@ func (_Mode *ModeCaller) Permission(opts *bind.CallOpts) (common.Address, error)
 
 }
 
-// Permission is a free data retrieval call binding the contract method 0xf3b0c8b7.
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
 //
-// Solidity: function permission() view returns(address)
-func (_Mode *ModeSession) Permission() (common.Address, error) {
-	return _Mode.Contract.Permission(&_Mode.CallOpts)
+// Solidity: function management() view returns(address)
+func (_Mode *ModeSession) Management() (common.Address, error) {
+	return _Mode.Contract.Management(&_Mode.CallOpts)
 }
 
-// Permission is a free data retrieval call binding the contract method 0xf3b0c8b7.
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
 //
-// Solidity: function permission() view returns(address)
-func (_Mode *ModeCallerSession) Permission() (common.Address, error) {
-	return _Mode.Contract.Permission(&_Mode.CallOpts)
+// Solidity: function management() view returns(address)
+func (_Mode *ModeCallerSession) Management() (common.Address, error) {
+	return _Mode.Contract.Management(&_Mode.CallOpts)
 }
 
 // SwitchedToDAO is a free data retrieval call binding the contract method 0x84e82810.
@@ -297,6 +328,27 @@ func (_Mode *ModeCallerSession) SwitchedToDAO() (bool, error) {
 	return _Mode.Contract.SwitchedToDAO(&_Mode.CallOpts)
 }
 
+// Init is a paid mutator transaction binding the contract method 0x19ab453c.
+//
+// Solidity: function init(address _management) returns()
+func (_Mode *ModeTransactor) Init(opts *bind.TransactOpts, _management common.Address) (*types.Transaction, error) {
+	return _Mode.contract.Transact(opts, "init", _management)
+}
+
+// Init is a paid mutator transaction binding the contract method 0x19ab453c.
+//
+// Solidity: function init(address _management) returns()
+func (_Mode *ModeSession) Init(_management common.Address) (*types.Transaction, error) {
+	return _Mode.Contract.Init(&_Mode.TransactOpts, _management)
+}
+
+// Init is a paid mutator transaction binding the contract method 0x19ab453c.
+//
+// Solidity: function init(address _management) returns()
+func (_Mode *ModeTransactorSession) Init(_management common.Address) (*types.Transaction, error) {
+	return _Mode.Contract.Init(&_Mode.TransactOpts, _management)
+}
+
 // SetDAO is a paid mutator transaction binding the contract method 0xe73a914c.
 //
 // Solidity: function setDAO(address _dao) returns()
@@ -318,25 +370,25 @@ func (_Mode *ModeTransactorSession) SetDAO(_dao common.Address) (*types.Transact
 	return _Mode.Contract.SetDAO(&_Mode.TransactOpts, _dao)
 }
 
-// SetPermission is a paid mutator transaction binding the contract method 0xb85a35d2.
+// SetManagement is a paid mutator transaction binding the contract method 0xd4a22bde.
 //
-// Solidity: function setPermission(address _permission) returns()
-func (_Mode *ModeTransactor) SetPermission(opts *bind.TransactOpts, _permission common.Address) (*types.Transaction, error) {
-	return _Mode.contract.Transact(opts, "setPermission", _permission)
+// Solidity: function setManagement(address _management) returns()
+func (_Mode *ModeTransactor) SetManagement(opts *bind.TransactOpts, _management common.Address) (*types.Transaction, error) {
+	return _Mode.contract.Transact(opts, "setManagement", _management)
 }
 
-// SetPermission is a paid mutator transaction binding the contract method 0xb85a35d2.
+// SetManagement is a paid mutator transaction binding the contract method 0xd4a22bde.
 //
-// Solidity: function setPermission(address _permission) returns()
-func (_Mode *ModeSession) SetPermission(_permission common.Address) (*types.Transaction, error) {
-	return _Mode.Contract.SetPermission(&_Mode.TransactOpts, _permission)
+// Solidity: function setManagement(address _management) returns()
+func (_Mode *ModeSession) SetManagement(_management common.Address) (*types.Transaction, error) {
+	return _Mode.Contract.SetManagement(&_Mode.TransactOpts, _management)
 }
 
-// SetPermission is a paid mutator transaction binding the contract method 0xb85a35d2.
+// SetManagement is a paid mutator transaction binding the contract method 0xd4a22bde.
 //
-// Solidity: function setPermission(address _permission) returns()
-func (_Mode *ModeTransactorSession) SetPermission(_permission common.Address) (*types.Transaction, error) {
-	return _Mode.Contract.SetPermission(&_Mode.TransactOpts, _permission)
+// Solidity: function setManagement(address _management) returns()
+func (_Mode *ModeTransactorSession) SetManagement(_management common.Address) (*types.Transaction, error) {
+	return _Mode.Contract.SetManagement(&_Mode.TransactOpts, _management)
 }
 
 // SwitchMode is a paid mutator transaction binding the contract method 0xb5680cb5.

@@ -2,77 +2,24 @@
     {
         "inputs": [
             {
-                "internalType": "address",
-                "name": "_management",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "uint256",
                 "name": "_documentId",
                 "type": "uint256"
             },
             {
                 "internalType": "uint256",
-                "name": "_stage",
+                "name": "_requestId",
                 "type": "uint256"
             },
             {
-                "internalType": "uint256",
-                "name": "_subStage",
-                "type": "uint256"
+                "internalType": "address",
+                "name": "_approver",
+                "type": "address"
             },
             {
-                "components": [
-                    {
-                        "internalType": "bytes32",
-                        "name": "rootHash",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "signedTime",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "prevHash",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "numOfDocuments",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes32[]",
-                        "name": "contentHash",
-                        "type": "bytes32[]"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "url",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "bytes",
-                        "name": "acknowledge",
-                        "type": "bytes"
-                    },
-                    {
-                        "internalType": "bytes",
-                        "name": "signature",
-                        "type": "bytes"
-                    }
-                ],
-                "internalType": "struct IStageContract.Content",
-                "name": "_content",
-                "type": "tuple"
+                "internalType": "bytes",
+                "name": "_signature",
+                "type": "bytes"
             }
         ],
         "name": "approve",
@@ -91,27 +38,9 @@
                 "internalType": "uint256",
                 "name": "_requestId",
                 "type": "uint256"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_signature",
-                "type": "bytes"
             }
         ],
-        "name": "approveAmendment",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "_documentId",
-                "type": "uint256"
-            }
-        ],
-        "name": "closeLC",
+        "name": "fulfilled",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -129,49 +58,7 @@
                 "type": "uint256"
             }
         ],
-        "name": "fulfillAmendment",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "_documentId",
-                "type": "uint256"
-            }
-        ],
-        "name": "getAddress",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "_contract",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_typeOf",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "_documentId",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_requestId",
-                "type": "uint256"
-            }
-        ],
-        "name": "getAmendmentRequest",
+        "name": "getAmendRequest",
         "outputs": [
             {
                 "components": [
@@ -311,85 +198,19 @@
                 "internalType": "uint256",
                 "name": "_documentId",
                 "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
             }
         ],
-        "name": "getRootHash",
+        "name": "isApproved",
         "outputs": [
             {
-                "internalType": "bytes32",
+                "internalType": "bool",
                 "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "_documentId",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_stage",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_subStage",
-                "type": "uint256"
-            }
-        ],
-        "name": "getStageContent",
-        "outputs": [
-            {
-                "components": [
-                    {
-                        "internalType": "bytes32",
-                        "name": "rootHash",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "signedTime",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "prevHash",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "numOfDocuments",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes32[]",
-                        "name": "contentHash",
-                        "type": "bytes32[]"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "url",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "bytes",
-                        "name": "acknowledge",
-                        "type": "bytes"
-                    },
-                    {
-                        "internalType": "bytes",
-                        "name": "signature",
-                        "type": "bytes"
-                    }
-                ],
-                "internalType": "struct IStageContract.Content",
-                "name": "_content",
-                "type": "tuple"
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -408,7 +229,7 @@
                 "type": "uint256"
             }
         ],
-        "name": "isAmendApproved",
+        "name": "isFulfilled",
         "outputs": [
             {
                 "internalType": "bool",
@@ -420,13 +241,29 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "management",
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_requestId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_executor",
+                "type": "address"
+            }
+        ],
+        "name": "isProposer",
         "outputs": [
             {
-                "internalType": "contract ILCManagement",
+                "internalType": "bool",
                 "name": "",
-                "type": "address"
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -435,22 +272,14 @@
     {
         "inputs": [
             {
-                "internalType": "address",
-                "name": "_management",
-                "type": "address"
-            }
-        ],
-        "name": "setLCManagement",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "uint256",
                 "name": "_documentId",
                 "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_proposer",
+                "type": "address"
             },
             {
                 "internalType": "bytes32[]",
@@ -518,7 +347,7 @@
                     }
                 ],
                 "internalType": "struct IAmendRequest.AmendStage",
-                "name": "_amendStage",
+                "name": "_info",
                 "type": "tuple"
             },
             {
@@ -527,7 +356,7 @@
                 "type": "bytes"
             }
         ],
-        "name": "submitAmendment",
+        "name": "submit",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

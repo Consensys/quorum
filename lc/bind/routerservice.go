@@ -26,32 +26,32 @@ var (
 	_ = event.NewSubscription
 )
 
-// // IAmendRequestAmendStage is an auto generated low-level Go binding around an user-defined struct.
-// type IAmendRequestAmendStage struct {
-// 	Stage    *big.Int
-// 	SubStage *big.Int
-// 	Content  IStageContractContent
-// }
+// IAmendRequestAmendStage is an auto generated low-level Go binding around an user-defined struct.
+type IAmendRequestAmendStage struct {
+	Stage    *big.Int
+	SubStage *big.Int
+	Content  IStageContractContent
+}
 
-// // IAmendRequestConfirmation is an auto generated low-level Go binding around an user-defined struct.
-// type IAmendRequestConfirmation struct {
-// 	IssuingBank        [32]byte
-// 	AdvisingBank       [32]byte
-// 	ReimbursingBank    [32]byte
-// 	IssuingBankSig     []byte
-// 	AdvisingBankSig    []byte
-// 	ReimbursingBankSig []byte
-// }
+// IAmendRequestConfirmation is an auto generated low-level Go binding around an user-defined struct.
+type IAmendRequestConfirmation struct {
+	IssuingBank        [32]byte
+	AdvisingBank       [32]byte
+	ReimbursingBank    [32]byte
+	IssuingBankSig     []byte
+	AdvisingBankSig    []byte
+	ReimbursingBankSig []byte
+}
 
-// // IAmendRequestRequest is an auto generated low-level Go binding around an user-defined struct.
-// type IAmendRequestRequest struct {
-// 	TypeOf          *big.Int
-// 	Proposer        common.Address
-// 	MigratingStages [][32]byte
-// 	AmendStage      IAmendRequestAmendStage
-// 	Confirmed       IAmendRequestConfirmation
-// 	IsFulfilled     bool
-// }
+// IAmendRequestRequest is an auto generated low-level Go binding around an user-defined struct.
+type IAmendRequestRequest struct {
+	TypeOf          *big.Int
+	Proposer        common.Address
+	MigratingStages [][32]byte
+	AmendStage      IAmendRequestAmendStage
+	Confirmed       IAmendRequestConfirmation
+	IsFulfilled     bool
+}
 
 // IStageContractContent is an auto generated low-level Go binding around an user-defined struct.
 type IStageContractContent struct {
@@ -66,7 +66,7 @@ type IStageContractContent struct {
 }
 
 // RouterServiceABI is the input ABI used to generate the binding from.
-const RouterServiceABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"amc\",\"outputs\":[{\"internalType\":\"contractIAMC\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"approve\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"_signature\",\"type\":\"bytes\"}],\"name\":\"approveAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"closeLC\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"fulfillAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_typeOf\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"getAmendmentRequest\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"typeOf\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"proposer\",\"type\":\"address\"},{\"internalType\":\"bytes32[]\",\"name\":\"migratingStages\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"content\",\"type\":\"tuple\"}],\"internalType\":\"structIAmendRequest.AmendStage\",\"name\":\"amendStage\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"issuingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"advisingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"reimbursingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"issuingBankSig\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"advisingBankSig\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"reimbursingBankSig\",\"type\":\"bytes\"}],\"internalType\":\"structIAmendRequest.Confirmation\",\"name\":\"confirmed\",\"type\":\"tuple\"},{\"internalType\":\"bool\",\"name\":\"isFulfilled\",\"type\":\"bool\"}],\"internalType\":\"structIAmendRequest.Request\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getRootHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_subStage\",\"type\":\"uint256\"}],\"name\":\"getStageContent\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"isAmendApproved\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"name\":\"setAMC\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_migratingStages\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"content\",\"type\":\"tuple\"}],\"internalType\":\"structIAmendRequest.AmendStage\",\"name\":\"_amendStage\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"_signature\",\"type\":\"bytes\"}],\"name\":\"submitAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const RouterServiceABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"approve\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"_signature\",\"type\":\"bytes\"}],\"name\":\"approveAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"closeLC\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"fulfillAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_typeOf\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"getAmendmentRequest\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"typeOf\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"proposer\",\"type\":\"address\"},{\"internalType\":\"bytes32[]\",\"name\":\"migratingStages\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"content\",\"type\":\"tuple\"}],\"internalType\":\"structIAmendRequest.AmendStage\",\"name\":\"amendStage\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"issuingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"advisingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"reimbursingBank\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"issuingBankSig\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"advisingBankSig\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"reimbursingBankSig\",\"type\":\"bytes\"}],\"internalType\":\"structIAmendRequest.Confirmation\",\"name\":\"confirmed\",\"type\":\"tuple\"},{\"internalType\":\"bool\",\"name\":\"isFulfilled\",\"type\":\"bool\"}],\"internalType\":\"structIAmendRequest.Request\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getRootHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_subStage\",\"type\":\"uint256\"}],\"name\":\"getStageContent\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_requestId\",\"type\":\"uint256\"}],\"name\":\"isAmendApproved\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_migratingStages\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"stage\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"subStage\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"content\",\"type\":\"tuple\"}],\"internalType\":\"structIAmendRequest.AmendStage\",\"name\":\"_amendStage\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"_signature\",\"type\":\"bytes\"}],\"name\":\"submitAmendment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 var RouterServiceParsedABI, _ = abi.JSON(strings.NewReader(RouterServiceABI))
 
@@ -210,37 +210,6 @@ func (_RouterService *RouterServiceTransactorRaw) Transfer(opts *bind.TransactOp
 // Transact invokes the (paid) contract method with params as input values.
 func (_RouterService *RouterServiceTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _RouterService.Contract.contract.Transact(opts, method, params...)
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_RouterService *RouterServiceCaller) Amc(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _RouterService.contract.Call(opts, &out, "amc")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_RouterService *RouterServiceSession) Amc() (common.Address, error) {
-	return _RouterService.Contract.Amc(&_RouterService.CallOpts)
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_RouterService *RouterServiceCallerSession) Amc() (common.Address, error) {
-	return _RouterService.Contract.Amc(&_RouterService.CallOpts)
 }
 
 // GetAddress is a free data retrieval call binding the contract method 0xb93f9b0a.
@@ -412,6 +381,37 @@ func (_RouterService *RouterServiceCallerSession) IsAmendApproved(_documentId *b
 	return _RouterService.Contract.IsAmendApproved(&_RouterService.CallOpts, _documentId, _requestId)
 }
 
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_RouterService *RouterServiceCaller) Management(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _RouterService.contract.Call(opts, &out, "management")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_RouterService *RouterServiceSession) Management() (common.Address, error) {
+	return _RouterService.Contract.Management(&_RouterService.CallOpts)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_RouterService *RouterServiceCallerSession) Management() (common.Address, error) {
+	return _RouterService.Contract.Management(&_RouterService.CallOpts)
+}
+
 // Approve is a paid mutator transaction binding the contract method 0x142cf46a.
 //
 // Solidity: function approve(uint256 _documentId, uint256 _stage, uint256 _subStage, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns()
@@ -496,25 +496,25 @@ func (_RouterService *RouterServiceTransactorSession) FulfillAmendment(_document
 	return _RouterService.Contract.FulfillAmendment(&_RouterService.TransactOpts, _documentId, _requestId)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_RouterService *RouterServiceTransactor) SetAMC(opts *bind.TransactOpts, _amc common.Address) (*types.Transaction, error) {
-	return _RouterService.contract.Transact(opts, "setAMC", _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_RouterService *RouterServiceTransactor) SetLCManagement(opts *bind.TransactOpts, _management common.Address) (*types.Transaction, error) {
+	return _RouterService.contract.Transact(opts, "setLCManagement", _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_RouterService *RouterServiceSession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _RouterService.Contract.SetAMC(&_RouterService.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_RouterService *RouterServiceSession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _RouterService.Contract.SetLCManagement(&_RouterService.TransactOpts, _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_RouterService *RouterServiceTransactorSession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _RouterService.Contract.SetAMC(&_RouterService.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_RouterService *RouterServiceTransactorSession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _RouterService.Contract.SetLCManagement(&_RouterService.TransactOpts, _management)
 }
 
 // SubmitAmendment is a paid mutator transaction binding the contract method 0xbbf62c7e.

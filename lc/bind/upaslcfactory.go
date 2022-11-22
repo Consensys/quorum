@@ -39,7 +39,7 @@ var (
 // }
 
 // UPASLCFactoryABI is the input ABI used to generate the binding from.
-const UPASLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewUPASLC\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"amc\",\"outputs\":[{\"internalType\":\"contractIAMC\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"name\":\"setAMC\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const UPASLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewUPASLC\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 var UPASLCFactoryParsedABI, _ = abi.JSON(strings.NewReader(UPASLCFactoryABI))
 
@@ -185,37 +185,6 @@ func (_UPASLCFactory *UPASLCFactoryTransactorRaw) Transact(opts *bind.TransactOp
 	return _UPASLCFactory.Contract.contract.Transact(opts, method, params...)
 }
 
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_UPASLCFactory *UPASLCFactoryCaller) Amc(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _UPASLCFactory.contract.Call(opts, &out, "amc")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_UPASLCFactory *UPASLCFactorySession) Amc() (common.Address, error) {
-	return _UPASLCFactory.Contract.Amc(&_UPASLCFactory.CallOpts)
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_UPASLCFactory *UPASLCFactoryCallerSession) Amc() (common.Address, error) {
-	return _UPASLCFactory.Contract.Amc(&_UPASLCFactory.CallOpts)
-}
-
 // GetLCAddress is a free data retrieval call binding the contract method 0x793e97c6.
 //
 // Solidity: function getLCAddress(uint256 _documentId) view returns(address[])
@@ -245,6 +214,37 @@ func (_UPASLCFactory *UPASLCFactorySession) GetLCAddress(_documentId *big.Int) (
 // Solidity: function getLCAddress(uint256 _documentId) view returns(address[])
 func (_UPASLCFactory *UPASLCFactoryCallerSession) GetLCAddress(_documentId *big.Int) ([]common.Address, error) {
 	return _UPASLCFactory.Contract.GetLCAddress(&_UPASLCFactory.CallOpts, _documentId)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_UPASLCFactory *UPASLCFactoryCaller) Management(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _UPASLCFactory.contract.Call(opts, &out, "management")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_UPASLCFactory *UPASLCFactorySession) Management() (common.Address, error) {
+	return _UPASLCFactory.Contract.Management(&_UPASLCFactory.CallOpts)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_UPASLCFactory *UPASLCFactoryCallerSession) Management() (common.Address, error) {
+	return _UPASLCFactory.Contract.Management(&_UPASLCFactory.CallOpts)
 }
 
 // Amend is a paid mutator transaction binding the contract method 0xa9464b75.
@@ -289,25 +289,25 @@ func (_UPASLCFactory *UPASLCFactoryTransactorSession) Create(_parties [][32]byte
 	return _UPASLCFactory.Contract.Create(&_UPASLCFactory.TransactOpts, _parties, _content)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_UPASLCFactory *UPASLCFactoryTransactor) SetAMC(opts *bind.TransactOpts, _amc common.Address) (*types.Transaction, error) {
-	return _UPASLCFactory.contract.Transact(opts, "setAMC", _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_UPASLCFactory *UPASLCFactoryTransactor) SetLCManagement(opts *bind.TransactOpts, _management common.Address) (*types.Transaction, error) {
+	return _UPASLCFactory.contract.Transact(opts, "setLCManagement", _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_UPASLCFactory *UPASLCFactorySession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _UPASLCFactory.Contract.SetAMC(&_UPASLCFactory.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_UPASLCFactory *UPASLCFactorySession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _UPASLCFactory.Contract.SetLCManagement(&_UPASLCFactory.TransactOpts, _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_UPASLCFactory *UPASLCFactoryTransactorSession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _UPASLCFactory.Contract.SetAMC(&_UPASLCFactory.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_UPASLCFactory *UPASLCFactoryTransactorSession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _UPASLCFactory.Contract.SetLCManagement(&_UPASLCFactory.TransactOpts, _management)
 }
 
 // UPASLCFactoryNewUPASLCIterator is returned from FilterNewUPASLC and is used to iterate over the raw logs and unpacked data for NewUPASLC events raised by the UPASLCFactory contract.

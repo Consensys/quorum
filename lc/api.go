@@ -16,12 +16,12 @@ var (
 )
 
 type LcServiceApi struct {
+	lcManagementSession  bindings.LCManagementSession
 	routerServiceSession bindings.RouterServiceSession
 	stdLcFacSession      bindings.StandardLCFactorySession
 	upasLcFacSession     bindings.UPASLCFactorySession
-	routerServiceAddress common.Address
-	stdLcFacAddress      common.Address
-	upasLcFacAddres      common.Address
+	modeSession          bindings.ModeSession
+	addressConfig        Config
 }
 
 type TransactionInput struct {
@@ -94,27 +94,15 @@ func bindingStageContractContent2IStageContractContentParams(i bindings.IStageCo
 		SignedTime:     i.SignedTime,
 		PrevHash:       i.PrevHash,
 		NumOfDocuments: i.NumOfDocuments,
-		ContentHash: 		sliceByte32ToCommonHash(i.ContentHash),
+		ContentHash:    sliceByte32ToCommonHash(i.ContentHash),
 		Url:            i.Url,
 		Acknowledge:    i.Acknowledge,
 		Signature:      i.Signature,
 	}
 }
 
-func (s *LcServiceApi) RouterService() common.Address {
-	return s.routerServiceAddress
-}
-
-func (s *LcServiceApi) StandardLcFactory() common.Address {
-	return s.stdLcFacAddress
-}
-
-func (s *LcServiceApi) UpasLcFactory() common.Address {
-	return s.upasLcFacAddres
-}
-
-func (s *LcServiceApi) Amc() (common.Address, error) {
-	return s.routerServiceSession.Amc()
+func (s *LcServiceApi) Addresses() Config {
+	return s.addressConfig
 }
 
 func (s *LcServiceApi) GetLcAddress(_documentId big.Int) (common.Address, error) {
@@ -140,6 +128,33 @@ func (s *LcServiceApi) IsAmendApproved(_documentId big.Int, _requestId big.Int) 
 	return s.routerServiceSession.IsAmendApproved(&_documentId, &_requestId)
 }
 
+func (s *LcServiceApi) Mode() (string, error) {
+	bool, err := s.modeSession.SwitchedToDAO()
+	if bool {
+		return "dao", err
+	}
+	return "admin", err
+}
+
+// Transactions
+func (s *LcServiceApi) WhiteList(orgs []common.Hash) (*TransactionInput, error) {
+	byte32Slice := make([][common.HashLength]byte, 0)
+	for _, org := range orgs {
+		byte32Slice = append(byte32Slice, org)
+	}
+	tx, err := s.lcManagementSession.Whitelist(byte32Slice)
+	return toTransactionInput(tx), err
+}
+
+func (s *LcServiceApi) Unwhitelist(orgs []common.Hash) (*TransactionInput, error) {
+	byte32Slice := make([][common.HashLength]byte, 0)
+	for _, org := range orgs {
+		byte32Slice = append(byte32Slice, org)
+	}
+	tx, err := s.lcManagementSession.Unwhitelist(byte32Slice)
+	return toTransactionInput(tx), err
+}
+
 func (s *LcServiceApi) Approve(_documentId big.Int, _stage big.Int, _subStage big.Int, _content bindings.IStageContractContent) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.Approve(&_documentId, &_stage, &_subStage, _content)
 	return toTransactionInput(tx), err
@@ -157,11 +172,6 @@ func (s *LcServiceApi) CloseLC(_documentId big.Int) (*TransactionInput, error) {
 
 func (s *LcServiceApi) FulfillAmendment(_documentId big.Int, _requestId big.Int) (*TransactionInput, error) {
 	tx, err := s.routerServiceSession.FulfillAmendment(&_documentId, &_requestId)
-	return toTransactionInput(tx), err
-}
-
-func (s *LcServiceApi) SetAMC(_amc common.Address) (*TransactionInput, error) {
-	tx, err := s.routerServiceSession.SetAMC(_amc)
 	return toTransactionInput(tx), err
 }
 

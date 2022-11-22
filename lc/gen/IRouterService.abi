@@ -1,0 +1,26 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "_contract",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_typeOf",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

@@ -39,7 +39,7 @@ var (
 // }
 
 // StandardLCFactoryABI is the input ABI used to generate the binding from.
-const StandardLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewStandardLC\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"amc\",\"outputs\":[{\"internalType\":\"contractIAMC\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amc\",\"type\":\"address\"}],\"name\":\"setAMC\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const StandardLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewStandardLC\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 var StandardLCFactoryParsedABI, _ = abi.JSON(strings.NewReader(StandardLCFactoryABI))
 
@@ -185,37 +185,6 @@ func (_StandardLCFactory *StandardLCFactoryTransactorRaw) Transact(opts *bind.Tr
 	return _StandardLCFactory.Contract.contract.Transact(opts, method, params...)
 }
 
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_StandardLCFactory *StandardLCFactoryCaller) Amc(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _StandardLCFactory.contract.Call(opts, &out, "amc")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_StandardLCFactory *StandardLCFactorySession) Amc() (common.Address, error) {
-	return _StandardLCFactory.Contract.Amc(&_StandardLCFactory.CallOpts)
-}
-
-// Amc is a free data retrieval call binding the contract method 0xf3737c04.
-//
-// Solidity: function amc() view returns(address)
-func (_StandardLCFactory *StandardLCFactoryCallerSession) Amc() (common.Address, error) {
-	return _StandardLCFactory.Contract.Amc(&_StandardLCFactory.CallOpts)
-}
-
 // GetLCAddress is a free data retrieval call binding the contract method 0x793e97c6.
 //
 // Solidity: function getLCAddress(uint256 _documentId) view returns(address[])
@@ -245,6 +214,37 @@ func (_StandardLCFactory *StandardLCFactorySession) GetLCAddress(_documentId *bi
 // Solidity: function getLCAddress(uint256 _documentId) view returns(address[])
 func (_StandardLCFactory *StandardLCFactoryCallerSession) GetLCAddress(_documentId *big.Int) ([]common.Address, error) {
 	return _StandardLCFactory.Contract.GetLCAddress(&_StandardLCFactory.CallOpts, _documentId)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_StandardLCFactory *StandardLCFactoryCaller) Management(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _StandardLCFactory.contract.Call(opts, &out, "management")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_StandardLCFactory *StandardLCFactorySession) Management() (common.Address, error) {
+	return _StandardLCFactory.Contract.Management(&_StandardLCFactory.CallOpts)
+}
+
+// Management is a free data retrieval call binding the contract method 0x88a8d602.
+//
+// Solidity: function management() view returns(address)
+func (_StandardLCFactory *StandardLCFactoryCallerSession) Management() (common.Address, error) {
+	return _StandardLCFactory.Contract.Management(&_StandardLCFactory.CallOpts)
 }
 
 // Amend is a paid mutator transaction binding the contract method 0xa9464b75.
@@ -289,25 +289,25 @@ func (_StandardLCFactory *StandardLCFactoryTransactorSession) Create(_parties []
 	return _StandardLCFactory.Contract.Create(&_StandardLCFactory.TransactOpts, _parties, _content)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_StandardLCFactory *StandardLCFactoryTransactor) SetAMC(opts *bind.TransactOpts, _amc common.Address) (*types.Transaction, error) {
-	return _StandardLCFactory.contract.Transact(opts, "setAMC", _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_StandardLCFactory *StandardLCFactoryTransactor) SetLCManagement(opts *bind.TransactOpts, _management common.Address) (*types.Transaction, error) {
+	return _StandardLCFactory.contract.Transact(opts, "setLCManagement", _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_StandardLCFactory *StandardLCFactorySession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _StandardLCFactory.Contract.SetAMC(&_StandardLCFactory.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_StandardLCFactory *StandardLCFactorySession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _StandardLCFactory.Contract.SetLCManagement(&_StandardLCFactory.TransactOpts, _management)
 }
 
-// SetAMC is a paid mutator transaction binding the contract method 0x171cba35.
+// SetLCManagement is a paid mutator transaction binding the contract method 0xb3463971.
 //
-// Solidity: function setAMC(address _amc) returns()
-func (_StandardLCFactory *StandardLCFactoryTransactorSession) SetAMC(_amc common.Address) (*types.Transaction, error) {
-	return _StandardLCFactory.Contract.SetAMC(&_StandardLCFactory.TransactOpts, _amc)
+// Solidity: function setLCManagement(address _management) returns()
+func (_StandardLCFactory *StandardLCFactoryTransactorSession) SetLCManagement(_management common.Address) (*types.Transaction, error) {
+	return _StandardLCFactory.Contract.SetLCManagement(&_StandardLCFactory.TransactOpts, _management)
 }
 
 // StandardLCFactoryNewStandardLCIterator is returned from FilterNewStandardLC and is used to iterate over the raw logs and unpacked data for NewStandardLC events raised by the StandardLCFactory contract.

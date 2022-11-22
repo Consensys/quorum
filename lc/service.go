@@ -13,7 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-var defaultGasLimit = uint64(4712384)
+var (
+	//default gas limit to use if not passed in sendTxArgs
+	defaultGasLimit = uint64(4712384)
+	//default gas price to use if not passed in sendTxArgs
+	defaultGasPrice = big.NewInt(0)
+)
+
 var nullSigner = func(address common.Address, transaction *types.Transaction) (*types.Transaction, error) {
 	return transaction, nil
 }
@@ -41,7 +47,7 @@ func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
 	s.api.routerServiceSession = bindings.RouterServiceSession{
 		Contract:     routerSvc,
 		CallOpts:     bind.CallOpts{Pending: false},
-		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: big.NewInt(0), GasLimit: defaultGasLimit, Signer: nullSigner},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
 
 	stdLcSvc, err := bindings.NewStandardLCFactory(s.Cfg.StandardFactoryAddress, s.ethClnt)
@@ -51,7 +57,7 @@ func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
 	s.api.stdLcFacSession = bindings.StandardLCFactorySession{
 		Contract:     stdLcSvc,
 		CallOpts:     bind.CallOpts{Pending: false},
-		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: big.NewInt(0), GasLimit: defaultGasLimit, Signer: nullSigner},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
 
 	upasLcSvc, err := bindings.NewUPASLCFactory(s.Cfg.UPASFactoryAddress, s.ethClnt)
@@ -61,13 +67,10 @@ func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
 	s.api.upasLcFacSession = bindings.UPASLCFactorySession{
 		Contract:     upasLcSvc,
 		CallOpts:     bind.CallOpts{Pending: false},
-		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: big.NewInt(0), GasLimit: defaultGasLimit, Signer: nullSigner},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
 
-	s.api.routerServiceAddress = s.Cfg.RouterAddress
-	s.api.stdLcFacAddress = s.Cfg.StandardFactoryAddress
-	s.api.upasLcFacAddres = s.Cfg.UPASFactoryAddress
-
+	s.api.addressConfig = cfg
 	return s, nil
 }
 
