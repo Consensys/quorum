@@ -311,10 +311,14 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	}
 
 	response := new(receiveResponse)
-	if statusCode, err := t.submitJSON("GET", fmt.Sprintf("/transaction/%s?isRaw=%v", url.PathEscape(data.ToBase64()), isRaw), nil, response); err != nil {
+	uri := fmt.Sprintf("/transaction/%s?isRaw=%v", url.PathEscape(data.ToBase64()), isRaw)
+	if statusCode, err := t.submitJSON("GET", uri, nil, response); err != nil {
+
 		if statusCode == http.StatusNotFound {
+			log.Debug("data not found in tessera", "uri", uri, "statuscode", statusCode, "err", err)
 			return "", nil, nil, nil, nil
 		} else {
+			log.Error("Failed to fetch data from tessera", "uri", uri, "statuscode", statusCode, "err", err)
 			return "", nil, nil, nil, err
 		}
 	}
