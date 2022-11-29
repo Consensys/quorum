@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -310,18 +312,30 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 		return cacheItem.Extra.Sender, cacheItem.Extra.ManagedParties, cacheItem.Payload, &cacheItem.Extra, nil
 	}
 
-	response := new(receiveResponse)
 	uri := fmt.Sprintf("/transaction/%s?isRaw=%v", url.PathEscape(data.ToBase64()), isRaw)
-	if statusCode, err := t.submitJSON("GET", uri, nil, response); err != nil {
 
-		if statusCode == http.StatusNotFound {
-			log.Debug("data not found in tessera", "uri", uri, "statuscode", statusCode, "err", err)
-			return "", nil, nil, nil, nil
-		} else {
-			log.Error("Failed to fetch data from tessera", "uri", uri, "statuscode", statusCode, "err", err)
-			return "", nil, nil, nil, err
+	var statusCode int
+	var err error
+	response := new(receiveResponse)
+
+	for i := 0; i < 5; i++ {
+		statusCode, err = t.submitJSON("GET", uri, nil, response)
+		if err != nil && statusCode != http.StatusNotFound {
+			log.Warn("Failed to fetch data from tessera", "retry", i, "uri", uri, "statuscode", statusCode, "err", err)
+			time.Sleep(1 * time.Second)
+			continue
 		}
+		break
 	}
+
+	if statusCode == http.StatusNotFound {
+		log.Debug("data not found in tessera", "uri", uri, "statuscode", statusCode, "err", err)
+		return "", nil, nil, nil, nil
+	} else if err != nil {
+		log.Error("Failed to fetch data from tessera", "uri", uri, "statuscode", statusCode, "err", err)
+		os.Exit(112)
+	}
+
 	var extra engine.ExtraMetadata
 	if !isRaw {
 		acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
