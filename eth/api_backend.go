@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -55,8 +56,8 @@ type EthAPIBackend struct {
 
 	// Quorum
 	//
-	// hex node id from node public key
-	hexNodeId string
+	// node id from node public key
+	nodeId enode.ID
 
 	// timeout value for call
 	evmCallTimeOut time.Duration
@@ -337,11 +338,13 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	// Quourum
 	// validation for node need to happen here and cannot be done as a part of
 	// validateTx in tx_pool.go as tx_pool validation will happen in every node
-	if b.hexNodeId != "" && !pcore.ValidateNodeForTxn(b.hexNodeId, signedTx.From()) {
+	if !pcore.ValidateNodeForTxn(b.nodeId, signedTx.From()) {
 		return errors.New("cannot send transaction from this node")
 	}
+	// End Quourum
 	return b.eth.txPool.AddLocal(signedTx)
 }
 

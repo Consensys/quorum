@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -91,6 +92,19 @@ type NodeInfo struct {
 	OrgId  string     `json:"orgId"`
 	Url    string     `json:"url"`
 	Status NodeStatus `json:"status"`
+	id     atomic.Value
+}
+
+func (n *NodeInfo) ID() enode.ID {
+	if id := n.id.Load(); id != nil {
+		return id.(enode.ID)
+	}
+	if node, err := enode.ParseV4(n.Url); err == nil {
+		id := node.ID()
+		n.id.Store(id)
+		return id
+	}
+	return enode.ID{}
 }
 
 type RoleInfo struct {
@@ -118,7 +132,7 @@ type OrgDetailInfo struct {
 }
 
 var syncStarted = false
-
+var emptyNodeId = enode.ID{}
 var defaultAccess = FullAccess
 var qip714BlockReached = false
 var networkBootUpCompleted = false
@@ -369,7 +383,7 @@ func (o *OrgCache) GetOrgList() []OrgInfo {
 
 func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 	key := NodeKey{OrgId: orgId, Url: url}
-	n.c.Add(key, &NodeInfo{orgId, url, status})
+	n.c.Add(key, &NodeInfo{OrgId: orgId, Url: url, Status: status})
 }
 
 func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
@@ -398,12 +412,19 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 	return nil, errors.New("Node does not exist")
 }
 
-func (n *NodeCache) GetNodeList() []NodeInfo {
-	olist := make([]NodeInfo, len(n.c.Keys()))
+func (n *NodeCache) getSourceList() []*NodeInfo {
+	olist := make([]*NodeInfo, len(n.c.Keys()))
 	for i, k := range n.c.Keys() {
 		v, _ := n.c.Get(k)
-		vp := v.(*NodeInfo)
-		olist[i] = *vp
+		olist[i] = v.(*NodeInfo)
+	}
+	return olist
+}
+
+func (n *NodeCache) GetNodeList() []NodeInfo {
+	olist := make([]NodeInfo, len(n.c.Keys()))
+	for i, v := range n.getSourceList() {
+		olist[i] = *v
 	}
 	return olist
 }
@@ -538,7 +559,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	return defaultAccess
 }
 
-//checks if the given org is active in the network
+// checks if the given org is active in the network
 func checkIfOrgActive(orgId string) bool {
 	o, _ := OrgInfoMap.GetOrg(orgId)
 	if o != nil && o.Status != OrgSuspended {
@@ -579,14 +600,9 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 }
 
 // validates if the account can transact from the current node
-func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
-	if !PermissionsEnabled() || hexnodeId == "" {
+func ValidateNodeForTxn(nodeId enode.ID, from common.Address) bool {
+	if !PermissionsEnabled() || nodeId == emptyNodeId {
 		return true
-	}
-
-	passedEnodeId, err := enode.ParseV4(hexnodeId)
-	if err != nil {
-		return false
 	}
 
 	ac, _ := AcctInfoMap.GetAccount(from)
@@ -600,20 +616,19 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	}
 
 	// scan through the node list and validate
-	for _, n := range NodeInfoMap.GetNodeList() {
+	for _, n := range NodeInfoMap.getSourceList() {
 		orgRec, err := OrgInfoMap.GetOrg(n.OrgId)
 		if err != nil {
 			return false
 		}
 		if orgRec.UltimateParent == acOrgRec.UltimateParent {
-			recEnodeId, _ := enode.ParseV4(n.Url)
-			if recEnodeId.ID() == passedEnodeId.ID() && n.Status == NodeApproved {
+			if n.ID() == nodeId && n.Status == NodeApproved {
 				return true
 			}
 		}
 	}
 	if NodeInfoMap.evicted {
-		return NodeInfoMap.populateAndValidateFunc(hexnodeId, acOrgRec.UltimateParent)
+		return NodeInfoMap.populateAndValidateFunc(nodeId.String(), acOrgRec.UltimateParent)
 	}
 
 	return false
@@ -623,7 +638,7 @@ func IsV2Permission() bool {
 	return PermissionModel == V2
 }
 
-//  checks if the account permission allows the transaction to be executed
+// checks if the account permission allows the transaction to be executed
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
 	//if we have not reached QIP714 block return full access
 	if !PermissionsEnabled() {
