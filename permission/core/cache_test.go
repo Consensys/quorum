@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	testifyassert "github.com/stretchr/testify/assert"
 )
@@ -212,32 +213,33 @@ func TestGetAcctAccess(t *testing.T) {
 func TestValidateNodeForTxn(t *testing.T) {
 	assert := testifyassert.New(t)
 	// pass the enode as null and the response should be true
-	txnAllowed := ValidateNodeForTxn("", Acct1)
+	txnAllowed := ValidateNodeForTxn(enode.ID{}, Acct1)
 	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	SetQIP714BlockReached()
 	SetNetworkBootUpCompleted()
 	// if a proper enode id is not passed, return should be false
-	txnAllowed = ValidateNodeForTxn("ABCDE", Acct1)
+	txnAllowed = ValidateNodeForTxn(enode.ID{0x41, 0x43, 0x43, 0x44, 0x45}, Acct1)
 	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// if cache is not populated but the enode and account details are proper,
 	// should return true
-	txnAllowed = ValidateNodeForTxn(NODE1, Acct1)
+	node1, _ := enode.ParseV4(NODE1)
+	txnAllowed = ValidateNodeForTxn(node1.ID(), Acct1)
 	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// populate an org, account and node. validate access
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
-	txnAllowed = ValidateNodeForTxn(NODE1, Acct1)
+	txnAllowed = ValidateNodeForTxn(node1.ID(), Acct1)
 	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// test access from a node not linked to the org. should return false
 	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeApproved)
 	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive)
-	txnAllowed = ValidateNodeForTxn(NODE1, Acct2)
+	txnAllowed = ValidateNodeForTxn(node1.ID(), Acct2)
 	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 }
 
@@ -248,11 +250,12 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	arbitraryPrivateKey, _ := crypto.GenerateKey()
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&arbitraryPrivateKey.PublicKey)[1:])
+	node, _ := enode.ParseV4(hexNodeId)
 
 	SetQIP714BlockReached()
 	SetNetworkBootUpCompleted()
 
-	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
+	txnAllowed := ValidateNodeForTxn(node.ID(), Acct1)
 
 	testifyassert.False(t, txnAllowed)
 }
