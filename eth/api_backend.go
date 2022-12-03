@@ -344,7 +344,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if !pcore.ValidateNodeForTxn(b.nodeId, signedTx.From()) {
 		return errors.New("cannot send transaction from this node")
 	}
-	// End Quourum
+	// End Quorum
 	return b.eth.txPool.AddLocal(signedTx)
 }
 
