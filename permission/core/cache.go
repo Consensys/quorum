@@ -132,7 +132,6 @@ type OrgDetailInfo struct {
 }
 
 var syncStarted = false
-var emptyNodeId = enode.ID{}
 var defaultAccess = FullAccess
 var qip714BlockReached = false
 var networkBootUpCompleted = false
@@ -601,7 +600,7 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 
 // validates if the account can transact from the current node
 func ValidateNodeForTxn(nodeId enode.ID, from common.Address) bool {
-	if !PermissionsEnabled() || nodeId == emptyNodeId {
+	if !PermissionsEnabled() || nodeId == (enode.ID{}) {
 		return true
 	}
 

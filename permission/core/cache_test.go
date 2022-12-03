@@ -210,6 +210,29 @@ func TestGetAcctAccess(t *testing.T) {
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
 }
 
+func BenchmarkValidateNodeForTxn(b *testing.B) {
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
+
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	NodeInfoMap = NewNodeCache(params.DEFAULT_NODECACHE_SIZE)
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
+	// populate an org, account and node. validate access
+	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	node1, _ := enode.ParseV4(NODE1)
+
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			ValidateNodeForTxn(node1.ID(), Acct1)
+		}
+	})
+}
+
 func TestValidateNodeForTxn(t *testing.T) {
 	assert := testifyassert.New(t)
 	// pass the enode as null and the response should be true
