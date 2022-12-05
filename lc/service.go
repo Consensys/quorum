@@ -62,10 +62,40 @@ func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
 
 	upasLcSvc, err := bindings.NewUPASLCFactory(s.Cfg.UPASFactoryAddress, s.ethClnt)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create NewStandardLCFactory contract: %v", err)
+		return nil, fmt.Errorf("unable to create UPASLCFactorySession contract: %v", err)
 	}
 	s.api.upasLcFacSession = bindings.UPASLCFactorySession{
 		Contract:     upasLcSvc,
+		CallOpts:     bind.CallOpts{Pending: false},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
+	}
+
+	lcManagement, err := bindings.NewLCManagement(s.Cfg.LCManagementAddress, s.ethClnt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create NewLCManagement contract: %v", err)
+	}
+	s.api.lcManagementSession = bindings.LCManagementSession{
+		Contract:     lcManagement,
+		CallOpts:     bind.CallOpts{Pending: false},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
+	}
+
+	mode, err := bindings.NewMode(s.Cfg.ModeAddress, s.ethClnt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create NewMode contract: %v", err)
+	}
+	s.api.modeSession = bindings.ModeSession{
+		Contract:     mode,
+		CallOpts:     bind.CallOpts{Pending: false},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
+	}
+
+	amend, err := bindings.NewAmendRequest(s.Cfg.AmendRequestAddress, s.ethClnt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create NewAmendRequest contract: %v", err)
+	}
+	s.api.amendSession = bindings.AmendRequestSession{
+		Contract:     amend,
 		CallOpts:     bind.CallOpts{Pending: false},
 		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
