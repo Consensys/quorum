@@ -655,14 +655,14 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 		return false
 	}
 
-	orgRec, err := core.OrgInfoMap.GetOrg(orgId)
-	if err != nil {
-		return false
-	}
-	r, err = core.RoleInfoMap.GetRole(orgRec.UltimateParent, roleId)
-	if err != nil {
-		return false
-	}
+	// orgRec, err := core.OrgInfoMap.GetOrg(orgId)
+	// if err != nil {
+	// 	return false
+	// }
+	// r, err = core.RoleInfoMap.GetRole(orgRec.UltimateParent, roleId)
+	// if err != nil {
+	// 	return false
+	// }
 
 	return r != nil && r.Active
 }
