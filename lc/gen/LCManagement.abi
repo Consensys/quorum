@@ -489,9 +489,9 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "_orgs",
-                "type": "bytes32[]"
+                "type": "string[]"
             }
         ],
         "name": "unwhitelist",
@@ -520,9 +520,9 @@
                 "type": "address"
             },
             {
-                "internalType": "bytes32",
+                "internalType": "string",
                 "name": "_org",
-                "type": "bytes32"
+                "type": "string"
             }
         ],
         "name": "verifyIdentity",
@@ -539,9 +539,9 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "_orgs",
-                "type": "bytes32[]"
+                "type": "string[]"
             }
         ],
         "name": "whitelist",
@@ -552,9 +552,9 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
+                "internalType": "string",
+                "name": "_org",
+                "type": "string"
             }
         ],
         "name": "whitelistOrgs",

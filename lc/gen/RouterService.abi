@@ -257,19 +257,19 @@
                     {
                         "components": [
                             {
-                                "internalType": "bytes32",
+                                "internalType": "string",
                                 "name": "issuingBank",
-                                "type": "bytes32"
+                                "type": "string"
                             },
                             {
-                                "internalType": "bytes32",
+                                "internalType": "string",
                                 "name": "advisingBank",
-                                "type": "bytes32"
+                                "type": "string"
                             },
                             {
-                                "internalType": "bytes32",
+                                "internalType": "string",
                                 "name": "reimbursingBank",
-                                "type": "bytes32"
+                                "type": "string"
                             },
                             {
                                 "internalType": "bytes",
