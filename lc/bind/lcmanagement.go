@@ -27,7 +27,7 @@ var (
 )
 
 // LCManagementABI is the input ABI used to generate the binding from.
-const LCManagementABI = "[{\"inputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"_permission\",\"type\":\"address\"},{\"internalType\":\"contractIMode\",\"name\":\"_mode\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_admin\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"amendRequest\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"getRoleMember\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleMemberCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isAdmin\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"isAuthorized\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isOperator\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isVerifier\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"mode\",\"outputs\":[{\"internalType\":\"contractIMode\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"permission\",\"outputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"router\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amendRequest\",\"type\":\"address\"}],\"name\":\"setAmendRequest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_mode\",\"type\":\"address\"}],\"name\":\"setMode\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_permission\",\"type\":\"address\"}],\"name\":\"setPermission\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_router\",\"type\":\"address\"}],\"name\":\"setRouter\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_standardFactory\",\"type\":\"address\"}],\"name\":\"setStandardFactory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_upasFactory\",\"type\":\"address\"}],\"name\":\"setUPASFactory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"standardFactory\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_orgs\",\"type\":\"bytes32[]\"}],\"name\":\"unwhitelist\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"upasFactory\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"_org\",\"type\":\"bytes32\"}],\"name\":\"verifyIdentity\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_orgs\",\"type\":\"bytes32[]\"}],\"name\":\"whitelist\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"whitelistOrgs\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const LCManagementABI = "[{\"inputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"_permission\",\"type\":\"address\"},{\"internalType\":\"contractIMode\",\"name\":\"_mode\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_admin\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"amendRequest\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"getRoleMember\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleMemberCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isAdmin\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"isAuthorized\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isOperator\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isVerifier\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"mode\",\"outputs\":[{\"internalType\":\"contractIMode\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"permission\",\"outputs\":[{\"internalType\":\"contractIPermissionsInterface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"router\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_amendRequest\",\"type\":\"address\"}],\"name\":\"setAmendRequest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_mode\",\"type\":\"address\"}],\"name\":\"setMode\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_permission\",\"type\":\"address\"}],\"name\":\"setPermission\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_router\",\"type\":\"address\"}],\"name\":\"setRouter\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_standardFactory\",\"type\":\"address\"}],\"name\":\"setStandardFactory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_upasFactory\",\"type\":\"address\"}],\"name\":\"setUPASFactory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"standardFactory\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_orgs\",\"type\":\"string[]\"}],\"name\":\"unwhitelist\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"upasFactory\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_org\",\"type\":\"string\"}],\"name\":\"verifyIdentity\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_orgs\",\"type\":\"string[]\"}],\"name\":\"whitelist\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_org\",\"type\":\"string\"}],\"name\":\"whitelistOrgs\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 var LCManagementParsedABI, _ = abi.JSON(strings.NewReader(LCManagementABI))
 
@@ -669,10 +669,10 @@ func (_LCManagement *LCManagementCallerSession) UpasFactory() (common.Address, e
 	return _LCManagement.Contract.UpasFactory(&_LCManagement.CallOpts)
 }
 
-// VerifyIdentity is a free data retrieval call binding the contract method 0x5581f372.
+// VerifyIdentity is a free data retrieval call binding the contract method 0x4046225b.
 //
-// Solidity: function verifyIdentity(address _account, bytes32 _org) view returns(bool)
-func (_LCManagement *LCManagementCaller) VerifyIdentity(opts *bind.CallOpts, _account common.Address, _org [32]byte) (bool, error) {
+// Solidity: function verifyIdentity(address _account, string _org) view returns(bool)
+func (_LCManagement *LCManagementCaller) VerifyIdentity(opts *bind.CallOpts, _account common.Address, _org string) (bool, error) {
 	var out []interface{}
 	err := _LCManagement.contract.Call(opts, &out, "verifyIdentity", _account, _org)
 
@@ -686,26 +686,26 @@ func (_LCManagement *LCManagementCaller) VerifyIdentity(opts *bind.CallOpts, _ac
 
 }
 
-// VerifyIdentity is a free data retrieval call binding the contract method 0x5581f372.
+// VerifyIdentity is a free data retrieval call binding the contract method 0x4046225b.
 //
-// Solidity: function verifyIdentity(address _account, bytes32 _org) view returns(bool)
-func (_LCManagement *LCManagementSession) VerifyIdentity(_account common.Address, _org [32]byte) (bool, error) {
+// Solidity: function verifyIdentity(address _account, string _org) view returns(bool)
+func (_LCManagement *LCManagementSession) VerifyIdentity(_account common.Address, _org string) (bool, error) {
 	return _LCManagement.Contract.VerifyIdentity(&_LCManagement.CallOpts, _account, _org)
 }
 
-// VerifyIdentity is a free data retrieval call binding the contract method 0x5581f372.
+// VerifyIdentity is a free data retrieval call binding the contract method 0x4046225b.
 //
-// Solidity: function verifyIdentity(address _account, bytes32 _org) view returns(bool)
-func (_LCManagement *LCManagementCallerSession) VerifyIdentity(_account common.Address, _org [32]byte) (bool, error) {
+// Solidity: function verifyIdentity(address _account, string _org) view returns(bool)
+func (_LCManagement *LCManagementCallerSession) VerifyIdentity(_account common.Address, _org string) (bool, error) {
 	return _LCManagement.Contract.VerifyIdentity(&_LCManagement.CallOpts, _account, _org)
 }
 
-// WhitelistOrgs is a free data retrieval call binding the contract method 0xf1c28ca5.
+// WhitelistOrgs is a free data retrieval call binding the contract method 0x975f7843.
 //
-// Solidity: function whitelistOrgs(bytes32 ) view returns(bool)
-func (_LCManagement *LCManagementCaller) WhitelistOrgs(opts *bind.CallOpts, arg0 [32]byte) (bool, error) {
+// Solidity: function whitelistOrgs(string _org) view returns(bool)
+func (_LCManagement *LCManagementCaller) WhitelistOrgs(opts *bind.CallOpts, _org string) (bool, error) {
 	var out []interface{}
-	err := _LCManagement.contract.Call(opts, &out, "whitelistOrgs", arg0)
+	err := _LCManagement.contract.Call(opts, &out, "whitelistOrgs", _org)
 
 	if err != nil {
 		return *new(bool), err
@@ -717,18 +717,18 @@ func (_LCManagement *LCManagementCaller) WhitelistOrgs(opts *bind.CallOpts, arg0
 
 }
 
-// WhitelistOrgs is a free data retrieval call binding the contract method 0xf1c28ca5.
+// WhitelistOrgs is a free data retrieval call binding the contract method 0x975f7843.
 //
-// Solidity: function whitelistOrgs(bytes32 ) view returns(bool)
-func (_LCManagement *LCManagementSession) WhitelistOrgs(arg0 [32]byte) (bool, error) {
-	return _LCManagement.Contract.WhitelistOrgs(&_LCManagement.CallOpts, arg0)
+// Solidity: function whitelistOrgs(string _org) view returns(bool)
+func (_LCManagement *LCManagementSession) WhitelistOrgs(_org string) (bool, error) {
+	return _LCManagement.Contract.WhitelistOrgs(&_LCManagement.CallOpts, _org)
 }
 
-// WhitelistOrgs is a free data retrieval call binding the contract method 0xf1c28ca5.
+// WhitelistOrgs is a free data retrieval call binding the contract method 0x975f7843.
 //
-// Solidity: function whitelistOrgs(bytes32 ) view returns(bool)
-func (_LCManagement *LCManagementCallerSession) WhitelistOrgs(arg0 [32]byte) (bool, error) {
-	return _LCManagement.Contract.WhitelistOrgs(&_LCManagement.CallOpts, arg0)
+// Solidity: function whitelistOrgs(string _org) view returns(bool)
+func (_LCManagement *LCManagementCallerSession) WhitelistOrgs(_org string) (bool, error) {
+	return _LCManagement.Contract.WhitelistOrgs(&_LCManagement.CallOpts, _org)
 }
 
 // GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
@@ -920,45 +920,45 @@ func (_LCManagement *LCManagementTransactorSession) SetUPASFactory(_upasFactory 
 	return _LCManagement.Contract.SetUPASFactory(&_LCManagement.TransactOpts, _upasFactory)
 }
 
-// Unwhitelist is a paid mutator transaction binding the contract method 0x3908d9a0.
+// Unwhitelist is a paid mutator transaction binding the contract method 0x523845d8.
 //
-// Solidity: function unwhitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementTransactor) Unwhitelist(opts *bind.TransactOpts, _orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function unwhitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementTransactor) Unwhitelist(opts *bind.TransactOpts, _orgs []string) (*types.Transaction, error) {
 	return _LCManagement.contract.Transact(opts, "unwhitelist", _orgs)
 }
 
-// Unwhitelist is a paid mutator transaction binding the contract method 0x3908d9a0.
+// Unwhitelist is a paid mutator transaction binding the contract method 0x523845d8.
 //
-// Solidity: function unwhitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementSession) Unwhitelist(_orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function unwhitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementSession) Unwhitelist(_orgs []string) (*types.Transaction, error) {
 	return _LCManagement.Contract.Unwhitelist(&_LCManagement.TransactOpts, _orgs)
 }
 
-// Unwhitelist is a paid mutator transaction binding the contract method 0x3908d9a0.
+// Unwhitelist is a paid mutator transaction binding the contract method 0x523845d8.
 //
-// Solidity: function unwhitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementTransactorSession) Unwhitelist(_orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function unwhitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementTransactorSession) Unwhitelist(_orgs []string) (*types.Transaction, error) {
 	return _LCManagement.Contract.Unwhitelist(&_LCManagement.TransactOpts, _orgs)
 }
 
-// Whitelist is a paid mutator transaction binding the contract method 0x3b9f8383.
+// Whitelist is a paid mutator transaction binding the contract method 0x373fac5a.
 //
-// Solidity: function whitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementTransactor) Whitelist(opts *bind.TransactOpts, _orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function whitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementTransactor) Whitelist(opts *bind.TransactOpts, _orgs []string) (*types.Transaction, error) {
 	return _LCManagement.contract.Transact(opts, "whitelist", _orgs)
 }
 
-// Whitelist is a paid mutator transaction binding the contract method 0x3b9f8383.
+// Whitelist is a paid mutator transaction binding the contract method 0x373fac5a.
 //
-// Solidity: function whitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementSession) Whitelist(_orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function whitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementSession) Whitelist(_orgs []string) (*types.Transaction, error) {
 	return _LCManagement.Contract.Whitelist(&_LCManagement.TransactOpts, _orgs)
 }
 
-// Whitelist is a paid mutator transaction binding the contract method 0x3b9f8383.
+// Whitelist is a paid mutator transaction binding the contract method 0x373fac5a.
 //
-// Solidity: function whitelist(bytes32[] _orgs) returns()
-func (_LCManagement *LCManagementTransactorSession) Whitelist(_orgs [][32]byte) (*types.Transaction, error) {
+// Solidity: function whitelist(string[] _orgs) returns()
+func (_LCManagement *LCManagementTransactorSession) Whitelist(_orgs []string) (*types.Transaction, error) {
 	return _LCManagement.Contract.Whitelist(&_LCManagement.TransactOpts, _orgs)
 }
 
@@ -1062,7 +1062,7 @@ func (_LCManagement *LCManagementFilterer) FilterRoleAdminChanged(opts *bind.Fil
 	return &LCManagementRoleAdminChangedIterator{contract: _LCManagement.contract, event: "RoleAdminChanged", logs: logs, sub: sub}, nil
 }
 
-// var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
+var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
 
 // WatchRoleAdminChanged is a free log subscription operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
 //

@@ -1,6 +1,7 @@
 package lc
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -13,7 +14,12 @@ import (
 )
 
 var (
-	validate = validator.New()
+	validate                           = validator.New()
+	ErrRequiredAcknowledgeMessage      = errors.New("require acknowledge message signature at stage 1 4 5")
+	ErrDocumentIdAreUsed               = errors.New("documentId has been used by one LC contract")
+	ErrNewDocumentIdUnMatch            = errors.New("new documentId must match with 1st element in content hash")
+	ErrNoDocsShouldEqOrLessContentHash = errors.New("number of documents should equal or smaller than length of content hash")
+	ErrOutOfBound                      = errors.New("out of bound stage, stage must > 0 and <= 7")
 )
 
 type LcServiceApi struct {
@@ -44,6 +50,17 @@ type IStageContractContentParams struct {
 	NumOfDocuments *big.Int      `validate:"required"`
 	ContentHash    []common.Hash `validate:"required,gt=1,dive,required"`
 	Url            string        `validate:"url"`
+	Acknowledge    hexutil.Bytes
+	Signature      hexutil.Bytes `validate:"required"`
+}
+
+type IStageContractContentParamsCreateLC struct {
+	RootHash       common.Hash   `validate:"eq=0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"`
+	SignedTime     *big.Int      `validate:"required"`
+	PrevHash       common.Hash   `validate:"required"`
+	NumOfDocuments *big.Int      `validate:"required"`
+	ContentHash    []common.Hash `validate:"required,gt=1,dive,required"`
+	Url            string        `validate:"url"`
 	Acknowledge    hexutil.Bytes `validate:"required"`
 	Signature      hexutil.Bytes `validate:"required"`
 }
@@ -55,9 +72,9 @@ type IAmendRequestAmendStageParams struct {
 }
 
 type IConfirmedAmendment struct {
-	IssuingBank        common.Hash   `validate:"required"`
-	AdvisingBank       common.Hash   `validate:"required"`
-	ReimbursingBank    common.Hash   `validate:"required"`
+	IssuingBank        string        `validate:"required"`
+	AdvisingBank       string        `validate:"required"`
+	ReimbursingBank    string        `validate:"required"`
 	IssuingBankSig     hexutil.Bytes `validate:"required"`
 	AdvisingBankSig    hexutil.Bytes `validate:"required"`
 	ReimbursingBankSig hexutil.Bytes `validate:"required"`
@@ -73,6 +90,19 @@ type IAmendmentRequest struct {
 }
 
 func (i IStageContractContentParams) toBindingStageContractContent() bindings.IStageContractContent {
+	return bindings.IStageContractContent{
+		RootHash:       i.RootHash,
+		SignedTime:     i.SignedTime,
+		PrevHash:       i.PrevHash,
+		NumOfDocuments: i.NumOfDocuments,
+		ContentHash:    commonHashToSliceByte32(i.ContentHash),
+		Url:            i.Url,
+		Acknowledge:    i.Acknowledge,
+		Signature:      i.Signature,
+	}
+}
+
+func (i IStageContractContentParamsCreateLC) toBindingStageContractContent() bindings.IStageContractContent {
 	return bindings.IStageContractContent{
 		RootHash:       i.RootHash,
 		SignedTime:     i.SignedTime,
@@ -142,9 +172,9 @@ func bindingAmendRequestRequest2IAmendRequestAmendStageParams(i bindings.IAmendR
 			},
 		},
 		Confirmed: IConfirmedAmendment{
-			IssuingBank:        common.BytesToHash(i.Confirmed.IssuingBank[:]),
-			AdvisingBank:       common.BytesToHash(i.Confirmed.AdvisingBank[:]),
-			ReimbursingBank:    common.BytesToHash(i.Confirmed.ReimbursingBank[:]),
+			IssuingBank:        i.Confirmed.IssuingBank,
+			AdvisingBank:       i.Confirmed.AdvisingBank,
+			ReimbursingBank:    i.Confirmed.ReimbursingBank,
 			IssuingBankSig:     i.Confirmed.IssuingBankSig,
 			AdvisingBankSig:    i.Confirmed.AdvisingBankSig,
 			ReimbursingBankSig: i.Confirmed.ReimbursingBankSig,
@@ -194,17 +224,31 @@ func (s *LcServiceApi) GetNonce(_proposer common.Address) (*big.Int, error) {
 }
 
 // Transactions
-func (s *LcServiceApi) Whitelist(orgs []common.Hash) (*TransactionInput, error) {
-	tx, err := s.lcManagementSession.Whitelist(commonHashToSliceByte32(orgs))
+func (s *LcServiceApi) Whitelist(orgs []string) (*TransactionInput, error) {
+	tx, err := s.lcManagementSession.Whitelist(orgs)
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) UnWhitelist(orgs []common.Hash) (*TransactionInput, error) {
-	tx, err := s.lcManagementSession.Unwhitelist(commonHashToSliceByte32(orgs))
+func (s *LcServiceApi) UnWhitelist(orgs []string) (*TransactionInput, error) {
+	tx, err := s.lcManagementSession.Unwhitelist(orgs)
 	return toTransactionInput(tx), err
 }
 
 func (s *LcServiceApi) Approve(_documentId common.Hash, _stage big.Int, _subStage big.Int, _content IStageContractContentParams) (*TransactionInput, error) {
+	// Stage = 4 or stage = 5
+	if _stage.Cmp(big.NewInt(4)) == 0 || _stage.Cmp(big.NewInt(5)) == 0 {
+		if len(_content.Acknowledge) == 0 {
+			return nil, ErrRequiredAcknowledgeMessage
+		}
+	}
+
+	// Stage > 7 or Stage == 0
+	if _stage.Cmp(big.NewInt(7)) == 1 || _stage.Cmp(big.NewInt(0)) == 0 {
+		return nil, ErrOutOfBound
+	}
+
+	// TODO add more check
+
 	tx, err := s.routerServiceSession.Approve(_documentId.Big(), &_stage, &_subStage, _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
@@ -234,20 +278,55 @@ func (s *LcServiceApi) SubmitAmendment(_documentId common.Hash, _migratingStages
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) CreateLc(_parties []common.Hash, _content IStageContractContentParams) (*TransactionInput, error) {
-	err := validate.Struct(_content)
+func (s *LcServiceApi) CreateLc(_parties []string, _content IStageContractContentParamsCreateLC) (*TransactionInput, error) {
+	addresses, err := s.stdLcFacSession.GetLCAddress(big.NewInt(0).SetBytes(_content.ContentHash[0][:]))
 	if err != nil {
 		return nil, err
 	}
-	tx, err := s.stdLcFacSession.Create(commonHashToSliceByte32(_parties), _content.toBindingStageContractContent())
+
+	if len(addresses) > 0 {
+		return nil, ErrDocumentIdAreUsed
+	}
+
+	if _content.PrevHash.Hex() != _content.ContentHash[0].Hex() {
+		return nil, ErrNewDocumentIdUnMatch
+	}
+
+	if int(_content.NumOfDocuments.Int64()) > len(_content.ContentHash) {
+		return nil, ErrNoDocsShouldEqOrLessContentHash
+	}
+
+	err = validate.Struct(_content)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.stdLcFacSession.Create(_parties, _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
 
-func (s *LcServiceApi) CreateUpasLc(_parties []common.Hash, _content IStageContractContentParams) (*TransactionInput, error) {
-	err := validate.Struct(_content)
+func (s *LcServiceApi) CreateUpasLc(_parties []string, _content IStageContractContentParamsCreateLC) (*TransactionInput, error) {
+	addresses, err := s.upasLcFacSession.GetLCAddress(big.NewInt(0).SetBytes(_content.ContentHash[0][:]))
 	if err != nil {
 		return nil, err
 	}
-	tx, err := s.upasLcFacSession.Create(commonHashToSliceByte32(_parties), _content.toBindingStageContractContent())
+
+	if len(addresses) > 0 {
+		return nil, ErrDocumentIdAreUsed
+	}
+
+	if _content.PrevHash.Hex() != _content.ContentHash[0].Hex() {
+		return nil, ErrNewDocumentIdUnMatch
+	}
+
+	if int(_content.NumOfDocuments.Int64()) > len(_content.ContentHash) {
+		return nil, ErrNoDocsShouldEqOrLessContentHash
+	}
+
+	err = validate.Struct(_content)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.upasLcFacSession.Create(_parties, _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
