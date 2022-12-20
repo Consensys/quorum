@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	bindings "github.com/ethereum/go-ethereum/lc/bind"
+	pbindings "github.com/ethereum/go-ethereum/permission/v2/bind"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -22,6 +23,7 @@ type LcServiceApi struct {
 	upasLcFacSession     bindings.UPASLCFactorySession
 	modeSession          bindings.ModeSession
 	amendSession         bindings.AmendRequestSession
+	permInfSession       pbindings.PermInterfaceSession
 	addressConfig        Config
 }
 
@@ -53,21 +55,21 @@ type IAmendRequestAmendStageParams struct {
 }
 
 type IConfirmedAmendment struct {
-	IssuingBank 		common.Hash		`validate:"required"`
-	AdvisingBank 		common.Hash 	`validate:"required"`
-	ReimbursingBank 	common.Hash 	`validate:"required"`
-	IssuingBankSig 		hexutil.Bytes 	`validate:"required"`
-	AdvisingBankSig 	hexutil.Bytes 	`validate:"required"`
-	ReimbursingBankSig 	hexutil.Bytes 	`validate:"required"`
+	IssuingBank        common.Hash   `validate:"required"`
+	AdvisingBank       common.Hash   `validate:"required"`
+	ReimbursingBank    common.Hash   `validate:"required"`
+	IssuingBankSig     hexutil.Bytes `validate:"required"`
+	AdvisingBankSig    hexutil.Bytes `validate:"required"`
+	ReimbursingBankSig hexutil.Bytes `validate:"required"`
 }
 
 type IAmendmentRequest struct {
-	TypeOf	 		*big.Int 						`validate:"required"`
-	Proposer 		common.Address 					`validate:"required"`
-	MigratingStages []common.Hash					`validate:"required"`
-	AmendStage		IAmendRequestAmendStageParams	`validate:"required,gt=1,dive,required"`
-	Confirmed		IConfirmedAmendment				`validate:"required"`
-	IsFulfilled 	bool							`validate:"required"`
+	TypeOf          *big.Int                      `validate:"required"`
+	Proposer        common.Address                `validate:"required"`
+	MigratingStages []common.Hash                 `validate:"required"`
+	AmendStage      IAmendRequestAmendStageParams `validate:"required,gt=1,dive,required"`
+	Confirmed       IConfirmedAmendment           `validate:"required"`
+	IsFulfilled     bool                          `validate:"required"`
 }
 
 func (i IStageContractContentParams) toBindingStageContractContent() bindings.IStageContractContent {
@@ -122,29 +124,29 @@ func bindingStageContractContent2IStageContractContentParams(i bindings.IStageCo
 
 func bindingAmendRequestRequest2IAmendRequestAmendStageParams(i bindings.IAmendRequestRequest) IAmendmentRequest {
 	return IAmendmentRequest{
-		TypeOf: i.TypeOf,
-		Proposer: i.Proposer,
+		TypeOf:          i.TypeOf,
+		Proposer:        i.Proposer,
 		MigratingStages: sliceByte32ToCommonHash(i.MigratingStages),
 		AmendStage: IAmendRequestAmendStageParams{
-			Stage: i.AmendStage.Stage,
+			Stage:    i.AmendStage.Stage,
 			SubStage: i.AmendStage.SubStage,
 			Content: IStageContractContentParams{
-				RootHash: common.BytesToHash(i.AmendStage.Content.RootHash[:]),
-				SignedTime: i.AmendStage.Content.SignedTime,
-				PrevHash: common.BytesToHash(i.AmendStage.Content.PrevHash[:]),
+				RootHash:       common.BytesToHash(i.AmendStage.Content.RootHash[:]),
+				SignedTime:     i.AmendStage.Content.SignedTime,
+				PrevHash:       common.BytesToHash(i.AmendStage.Content.PrevHash[:]),
 				NumOfDocuments: i.AmendStage.Content.NumOfDocuments,
-				ContentHash: sliceByte32ToCommonHash(i.AmendStage.Content.ContentHash),
-				Url: i.AmendStage.Content.Url,
-				Acknowledge: i.AmendStage.Content.Acknowledge,
-				Signature: i.AmendStage.Content.Signature,
+				ContentHash:    sliceByte32ToCommonHash(i.AmendStage.Content.ContentHash),
+				Url:            i.AmendStage.Content.Url,
+				Acknowledge:    i.AmendStage.Content.Acknowledge,
+				Signature:      i.AmendStage.Content.Signature,
 			},
 		},
 		Confirmed: IConfirmedAmendment{
-			IssuingBank: common.BytesToHash(i.Confirmed.IssuingBank[:]),
-			AdvisingBank: common.BytesToHash(i.Confirmed.AdvisingBank[:]),
-			ReimbursingBank: common.BytesToHash(i.Confirmed.ReimbursingBank[:]),
-			IssuingBankSig: i.Confirmed.IssuingBankSig,
-			AdvisingBankSig: i.Confirmed.AdvisingBankSig,
+			IssuingBank:        common.BytesToHash(i.Confirmed.IssuingBank[:]),
+			AdvisingBank:       common.BytesToHash(i.Confirmed.AdvisingBank[:]),
+			ReimbursingBank:    common.BytesToHash(i.Confirmed.ReimbursingBank[:]),
+			IssuingBankSig:     i.Confirmed.IssuingBankSig,
+			AdvisingBankSig:    i.Confirmed.AdvisingBankSig,
 			ReimbursingBankSig: i.Confirmed.ReimbursingBankSig,
 		},
 		IsFulfilled: i.IsFulfilled,
@@ -171,7 +173,7 @@ func (s *LcServiceApi) GetStageContent(_documentId common.Hash, _stage big.Int, 
 }
 
 func (s *LcServiceApi) GetAmendmentRequest(_documentId common.Hash, _requestId common.Hash) (IAmendmentRequest, error) {
-	result, err :=  s.routerServiceSession.GetAmendmentRequest(_documentId.Big(), _requestId.Big())
+	result, err := s.routerServiceSession.GetAmendmentRequest(_documentId.Big(), _requestId.Big())
 	return bindingAmendRequestRequest2IAmendRequestAmendStageParams(result), err
 }
 

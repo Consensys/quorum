@@ -2264,7 +2264,13 @@ func RegisterLcService(stack *node.Node) {
 	if err != nil {
 		Fatalf("Failed to parse LC config: %v", err)
 	}
-	lc, err := lc.NewLcService(cfg, stack)
+
+	permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
+	if err != nil {
+		Fatalf("lc protocol require loading of %s but failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
+	}
+
+	lc, err := lc.NewLcService(cfg, permissionConfig, stack)
 	if err != nil {
 		Fatalf("Failed to init LcService: %v", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	bindings "github.com/ethereum/go-ethereum/lc/bind"
 	"github.com/ethereum/go-ethereum/node"
+	ptypes "github.com/ethereum/go-ethereum/permission/core/types"
+	pbindings "github.com/ethereum/go-ethereum/permission/v2/bind"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -26,13 +28,14 @@ var nullSigner = func(address common.Address, transaction *types.Transaction) (*
 
 type LcService struct {
 	Cfg     *Config
+	PerCfg  ptypes.PermissionConfig
 	Node    *node.Node
 	api     *LcServiceApi
 	ethClnt bind.ContractBackend
 }
 
-func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
-	s := &LcService{Cfg: &cfg, Node: stack}
+func NewLcService(cfg Config, perCfg ptypes.PermissionConfig, stack *node.Node) (*LcService, error) {
+	s := &LcService{Cfg: &cfg, PerCfg: perCfg, Node: stack}
 	client, err := s.Node.Attach()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create rpc client: %v", err)
@@ -96,6 +99,17 @@ func NewLcService(cfg Config, stack *node.Node) (*LcService, error) {
 	}
 	s.api.amendSession = bindings.AmendRequestSession{
 		Contract:     amend,
+		CallOpts:     bind.CallOpts{Pending: false},
+		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
+	}
+
+	permInterf, err := pbindings.NewPermInterface(s.PerCfg.InterfAddress, s.ethClnt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create NewAmendRequest contract: %v", err)
+	}
+
+	s.api.permInfSession = pbindings.PermInterfaceSession{
+		Contract:     permInterf,
 		CallOpts:     bind.CallOpts{Pending: false},
 		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
