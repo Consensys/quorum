@@ -389,7 +389,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
-	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&stack.GetNodeKey().PublicKey)[1:]) // Quorum
+	// Quorum
+	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&stack.GetNodeKey().PublicKey)[1:])
+	node, err := enode.ParseV4(hexNodeId)
+	if err != nil {
+		return nil, err
+	}
+	// End Quorum
 	if eth.config.QuorumLightClient.Enabled() {
 		var (
 			proxyClient *rpc.Client
@@ -433,9 +439,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		if ok {
 			rpcClientSetter.SetRPCClient(proxyClient)
 		}
-		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut, proxyClient}
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, node.ID(), config.EVMCallTimeOut, proxyClient}
 	} else {
-		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, hexNodeId, config.EVMCallTimeOut, nil}
+		eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, node.ID(), config.EVMCallTimeOut, nil}
 	}
 
 	if eth.APIBackend.allowUnprotectedTxs {
