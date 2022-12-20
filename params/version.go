@@ -28,7 +28,7 @@ const (
 
 	QuorumVersionMajor = 22
 	QuorumVersionMinor = 7
-	QuorumVersionPatch = 3
+	QuorumVersionPatch = 4
 	QuorumVersionMeta  = "fpt.blockchain.lab-0.4.5"
 )
 

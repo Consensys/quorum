@@ -235,6 +235,9 @@ func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address
 
 func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
 	mode := params.BlockHeaderMode
+	if c.ValidatorSelectionMode != nil {
+		mode = *c.ValidatorSelectionMode
+	}
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
 		if transition.ValidatorSelectionMode != "" {
 			mode = transition.ValidatorSelectionMode
