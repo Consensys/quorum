@@ -15,6 +15,7 @@ import (
 
 var (
 	validate                           = validator.New()
+	ErrRootHashNotEqual                = errors.New("root hash not equal to 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 	ErrRequiredAcknowledgeMessage      = errors.New("require acknowledge message signature at stage 1 4 5")
 	ErrDocumentIdAreUsed               = errors.New("documentId has been used by one LC contract")
 	ErrNewDocumentIdUnMatch            = errors.New("new documentId must match with 1st element in content hash")
@@ -29,7 +30,7 @@ type LcServiceApi struct {
 	upasLcFacSession     bindings.UPASLCFactorySession
 	modeSession          bindings.ModeSession
 	amendSession         bindings.AmendRequestSession
-	lcSession func(lcAddr common.Address) (bindings.LCSession, error)
+	lcSession            func(lcAddr common.Address) (bindings.LCSession, error)
 	permInfSession       pbindings.PermInterfaceSession
 	addressConfig        Config
 }
@@ -56,7 +57,7 @@ type IStageContractContentParams struct {
 }
 
 type IStageContractContentParamsCreateLC struct {
-	RootHash       common.Hash   `validate:"eq=0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"`
+	RootHash       *common.Hash
 	SignedTime     *big.Int      `validate:"required"`
 	PrevHash       common.Hash   `validate:"required"`
 	NumOfDocuments *big.Int      `validate:"required"`
@@ -105,7 +106,7 @@ func (i IStageContractContentParams) toBindingStageContractContent() bindings.IS
 
 func (i IStageContractContentParamsCreateLC) toBindingStageContractContent() bindings.IStageContractContent {
 	return bindings.IStageContractContent{
-		RootHash:       i.RootHash,
+		RootHash:       *i.RootHash,
 		SignedTime:     i.SignedTime,
 		PrevHash:       i.PrevHash,
 		NumOfDocuments: i.NumOfDocuments,
@@ -294,6 +295,19 @@ func (s *LcServiceApi) SubmitAmendment(_documentId common.Hash, _migratingStages
 }
 
 func (s *LcServiceApi) CreateLc(_parties []string, _content IStageContractContentParamsCreateLC) (*TransactionInput, error) {
+	if _content.PrevHash.Hex() != _content.ContentHash[0].Hex() {
+		return nil, ErrNewDocumentIdUnMatch
+	}
+
+	if int(_content.NumOfDocuments.Int64()) > len(_content.ContentHash) {
+		return nil, ErrNoDocsShouldEqOrLessContentHash
+	}
+
+	err := validate.Struct(_content)
+	if err != nil {
+		return nil, err
+	}
+
 	addresses, err := s.stdLcFacSession.GetLCAddress(big.NewInt(0).SetBytes(_content.ContentHash[0][:]))
 	if err != nil {
 		return nil, err
@@ -303,6 +317,11 @@ func (s *LcServiceApi) CreateLc(_parties []string, _content IStageContractConten
 		return nil, ErrDocumentIdAreUsed
 	}
 
+	tx, err := s.stdLcFacSession.Create(_parties, _content.toBindingStageContractContent())
+	return toTransactionInput(tx), err
+}
+
+func (s *LcServiceApi) CreateUpasLc(_parties []string, _content IStageContractContentParamsCreateLC) (*TransactionInput, error) {
 	if _content.PrevHash.Hex() != _content.ContentHash[0].Hex() {
 		return nil, ErrNewDocumentIdUnMatch
 	}
@@ -311,16 +330,11 @@ func (s *LcServiceApi) CreateLc(_parties []string, _content IStageContractConten
 		return nil, ErrNoDocsShouldEqOrLessContentHash
 	}
 
-	err = validate.Struct(_content)
+	err := validate.Struct(_content)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.stdLcFacSession.Create(_parties, _content.toBindingStageContractContent())
-	return toTransactionInput(tx), err
-}
-
-func (s *LcServiceApi) CreateUpasLc(_parties []string, _content IStageContractContentParamsCreateLC) (*TransactionInput, error) {
 	addresses, err := s.upasLcFacSession.GetLCAddress(big.NewInt(0).SetBytes(_content.ContentHash[0][:]))
 	if err != nil {
 		return nil, err
@@ -330,18 +344,15 @@ func (s *LcServiceApi) CreateUpasLc(_parties []string, _content IStageContractCo
 		return nil, ErrDocumentIdAreUsed
 	}
 
-	if _content.PrevHash.Hex() != _content.ContentHash[0].Hex() {
-		return nil, ErrNewDocumentIdUnMatch
+	if _content.RootHash != nil {
+		if _content.RootHash.Hex() != "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470" {
+			return nil, ErrRootHashNotEqual
+		}
+	} else {
+		hash := common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+		_content.RootHash = &hash
 	}
 
-	if int(_content.NumOfDocuments.Int64()) > len(_content.ContentHash) {
-		return nil, ErrNoDocsShouldEqOrLessContentHash
-	}
-
-	err = validate.Struct(_content)
-	if err != nil {
-		return nil, err
-	}
 	tx, err := s.upasLcFacSession.Create(_parties, _content.toBindingStageContractContent())
 	return toTransactionInput(tx), err
 }
