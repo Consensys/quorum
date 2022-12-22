@@ -29,6 +29,7 @@ type LcServiceApi struct {
 	upasLcFacSession     bindings.UPASLCFactorySession
 	modeSession          bindings.ModeSession
 	amendSession         bindings.AmendRequestSession
+	lcSession func(lcAddr common.Address) (bindings.LCSession, error)
 	permInfSession       pbindings.PermInterfaceSession
 	addressConfig        Config
 }
@@ -221,6 +222,20 @@ func (s *LcServiceApi) Mode() (string, error) {
 
 func (s *LcServiceApi) GetNonce(_proposer common.Address) (*big.Int, error) {
 	return s.amendSession.Nonces(_proposer)
+}
+
+func (s *LcServiceApi) GetCounter(_documentId common.Hash) (*big.Int, error) {
+	lcAddr, err := s.routerServiceSession.GetAddress(_documentId.Big())
+	if err != nil {
+		return nil, fmt.Errorf("documentId not found %v", err)
+	}
+
+	lcSession, err := s.lcSession(lcAddr.Contract)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load lc contract %v", err)
+	}
+
+	return lcSession.GetCounter()
 }
 
 // Transactions
