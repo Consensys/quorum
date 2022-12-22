@@ -39,7 +39,7 @@ var (
 // }
 
 // StandardLCFactoryABI is the input ABI used to generate the binding from.
-const StandardLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewStandardLC\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"_parties\",\"type\":\"bytes32[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const StandardLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewStandardLC\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 var StandardLCFactoryParsedABI, _ = abi.JSON(strings.NewReader(StandardLCFactoryABI))
 
@@ -247,45 +247,45 @@ func (_StandardLCFactory *StandardLCFactoryCallerSession) Management() (common.A
 	return _StandardLCFactory.Contract.Management(&_StandardLCFactory.CallOpts)
 }
 
-// Amend is a paid mutator transaction binding the contract method 0xa9464b75.
+// Amend is a paid mutator transaction binding the contract method 0x6a654994.
 //
-// Solidity: function amend(address _executor, uint256 _documentId, bytes32[] _parties) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactoryTransactor) Amend(opts *bind.TransactOpts, _executor common.Address, _documentId *big.Int, _parties [][32]byte) (*types.Transaction, error) {
+// Solidity: function amend(address _executor, uint256 _documentId, string[] _parties) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactoryTransactor) Amend(opts *bind.TransactOpts, _executor common.Address, _documentId *big.Int, _parties []string) (*types.Transaction, error) {
 	return _StandardLCFactory.contract.Transact(opts, "amend", _executor, _documentId, _parties)
 }
 
-// Amend is a paid mutator transaction binding the contract method 0xa9464b75.
+// Amend is a paid mutator transaction binding the contract method 0x6a654994.
 //
-// Solidity: function amend(address _executor, uint256 _documentId, bytes32[] _parties) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactorySession) Amend(_executor common.Address, _documentId *big.Int, _parties [][32]byte) (*types.Transaction, error) {
+// Solidity: function amend(address _executor, uint256 _documentId, string[] _parties) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactorySession) Amend(_executor common.Address, _documentId *big.Int, _parties []string) (*types.Transaction, error) {
 	return _StandardLCFactory.Contract.Amend(&_StandardLCFactory.TransactOpts, _executor, _documentId, _parties)
 }
 
-// Amend is a paid mutator transaction binding the contract method 0xa9464b75.
+// Amend is a paid mutator transaction binding the contract method 0x6a654994.
 //
-// Solidity: function amend(address _executor, uint256 _documentId, bytes32[] _parties) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactoryTransactorSession) Amend(_executor common.Address, _documentId *big.Int, _parties [][32]byte) (*types.Transaction, error) {
+// Solidity: function amend(address _executor, uint256 _documentId, string[] _parties) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactoryTransactorSession) Amend(_executor common.Address, _documentId *big.Int, _parties []string) (*types.Transaction, error) {
 	return _StandardLCFactory.Contract.Amend(&_StandardLCFactory.TransactOpts, _executor, _documentId, _parties)
 }
 
-// Create is a paid mutator transaction binding the contract method 0x9e7b9dfe.
+// Create is a paid mutator transaction binding the contract method 0xebdcefdd.
 //
-// Solidity: function create(bytes32[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactoryTransactor) Create(opts *bind.TransactOpts, _parties [][32]byte, _content IStageContractContent) (*types.Transaction, error) {
+// Solidity: function create(string[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactoryTransactor) Create(opts *bind.TransactOpts, _parties []string, _content IStageContractContent) (*types.Transaction, error) {
 	return _StandardLCFactory.contract.Transact(opts, "create", _parties, _content)
 }
 
-// Create is a paid mutator transaction binding the contract method 0x9e7b9dfe.
+// Create is a paid mutator transaction binding the contract method 0xebdcefdd.
 //
-// Solidity: function create(bytes32[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactorySession) Create(_parties [][32]byte, _content IStageContractContent) (*types.Transaction, error) {
+// Solidity: function create(string[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactorySession) Create(_parties []string, _content IStageContractContent) (*types.Transaction, error) {
 	return _StandardLCFactory.Contract.Create(&_StandardLCFactory.TransactOpts, _parties, _content)
 }
 
-// Create is a paid mutator transaction binding the contract method 0x9e7b9dfe.
+// Create is a paid mutator transaction binding the contract method 0xebdcefdd.
 //
-// Solidity: function create(bytes32[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
-func (_StandardLCFactory *StandardLCFactoryTransactorSession) Create(_parties [][32]byte, _content IStageContractContent) (*types.Transaction, error) {
+// Solidity: function create(string[] _parties, (bytes32,uint256,bytes32,uint256,bytes32[],string,bytes,bytes) _content) returns(address _contract)
+func (_StandardLCFactory *StandardLCFactoryTransactorSession) Create(_parties []string, _content IStageContractContent) (*types.Transaction, error) {
 	return _StandardLCFactory.Contract.Create(&_StandardLCFactory.TransactOpts, _parties, _content)
 }
 

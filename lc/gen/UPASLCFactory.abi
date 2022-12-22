@@ -48,9 +48,9 @@
                 "type": "uint256"
             },
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "_parties",
-                "type": "bytes32[]"
+                "type": "string[]"
             }
         ],
         "name": "amend",
@@ -67,9 +67,9 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "_parties",
-                "type": "bytes32[]"
+                "type": "string[]"
             },
             {
                 "components": [

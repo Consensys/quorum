@@ -688,7 +688,7 @@ func (_AccessRoleManagement *AccessRoleManagementFilterer) FilterRoleAdminChange
 	return &AccessRoleManagementRoleAdminChangedIterator{contract: _AccessRoleManagement.contract, event: "RoleAdminChanged", logs: logs, sub: sub}, nil
 }
 
-var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
+// var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
 
 // WatchRoleAdminChanged is a free log subscription operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
 //

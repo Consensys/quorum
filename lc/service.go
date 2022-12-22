@@ -114,6 +114,18 @@ func NewLcService(cfg Config, perCfg ptypes.PermissionConfig, stack *node.Node) 
 		TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
 	}
 
+	s.api.lcSession = func(lcAddr common.Address) (bindings.LCSession, error){
+		lc, err := bindings.NewLC(lcAddr, s.ethClnt)
+
+		lcSession := bindings.LCSession{
+			Contract:     lc,
+			CallOpts:     bind.CallOpts{Pending: false},
+			TransactOpts: bind.TransactOpts{NoSend: true, GasPrice: defaultGasPrice, GasLimit: defaultGasLimit, Signer: nullSigner},
+		}
+
+		return lcSession, err
+	}
+
 	s.api.addressConfig = cfg
 	return s, nil
 }

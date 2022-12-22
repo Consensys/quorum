@@ -5,4 +5,5 @@
 //go:generate abigen -pkg bind -abi  ./UPASLCFactory.abi        -type UPASLCFactory   		-out ../bind/upaslcfactory.go
 //go:generate abigen -pkg bind -abi  ./AccessRoleManagement.abi	-type AccessRoleManagement  -out ../bind/accessrolemanagement.go
 //go:generate abigen -pkg bind -abi  ./Mode.abi					-type Mode  				-out ../bind/mode.go
+//go:generate abigen -pkg bind -abi ./LC.abi 					-type LC 					-out ../bind/lc.go
 package gen

@@ -2,9 +2,9 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "_orgs",
-                "type": "bytes32[]"
+                "type": "string[]"
             }
         ],
         "stateMutability": "nonpayable",
@@ -18,12 +18,6 @@
                 "internalType": "address",
                 "name": "caller",
                 "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "organization",
-                "type": "bytes32"
             },
             {
                 "indexed": false,
@@ -48,6 +42,12 @@
                 "internalType": "uint256",
                 "name": "approvedTime",
                 "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "organization",
+                "type": "string"
             }
         ],
         "name": "Approved",
@@ -159,9 +159,9 @@
         "name": "checkProposer",
         "outputs": [
             {
-                "internalType": "bytes32",
+                "internalType": "string",
                 "name": "_org",
-                "type": "bytes32"
+                "type": "string"
             }
         ],
         "stateMutability": "view",
@@ -271,9 +271,9 @@
         "name": "getInvolvedParties",
         "outputs": [
             {
-                "internalType": "bytes32[]",
+                "internalType": "string[]",
                 "name": "",
-                "type": "bytes32[]"
+                "type": "string[]"
             }
         ],
         "stateMutability": "view",
