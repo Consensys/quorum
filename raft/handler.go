@@ -437,7 +437,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotSta
 		log.Info("finished sending snapshot", "raft peer", id)
 	}
 
-	pm.rawNode().ReportSnapshot(id, etcd.SnapshotStatus(status))
+	pm.rawNode().ReportSnapshot(id, status)
 }
 
 //

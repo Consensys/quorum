@@ -18,16 +18,12 @@ import (
 	"context"
 	"errors"
 
+	etcdRaft "github.com/coreos/etcd/raft"
 	pb "github.com/coreos/etcd/raft/raftpb"
 	"github.com/eapache/channels"
 )
 
-type SnapshotStatus int
-
 const (
-	SnapshotFinish  SnapshotStatus = 1
-	SnapshotFailure SnapshotStatus = 2
-
 	LEADER     = 1
 	NOT_LEADER = 2
 )
@@ -166,7 +162,7 @@ type Node interface {
 	// ReportUnreachable reports the given node is not reachable for the last send.
 	ReportUnreachable(id uint64)
 	// ReportSnapshot reports the status of the sent snapshot.
-	ReportSnapshot(id uint64, status SnapshotStatus)
+	ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus)
 	// Stop performs any necessary termination of the Node.
 	Stop()
 
@@ -549,8 +545,8 @@ func (n *node) ReportUnreachable(id uint64) {
 	}
 }
 
-func (n *node) ReportSnapshot(id uint64, status SnapshotStatus) {
-	rej := status == SnapshotFailure
+func (n *node) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
+	rej := status == etcdRaft.SnapshotFailure
 
 	select {
 	case n.recvc <- pb.Message{Type: pb.MsgSnapStatus, From: id, Reject: rej}:

@@ -17,6 +17,7 @@ package etcd
 import (
 	"errors"
 
+	etcdRaft "github.com/coreos/etcd/raft"
 	pb "github.com/coreos/etcd/raft/raftpb"
 )
 
@@ -246,8 +247,8 @@ func (rn *RawNode) ReportUnreachable(id uint64) {
 }
 
 // ReportSnapshot reports the status of the sent snapshot.
-func (rn *RawNode) ReportSnapshot(id uint64, status SnapshotStatus) {
-	rej := status == SnapshotFailure
+func (rn *RawNode) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
+	rej := status == etcdRaft.SnapshotFailure
 
 	_ = rn.raft.Step(pb.Message{Type: pb.MsgSnapStatus, From: id, Reject: rej})
 }
