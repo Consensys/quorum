@@ -67,6 +67,10 @@ const (
 	campaignTransfer CampaignType = "CampaignTransfer"
 )
 
+// ErrProposalDropped is returned when the proposal is ignored by some cases,
+// so that the proposer can be notified and fail fast.
+var ErrProposalDropped = errors.New("raft proposal dropped")
+
 // lockedRand is a small wrapper around rand.Rand to provide
 // synchronization. Only the methods needed by the code are exposed
 // (e.g. Intn).
@@ -293,11 +297,17 @@ func newRaft(c *Config) *raft {
 	}
 	raftlog := newLog(c.Storage, c.Logger)
 	hs, cs, err := c.Storage.InitialState()
+
+	c.Logger.Info("newRaft storage", "hardState", hs, " confState", cs)
+
 	if err != nil {
 		panic(err) // TODO(bdarnell)
 	}
 	peers := c.peers
 	learners := c.learners
+
+	c.Logger.Info("newRaft ", "config.peers", cs.Nodes, " config.learners", cs.Learners)
+
 	if len(cs.Nodes) > 0 || len(cs.Learners) > 0 {
 		if len(peers) > 0 || len(learners) > 0 {
 			// TODO(bdarnell): the peers argument is always nil except in
@@ -335,6 +345,7 @@ func newRaft(c *Config) *raft {
 		r.learnerPrs[p] = &Progress{Next: 1, ins: newInflights(r.maxInflight), IsLearner: true}
 		if r.id == p {
 			r.isLearner = true
+			r.logger.Infof("raft %d is a learner", r.id)
 		}
 	}
 
@@ -351,8 +362,8 @@ func newRaft(c *Config) *raft {
 		nodesStrs = append(nodesStrs, fmt.Sprintf("%x", n))
 	}
 
-	r.logger.Infof("newRaft %x [peers: [%s], term: %d, commit: %d, applied: %d, lastindex: %d, lastterm: %d]",
-		r.id, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied, r.raftLog.lastIndex(), r.raftLog.lastTerm())
+	r.logger.Infof("newRaft %x learner: %v [peers: [%s], term: %d, commit: %d, applied: %d, lastindex: %d, lastterm: %d]",
+		r.id, r.isLearner, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied, r.raftLog.lastIndex(), r.raftLog.lastTerm())
 	return r
 }
 
@@ -375,6 +386,27 @@ func (r *raft) nodes() []uint64 {
 	for id := range r.prs {
 		nodes = append(nodes, id)
 	}
+	for id := range r.learnerPrs {
+		nodes = append(nodes, id)
+	}
+	sort.Sort(uint64Slice(nodes))
+	return nodes
+}
+
+func (r *raft) voters() []uint64 {
+	nodes := make([]uint64, 0, len(r.prs))
+	for id := range r.prs {
+		nodes = append(nodes, id)
+	}
+
+	sort.Sort(uint64Slice(nodes))
+	return nodes
+}
+
+// TODO (Amal): review
+func (r *raft) learners() []uint64 {
+	nodes := make([]uint64, 0, len(r.learnerPrs))
+
 	for id := range r.learnerPrs {
 		nodes = append(nodes, id)
 	}
@@ -866,25 +898,28 @@ func (r *raft) Step(m pb.Message) error {
 		}
 
 	default:
-		r.step(r, m)
+		err := r.step(r, m)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-type stepFunc func(r *raft, m pb.Message)
+type stepFunc func(r *raft, m pb.Message) error
 
-func stepLeader(r *raft, m pb.Message) {
+func stepLeader(r *raft, m pb.Message) error {
 	// These message types do not require any progress for m.From.
 	switch m.Type {
 	case pb.MsgBeat:
 		r.bcastHeartbeat()
-		return
+		return nil
 	case pb.MsgCheckQuorum:
 		if !r.checkQuorumActive() {
 			r.logger.Warningf("%x stepped down to follower since quorum is not active", r.id)
 			r.becomeFollower(r.Term, None)
 		}
-		return
+		return nil
 	case pb.MsgProp:
 		if len(m.Entries) == 0 {
 			r.logger.Panicf("%x stepped empty MsgProp", r.id)
@@ -893,11 +928,11 @@ func stepLeader(r *raft, m pb.Message) {
 			// If we are not currently a member of the range (i.e. this node
 			// was removed from the configuration while serving as leader),
 			// drop any new proposals.
-			return
+			return ErrProposalDropped
 		}
 		if r.leadTransferee != None {
 			r.logger.Debugf("%x [term %d] transfer leadership to %x is in progress; dropping proposal", r.id, r.Term, r.leadTransferee)
-			return
+			return ErrProposalDropped
 		}
 
 		for i, e := range m.Entries {
@@ -911,12 +946,12 @@ func stepLeader(r *raft, m pb.Message) {
 		}
 		r.appendEntry(m.Entries...)
 		r.bcastAppend()
-		return
+		return nil
 	case pb.MsgReadIndex:
 		if r.quorum() > 1 {
 			if r.raftLog.zeroTermOnErrCompacted(r.raftLog.term(r.raftLog.committed)) != r.Term {
 				// Reject read only request when this leader has not committed any log entry at its term.
-				return
+				return nil
 			}
 
 			// thinking: use an interally defined context instead of the user given context.
@@ -938,14 +973,14 @@ func stepLeader(r *raft, m pb.Message) {
 			r.readStates = append(r.readStates, ReadState{Index: r.raftLog.committed, RequestCtx: m.Entries[0].Data})
 		}
 
-		return
+		return nil
 	}
 
 	// All other message types require a progress for m.From (pr).
 	pr := r.getProgress(m.From)
 	if pr == nil {
 		r.logger.Debugf("%x no progress available for %x", r.id, m.From)
-		return
+		return nil
 	}
 	switch m.Type {
 	case pb.MsgAppResp:
@@ -1001,12 +1036,12 @@ func stepLeader(r *raft, m pb.Message) {
 		}
 
 		if r.readOnly.option != ReadOnlySafe || len(m.Context) == 0 {
-			return
+			return nil
 		}
 
 		ackCount := r.readOnly.recvAck(m)
 		if ackCount < r.quorum() {
-			return
+			return nil
 		}
 
 		rss := r.readOnly.advance(m)
@@ -1020,7 +1055,7 @@ func stepLeader(r *raft, m pb.Message) {
 		}
 	case pb.MsgSnapStatus:
 		if pr.State != ProgressStateSnapshot {
-			return
+			return nil
 		}
 		if !m.Reject {
 			pr.becomeProbe()
@@ -1044,7 +1079,7 @@ func stepLeader(r *raft, m pb.Message) {
 	case pb.MsgTransferLeader:
 		if pr.IsLearner {
 			r.logger.Debugf("%x is learner. Ignored transferring leadership", r.id)
-			return
+			return nil
 		}
 		leadTransferee := m.From
 		lastLeadTransferee := r.leadTransferee
@@ -1052,14 +1087,14 @@ func stepLeader(r *raft, m pb.Message) {
 			if lastLeadTransferee == leadTransferee {
 				r.logger.Infof("%x [term %d] transfer leadership to %x is in progress, ignores request to same node %x",
 					r.id, r.Term, leadTransferee, leadTransferee)
-				return
+				return nil
 			}
 			r.abortLeaderTransfer()
 			r.logger.Infof("%x [term %d] abort previous transferring leadership to %x", r.id, r.Term, lastLeadTransferee)
 		}
 		if leadTransferee == r.id {
 			r.logger.Debugf("%x is already leader. Ignored transferring leadership to self", r.id)
-			return
+			return nil
 		}
 		// Transfer leadership to third party.
 		r.logger.Infof("%x [term %d] starts to transfer leadership to %x", r.id, r.Term, leadTransferee)
@@ -1073,11 +1108,13 @@ func stepLeader(r *raft, m pb.Message) {
 			r.sendAppend(leadTransferee)
 		}
 	}
+
+	return nil
 }
 
 // stepCandidate is shared by StateCandidate and StatePreCandidate; the difference is
 // whether they respond to MsgVoteResp or MsgPreVoteResp.
-func stepCandidate(r *raft, m pb.Message) {
+func stepCandidate(r *raft, m pb.Message) error {
 	// Only handle vote responses corresponding to our candidacy (while in
 	// StateCandidate, we may get stale MsgPreVoteResp messages in this term from
 	// our pre-candidate state).
@@ -1090,7 +1127,7 @@ func stepCandidate(r *raft, m pb.Message) {
 	switch m.Type {
 	case pb.MsgProp:
 		r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
-		return
+		return ErrProposalDropped
 	case pb.MsgApp:
 		r.becomeFollower(r.Term, m.From)
 		r.handleAppendEntries(m)
@@ -1117,17 +1154,19 @@ func stepCandidate(r *raft, m pb.Message) {
 	case pb.MsgTimeoutNow:
 		r.logger.Debugf("%x [term %d state %v] ignored MsgTimeoutNow from %x", r.id, r.Term, r.state, m.From)
 	}
+
+	return nil
 }
 
-func stepFollower(r *raft, m pb.Message) {
+func stepFollower(r *raft, m pb.Message) error {
 	switch m.Type {
 	case pb.MsgProp:
 		if r.lead == None {
 			r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
-			return
+			return ErrProposalDropped
 		} else if r.disableProposalForwarding {
 			r.logger.Infof("%x not forwarding to leader %x at term %d; dropping proposal", r.id, r.lead, r.Term)
-			return
+			return ErrProposalDropped
 		}
 		m.To = r.lead
 		r.send(m)
@@ -1146,7 +1185,7 @@ func stepFollower(r *raft, m pb.Message) {
 	case pb.MsgTransferLeader:
 		if r.lead == None {
 			r.logger.Infof("%x no leader at term %d; dropping leader transfer msg", r.id, r.Term)
-			return
+			return nil
 		}
 		m.To = r.lead
 		r.send(m)
@@ -1163,17 +1202,19 @@ func stepFollower(r *raft, m pb.Message) {
 	case pb.MsgReadIndex:
 		if r.lead == None {
 			r.logger.Infof("%x no leader at term %d; dropping index reading msg", r.id, r.Term)
-			return
+			return nil
 		}
 		m.To = r.lead
 		r.send(m)
 	case pb.MsgReadIndexResp:
 		if len(m.Entries) != 1 {
 			r.logger.Errorf("%x invalid format of MsgReadIndexResp from %x, entries count: %d", r.id, m.From, len(m.Entries))
-			return
+			return nil
 		}
 		r.readStates = append(r.readStates, ReadState{Index: m.Index, RequestCtx: m.Entries[0].Data})
 	}
+
+	return nil
 }
 
 func (r *raft) handleAppendEntries(m pb.Message) {
@@ -1209,6 +1250,12 @@ func (r *raft) handleSnapshot(m pb.Message) {
 	}
 }
 
+func (r *raft) initialized() bool {
+	// empty 'prs' and 'learnerPrs' means that
+	// this peer is newly created by conf change
+	return len(r.prs) > 0 || len(r.learnerPrs) > 0
+}
+
 // restore recovers the state machine from a snapshot. It restores the log and the
 // configuration of state machine.
 func (r *raft) restore(s pb.Snapshot) bool {
@@ -1220,16 +1267,6 @@ func (r *raft) restore(s pb.Snapshot) bool {
 			r.id, r.raftLog.committed, r.raftLog.lastIndex(), r.raftLog.lastTerm(), s.Metadata.Index, s.Metadata.Term)
 		r.raftLog.commitTo(s.Metadata.Index)
 		return false
-	}
-
-	// The normal peer can't become learner.
-	if !r.isLearner {
-		for _, id := range s.Metadata.ConfState.Learners {
-			if id == r.id {
-				r.logger.Errorf("%x can't become learner when restores snapshot [index: %d, term: %d]", r.id, s.Metadata.Index, s.Metadata.Term)
-				return false
-			}
-		}
 	}
 
 	r.logger.Infof("%x [commit: %d, lastindex: %d, lastterm: %d] starts to restore snapshot [index: %d, term: %d]",

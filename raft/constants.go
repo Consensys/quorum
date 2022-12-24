@@ -1,8 +1,6 @@
 package raft
 
-import (
-	etcdRaft "github.com/coreos/etcd/raft"
-)
+import "github.com/ethereum/go-ethereum/raft/etcd"
 
 const (
 	//protocolName           = "raft"
@@ -10,7 +8,7 @@ const (
 
 	//raftMsg = 0x00
 
-	minterRole = etcdRaft.LEADER
+	minterRole = etcd.LEADER
 	//verifierRole = etcdRaft.NOT_LEADER
 
 	// Raft's ticker interval
