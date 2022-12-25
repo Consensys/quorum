@@ -736,15 +736,13 @@ func (pm *ProtocolManager) serveLocalProposals() {
 				return
 			}
 
-			size, r, err := rlp.EncodeToReader(block)
+			data, err := rlp.EncodeToBytes(block)
 			if err != nil {
-				panic(fmt.Sprintf("error: failed to send RLP-encoded block: %s", err.Error()))
+				panic(fmt.Sprintf("error: failed to send RLP-encoded block: %v", err))
 			}
-			var buffer = make([]byte, uint32(size))
-			r.Read(buffer)
 
 			// blocks until accepted by the raft state machine
-			pm.rawNode().Propose(context.TODO(), buffer)
+			pm.rawNode().Propose(context.TODO(), data)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
 				log.Info("error: read from confChangeProposalC failed")

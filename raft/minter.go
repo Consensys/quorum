@@ -18,13 +18,13 @@ package raft
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -226,9 +226,9 @@ func throttle(rate time.Duration, f func()) func() {
 // This function spins continuously, blocking until a block should be created
 // (via requestMinting()). This is throttled by `minter.blockTime`:
 //
-//   1. A block is guaranteed to be minted within `blockTime` of being
-//      requested.
-//   2. We never mint a block more frequently than `blockTime`.
+//  1. A block is guaranteed to be minted within `blockTime` of being
+//     requested.
+//  2. We never mint a block more frequently than `blockTime`.
 func (minter *minter) mintingLoop() {
 	throttledMintNewBlock := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {
@@ -447,10 +447,9 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 	}
 
 	//build the extraSeal struct
-	raftIdString := hexutil.EncodeUint64(uint64(minter.eth.raftProtocolManager.raftId))
-
+	raftId := uint64(minter.eth.raftProtocolManager.raftId)
 	extra := extraSeal{
-		RaftId:    []byte(raftIdString[2:]), //remove the 0x prefix
+		RaftId:    strconv.AppendUint(make([]byte, 0, 8), raftId, 16),
 		Signature: sig,
 	}
 

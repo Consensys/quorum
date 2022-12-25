@@ -24,8 +24,6 @@ const (
 	snapshotPeriod = 250
 
 	//peerUrlKeyPrefix = "peerUrl-"
-
-	chainExtensionMessage = "Successfully extended chain"
 )
 
 var (
