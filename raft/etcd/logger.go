@@ -16,7 +16,6 @@ package etcd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -45,7 +44,6 @@ func SetLogger(l Logger) { raftLogger = l }
 
 var (
 	defaultLogger = &DefaultLogger{Logger: log.New(os.Stderr, "raft", log.Ldate|log.Lmicroseconds)}
-	discardLogger = &DefaultLogger{Logger: log.New(ioutil.Discard, "", 0)}
 	raftLogger    = Logger(defaultLogger)
 )
 

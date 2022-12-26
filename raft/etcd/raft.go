@@ -38,7 +38,6 @@ const (
 	StateCandidate
 	StateLeader
 	StatePreCandidate
-	numStates
 )
 
 type ReadOnlyOption int
@@ -1248,12 +1247,6 @@ func (r *raft) handleSnapshot(m pb.Message) {
 			r.id, r.raftLog.committed, sindex, sterm)
 		r.send(pb.Message{To: m.From, Type: pb.MsgAppResp, Index: r.raftLog.committed})
 	}
-}
-
-func (r *raft) initialized() bool {
-	// empty 'prs' and 'learnerPrs' means that
-	// this peer is newly created by conf change
-	return len(r.prs) > 0 || len(r.learnerPrs) > 0
 }
 
 // restore recovers the state machine from a snapshot. It restores the log and the
