@@ -2362,7 +2362,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, tx.From(), RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2391,7 +2391,7 @@ func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Cont
 	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return "", err
 	}
-	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, tx.From(), RawTransaction)
 	if err != nil {
 		return "", err
 	}

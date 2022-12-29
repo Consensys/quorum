@@ -160,7 +160,7 @@ func (cc *CentralClient) toURLFromTemplate(pathTemplate string, definition *Plug
 	return cc.toURL(path.String())
 }
 
-// peform http GET to the target URL and write output to out
+// perform http GET to the target URL and write output to out
 func (cc *CentralClient) download(target string, out io.Writer) (err error) {
 	defer func(start time.Time) {
 		log.Debug("download completed", "url", target, "err", err, "took", time.Since(start))

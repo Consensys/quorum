@@ -214,7 +214,9 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	}
 
 	// Ensure that the block's timestamp isn't too close to it's parent
-	if parent.Time+e.cfg.GetConfig(parent.Number).BlockPeriod > header.Time {
+	// When the BlockPeriod is reduced it is reduced for the proposal.
+	// e.g when blockperiod is 1 from block 10 the block period between 9 and 10 is 1
+	if parent.Time+e.cfg.GetConfig(header.Number).BlockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
 	}
 
