@@ -1,6 +1,6 @@
 package raft
 
-import "github.com/ethereum/go-ethereum/raft/etcd"
+import etcd "github.com/ethereum/go-ethereum/raft/etcd/raft"
 
 const (
 	//protocolName           = "raft"

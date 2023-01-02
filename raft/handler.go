@@ -22,7 +22,7 @@ import (
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/ethereum/go-ethereum/raft/etcd"
+	etcd "github.com/ethereum/go-ethereum/raft/etcd/raft"
 	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/ethereum/go-ethereum/core"
