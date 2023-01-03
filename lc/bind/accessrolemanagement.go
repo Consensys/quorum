@@ -688,7 +688,7 @@ func (_AccessRoleManagement *AccessRoleManagementFilterer) FilterRoleAdminChange
 	return &AccessRoleManagementRoleAdminChangedIterator{contract: _AccessRoleManagement.contract, event: "RoleAdminChanged", logs: logs, sub: sub}, nil
 }
 
-// var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
+var RoleAdminChangedTopicHash = "0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff"
 
 // WatchRoleAdminChanged is a free log subscription operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
 //
@@ -852,7 +852,7 @@ func (_AccessRoleManagement *AccessRoleManagementFilterer) FilterRoleGranted(opt
 	return &AccessRoleManagementRoleGrantedIterator{contract: _AccessRoleManagement.contract, event: "RoleGranted", logs: logs, sub: sub}, nil
 }
 
-// var RoleGrantedTopicHash = "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d"
+var RoleGrantedTopicHash = "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d"
 
 // WatchRoleGranted is a free log subscription operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
 //
@@ -1016,7 +1016,7 @@ func (_AccessRoleManagement *AccessRoleManagementFilterer) FilterRoleRevoked(opt
 	return &AccessRoleManagementRoleRevokedIterator{contract: _AccessRoleManagement.contract, event: "RoleRevoked", logs: logs, sub: sub}, nil
 }
 
-// var RoleRevokedTopicHash = "0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b"
+var RoleRevokedTopicHash = "0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b"
 
 // WatchRoleRevoked is a free log subscription operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
 //

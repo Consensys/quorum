@@ -2,6 +2,11 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "_factory",
+                "type": "address"
+            },
+            {
                 "internalType": "string[]",
                 "name": "_orgs",
                 "type": "string[]"
@@ -52,6 +57,43 @@
         ],
         "name": "Approved",
         "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "name": "_hashToStage",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "stage",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "subStage",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "_owner",
+        "outputs": [
+            {
+                "internalType": "contract IFactory",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
     },
     {
         "inputs": [],
@@ -176,12 +218,12 @@
     },
     {
         "inputs": [],
-        "name": "closed",
+        "name": "factory",
         "outputs": [
             {
-                "internalType": "bool",
+                "internalType": "contract IFactory",
                 "name": "",
-                "type": "bool"
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -399,21 +441,28 @@
         "inputs": [
             {
                 "internalType": "bytes32",
-                "name": "",
+                "name": "_hash",
                 "type": "bytes32"
             }
         ],
         "name": "hashToStage",
         "outputs": [
             {
-                "internalType": "uint256",
-                "name": "stage",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "subStage",
-                "type": "uint256"
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "stage",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "subStage",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IStageContract.Stage",
+                "name": "",
+                "type": "tuple"
             }
         ],
         "stateMutability": "view",
@@ -433,13 +482,19 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "owner",
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_stage",
+                "type": "uint256"
+            }
+        ],
+        "name": "numOfSubStage",
         "outputs": [
             {
-                "internalType": "contract IFactory",
+                "internalType": "uint256",
                 "name": "",
-                "type": "address"
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",

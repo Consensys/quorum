@@ -2,7 +2,7 @@
     {
         "inputs": [
             {
-                "internalType": "address",
+                "internalType": "contract ILCManagement",
                 "name": "_management",
                 "type": "address"
             }
@@ -164,6 +164,30 @@
                 "internalType": "uint256",
                 "name": "_documentId",
                 "type": "uint256"
+            }
+        ],
+        "name": "getAmendmentCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "_totalAmendment",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_numOfRootAmendment",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
             },
             {
                 "internalType": "uint256",
@@ -313,6 +337,25 @@
                 "type": "uint256"
             }
         ],
+        "name": "getInvolvedParties",
+        "outputs": [
+            {
+                "internalType": "string[]",
+                "name": "",
+                "type": "string[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_documentId",
+                "type": "uint256"
+            }
+        ],
         "name": "getRootHash",
         "outputs": [
             {
@@ -435,7 +478,7 @@
     {
         "inputs": [
             {
-                "internalType": "address",
+                "internalType": "contract ILCManagement",
                 "name": "_management",
                 "type": "address"
             }
