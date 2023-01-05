@@ -30,7 +30,6 @@ type LcServiceApi struct {
 	upasLcFacSession     bindings.UPASLCFactorySession
 	modeSession          bindings.ModeSession
 	amendSession         bindings.AmendRequestSession
-	lcSession            func(lcAddr common.Address) (bindings.LCSession, error)
 	permInfSession       pbindings.PermInterfaceSession
 	addressConfig        Config
 }
@@ -89,6 +88,11 @@ type IAmendmentRequest struct {
 	AmendStage      IAmendRequestAmendStageParams `validate:"required,gt=1,dive,required"`
 	Confirmed       IConfirmedAmendment           `validate:"required"`
 	IsFulfilled     bool                          `validate:"required"`
+}
+
+type AmendmentCount struct {
+	TotalAmendment		*big.Int
+	NumOfRootAmendment	*big.Int
 }
 
 func (i IStageContractContentParams) toBindingStageContractContent() bindings.IStageContractContent {
@@ -225,18 +229,12 @@ func (s *LcServiceApi) GetNonce(_proposer common.Address) (*big.Int, error) {
 	return s.amendSession.Nonces(_proposer)
 }
 
-func (s *LcServiceApi) GetCounter(_documentId common.Hash) (*big.Int, error) {
-	lcAddr, err := s.routerServiceSession.GetAddress(_documentId.Big())
-	if err != nil {
-		return nil, fmt.Errorf("documentId not found %v", err)
-	}
+func (s *LcServiceApi) GetAmendmentCount(_documentId common.Hash) (AmendmentCount, error) {
+	return s.routerServiceSession.GetAmendmentCount(_documentId.Big())
+}
 
-	lcSession, err := s.lcSession(lcAddr.Contract)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load lc contract %v", err)
-	}
-
-	return lcSession.GetCounter()
+func (s *LcServiceApi) GetInvolvedParties(_documentId common.Hash) ([]string, error) {
+	return s.routerServiceSession.GetInvolvedParties(_documentId.Big())
 }
 
 // Transactions

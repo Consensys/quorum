@@ -26,20 +26,20 @@ var (
 	_ = event.NewSubscription
 )
 
-// // IStageContractContent is an auto generated low-level Go binding around an user-defined struct.
-// type IStageContractContent struct {
-// 	RootHash       [32]byte
-// 	SignedTime     *big.Int
-// 	PrevHash       [32]byte
-// 	NumOfDocuments *big.Int
-// 	ContentHash    [][32]byte
-// 	Url            string
-// 	Acknowledge    []byte
-// 	Signature      []byte
-// }
+// IStageContractContent is an auto generated low-level Go binding around an user-defined struct.
+type IStageContractContent struct {
+	RootHash       [32]byte
+	SignedTime     *big.Int
+	PrevHash       [32]byte
+	NumOfDocuments *big.Int
+	ContentHash    [][32]byte
+	Url            string
+	Acknowledge    []byte
+	Signature      []byte
+}
 
 // UPASLCFactoryABI is the input ABI used to generate the binding from.
-const UPASLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewUPASLC\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const UPASLCFactoryABI = "[{\"inputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"_management\",\"type\":\"address\"},{\"internalType\":\"contractIWrapper\",\"name\":\"_wrapper\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"documentID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"lcContractAddr\",\"type\":\"address\"}],\"name\":\"NewUPASLC\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"UPAS_WRAPPER\",\"outputs\":[{\"internalType\":\"contractIWrapper\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_executor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"},{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"}],\"name\":\"amend\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_parties\",\"type\":\"string[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"rootHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signedTime\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"prevHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"numOfDocuments\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"contentHash\",\"type\":\"bytes32[]\"},{\"internalType\":\"string\",\"name\":\"url\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"acknowledge\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"structIStageContract.Content\",\"name\":\"_content\",\"type\":\"tuple\"}],\"name\":\"create\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_documentId\",\"type\":\"uint256\"}],\"name\":\"getLCAddress\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"management\",\"outputs\":[{\"internalType\":\"contractILCManagement\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_management\",\"type\":\"address\"}],\"name\":\"setLCManagement\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 var UPASLCFactoryParsedABI, _ = abi.JSON(strings.NewReader(UPASLCFactoryABI))
 
@@ -183,6 +183,37 @@ func (_UPASLCFactory *UPASLCFactoryTransactorRaw) Transfer(opts *bind.TransactOp
 // Transact invokes the (paid) contract method with params as input values.
 func (_UPASLCFactory *UPASLCFactoryTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _UPASLCFactory.Contract.contract.Transact(opts, method, params...)
+}
+
+// UPASWRAPPER is a free data retrieval call binding the contract method 0x1134edd3.
+//
+// Solidity: function UPAS_WRAPPER() view returns(address)
+func (_UPASLCFactory *UPASLCFactoryCaller) UPASWRAPPER(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _UPASLCFactory.contract.Call(opts, &out, "UPAS_WRAPPER")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// UPASWRAPPER is a free data retrieval call binding the contract method 0x1134edd3.
+//
+// Solidity: function UPAS_WRAPPER() view returns(address)
+func (_UPASLCFactory *UPASLCFactorySession) UPASWRAPPER() (common.Address, error) {
+	return _UPASLCFactory.Contract.UPASWRAPPER(&_UPASLCFactory.CallOpts)
+}
+
+// UPASWRAPPER is a free data retrieval call binding the contract method 0x1134edd3.
+//
+// Solidity: function UPAS_WRAPPER() view returns(address)
+func (_UPASLCFactory *UPASLCFactoryCallerSession) UPASWRAPPER() (common.Address, error) {
+	return _UPASLCFactory.Contract.UPASWRAPPER(&_UPASLCFactory.CallOpts)
 }
 
 // GetLCAddress is a free data retrieval call binding the contract method 0x793e97c6.

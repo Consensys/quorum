@@ -2,8 +2,13 @@
     {
         "inputs": [
             {
-                "internalType": "address",
+                "internalType": "contract ILCManagement",
                 "name": "_management",
+                "type": "address"
+            },
+            {
+                "internalType": "contract IWrapper",
+                "name": "_wrapper",
                 "type": "address"
             }
         ],
@@ -34,6 +39,19 @@
         ],
         "name": "NewStandardLC",
         "type": "event"
+    },
+    {
+        "inputs": [],
+        "name": "STANDARD_WRAPPER",
+        "outputs": [
+            {
+                "internalType": "contract IWrapper",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
     },
     {
         "inputs": [
