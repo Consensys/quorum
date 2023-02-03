@@ -23,6 +23,8 @@ linters:
     - unconvert
     # - unused
     - varcheck
+    - typecheck
+
 
 linters-settings:
   gofmt:
@@ -32,6 +34,7 @@ linters-settings:
     min-occurrences: 6 # minimum number of occurrences
 
 issues:
+  new-from-rev: c4e9657
   exclude-rules:
     - path: crypto/blake2b/
       linters:
