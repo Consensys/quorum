@@ -130,7 +130,6 @@ type invalidPluginTemplateNoPointer struct {
 }
 
 type invalidPluginTemplate struct {
-	someField int
 }
 
 func (i invalidPluginTemplate) Start() error {

@@ -115,7 +115,6 @@ func TestMultiplePSMRStateCreated(t *testing.T) {
 			ps2, _ := privateStateRepo.StatePSI(types.PrivateStateIdentifier("psi2"))
 			assert.True(t, ps2.Exist(expectedContractAddress))
 			assert.NotEqual(t, ps2.GetCodeSize(expectedContractAddress), 0)
-
 		}
 		//CommitAndWrite to db
 		privateStateRepo.CommitAndWrite(false, block)

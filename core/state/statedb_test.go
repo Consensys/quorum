@@ -294,7 +294,6 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "SetPrivacyMetadata",
 			fn: func(a testAction, s *StateDB) {
-
 				privFlag := engine.PrivacyFlagType((uint64(a.args[0])%2)*2 + 1) // the only possible values should be 1 and 3
 				b := make([]byte, 8)
 				binary.BigEndian.PutUint64(b, uint64(a.args[1]))
@@ -719,7 +718,6 @@ func TestDeleteCreateRevert(t *testing.T) {
 // the Commit operation fails with an error
 // If we are missing trie nodes, we should not continue writing to the trie
 func TestMissingTrieNodes(t *testing.T) {
-
 	// Create an initial state with a few accounts
 	memDb := rawdb.NewMemoryDatabase()
 	db := NewDatabase(memDb)

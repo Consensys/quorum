@@ -72,11 +72,9 @@ func TestSignHeader(t *testing.T) {
 	if pubKey.X.Cmp(nodeKey.X) != 0 {
 		t.Errorf("Signature incorrect!")
 	}
-
 }
 
 func TestAddLearner_whenTypical(t *testing.T) {
-
 	raftService := newTestRaftService(t, 1, []uint64{1}, []uint64{})
 
 	propPeer := func() {
@@ -126,7 +124,6 @@ func TestPromoteLearnerToPeer_whenTypical(t *testing.T) {
 }
 
 func TestAddLearnerOrPeer_fromLearner(t *testing.T) {
-
 	raftService := newTestRaftService(t, 3, []uint64{2}, []uint64{3})
 
 	_, err := raftService.raftProtocolManager.ProposeNewPeer(TEST_URL, true)
@@ -148,7 +145,6 @@ func TestAddLearnerOrPeer_fromLearner(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "learner node can't add peer or learner") {
 		t.Errorf("expect error message: propose new peer failed, got: %v\n", err)
 	}
-
 }
 
 func TestPromoteLearnerToPeer_fromLearner(t *testing.T) {
@@ -164,7 +160,6 @@ func TestPromoteLearnerToPeer_fromLearner(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "learner node can't promote to peer") {
 		t.Errorf("expect error message: propose new peer failed, got: %v\n", err)
 	}
-
 }
 
 func enodeId(id string, ip string, raftPort int) string {

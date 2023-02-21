@@ -427,7 +427,7 @@ func (t *Transaction) AccessList(ctx context.Context) (*[]*AccessTuple, error) {
 	for _, al := range accessList {
 		ret = append(ret, &AccessTuple{
 			address:     al.Address,
-			storageKeys: &al.StorageKeys,
+			storageKeys: &al.StorageKeys, // nolint:exportloopref
 		})
 	}
 	return &ret, nil

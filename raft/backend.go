@@ -2,7 +2,6 @@ package raft
 
 import (
 	"crypto/ecdsa"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -22,7 +21,6 @@ import (
 type RaftService struct {
 	blockchain     *core.BlockChain
 	chainDb        ethdb.Database // Block chain database
-	txMu           sync.Mutex
 	txPool         *core.TxPool
 	accountManager *accounts.Manager
 	downloader     *downloader.Downloader

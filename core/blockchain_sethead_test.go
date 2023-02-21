@@ -53,6 +53,7 @@ type rewindTest struct {
 	expHeadBlock       uint64 // Block number of the expected head full block
 }
 
+//nolint:unused
 func (tt *rewindTest) dump(crash bool) string {
 	buffer := new(strings.Builder)
 

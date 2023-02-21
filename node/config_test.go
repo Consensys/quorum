@@ -75,7 +75,7 @@ func TestDatadirCreation(t *testing.T) {
 	defer os.Remove(file.Name())
 
 	dir = filepath.Join(file.Name(), "invalid/path")
-	node, err = New(&Config{DataDir: dir})
+	_, err = New(&Config{DataDir: dir})
 	if err == nil {
 		t.Fatalf("protocol stack created with an invalid datadir")
 		if err := node.Close(); err != nil {
@@ -212,7 +212,6 @@ func TestConfig_ResolvePluginBaseDir_whenBaseDirExists(t *testing.T) {
 }
 
 // Quorum
-//
 func TestConfig_IsPermissionEnabled_whenTypical(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "q-")
 	if err != nil {
@@ -233,7 +232,6 @@ func TestConfig_IsPermissionEnabled_whenTypical(t *testing.T) {
 }
 
 // Quorum
-//
 func TestConfig_IsPermissionEnabled_whenPermissionedFlagIsFalse(t *testing.T) {
 	testObject := &Config{
 		EnableNodePermission: false,
@@ -243,7 +241,6 @@ func TestConfig_IsPermissionEnabled_whenPermissionedFlagIsFalse(t *testing.T) {
 }
 
 // Quorum
-//
 func TestConfig_IsPermissionEnabled_whenPermissionConfigIsNotAvailable(t *testing.T) {
 	testObject := &Config{
 		EnableNodePermission: true,

@@ -292,7 +292,6 @@ func TestSnappyDetection(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 	}
-
 }
 func assertFileSize(f string, size int64) error {
 	stat, err := os.Stat(f)
@@ -303,7 +302,6 @@ func assertFileSize(f string, size int64) error {
 		return fmt.Errorf("error, expected size %d, got %d", size, stat.Size())
 	}
 	return nil
-
 }
 
 // TestFreezerRepairDanglingIndex checks that if the index has more entries than there are data,
@@ -365,7 +363,6 @@ func TestFreezerRepairDanglingIndex(t *testing.T) {
 }
 
 func TestFreezerTruncate(t *testing.T) {
-
 	t.Parallel()
 	rm, wm, sg := metrics.NewMeter(), metrics.NewMeter(), metrics.NewGauge()
 	fname := fmt.Sprintf("truncation-%d", rand.Uint64())
@@ -401,9 +398,7 @@ func TestFreezerTruncate(t *testing.T) {
 		if f.headBytes != 15 {
 			t.Fatalf("expected %d bytes, got %d", 15, f.headBytes)
 		}
-
 	}
-
 }
 
 // TestFreezerRepairFirstFile tests a head file with the very first item only half-written.
@@ -567,7 +562,6 @@ func TestOffset(t *testing.T) {
 		// Need to truncate the moved index items
 		indexFile.Truncate(indexEntrySize * (1 + 2))
 		indexFile.Close()
-
 	}
 	// Now open again
 	checkPresent := func(numDeleted uint64) {

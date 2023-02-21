@@ -2,7 +2,6 @@ package qlight
 
 import (
 	"math/big"
-	"sync"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,12 +35,10 @@ type Peer struct {
 
 	EthPeer *eth.Peer
 
-	knownBlocks     mapset.Set             // Set of block hashes known to be known by this peer
-	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer
-	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer
+	knownBlocks  mapset.Set             // Set of block hashes known to be known by this peer
+	queuedBlocks chan *blockPropagation // Queue of blocks to broadcast to the peer
 
 	term chan struct{} // Termination channel to stop the broadcasters
-	lock sync.RWMutex  // Mutex protecting the internal fields
 
 	qlightServer bool
 	qlightPSI    string

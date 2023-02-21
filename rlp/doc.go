@@ -27,8 +27,7 @@ value zero equivalent to the empty string).
 RLP values are distinguished by a type tag. The type tag precedes the value in the input
 stream and defines the size and kind of the bytes that follow.
 
-
-Encoding Rules
+# Encoding Rules
 
 Package rlp uses reflection and encodes RLP based on the Go type of the value.
 
@@ -58,8 +57,7 @@ An interface value encodes as the value contained in the interface.
 
 Floating point numbers, maps, channels and functions are not supported.
 
-
-Decoding Rules
+# Decoding Rules
 
 Decoding uses the following type-dependent rules:
 
@@ -93,14 +91,13 @@ or one (true).
 
 To decode into an interface value, one of these types is stored in the value:
 
-	  []interface{}, for RLP lists
-	  []byte, for RLP strings
+	[]interface{}, for RLP lists
+	[]byte, for RLP strings
 
 Non-empty interface types are not supported when decoding.
 Signed integers, floating point numbers, maps, channels and functions cannot be decoded into.
 
-
-Struct Tags
+# Struct Tags
 
 Package rlp honours certain struct tags: "-", "tail", "nil", "nilList" and "nilString".
 
@@ -113,9 +110,9 @@ The "nil" tag applies to pointer-typed fields and changes the decoding rules for
 such that input values of size zero decode as a nil pointer. This tag can be useful when
 decoding recursive types.
 
-    type StructWithOptionalFoo struct {
-        Foo *[20]byte `rlp:"nil"`
-    }
+	type StructWithOptionalFoo struct {
+	    Foo *[20]byte `rlp:"nil"`
+	}
 
 RLP supports two kinds of empty values: empty lists and empty strings. When using the
 "nil" tag, the kind of empty value allowed for a type is chosen automatically. A struct

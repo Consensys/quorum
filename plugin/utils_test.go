@@ -71,14 +71,12 @@ func TestResolveFilePath_whenInvalidFileURI(t *testing.T) {
 }
 
 func TestVerify_whenTypicalWithBintraySigner(t *testing.T) {
-
 	err := verify(validSignatureSignedByBintray, bintrayPublicKey, arbitrarySHA256checksum)
 
 	assert.NoError(t, err)
 }
 
 func TestVerify_whenTypicalWithStandardSigner(t *testing.T) {
-
 	err := verify(validSignature, signerPubKey, arbitraryChecksum)
 
 	assert.NoError(t, err)

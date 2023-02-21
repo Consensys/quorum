@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	testifyassert "github.com/stretchr/testify/assert"
 )
@@ -90,7 +91,7 @@ func TestVerifyAccess_whenWildcardMatch(t *testing.T) {
 
 func TestVerifyExpiration_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Minute))
+	expiredAt := timestamppb.New(time.Now().Add(1 * time.Minute))
 	assert.NoError(verifyExpiration(&proto.PreAuthenticatedAuthenticationToken{
 		ExpiredAt: expiredAt,
 	}))
@@ -98,7 +99,7 @@ func TestVerifyExpiration_whenTypical(t *testing.T) {
 
 func TestVerifyExpiration_whenExpired(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(-1 * time.Minute))
+	expiredAt := timestamppb.New(time.Now().Add(-1 * time.Minute))
 	assert.Error(verifyExpiration(&proto.PreAuthenticatedAuthenticationToken{
 		ExpiredAt: expiredAt,
 	}))
@@ -139,7 +140,7 @@ func TestSecureCall_whenThereIsAuthenticationError(t *testing.T) {
 
 func TestSecureCall_whenTokenExpired(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(-1 * time.Hour))
+	expiredAt := timestamppb.New(time.Now().Add(-1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
 		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
@@ -153,7 +154,7 @@ func TestSecureCall_whenTokenExpired(t *testing.T) {
 
 func TestSecureCall_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
+	expiredAt := timestamppb.New(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
 		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
@@ -173,7 +174,7 @@ func TestSecureCall_whenTypical(t *testing.T) {
 
 func TestSecureCall_whenAccessDenied(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
+	expiredAt := timestamppb.New(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
 		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,
@@ -193,7 +194,7 @@ func TestSecureCall_whenAccessDenied(t *testing.T) {
 
 func TestSecureCall_whenMethodInJSONMessageIsNotSupported(t *testing.T) {
 	assert := testifyassert.New(t)
-	expiredAt, _ := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
+	expiredAt := timestamppb.New(time.Now().Add(1 * time.Hour))
 	stubSecurityContextResolver := newStubSecurityContextResolver([]struct{ k, v interface{} }{
 		{ctxPreauthenticatedToken, &proto.PreAuthenticatedAuthenticationToken{
 			ExpiredAt: expiredAt,

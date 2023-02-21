@@ -60,7 +60,6 @@ func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, plugi
 		pluginDefinition: &pluginDefinition,
 		gateways:         gateways,
 	}, nil
-
 }
 
 // metadata.Command must be populated correctly here

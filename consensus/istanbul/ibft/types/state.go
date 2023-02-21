@@ -24,9 +24,10 @@ func (s State) String() string {
 }
 
 // Cmp compares s and y and returns:
-//   -1 if s is the previous state of y
-//    0 if s and y are the same state
-//   +1 if s is the next state of y
+//
+//	-1 if s is the previous state of y
+//	 0 if s and y are the same state
+//	+1 if s is the next state of y
 func (s State) Cmp(y State) int {
 	if uint64(s) < uint64(y) {
 		return -1

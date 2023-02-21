@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//Quorum - test key constant values modified by Quorum
+// Quorum - test key constant values modified by Quorum
 func TestQuorumParams(t *testing.T) {
 	type data struct {
 		actual   uint64

@@ -38,14 +38,11 @@ func isNodePermissionedV2(node *enode.Node, nodename string, currentNode string,
 		log.Debug("isNodePermissionedV2", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
 	} else {
 		log.Debug("isNodePermissionedV2", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
-
 	}
 	return allowed
-
 }
 
 func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
-
 	//if we have not reached QIP714 block return full access
 	if !core.PermissionsEnabled() {
 		return core.IsNodePermissioned(nodename, currentNode, datadir, direction)

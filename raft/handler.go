@@ -478,7 +478,6 @@ func (pm *ProtocolManager) startRaft() {
 	pm.wal = loadedWal
 
 	if walExisted {
-
 		// If we shutdown but didn't manage to flush the state to disk, then it will be the case that we will only sync
 		// up to the snapshot. In this case, we can replay the raft entries that we have in saved to replay the blocks
 		// back into our chain. We output errors but cannot do much if one occurs, since we can't fork to a different

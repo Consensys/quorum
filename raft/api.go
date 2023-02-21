@@ -72,7 +72,6 @@ func (s *PublicRaftAPI) RemovePeer(raftId uint16) error {
 }
 
 func (s *PublicRaftAPI) Leader() (string, error) {
-
 	addr, err := s.raftService.raftProtocolManager.LeaderAddress()
 	if err != nil {
 		return "", err

@@ -63,7 +63,6 @@ func (p *SignedRoundChangePayload) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(
 		w,
 		[]interface{}{encodedPayload, p.signature})
-
 }
 
 func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {

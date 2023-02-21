@@ -252,7 +252,7 @@ func TestFlagsConfig(t *testing.T) {
 		case cli.UintFlag:
 			set.Uint(f.Name, f.Value+10, f.Usage)
 		default:
-			t.Log(fmt.Sprintf("unknown %t", f))
+			t.Logf("unknown %t", f)
 			t.Fail()
 		}
 	}

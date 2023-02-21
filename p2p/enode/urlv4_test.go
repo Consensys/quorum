@@ -18,7 +18,6 @@ package enode
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"net"
 	"reflect"
 	"strings"
@@ -29,12 +28,7 @@ import (
 )
 
 func init() {
-	lookupIPFunc = func(name string) ([]net.IP, error) {
-		if name == "node.example.org" {
-			return []net.IP{{33, 44, 55, 66}}, nil
-		}
-		return nil, errors.New("no such host")
-	}
+
 }
 
 var parseNodeTests = []struct {

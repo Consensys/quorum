@@ -612,8 +612,8 @@ func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Addre
 	return state.DumpAccount{}, errors.New("error retrieving state")
 }
 
-//Taken from DumpBlock, as it was reused in DumpAddress.
-//Contains modifications from the original to return the private state db, as well as public.
+// Taken from DumpBlock, as it was reused in DumpAddress.
+// Contains modifications from the original to return the private state db, as well as public.
 func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
 	psm, err := api.eth.blockchain.PrivateStateManager().ResolveForUserContext(ctx)
 	if err != nil {

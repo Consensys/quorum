@@ -489,7 +489,6 @@ func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 
 	if testObject.permCtrl.IsV2Permission() {
-
 		acct := getArbitraryAccount()
 		txa := ethapi.SendTxArgs{From: guardianAddress}
 		payload := hexutil.Bytes(([]byte("0x43d3e767000000000000000000000000000000000000000000000000000000000000000a"))[:])
@@ -552,12 +551,9 @@ func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 				testTransactionAllowed(t, testObject, transactionTxa, false)
 				testTransactionAllowed(t, testObject, contractCallTxa, true)
 				testTransactionAllowed(t, testObject, contractCreateTxa, true)
-
 			}
-
 		}
 	}
-
 }
 
 func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
@@ -808,7 +804,6 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 0)
-
 }
 
 func TestParsePermissionConfig(t *testing.T) {

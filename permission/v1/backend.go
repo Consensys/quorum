@@ -324,7 +324,6 @@ func (b *Backend) GetRoleService(transactOpts *bind.TransactOpts, roleBackend pt
 		return nil, err
 	}
 	return &Role{Backend: backEnd}, nil
-
 }
 
 func (b *Backend) GetOrgService(transactOpts *bind.TransactOpts, orgBackend ptype.ContractBackend) (ptype.OrgService, error) {
@@ -333,7 +332,6 @@ func (b *Backend) GetOrgService(transactOpts *bind.TransactOpts, orgBackend ptyp
 		return nil, err
 	}
 	return &Org{Backend: backEnd}, nil
-
 }
 
 func (b *Backend) GetNodeService(transactOpts *bind.TransactOpts, nodeBackend ptype.ContractBackend) (ptype.NodeService, error) {
@@ -342,7 +340,6 @@ func (b *Backend) GetNodeService(transactOpts *bind.TransactOpts, nodeBackend pt
 		return nil, err
 	}
 	return &Node{Backend: backEnd}, nil
-
 }
 
 func (b *Backend) GetAccountService(transactOpts *bind.TransactOpts, accountBackend ptype.ContractBackend) (ptype.AccountService, error) {
@@ -351,7 +348,6 @@ func (b *Backend) GetAccountService(transactOpts *bind.TransactOpts, accountBack
 		return nil, err
 	}
 	return &Account{Backend: backEnd}, nil
-
 }
 
 func (b *Backend) GetAuditService(auditBackend ptype.ContractBackend) (ptype.AuditService, error) {
@@ -360,7 +356,6 @@ func (b *Backend) GetAuditService(auditBackend ptype.ContractBackend) (ptype.Aud
 		return nil, err
 	}
 	return &Audit{Backend: backEnd}, nil
-
 }
 
 func (b *Backend) GetControlService(controlBackend ptype.ContractBackend) (ptype.ControlService, error) {

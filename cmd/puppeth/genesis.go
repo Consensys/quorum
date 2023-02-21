@@ -222,7 +222,6 @@ func (spec *alethGenesisSpec) setAccount(address common.Address, account core.Ge
 	}
 	a.Balance = (*math2.HexOrDecimal256)(account.Balance)
 	a.Nonce = account.Nonce
-
 }
 
 // parityChainSpec is the chain specification format used by Parity.

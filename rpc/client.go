@@ -194,7 +194,7 @@ func ClientFromContext(ctx context.Context) (*Client, bool) {
 }
 
 // Quorum
-//   1. Enrich client with PSIProviderFunc if found in the init context
+//  1. Enrich client with PSIProviderFunc if found in the init context
 func newClient(initctx context.Context, connect reconnectFunc) (*Client, error) {
 	conn, err := connect(initctx)
 	if err != nil {
