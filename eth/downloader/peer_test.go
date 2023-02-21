@@ -49,5 +49,4 @@ func TestPeerThroughputSorting(t *testing.T) {
 	if got, exp := sortPeers.p[2].id, "b"; got != exp {
 		t.Errorf("sort fail, got %v exp %v", got, exp)
 	}
-
 }

@@ -61,7 +61,6 @@ func (f *fuzzer) readInt() uint64 {
 }
 
 func (f *fuzzer) randomTrie(n int) (*trie.Trie, map[string]*kv) {
-
 	trie := new(trie.Trie)
 	vals := make(map[string]*kv)
 	size := f.readInt()
@@ -163,7 +162,6 @@ func (f *fuzzer) fuzz() int {
 			// Modify something in the proof db
 			// add stuff to proof db
 			// drop stuff from proof db
-
 		}
 		if f.exhausted {
 			break

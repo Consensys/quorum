@@ -53,7 +53,6 @@ func TestLegacyPrivateStateCreated(t *testing.T) {
 			assert.NotEqual(t, defaultPrivateState.GetCodeSize(expectedContractAddress), 0)
 			_, err := privateStateRepo.StatePSI(types.PrivateStateIdentifier("empty"))
 			assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
-
 		}
 		//CommitAndWrite to db
 		privateStateRepo.CommitAndWrite(false, block)

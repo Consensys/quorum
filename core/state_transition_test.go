@@ -90,14 +90,6 @@ func (c *contract) set(value int64) []byte {
 	return bytes
 }
 
-func (c *contract) get() []byte {
-	bytes, err := c.abi.Pack("get")
-	if err != nil {
-		panic("can't pack: " + err.Error())
-	}
-	return bytes
-}
-
 func init() {
 	log.PrintOrigins(true)
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
@@ -976,7 +968,6 @@ func calcAccMR(entries ...accEntry) (common.Hash, error) {
 }
 
 type config struct {
-	from  common.Address
 	to    *common.Address
 	data  []byte
 	nonce uint64

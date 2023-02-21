@@ -53,7 +53,7 @@ func buildCacheProviderTestChain(n int, config *params.ChainConfig, quorumChainC
 
 	// recreate the DB so that we don't have the public state written already by the block generation logic
 	testdb = rawdb.NewMemoryDatabase()
-	genesis = GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
+	GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
 
 	// disable snapshots
 	testingCacheConfig := &CacheConfig{

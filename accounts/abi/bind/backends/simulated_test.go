@@ -78,7 +78,7 @@ func TestSimulatedBackend(t *testing.T) {
 	}
 
 	sim.Commit()
-	tx, isPending, err = sim.TransactionByHash(context.Background(), txHash)
+	_, isPending, err = sim.TransactionByHash(context.Background(), txHash)
 	if err != nil {
 		t.Fatalf("error getting transaction with hash: %v", txHash.String())
 	}
@@ -621,8 +621,7 @@ func TestSimulatedBackend_HeaderByNumber(t *testing.T) {
 	}
 	if latestBlockHeader == nil {
 		t.Errorf("received a nil block header")
-	}
-	if latestBlockHeader.Number.Uint64() != uint64(0) {
+	} else if latestBlockHeader.Number.Uint64() != uint64(0) {
 		t.Errorf("expected block header number 0, instead got %v", latestBlockHeader.Number.Uint64())
 	}
 

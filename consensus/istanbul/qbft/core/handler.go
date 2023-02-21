@@ -186,7 +186,6 @@ func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 	}
 
 	return c.handleDecodedMessage(m)
-
 }
 
 func (c *core) handleDecodedMessage(m qbfttypes.QBFTMessage) error {
@@ -309,10 +308,6 @@ func (c *core) currentLogger(state bool, msg qbfttypes.QBFTMessage) log.Logger {
 	}
 
 	return c.logger.New(logCtx...)
-}
-
-func (c *core) withState(logger log.Logger) log.Logger {
-	return logger.New("state", c.state)
 }
 
 func withMsg(logger log.Logger, msg qbfttypes.QBFTMessage) log.Logger {

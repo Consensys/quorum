@@ -65,7 +65,6 @@ func signTx(key *ecdsa.PrivateKey, signer Signer) (*Transaction, common.Address,
  * $> go test -run TestSignQuorumHomesteadPublic
  */
 func TestSignQuorumHomesteadPublic(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -93,7 +92,6 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
 	from, _ = Sender(homeSinger, signedTx)
 	//fmt.Printf("from [%v] == addr [%v]\n", from, from == addr)
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
-
 }
 
 /**
@@ -110,7 +108,6 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155Public
  */
 func TestSignQuorumEIP155Public(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -150,7 +147,6 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 	from, _ = Sender(EIPsigner, signedTx)
 
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
-
 }
 
 /**
@@ -162,7 +158,6 @@ func TestSignQuorumEIP155Public(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155FailPublicChain1
  */
 func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -217,7 +212,6 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 
 	assert.False(from == addr, fmt.Sprintf("Expected the sender of a public TX from chainId 1, "+
 		"should not be recoverable from [%x] addr [%v] ", from, addr))
-
 }
 
 /*
@@ -245,7 +239,6 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 *  $> go test -run TestSignQuorumHomesteadEIP155SigningPrivateQuorum
 */
 func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	keys := []*big.Int{k0v, k1v}
@@ -270,7 +263,6 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
 		assert.Nil(err, err)
 		assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
 	}
-
 }
 
 /*
@@ -284,7 +276,6 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
  *  $> go test -run TestSignQuorumHomesteadOnlyPrivateQuorum
  */
 func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	// check even and odd parity
@@ -313,7 +304,6 @@ func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
 		assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. "+
 			" Got %x want %x", from, addr))
 	}
-
 }
 
 /*
@@ -329,7 +319,6 @@ func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155OnlyPrivateQuorum
  */
 func TestSignQuorumEIP155OnlyPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	// check even and odd parity
@@ -356,7 +345,5 @@ func TestSignQuorumEIP155OnlyPrivateQuorum(t *testing.T) {
 		assert.Nil(err, err)
 		assert.False(from == addr, fmt.Sprintf("Expected recovery to fail. from [%x] should not equal "+
 			"addr [%x]", from, addr))
-
 	}
-
 }

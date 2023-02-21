@@ -365,7 +365,6 @@ func (s *Suite) TestMaliciousTx_66(t *utesting.T) {
 		if err := sendConn.Write(&Transactions{tx}); err != nil {
 			t.Fatalf("could not write to connection: %v", err)
 		}
-
 	}
 	// check to make sure bad txs aren't propagated
 	waitForTxPropagation(t, s, badTxs, recvConn)

@@ -66,7 +66,6 @@ func (fbp *FileBasedPermissioning) IsNodePermissioned(nodename string, currentNo
 //for the timebeing to allow reload of the permissioned nodes while the server is running
 
 func (fbp *FileBasedPermissioning) ParsePermissionedNodes(DataDir string) []*enode.Node {
-
 	log.Debug("parsePermissionedNodes", "DataDir", DataDir, "file", fbp.PermissionFile)
 
 	path := filepath.Join(DataDir, fbp.PermissionFile)

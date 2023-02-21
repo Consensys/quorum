@@ -1041,7 +1041,7 @@ func (api *API) clearMessageDataIfNonParty(msg types.Message, psm *mps.PrivateSt
 	if msg.IsPrivate() {
 		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(msg.Data()))
 
-		if api.chainContext(nil).PrivateStateManager().NotIncludeAny(psm, managedParties...) {
+		if api.chainContext(context.TODO()).PrivateStateManager().NotIncludeAny(psm, managedParties...) {
 			return msg.WithEmptyPrivateData(true)
 		}
 	}

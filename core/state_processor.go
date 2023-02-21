@@ -67,7 +67,6 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // 2. On multiple private states (MPS) design
 // 3. Contract extension callback (p.bc.CheckAndSetPrivateState)
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, privateStateRepo mps.PrivateStateRepository, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
-
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -241,7 +240,6 @@ func ApplyTransactionOnMPS(config *params.ChainConfig, bc ChainContext, author *
 	publicStateDBFactory func() *state.StateDB, privateStateDBFactory func(psi types.PrivateStateIdentifier) (*state.StateDB, error),
 	header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config, privateStateRepo mps.PrivateStateRepository,
 	applyOnPartiesOnly bool, isInnerPrivateTxn bool) (*types.Receipt, error) {
-
 	mpsReceipt := &types.Receipt{
 		QuorumReceiptExtraData: types.QuorumReceiptExtraData{
 			PSReceipts: make(map[types.PrivateStateIdentifier]*types.Receipt),

@@ -179,7 +179,6 @@ func testTrustedAnnouncement(t *testing.T, protocol int) {
 		nodes     []*enode.Node
 		ids       []string
 		cpeers    []*clientPeer
-		speers    []*serverPeer
 	)
 	for i := 0; i < 10; i++ {
 		s, n, teardown := newTestServerPeer(t, 10, protocol)
@@ -211,12 +210,11 @@ func testTrustedAnnouncement(t *testing.T, protocol int) {
 
 	// Connect all server instances.
 	for i := 0; i < len(servers); i++ {
-		sp, cp, err := connect(servers[i].handler, nodes[i].ID(), c.handler, protocol)
+		_, cp, err := connect(servers[i].handler, nodes[i].ID(), c.handler, protocol)
 		if err != nil {
 			t.Fatalf("connect server and client failed, err %s", err)
 		}
 		cpeers = append(cpeers, cp)
-		speers = append(speers, sp)
 	}
 	c.handler.fetcher.noAnnounce = false
 

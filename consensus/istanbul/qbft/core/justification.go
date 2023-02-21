@@ -22,7 +22,6 @@ func isJustified(
 	roundChangeMessages []*qbfttypes.SignedRoundChangePayload,
 	prepareMessages []*qbfttypes.Prepare,
 	quorumSize int) error {
-
 	// Check the size of the set of ROUND-CHANGE messages
 	if len(roundChangeMessages) < quorumSize {
 		return errors.New("number of roundchange messages is less than required quorum of messages")
@@ -92,7 +91,6 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 // preparedRound and preparedBlockDigest of a ROUND-CHANGE qbfttypes.
 func hasMatchingRoundChangeAndPrepares(
 	roundChange *qbfttypes.RoundChange, prepareMessages []*qbfttypes.Prepare, quorumSize int) error {
-
 	if len(prepareMessages) < quorumSize {
 		return errors.New("number of prepare messages is less than quorum of messages")
 	}

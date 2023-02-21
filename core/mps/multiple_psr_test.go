@@ -16,7 +16,6 @@ import (
 // TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
 // the copy and their corresponding managed states independent of each other.
 func TestMultiplePSRCopy(t *testing.T) {
-
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
 	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
@@ -113,7 +112,6 @@ func TestMultiplePSRCopy(t *testing.T) {
 // TestMultiplePSRReset tests that state objects are cleared from all managedState statedbs after reset call
 // Any updated stateObjects not committed to statedbs before reset will be cleared
 func TestMultiplePSRReset(t *testing.T) {
-
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
 	privateCacheProvider := privatecache.NewPrivateCacheProvider(testdb, nil, testCache, false)
@@ -285,7 +283,6 @@ func TestMultiplePSRCommitAndWrite(t *testing.T) {
 
 // TestMultiplePSRIntroduceNewPrivateState tests that a newly introduced private state is branched from the empty state and maintained accordingly
 func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
-
 	testPS1 := types.PrivateStateIdentifier("PS1")
 	testPS2 := types.PrivateStateIdentifier("PS2")
 	testdb := rawdb.NewMemoryDatabase()
@@ -390,7 +387,6 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 
 // TestMultiplePSRRemovalFromPrivateState tests that exist no longer picks suicided accounts
 func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
-
 	testPS1 := types.PrivateStateIdentifier("PS1")
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
@@ -419,7 +415,7 @@ func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
 	psr, _ = NewMultiplePrivateStateRepository(testdb, testCache, rawdb.GetPrivateStatesTrieRoot(testdb, block1.Root()), privateCacheProvider)
 
 	testState1, _ = psr.StatePSI(testPS1)
-	emptyState, _ = psr.StatePSI(types.EmptyPrivateStateIdentifier)
+	_, _ = psr.StatePSI(types.EmptyPrivateStateIdentifier)
 
 	removedAddress := common.BytesToAddress([]byte{1})
 	testState1.Suicide(removedAddress)

@@ -218,7 +218,6 @@ func NewNodeCache(cacheSize int) *NodeCache {
 	nodeCache := NodeCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		nodeCache.evicted = true
-
 	}
 	nodeCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &nodeCache
@@ -396,7 +395,6 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 	// check if the node cache is evicted. if yes we need
 	// fetch the record from the contract
 	if n.evicted {
-
 		// call cache population function to populate from contract
 		nodeRec, err := n.populateCacheFunc(url)
 		if err != nil {
@@ -497,7 +495,6 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool, access AccessType, active bool) {
 	key := RoleKey{orgId, role}
 	r.c.Add(key, &RoleInfo{orgId, role, voter, admin, access, active})
-
 }
 
 func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
@@ -535,7 +532,6 @@ func (r *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-
 	// check if the org status is fine to do the transaction
 	a, _ := AcctInfoMap.GetAccount(acctId)
 	if a != nil && a.Status == AcctActive {

@@ -11,7 +11,6 @@ import (
 // means we get a effectively random hash, whilst also having a reference
 // transaction inside the PTM
 func generateUuid(contractAddress common.Address, privateFrom string, privateFor []string, ptm private.PrivateTransactionManager) (string, error) {
-
 	// to ensure recoverability , the UUID generation logic is as below:
 	// 1. Call Tessera to encrypt the management contract address
 	// 2. Send the encrypted payload to all participants on the contract extension

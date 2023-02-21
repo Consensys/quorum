@@ -165,7 +165,6 @@ func TestNodeInfoForRaftPort(t *testing.T) {
 	assert.Equal(t, net.IP(wantIP), node.IP(), "node ip mismatch")
 	assert.Equal(t, wantUdp, node.UDP(), "node UDP port mismatch")
 	assert.Equal(t, wantTcp, node.TCP(), "node TCP port mismatch")
-
 }
 
 // Quorum - test parsing url with hostname (if host is FQDN)

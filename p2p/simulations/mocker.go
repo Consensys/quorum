@@ -165,7 +165,6 @@ func probabilistic(net *Network, quit chan struct{}, nodeCount int) {
 		}
 		wg.Wait()
 	}
-
 }
 
 // connect nodeCount number of nodes in a ring

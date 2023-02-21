@@ -1233,7 +1233,6 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 			}
 			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil
 		}
-
 	}
 
 	//END QUORUM
@@ -2353,7 +2352,6 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 // SendRawPrivateTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
-
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(encodedTx); err != nil {
 		return common.Hash{}, err
@@ -2776,11 +2774,9 @@ type Async struct {
 }
 
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
-
 	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
 
 	if asyncArgs.CallbackUrl != "" {
-
 		//don't need to nil check this since id is required for every geth rpc call
 		//even though this is stated in the specification as an "optional" parameter
 		jsonId := ctx.Value("id").(*json.RawMessage)
@@ -2805,7 +2801,6 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 			return
 		}
 	}
-
 }
 
 func newAsync(n int) *Async {
@@ -2829,7 +2824,6 @@ var async = newAsync(100)
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
-
 	select {
 	case async.sem <- struct{}{}:
 		go func() {
@@ -3188,7 +3182,6 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 					error:  reasonError,
 					reason: hexutil.Encode(data),
 				}
-
 			}
 			return nil, common.Hash{}, err
 		}

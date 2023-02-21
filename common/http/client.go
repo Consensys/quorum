@@ -12,7 +12,6 @@ import (
 func CreateClient(cfg Config) (*engine.Client, error) {
 	var client *engine.Client
 	if IsSocketConfigured(cfg) {
-
 		log.Info("Connecting to private tx manager using IPC socket")
 		client = &engine.Client{
 			HttpClient: &http.Client{
@@ -20,9 +19,7 @@ func CreateClient(cfg Config) (*engine.Client, error) {
 			},
 			BaseURL: "http+unix://c",
 		}
-
 	} else {
-
 		transport := httpTransport(cfg)
 		if cfg.TlsMode == TlsOff {
 			log.Info("Connecting to private tx manager using HTTP")
@@ -42,7 +39,6 @@ func CreateClient(cfg Config) (*engine.Client, error) {
 			},
 			BaseURL: cfg.HttpUrl,
 		}
-
 	}
 
 	return client, nil

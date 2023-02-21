@@ -242,7 +242,6 @@ func (p *PermissionCtrl) populateRolesFromContract() error {
 				pcore.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, roleStruct.Admin, pcore.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
 			}
 		}
-
 	} else {
 		return err
 	}
@@ -266,7 +265,6 @@ func (p *PermissionCtrl) populateNodesFromContract() error {
 
 // populates the org details from contract into cache
 func (p *PermissionCtrl) populateOrgsFromContract() error {
-
 	if numberOfOrgs, err := p.contract.GetNumberOfOrgs(); err == nil {
 		iOrgNum := numberOfOrgs.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
@@ -360,7 +358,6 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*pcore.OrgInfo, error
 			return nil, err
 		}
 		orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
-
 	}
 	return &orgInfo, nil
 }

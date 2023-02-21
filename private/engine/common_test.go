@@ -62,7 +62,6 @@ func TestPrivacyFlag_whenMandatoryRecipients(t *testing.T) {
 	assert.NoError(flag.Validate())
 	assert.True(flag.Has(PrivacyFlagMandatoryRecipients))
 	assert.True(PrivacyFlagStateValidation.Has(flag))
-
 }
 
 func TestPrivacyFlagType_Validate_whenSuccess(t *testing.T) {

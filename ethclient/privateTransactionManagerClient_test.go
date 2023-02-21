@@ -50,7 +50,6 @@ func newStoreRawServer() *httptest.Server {
 		} else {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		}
-
 	})
 	return httptest.NewServer(mux)
 }

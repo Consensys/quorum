@@ -232,5 +232,4 @@ func gasSelfdestructEIP2929(evm *EVM, contract *Contract, stack *Stack, mem *Mem
 		evm.StateDB.AddRefund(params.SelfdestructRefundGas)
 	}
 	return gas, nil
-
 }

@@ -650,7 +650,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 
 func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	var r *core.RoleInfo
-	r, err := core.RoleInfoMap.GetRole(orgId, roleId)
+	_, err := core.RoleInfoMap.GetRole(orgId, roleId)
 	if err != nil {
 		return false
 	}

@@ -354,7 +354,6 @@ func (c *Console) Welcome() {
 
 // Get the consensus mechanism that is in use
 func (c *Console) getConsensus() string {
-
 	var nodeInfo struct {
 		Protocols struct {
 			Eth struct { // only partial of eth/handler.go#NodeInfo

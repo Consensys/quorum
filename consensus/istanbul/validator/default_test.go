@@ -50,7 +50,7 @@ func testNewValidatorSet(t *testing.T) {
 		key, _ := crypto.GenerateKey()
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		val := New(addr)
-		validators = append(validators, val)
+		_ = append(validators, val)
 		b = append(b, val.Address().Bytes()...)
 	}
 

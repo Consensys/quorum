@@ -85,16 +85,6 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 	return status, nil
 }
 
-// returns the contract being extended for the given management contract
-func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (common.Address, error) {
-	psiManagementContractClient := api.privacyService.managementContract(psi)
-	defer psiManagementContractClient.Close()
-	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
-	opts := bind.CallOpts{Pending: true, From: from}
-
-	return caller.ContractToExtend(&opts)
-}
-
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) (bool, error) {
 	// check if the passed contract is public contract

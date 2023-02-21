@@ -60,7 +60,6 @@ func (mc *mockCaller) PendingCallContract(ctx context.Context, call ethereum.Cal
 	return nil, nil
 }
 func TestPassingBlockNumber(t *testing.T) {
-
 	mc := &mockCaller{}
 
 	bc := bind.NewBoundContract(common.HexToAddress("0x0"), abi.ABI{

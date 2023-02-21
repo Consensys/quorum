@@ -79,7 +79,6 @@ func TestHandlePreprepare(t *testing.T) {
 							},
 							c.valSet,
 						)
-
 					} else {
 						c.current.SetSequence(big.NewInt(10))
 					}
@@ -201,7 +200,6 @@ OUTER:
 			if !test.existingBlock && !reflect.DeepEqual(subject, c.current.Subject()) {
 				t.Errorf("subject mismatch: have %v, want %v", subject, c.current.Subject())
 			}
-
 		}
 	}
 }

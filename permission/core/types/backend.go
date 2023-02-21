@@ -199,7 +199,6 @@ func UpdateFile(fileName, enodeId string, operation NodeOperation, createFile bo
 
 // this function populates the disallowed Node information into the disallowed-nodes.json file
 func UpdateDisallowedNodes(dataDir, url string, operation NodeOperation) error {
-
 	fileExists := true
 	path := filepath.Join(dataDir, params.DISALLOWED_CONFIG)
 	// Check if the file is existing. If the file is not existing create the file

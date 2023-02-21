@@ -623,7 +623,6 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			return
 		}
 	}
-
 }
 
 // deleteStateObject removes the given object from the state trie.

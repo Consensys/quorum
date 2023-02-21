@@ -221,7 +221,6 @@ func Main(ctx *cli.Context) error {
 	collector := make(Alloc)
 	state.DumpToCollector(collector, false, false, false, nil, -1)
 	return dispatchOutput(ctx, baseDir, result, collector, body)
-
 }
 
 // txWithKey is a helper-struct, to allow us to use the types.Transaction along with
