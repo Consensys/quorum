@@ -12,19 +12,20 @@ run:
 linters:
   disable-all: true
   enable:
-    - deadcode
     - goconst
     - goimports
     - gosimple
     - govet
     - ineffassign
     - misspell
-    # - staticcheck
     - unconvert
-    # - unused
-    - varcheck
     - typecheck
-
+    - unused
+    - staticcheck
+    - bidichk
+    - durationcheck
+    - exportloopref
+    - whitespace
 
 linters-settings:
   gofmt:
