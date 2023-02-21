@@ -197,7 +197,7 @@ func UpdateFile(fileName, enodeId string, operation NodeOperation, createFile bo
 	return err
 }
 
-//this function populates the disallowed Node information into the disallowed-nodes.json file
+// this function populates the disallowed Node information into the disallowed-nodes.json file
 func UpdateDisallowedNodes(dataDir, url string, operation NodeOperation) error {
 
 	fileExists := true

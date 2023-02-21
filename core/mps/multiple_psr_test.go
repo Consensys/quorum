@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
+// TestMultiplePSRCopy tests that copying a the PSR object indeed makes the original and
 // the copy and their corresponding managed states independent of each other.
 func TestMultiplePSRCopy(t *testing.T) {
 
@@ -110,8 +110,8 @@ func TestMultiplePSRCopy(t *testing.T) {
 	}
 }
 
-//TestMultiplePSRReset tests that state objects are cleared from all managedState statedbs after reset call
-//Any updated stateObjects not committed to statedbs before reset will be cleared
+// TestMultiplePSRReset tests that state objects are cleared from all managedState statedbs after reset call
+// Any updated stateObjects not committed to statedbs before reset will be cleared
 func TestMultiplePSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
@@ -166,7 +166,7 @@ func TestMultiplePSRReset(t *testing.T) {
 	assert.True(t, emptyState.Exist(addr))
 }
 
-//TestCreatingManagedStates tests that managed states are created and added to managedState map
+// TestCreatingManagedStates tests that managed states are created and added to managedState map
 func TestCreatingManagedStates(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
@@ -185,7 +185,7 @@ func TestCreatingManagedStates(t *testing.T) {
 	assert.NotContains(t, psr.managedStates, types.PrivateStateIdentifier("added"))
 }
 
-//TestMultiplePSRCommit tests that managedStates are updated, trie of states is updated but not written to db
+// TestMultiplePSRCommit tests that managedStates are updated, trie of states is updated but not written to db
 func TestMultiplePSRCommit(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
@@ -234,7 +234,7 @@ func TestMultiplePSRCommit(t *testing.T) {
 	assert.NotEqual(t, privRoot, emptyRoot)
 }
 
-//TestMultiplePSRCommitAndWrite tests that managedStates are updated, trie of states is updated and written to db
+// TestMultiplePSRCommitAndWrite tests that managedStates are updated, trie of states is updated and written to db
 func TestMultiplePSRCommitAndWrite(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
@@ -283,7 +283,7 @@ func TestMultiplePSRCommitAndWrite(t *testing.T) {
 	assert.NotEqual(t, privRoot, emptyRoot)
 }
 
-//TestMultiplePSRIntroduceNewPrivateState tests that a newly introduced private state is branched from the empty state and maintained accordingly
+// TestMultiplePSRIntroduceNewPrivateState tests that a newly introduced private state is branched from the empty state and maintained accordingly
 func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 
 	testPS1 := types.PrivateStateIdentifier("PS1")
@@ -388,7 +388,7 @@ func TestMultiplePSRIntroduceNewPrivateState(t *testing.T) {
 	assert.NotEqual(t, len(ps2RootHash), 0)
 }
 
-//TestMultiplePSRRemovalFromPrivateState tests that exist no longer picks suicided accounts
+// TestMultiplePSRRemovalFromPrivateState tests that exist no longer picks suicided accounts
 func TestMultiplePSRRemovalFromPrivateState(t *testing.T) {
 
 	testPS1 := types.PrivateStateIdentifier("PS1")

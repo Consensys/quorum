@@ -314,7 +314,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	assert.True(len(affectedCACreationTxHashes) == len(expectedCACreationTxHashes))
 }
 
-//mix and match flags
+// mix and match flags
 func TestSimulateExecution_PrivacyFlagPartyProtectionCallingStandardPrivateContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection

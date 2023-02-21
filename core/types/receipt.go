@@ -418,9 +418,9 @@ func CopyReceipts(receipts []*Receipt) []*Receipt {
 // DeriveFields fills the receipts with their computed fields based on consensus
 // data and contextual infos like containing block and transactions.
 // Quorum:
-// - Provide additional support for Multiple Private State and Privacy Marker Transactions,
-//   where the private receipts are held under the relevant receipt.PSReceipts
-// - Original DeriveFields func is now deriveFieldsOrig
+//   - Provide additional support for Multiple Private State and Privacy Marker Transactions,
+//     where the private receipts are held under the relevant receipt.PSReceipts
+//   - Original DeriveFields func is now deriveFieldsOrig
 func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
 	// Will work on a copy of Receipts so we don't modify the original receipts until the end
 	receiptsCopy := CopyReceipts(r)

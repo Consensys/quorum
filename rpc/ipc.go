@@ -47,8 +47,8 @@ func (s *Server) ServeListener(l net.Listener) error {
 // affect subsequent interactions with the client.
 //
 // Quorum
-// 1. Enrich the IPC client with PSI value returned by provider function, if found in the context.
-//    Here we have to use the id field in JSON message to carry the PSI value.
+//  1. Enrich the IPC client with PSI value returned by provider function, if found in the context.
+//     Here we have to use the id field in JSON message to carry the PSI value.
 func DialIPC(ctx context.Context, endpoint string) (*Client, error) {
 	ctx = resolvePSIProvider(ctx, endpoint)
 	client, err := newClient(ctx, func(ctx context.Context) (ServerCodec, error) {

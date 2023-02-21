@@ -13,10 +13,10 @@ import (
 // Returns true if the `proposal` is justified by the set `roundChangeMessages` of ROUND-CHANGE messages
 // and by the set `prepareMessages` of PREPARE messages.
 // For this we must either have:
-//     - a quorum of ROUND-CHANGE messages with preparedRound and preparedBlockDigest equal to nil; or
-//     - a ROUND-CHANGE message (1) whose preparedRound is not nil and is equal or higher than the
-//           preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
-//           preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
+//   - a quorum of ROUND-CHANGE messages with preparedRound and preparedBlockDigest equal to nil; or
+//   - a ROUND-CHANGE message (1) whose preparedRound is not nil and is equal or higher than the
+//     preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
+//     preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
 func isJustified(
 	proposal istanbul.Proposal,
 	roundChangeMessages []*qbfttypes.SignedRoundChangePayload,

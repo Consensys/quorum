@@ -325,7 +325,7 @@ func TestInvalidTransactions(t *testing.T) {
 	}
 }
 
-//Test for transactions that are only invalid on Quorum
+// Test for transactions that are only invalid on Quorum
 func TestQuorumInvalidTransactions(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
@@ -337,7 +337,7 @@ func TestQuorumInvalidTransactions(t *testing.T) {
 
 }
 
-//Test for transactions that are only invalid on Quorum
+// Test for transactions that are only invalid on Quorum
 func TestQuorumTransactionSizeLimitTransition(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
@@ -2217,7 +2217,7 @@ func setupNewTxPool(tt testPoolConfig) *TxPool {
 	return NewTxPool(testTxPoolConfig, chainConfig, blockchain)
 }
 
-//Checks that the EIP155 signer is assigned to the TxPool when eip155Block is different then null, even invalid config
+// Checks that the EIP155 signer is assigned to the TxPool when eip155Block is different then null, even invalid config
 func TestEIP155SignerOnTxPool(t *testing.T) {
 	var flagtests = []testPoolConfig{
 		{"hsnileip1550", nil, big.NewInt(0)},

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//Tests DefaultState, StatePSI, CommitAndWrite
+// Tests DefaultState, StatePSI, CommitAndWrite
 func TestLegacyPrivateStateCreated(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

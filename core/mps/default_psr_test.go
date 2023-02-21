@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//TestDefaultPSRCopy tests that copying a the PSR object indeed makes the original and
+// TestDefaultPSRCopy tests that copying a the PSR object indeed makes the original and
 // the copy and their states independent of each other.
 func TestDefaultPSRCopy(t *testing.T) {
 
@@ -70,8 +70,8 @@ func TestDefaultPSRCopy(t *testing.T) {
 	}
 }
 
-//TestDefaultPSRReset tests that state objects are cleared from statedb after reset call
-//Any updated stateObjects not committed before reset will be cleared
+// TestDefaultPSRReset tests that state objects are cleared from statedb after reset call
+// Any updated stateObjects not committed before reset will be cleared
 func TestDefaultPSRReset(t *testing.T) {
 
 	testdb := rawdb.NewMemoryDatabase()
@@ -114,7 +114,7 @@ func TestOnlyPrivateStateAccessible(t *testing.T) {
 	assert.Error(t, err, "only the 'private' psi is supported by the default private state manager")
 }
 
-//TestDefaultPSRCommitAndWrite tests that statedb is updated but not written to db
+// TestDefaultPSRCommitAndWrite tests that statedb is updated but not written to db
 func TestDefaultPSRCommit(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)
@@ -145,7 +145,7 @@ func TestDefaultPSRCommit(t *testing.T) {
 	assert.NotEqual(t, testRoot, common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
 }
 
-//TestDefaultPSRCommitAndWrite tests that statedb is updated and written to db
+// TestDefaultPSRCommitAndWrite tests that statedb is updated and written to db
 func TestDefaultPSRCommitAndWrite(t *testing.T) {
 	testdb := rawdb.NewMemoryDatabase()
 	testCache := state.NewDatabase(testdb)

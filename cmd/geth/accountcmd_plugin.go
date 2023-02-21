@@ -260,7 +260,6 @@ func (c *accountPlugin) accounts() []accounts.Account {
 // Instead of registering a plugin manager with the stack this is manually creating a plugin manager.
 // This means that the plugin manager can be started without having to start the whole stack (P2P client, IPC interface, ...).
 // The purpose of this is to help prevent issues/conflicts if an existing node is already running on this host.
-//
 func setupAccountPluginForCLI(ctx *cli.Context) (*accountPlugin, error) {
 	stack, cfg := makeConfigNodeDelegate.makeConfigNode(ctx)
 
