@@ -90,14 +90,6 @@ func (c *contract) set(value int64) []byte {
 	return bytes
 }
 
-func (c *contract) get() []byte {
-	bytes, err := c.abi.Pack("get")
-	if err != nil {
-		panic("can't pack: " + err.Error())
-	}
-	return bytes
-}
-
 func init() {
 	log.PrintOrigins(true)
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
@@ -358,8 +350,8 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1WithWrongMRFromTe
 	mockPM.Verify(assert)
 }
 
-//Limitation of design --if don't send privacyFlag can't be guaranteed to catch non-party
-//review this...
+// Limitation of design --if don't send privacyFlag can't be guaranteed to catch non-party
+// review this...
 func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_NoFlag_Succeed(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -556,8 +548,8 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPartyProtectionC
 	mockPM.Verify(assert)
 }
 
-//scenario where sender Q1 runs simulation which affects c2 and c1 privy for Q3 and Q7
-//Q3 receives block but wasn't privy to C1 so doesn't have creation info in tessera
+// scenario where sender Q1 runs simulation which affects c2 and c1 privy for Q3 and Q7
+// Q3 receives block but wasn't privy to C1 so doesn't have creation info in tessera
 func TestApplyMessage_Private_whenPartyProtectionC2AndC1ButMissingC1CreationInTessera_Fail(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -600,9 +592,9 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1ButMissingC1CreationInTe
 	mockPM.Verify(assert)
 }
 
-//scenario where the simulation is run on the Q1 (privatefor Q3 and Q7) and 3 contracts are affected (C2,C1,C0)
-//but now Q3 receives block and should be privy to all 3 given tessera response
-//but doesn't have C0 privacyMetadata stored in its db
+// scenario where the simulation is run on the Q1 (privatefor Q3 and Q7) and 3 contracts are affected (C2,C1,C0)
+// but now Q3 receives block and should be privy to all 3 given tessera response
+// but doesn't have C0 privacyMetadata stored in its db
 // UPDATE - after relaxing the ACOTH checks this is a valid scenario where C0 acoth is ignored if it isn't detected as an
 // affected contract during transaction execution
 func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InStateDB_Fail(t *testing.T) {
@@ -976,7 +968,6 @@ func calcAccMR(entries ...accEntry) (common.Hash, error) {
 }
 
 type config struct {
-	from  common.Address
 	to    *common.Address
 	data  []byte
 	nonce uint64

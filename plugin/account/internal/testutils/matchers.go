@@ -3,7 +3,7 @@ package testutils
 import (
 	"fmt"
 
-	protobuf "github.com/golang/protobuf/proto"
+	. "github.com/golang/protobuf/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 )
 
@@ -16,7 +16,7 @@ func (m StatusRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m StatusRequestMatcher) String() string {
@@ -32,7 +32,7 @@ func (m OpenRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m OpenRequestMatcher) String() string {
@@ -48,7 +48,7 @@ func (m CloseRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m CloseRequestMatcher) String() string {
@@ -64,7 +64,7 @@ func (m AccountsRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m AccountsRequestMatcher) String() string {
@@ -80,7 +80,7 @@ func (m ContainsRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m ContainsRequestMatcher) String() string {
@@ -96,7 +96,7 @@ func (m SignRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m SignRequestMatcher) String() string {
@@ -112,7 +112,7 @@ func (m UnlockAndSignRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m UnlockAndSignRequestMatcher) String() string {
@@ -128,7 +128,7 @@ func (m TimedUnlockRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m TimedUnlockRequestMatcher) String() string {
@@ -144,7 +144,7 @@ func (m LockRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m LockRequestMatcher) String() string {
@@ -160,7 +160,7 @@ func (m NewAccountRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m NewAccountRequestMatcher) String() string {
@@ -176,7 +176,7 @@ func (m ImportRawKeyRequestMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return protobuf.Equal(m.R, r)
+	return Equal(m.R, r)
 }
 
 func (m ImportRawKeyRequestMatcher) String() string {

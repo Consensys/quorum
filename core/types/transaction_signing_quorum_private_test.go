@@ -42,7 +42,6 @@ func signTxWithSigner(signer Signer, key *ecdsa.PrivateKey) (*Transaction, commo
 *  $> go test -run TestQuorumSignPrivateQuorum
  */
 func TestQuorumSignPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 	keys := []*big.Int{k0v, k1v}
 
@@ -59,5 +58,4 @@ func TestQuorumSignPrivateQuorum(t *testing.T) {
 		assert.Nil(err, err)
 		assert.True(from == addr, fmt.Sprintf("Expected from == address, [%x] == [%x]", from, addr))
 	}
-
 }

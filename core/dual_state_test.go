@@ -193,7 +193,6 @@ func TestStaticCall_whenPublicToPrivateInTheParty(t *testing.T) {
 }
 
 func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
-
 	db := rawdb.NewMemoryDatabase()
 
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)

@@ -325,7 +325,7 @@ func TestInvalidTransactions(t *testing.T) {
 	}
 }
 
-//Test for transactions that are only invalid on Quorum
+// Test for transactions that are only invalid on Quorum
 func TestQuorumInvalidTransactions(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
@@ -334,10 +334,9 @@ func TestQuorumInvalidTransactions(t *testing.T) {
 	if err := pool.AddRemote(tx); err != ErrInvalidGasPrice {
 		t.Error("expected", ErrInvalidGasPrice, "; got", err)
 	}
-
 }
 
-//Test for transactions that are only invalid on Quorum
+// Test for transactions that are only invalid on Quorum
 func TestQuorumTransactionSizeLimitTransition(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
@@ -356,7 +355,6 @@ func TestQuorumTransactionSizeLimitTransition(t *testing.T) {
 	if err := pool.AddRemote(tx); err != nil {
 		t.Error("expected no error; got", err)
 	}
-
 }
 
 func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
@@ -734,7 +732,6 @@ func TestTransactionPostponing(t *testing.T) {
 	// Add a batch consecutive pending transactions for validation
 	txs := []*types.Transaction{}
 	for i, key := range keys {
-
 		for j := 0; j < 100; j++ {
 			var tx *types.Transaction
 			if (i+j)%2 == 0 {
@@ -2217,7 +2214,7 @@ func setupNewTxPool(tt testPoolConfig) *TxPool {
 	return NewTxPool(testTxPoolConfig, chainConfig, blockchain)
 }
 
-//Checks that the EIP155 signer is assigned to the TxPool when eip155Block is different then null, even invalid config
+// Checks that the EIP155 signer is assigned to the TxPool when eip155Block is different then null, even invalid config
 func TestEIP155SignerOnTxPool(t *testing.T) {
 	var flagtests = []testPoolConfig{
 		{"hsnileip1550", nil, big.NewInt(0)},

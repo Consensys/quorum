@@ -197,7 +197,6 @@ func (c *Control) TransactionAllowed(_sender common.Address, _target common.Addr
 
 	default:
 		return ptype.ErrNoPermissionForTxn
-
 	}
 }
 

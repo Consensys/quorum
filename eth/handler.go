@@ -158,10 +158,6 @@ type handler struct {
 	engine      consensus.Engine
 	tokenHolder *qlight.TokenHolder
 
-	// Test fields or hooks
-	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
-
-	// Quorum QLight
 	// client
 	psi                string
 	privateClientCache qlight.PrivateClientCache

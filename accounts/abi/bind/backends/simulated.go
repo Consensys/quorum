@@ -165,11 +165,11 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	stateDB, err := b.stateByBlockNumber(ctx, blockNumber)
+	_, err := b.stateByBlockNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	stateDB, _, _ = b.blockchain.State()
+	stateDB, _, _ := b.blockchain.State()
 	return stateDB.GetCode(contract), nil
 }
 
@@ -178,11 +178,11 @@ func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Addres
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	stateDB, err := b.stateByBlockNumber(ctx, blockNumber)
+	_, err := b.stateByBlockNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	stateDB, _, _ = b.blockchain.State()
+	stateDB, _, _ := b.blockchain.State()
 	return stateDB.GetBalance(contract), nil
 }
 
@@ -191,11 +191,11 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	stateDB, err := b.stateByBlockNumber(ctx, blockNumber)
+	_, err := b.stateByBlockNumber(ctx, blockNumber)
 	if err != nil {
 		return 0, err
 	}
-	stateDB, _, _ = b.blockchain.State()
+	stateDB, _, _ := b.blockchain.State()
 	return stateDB.GetNonce(contract), nil
 }
 
@@ -204,11 +204,11 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	stateDB, err := b.stateByBlockNumber(ctx, blockNumber)
+	_, err := b.stateByBlockNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	stateDB, _, _ = b.blockchain.State()
+	stateDB, _, _ := b.blockchain.State()
 	val := stateDB.GetState(contract, key)
 	return val[:], nil
 }

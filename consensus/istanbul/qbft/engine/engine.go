@@ -9,11 +9,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/backend/contract"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -354,9 +352,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
 				toRemove := make([]istanbul.Validator, 0, validators.Size())
 				l := validators.List()
-				for i := range l {
-					toRemove = append(toRemove, l[i])
-				}
+				toRemove = append(toRemove, l...)
 				for i := range toRemove {
 					validators.RemoveValidator(toRemove[i].Address())
 				}
@@ -567,41 +563,8 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	return nil
 }
 
-func (e *Engine) validatorsList(genesis *types.Header, config istanbul.Config) ([]common.Address, error) {
-	var validators []common.Address
-	if config.ValidatorContract != (common.Address{}) && config.GetValidatorSelectionMode(big.NewInt(0)) == params.ContractMode {
-		log.Info("Initialising snap with contract validators", "address", config.ValidatorContract, "client", config.Client)
-
-		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(config.ValidatorContract, config.Client)
-
-		if err != nil {
-			return nil, fmt.Errorf("invalid smart contract in genesis alloc: %w", err)
-		}
-
-		opts := bind.CallOpts{
-			Pending:     false,
-			BlockNumber: big.NewInt(0),
-		}
-		validators, err = validatorContractCaller.GetValidators(&opts)
-		if err != nil {
-			log.Error("QBFT: invalid smart contract in genesis alloc", "err", err)
-			return nil, err
-		}
-	} else {
-		// Get the validators from genesis to create a snapshot
-		var err error
-		validators, err = e.ExtractGenesisValidators(genesis)
-		if err != nil {
-			log.Error("BFT: invalid genesis block", "err", err)
-			return nil, err
-		}
-	}
-	return validators, nil
-}
-
 // AccumulateRewards credits the beneficiary of the given block with a reward.
 func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
-
 	blockReward := chain.Config().GetBlockReward(header.Number)
 	if blockReward.Cmp(big.NewInt(0)) > 0 {
 		coinbase := header.Coinbase

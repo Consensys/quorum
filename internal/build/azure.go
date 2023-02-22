@@ -97,7 +97,6 @@ func AzureBlobstoreList(config AzureBlobstoreConfig) ([]azblob.BlobItem, error) 
 		}
 		allBlobs = append(allBlobs, res.Segment.BlobItems...)
 		nextMarker = res.NextMarker
-
 	}
 	return allBlobs, nil
 }

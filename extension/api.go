@@ -85,16 +85,6 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 	return status, nil
 }
 
-// returns the contract being extended for the given management contract
-func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (common.Address, error) {
-	psiManagementContractClient := api.privacyService.managementContract(psi)
-	defer psiManagementContractClient.Close()
-	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
-	opts := bind.CallOpts{Pending: true, From: from}
-
-	return caller.ContractToExtend(&opts)
-}
-
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) (bool, error) {
 	// check if the passed contract is public contract
@@ -212,8 +202,8 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 
 // ExtendContract deploys a new extension management contract to the blockchain to start the process of extending
 // a contract to a new participant
-//Create a new extension contract that signifies that we want to add a new participant to an existing contract
-//This should contain:
+// Create a new extension contract that signifies that we want to add a new participant to an existing contract
+// This should contain:
 // - arguments for sending a new transaction (the same as sendTransaction)
 // - the contract address we want to extend
 // - the new PTM public key

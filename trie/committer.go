@@ -233,14 +233,6 @@ func (c *committer) commitLoop(db *Database) {
 	}
 }
 
-func (c *committer) makeHashNode(data []byte) hashNode {
-	n := make(hashNode, c.sha.Size())
-	c.sha.Reset()
-	c.sha.Write(data)
-	c.sha.Read(n)
-	return n
-}
-
 // estimateSize estimates the size of an rlp-encoded node, without actually
 // rlp-encoding it (zero allocs). This method has been experimentally tried, and with a trie
 // with 1000 leafs, the only errors above 1% are on small shortnodes, where this

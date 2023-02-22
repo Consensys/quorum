@@ -163,7 +163,6 @@ func TestCheckMessage(t *testing.T) {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
-
 }
 
 func TestStoreBacklog(t *testing.T) {

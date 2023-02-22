@@ -1081,7 +1081,6 @@ func TestSideLogRebirth(t *testing.T) {
 	chain, _ := GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
 			gen.OffsetTime(-9) // higher block difficulty
-
 		}
 	})
 	if _, err := blockchain.InsertChain(chain); err != nil {
@@ -1210,7 +1209,6 @@ done:
 		t.Errorf("unexpected event fired: %v", e)
 	case <-time.After(250 * time.Millisecond):
 	}
-
 }
 
 // Tests if the canonical block can be fetched from the database during chain insertion.
@@ -1695,8 +1693,8 @@ func TestIncompleteAncientReceiptChainInsertion(t *testing.T) {
 // overtake the 'canon' chain until after it's passed canon by about 200 blocks.
 //
 // Details at:
-//  - https://github.com/ethereum/go-ethereum/issues/18977
-//  - https://github.com/ethereum/go-ethereum/pull/18988
+//   - https://github.com/ethereum/go-ethereum/issues/18977
+//   - https://github.com/ethereum/go-ethereum/pull/18988
 func TestLowDiffLongChain(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
@@ -1751,7 +1749,6 @@ func TestLowDiffLongChain(t *testing.T) {
 // - A common ancestor is placed at prune-point + blocksBetweenCommonAncestorAndPruneblock
 // - The sidechain S is prepended with numCanonBlocksInSidechain blocks from the canon chain
 func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommonAncestorAndPruneblock int) {
-
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	db := rawdb.NewMemoryDatabase()
@@ -1815,7 +1812,8 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 // That is: the sidechain for import contains some blocks already present in canon chain.
 // So the blocks are
 // [ Cn, Cn+1, Cc, Sn+3 ... Sm]
-//   ^    ^    ^  pruned
+//
+//	^    ^    ^  pruned
 func TestPrunedImportSide(t *testing.T) {
 	//glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
 	//glogger.Verbosity(3)
@@ -2341,7 +2339,6 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks in
 		b.StopTimer()
 		if got := chain.CurrentBlock().Transactions().Len(); got != numTxs*numBlocks {
 			b.Fatalf("Transactions were not included, expected %d, got %d", numTxs*numBlocks, got)
-
 		}
 	}
 }
@@ -2399,9 +2396,9 @@ func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
 // This internally leads to a sidechain import, since the blocks trigger an
 // ErrPrunedAncestor error.
 // This may e.g. happen if
-//   1. Downloader rollbacks a batch of inserted blocks and exits
-//   2. Downloader starts to sync again
-//   3. The blocks fetched are all known and canonical blocks
+//  1. Downloader rollbacks a batch of inserted blocks and exits
+//  2. Downloader starts to sync again
+//  3. The blocks fetched are all known and canonical blocks
 func TestSideImportPrunedBlocks(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
@@ -2913,20 +2910,19 @@ func TestDeleteRecreateSlotsAcrossManyBlocks(t *testing.T) {
 
 // TestInitThenFailCreateContract tests a pretty notorious case that happened
 // on mainnet over blocks 7338108, 7338110 and 7338115.
-// - Block 7338108: address e771789f5cccac282f23bb7add5690e1f6ca467c is initiated
-//   with 0.001 ether (thus created but no code)
-// - Block 7338110: a CREATE2 is attempted. The CREATE2 would deploy code on
-//   the same address e771789f5cccac282f23bb7add5690e1f6ca467c. However, the
-//   deployment fails due to OOG during initcode execution
-// - Block 7338115: another tx checks the balance of
-//   e771789f5cccac282f23bb7add5690e1f6ca467c, and the snapshotter returned it as
-//   zero.
+//   - Block 7338108: address e771789f5cccac282f23bb7add5690e1f6ca467c is initiated
+//     with 0.001 ether (thus created but no code)
+//   - Block 7338110: a CREATE2 is attempted. The CREATE2 would deploy code on
+//     the same address e771789f5cccac282f23bb7add5690e1f6ca467c. However, the
+//     deployment fails due to OOG during initcode execution
+//   - Block 7338115: another tx checks the balance of
+//     e771789f5cccac282f23bb7add5690e1f6ca467c, and the snapshotter returned it as
+//     zero.
 //
 // The problem being that the snapshotter maintains a destructset, and adds items
 // to the destructset in case something is created "onto" an existing item.
 // We need to either roll back the snapDestructs, or not place it into snapDestructs
 // in the first place.
-//
 func TestInitThenFailCreateContract(t *testing.T) {
 	var (
 		// Generate a canonical chain to act as the main dataset
@@ -3108,6 +3104,5 @@ func TestEIP2718Transition(t *testing.T) {
 	expected := params.TxGas + params.TxAccessListAddressGas + params.TxAccessListStorageKeyGas + vm.GasQuickStep*2 + vm.WarmStorageReadCostEIP2929 + vm.ColdSloadCostEIP2929
 	if block.GasUsed() != expected {
 		t.Fatalf("incorrect amount of gas spent: expected %d, got %d", expected, block.GasUsed())
-
 	}
 }

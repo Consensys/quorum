@@ -367,7 +367,8 @@ func createStorageRequestResponse(t *testPeer, root common.Hash, accounts []comm
 	return hashes, slots, proofs
 }
 
-//  the createStorageRequestResponseAlwaysProve tests a cornercase, where it always
+//	the createStorageRequestResponseAlwaysProve tests a cornercase, where it always
+//
 // supplies the proof for the last account, even if it is 'complete'.h
 func createStorageRequestResponseAlwaysProve(t *testPeer, root common.Hash, accounts []common.Hash, bOrigin, bLimit []byte, max uint64) (hashes [][]common.Hash, slots [][][]byte, proofs [][]byte) {
 	var size uint64
@@ -1660,7 +1661,7 @@ func TestSyncAccountPerformance(t *testing.T) {
 	// Doing so would bring this number down to zero in this artificial testcase,
 	// but only add extra IO for no reason in practice.
 	if have, want := src.nTrienodeRequests, 1; have != want {
-		fmt.Printf(src.Stats())
+		fmt.Print(src.Stats())
 		t.Errorf("trie node heal requests wrong, want %d, have %d", want, have)
 	}
 }

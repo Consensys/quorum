@@ -236,7 +236,6 @@ func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub
 			}
 			peer := event.Peer
 			switch event.Type {
-
 			case p2p.PeerEventTypeAdd:
 				net.DidConnect(id, peer)
 
@@ -248,7 +247,6 @@ func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub
 
 			case p2p.PeerEventTypeMsgRecv:
 				net.DidReceive(peer, id, event.Protocol, *event.MsgCode)
-
 			}
 
 		case err := <-sub.Err():
@@ -934,7 +932,6 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 				if !haveSvc {
 					cleanedServices = append(cleanedServices, svc)
 				}
-
 			}
 			snap.Nodes[i].Node.Config.Lifecycles = cleanedServices
 		}
@@ -1028,7 +1025,6 @@ func (net *Network) Load(snap *Snapshot) error {
 
 	// Start connecting.
 	for _, conn := range snap.Conns {
-
 		if !net.GetNode(conn.One).Up() || !net.GetNode(conn.Other).Up() {
 			//in this case, at least one of the nodes of a connection is not up,
 			//so it would result in the snapshot `Load` to fail

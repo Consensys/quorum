@@ -75,7 +75,6 @@ func BenchmarkFilters(b *testing.B) {
 		case 99999:
 			receipt := makeReceipt(addr4)
 			gen.AddUncheckedReceipt(receipt)
-
 		}
 	})
 	for i, block := range chain {
@@ -258,7 +257,6 @@ func TestFilters(t *testing.T) {
 	if len(logs) != 2 {
 		t.Error("expected 2 log, got", len(logs))
 	}
-
 }
 
 func TestMPSFilters(t *testing.T) {

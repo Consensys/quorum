@@ -123,7 +123,6 @@ func buildCacheProviderMPSTestChain(n int, config *params.ChainConfig, quorumCha
 				block.AddTx(tx)
 			}
 		}
-
 	})
 
 	hashes := make([]common.Hash, n+1)
@@ -137,7 +136,7 @@ func buildCacheProviderMPSTestChain(n int, config *params.ChainConfig, quorumCha
 
 	// recreate the DB so that we don't have the public state written already by the block generation logic
 	testdb = rawdb.NewMemoryDatabase()
-	genesis = GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
+	_ = GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
 
 	// disable snapshots
 	testingCacheConfig := &CacheConfig{

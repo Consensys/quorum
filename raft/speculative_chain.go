@@ -84,7 +84,6 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 
 // Remove all blocks in the chain from the specified one until the end
 func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block) {
-
 	// check our "guard" to see if this is a (descendant) block we're
 	// expected to be ruled invalid. if we find it, remove from the guard
 	if chain.expectedInvalidBlockHashes.Contains(invalidHash) {

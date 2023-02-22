@@ -22,21 +22,19 @@ import (
 )
 
 type PermissionCtrl struct {
-	node               *node.Node
-	ethClnt            bind.ContractBackend
-	eth                *eth.Ethereum
-	key                *ecdsa.PrivateKey
-	chainID            *big.Int
-	dataDir            string
-	permConfig         *ptype.PermissionConfig
-	contract           ptype.InitService
-	backend            ptype.Backend
-	useDns             bool
-	isRaft             bool
-	startWaitGroup     *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
-	errorChan          chan error      // channel to capture error when starting aysnc
-	networkInitialized bool
-	controlService     ptype.ControlService
+	node           *node.Node
+	ethClnt        bind.ContractBackend
+	eth            *eth.Ethereum
+	key            *ecdsa.PrivateKey
+	chainID        *big.Int
+	dataDir        string
+	permConfig     *ptype.PermissionConfig
+	contract       ptype.InitService
+	backend        ptype.Backend
+	useDns         bool
+	isRaft         bool
+	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
+	errorChan      chan error      // channel to capture error when starting aysnc
 }
 
 var permissionService *PermissionCtrl
@@ -130,7 +128,6 @@ func (p *PermissionCtrl) IsV2Permission() bool {
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, permissionV2 bool, key *ecdsa.PrivateKey,
 	permConfig *ptype.PermissionConfig, isRaft, useDns bool, chainId *big.Int) ptype.InitService {
-
 	contractBackEnd := ptype.ContractBackend{
 		EthClnt:    ethClnt,
 		Key:        key,
@@ -237,7 +234,6 @@ func (p *PermissionCtrl) populateBackEnd() error {
 	default:
 		return errors.New("permission: invalid permissions model passed")
 	}
-
 }
 
 func (p *PermissionCtrl) updateBackEnd() {

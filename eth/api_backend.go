@@ -204,7 +204,6 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	}
 	stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 	return EthAPIState{stateDb, privateState}, header, err
-
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error) {
@@ -228,7 +227,6 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		}
 		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psm.ID)
 		return EthAPIState{stateDb, privateState}, header, err
-
 	}
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
 }

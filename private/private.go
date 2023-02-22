@@ -90,7 +90,6 @@ func NewQLightTxManager() (PrivateTransactionManager, error) {
 }
 
 func NewPrivateTxManager(cfg http2.Config) (PrivateTransactionManager, error) {
-
 	if cfg.ConnectionType == http2.NoConnection {
 		log.Info("Running with private transaction manager disabled - quorum private transactions will not be supported")
 		return &notinuse.PrivateTransactionManager{}, nil

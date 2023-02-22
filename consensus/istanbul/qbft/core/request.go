@@ -57,11 +57,18 @@ func (c *core) handleRequest(request *Request) error {
 		delay := time.Duration(0)
 
 		block, ok := request.Proposal.(*types.Block)
+
 		if ok && len(block.Transactions()) == 0 { // if empty block
 			config := c.config.GetConfig(c.current.Sequence())
+
 			if config.EmptyBlockPeriod > config.BlockPeriod {
 				log.Info("EmptyBlockPeriod detected adding delay to request", "EmptyBlockPeriod", config.EmptyBlockPeriod, "BlockTime", block.Time())
+				// Because the seal has an additional delay on the block period you need to subtract it from the delay
 				delay = time.Duration(config.EmptyBlockPeriod-config.BlockPeriod) * time.Second
+				header := block.Header()
+				// Because the block period has already been added to the time we subtract it here
+				header.Time = header.Time + config.EmptyBlockPeriod - config.BlockPeriod
+				request.Proposal = block.WithSeal(header)
 			}
 		}
 

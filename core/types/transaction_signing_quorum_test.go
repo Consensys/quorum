@@ -65,7 +65,6 @@ func signTx(key *ecdsa.PrivateKey, signer Signer) (*Transaction, common.Address,
  * $> go test -run TestSignQuorumHomesteadPublic
  */
 func TestSignQuorumHomesteadPublic(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -93,7 +92,6 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
 	from, _ = Sender(homeSinger, signedTx)
 	//fmt.Printf("from [%v] == addr [%v]\n", from, from == addr)
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
-
 }
 
 /**
@@ -110,7 +108,6 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155Public
  */
 func TestSignQuorumEIP155Public(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -150,7 +147,6 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 	from, _ = Sender(EIPsigner, signedTx)
 
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
-
 }
 
 /**
@@ -162,7 +158,6 @@ func TestSignQuorumEIP155Public(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155FailPublicChain1
  */
 func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	k0, _ := createKey(crypto.S256(), k0v)
@@ -217,10 +212,10 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 
 	assert.False(from == addr, fmt.Sprintf("Expected the sender of a public TX from chainId 1, "+
 		"should not be recoverable from [%x] addr [%v] ", from, addr))
-
 }
 
-/**
+/*
+*
 *  As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
 *
 *  Use Homestead to sign and EIPSigner to recover.
@@ -236,14 +231,14 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 *  1. sign with HomesteadSigner, this will set the v parameter to
 *     27 or 28. // there is no indication that this is a private tx yet.
 *
-*  2. when submitting a transaction `submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, isPrivate bool)`
-      check isPrivate param, and call `tx.SetPrivate()`, this will update the `v` signature param (recoveryID)
-*     from 27 -> 37, 28 -> 38. // this is now considered a private tx.
+  - 2. when submitting a transaction `submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, isPrivate bool)`
+    check isPrivate param, and call `tx.SetPrivate()`, this will update the `v` signature param (recoveryID)
+  - from 27 -> 37, 28 -> 38. // this is now considered a private tx.
+
 *
 *  $> go test -run TestSignQuorumHomesteadEIP155SigningPrivateQuorum
 */
 func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	keys := []*big.Int{k0v, k1v}
@@ -268,7 +263,6 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
 		assert.Nil(err, err)
 		assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
 	}
-
 }
 
 /*
@@ -282,7 +276,6 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
  *  $> go test -run TestSignQuorumHomesteadOnlyPrivateQuorum
  */
 func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	// check even and odd parity
@@ -311,7 +304,6 @@ func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
 		assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. "+
 			" Got %x want %x", from, addr))
 	}
-
 }
 
 /*
@@ -327,7 +319,6 @@ func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
  *  $> go test -run TestSignQuorumEIP155OnlyPrivateQuorum
  */
 func TestSignQuorumEIP155OnlyPrivateQuorum(t *testing.T) {
-
 	assert := testifyassert.New(t)
 
 	// check even and odd parity
@@ -354,7 +345,5 @@ func TestSignQuorumEIP155OnlyPrivateQuorum(t *testing.T) {
 		assert.Nil(err, err)
 		assert.False(from == addr, fmt.Sprintf("Expected recovery to fail. from [%x] should not equal "+
 			"addr [%x]", from, addr))
-
 	}
-
 }
