@@ -1252,6 +1252,12 @@ web3._extend({
 	methods:
 	[
 		new web3._extend.Method({
+			name: 'generateExtensionApprovalUuid',
+			call: 'quorumExtension_generateExtensionApprovalUuid',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
 			name: 'approveExtension',
 			call: 'quorumExtension_approveExtension',
 			params: 3,
