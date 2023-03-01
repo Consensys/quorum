@@ -17,7 +17,6 @@
 package console
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -354,25 +353,19 @@ func (c *Console) Welcome() {
 
 // Get the consensus mechanism that is in use
 func (c *Console) getConsensus() string {
-	var nodeInfo struct {
-		Protocols struct {
-			Eth struct { // only partial of eth/handler.go#NodeInfo
-				Consensus string
-			}
-			Istanbul struct { // a bit different from others
-				Consensus string
-			}
+	if apis, err := c.client.SupportedModules(); err == nil {
+		_, raft := apis["raft"]
+		if raft {
+			return "raft"
 		}
+		_, ibft := apis["istanbul"]
+		if ibft {
+			return "istanbul"
+		}
+		return "ethhash"
 	}
-
-	if err := c.client.CallContext(context.Background(), &nodeInfo, "admin_nodeInfo"); err != nil {
-		_, _ = fmt.Fprintf(c.printer, "WARNING: call to admin.getNodeInfo() failed, unable to determine consensus mechanism\n")
-		return "unknown"
-	}
-	if nodeInfo.Protocols.Istanbul.Consensus != "" {
-		return nodeInfo.Protocols.Istanbul.Consensus
-	}
-	return nodeInfo.Protocols.Eth.Consensus
+	_, _ = fmt.Fprintf(c.printer, "WARNING: call to rpc_modules() failed, unable to determine consensus mechanism\n")
+	return "unknown"
 }
 
 // Evaluate executes code and pretty prints the result to the specified output
