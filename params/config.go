@@ -258,11 +258,11 @@ var (
 	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 
 	// Quorum chainID should 10
-	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
+	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, []Transition{{Block: big.NewInt(0), ContractSizeLimit: 32}}, false, 32, 0, big.NewInt(0), big.NewInt(0), nil, nil, false, nil, nil}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 
-	QuorumTestChainConfig    = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), false, nil, nil}
-	QuorumMPSTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), true, nil, nil}
+	QuorumTestChainConfig    = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, []Transition{{Block: big.NewInt(0), ContractSizeLimit: 32}}, true, 64, 0, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), false, nil, nil}
+	QuorumMPSTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, nil, nil, []Transition{{Block: big.NewInt(0), ContractSizeLimit: 32}}, true, 64, 0, big.NewInt(0), big.NewInt(0), nil, big.NewInt(0), true, nil, nil}
 )
 
 // TrustedCheckpoint represents a set of post-processed trie roots (CHT and
@@ -484,7 +484,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Berlin: %v  Catalyst: %v YOLO v3: %v PrivacyEnhancements: %v PrivacyPrecompile: %v EnableGasPriceBlock: %v Engine: %v}",
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Berlin: %v  Catalyst: %v YOLO v3: %v PrivacyEnhancements: %v PrivacyPrecompile: %v EnableGasPriceBlock: %v Engine: %v Transitions: %+v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -507,6 +507,7 @@ func (c *ChainConfig) String() string {
 		c.PrivacyPrecompileBlock,   //Quorum
 		c.EnableGasPriceBlock,      //Quorum
 		engine,
+		c.Transitions,
 	)
 }
 
@@ -609,22 +610,8 @@ func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 func (c *ChainConfig) GetMaxCodeSize(num *big.Int) int {
 	maxCodeSize := MaxCodeSize
 
-	if len(c.MaxCodeSizeConfig) > 0 {
-		log.Warn("WARNING: The attribute config.maxCodeSizeConfig is deprecated and will be removed in the future, please use config.transitions.contractsizelimit on genesis file")
-		for _, data := range c.MaxCodeSizeConfig {
-			if data.Block.Cmp(num) > 0 {
-				break
-			}
-			maxCodeSize = int(data.Size) * 1024
-		}
-	} else if c.MaxCodeSize > 0 {
-		if c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0 {
-			if isForked(c.MaxCodeSizeChangeBlock, num) {
-				maxCodeSize = int(c.MaxCodeSize) * 1024
-			}
-		} else {
-			maxCodeSize = int(c.MaxCodeSize) * 1024
-		}
+	if len(c.MaxCodeSizeConfig) > 0 || (c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0) {
+		log.Warn("WARNING: Support for attribute config.maxCodeSizeConfig has been removed, please use config.transitions.contractsizelimit on genesis file")
 	}
 
 	c.GetTransitionValue(num, func(transition Transition) {
@@ -717,23 +704,25 @@ func (c *ChainConfig) GetMinerMinGasLimit(num *big.Int, defaultValue uint64) uin
 // validates the maxCodeSizeConfig data passed in config
 func (c *ChainConfig) CheckMaxCodeConfigData() error {
 	if c.MaxCodeSize != 0 || (c.MaxCodeSizeChangeBlock != nil && c.MaxCodeSizeChangeBlock.Cmp(big.NewInt(0)) >= 0) {
-		return errors.New("maxCodeSize & maxCodeSizeChangeBlock deprecated. Consider using maxCodeSizeConfig")
+		return errors.New("maxCodeSize & maxCodeSizeChangeBlock unsupported. Use config.transitions.contractsizelimit")
 	}
 	// validate max code size data
 	// 1. Code size should not be less than 24 and greater than 128
 	// 2. block entries are in ascending order
 	prevBlock := big.NewInt(0)
-	for _, data := range c.MaxCodeSizeConfig {
-		if data.Size < 24 || data.Size > 128 {
-			return errors.New("Genesis max code size must be between 24 and 128")
+	for _, data := range c.Transitions {
+		if data.ContractSizeLimit != 0 {
+			if data.ContractSizeLimit < 24 || data.ContractSizeLimit > 128 {
+				return errors.New("Genesis contract size limit must be between 24 and 128")
+			}
+			if data.Block == nil {
+				return errors.New("Block number not given in transitions.contractsizelimit data")
+			}
+			if data.Block.Cmp(prevBlock) < 0 {
+				return errors.New("invalid transitions.contractsizelimit detail, block order has to be ascending")
+			}
+			prevBlock = data.Block
 		}
-		if data.Block == nil {
-			return errors.New("Block number not given in maxCodeSizeConfig data")
-		}
-		if data.Block.Cmp(prevBlock) < 0 {
-			return errors.New("invalid maxCodeSize detail, block order has to be ascending")
-		}
-		prevBlock = data.Block
 	}
 
 	return nil
@@ -789,6 +778,19 @@ func (c *ChainConfig) CheckTransitionsData() error {
 
 // Quorum
 //
+// utility function to filter and return Transitions that specify contractsizelimit
+func getContractSizeLimitTransitions(transitions []Transition) []Transition {
+	var contractSizeLimitTransitions []Transition
+	for _, t := range transitions {
+		if t.ContractSizeLimit != 0 {
+			contractSizeLimitTransitions = append(contractSizeLimitTransitions, Transition{Block: t.Block, ContractSizeLimit: t.ContractSizeLimit})
+		}
+	}
+	return contractSizeLimitTransitions
+}
+
+// Quorum
+//
 // checks if changes to maxCodeSizeConfig proposed are compatible
 // with already existing genesis data
 func isMaxCodeSizeConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *big.Int, *big.Int) {
@@ -798,11 +800,12 @@ func isMaxCodeSizeConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 	}
 
 	// existing config had maxCodeSizeConfig and new one does not have the same return error
-	if len(c1.MaxCodeSizeConfig) > 0 && len(c2.MaxCodeSizeConfig) == 0 {
-		return fmt.Errorf("genesis file missing max code size information"), head, head
+	c2ContractSizeLimits := getContractSizeLimitTransitions(c2.Transitions)
+	if len(c1.MaxCodeSizeConfig) > 0 && len(c2ContractSizeLimits) == 0 {
+		return fmt.Errorf("genesis file missing contract size limit information in transitions"), head, head
 	}
 
-	if len(c2.MaxCodeSizeConfig) > 0 && len(c1.MaxCodeSizeConfig) == 0 {
+	if len(c2ContractSizeLimits) > 0 && len(c1.MaxCodeSizeConfig) == 0 {
 		return nil, big.NewInt(0), big.NewInt(0)
 	}
 
@@ -818,7 +821,7 @@ func isMaxCodeSizeConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 	}
 
 	c2RecsBelowHead := 0
-	for _, data := range c2.MaxCodeSizeConfig {
+	for _, data := range c2ContractSizeLimits {
 		if data.Block.Cmp(head) <= 0 {
 			c2RecsBelowHead++
 		} else {
@@ -828,14 +831,14 @@ func isMaxCodeSizeConfigCompatible(c1, c2 *ChainConfig, head *big.Int) (error, *
 
 	// if the count of past records is not matching return error
 	if c1RecsBelowHead != c2RecsBelowHead {
-		return errors.New("maxCodeSizeConfig data incompatible. updating maxCodeSize for past"), head, head
+		return errors.New("maxCodeSizeConfig data incompatible with transitions.contractsizelimit. attempting to update maxCodeSize for the past"), head, head
 	}
 
 	// validate that each past record is matching exactly. if not return error
 	for i := 0; i < c1RecsBelowHead; i++ {
-		if c1.MaxCodeSizeConfig[i].Block.Cmp(c2.MaxCodeSizeConfig[i].Block) != 0 ||
-			c1.MaxCodeSizeConfig[i].Size != c2.MaxCodeSizeConfig[i].Size {
-			return errors.New("maxCodeSizeConfig data incompatible. maxCodeSize historical data does not match"), head, head
+		if c1.MaxCodeSizeConfig[i].Block.Cmp(c2ContractSizeLimits[i].Block) != 0 ||
+			c1.MaxCodeSizeConfig[i].Size != c2ContractSizeLimits[i].ContractSizeLimit {
+			return errors.New("maxCodeSizeConfig data incompatible with transitions.contractsizelimit. maxCodeSize historical data does not match"), head, head
 		}
 	}
 
@@ -994,7 +997,7 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, isQuor
 	// at multiple block heights and cannot be handled with in
 	// checkCompatible
 
-	// compare the maxCodeSize data between the old and new config
+	// compare the maxCodeSize data between the old and new config (config.transitions.contractsizelimit)
 	err, cBlock, newCfgBlock := isMaxCodeSizeConfigCompatible(c, newcfg, bhead)
 	if err != nil {
 		return newCompatError(err.Error(), cBlock, newCfgBlock)
