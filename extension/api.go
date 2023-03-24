@@ -129,7 +129,7 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 
 // GenerateExtensionApprovalUuid generates a uuid to be used for contract state extension approval when calling doVote within the management contract,
 // allowing the approval method to be called with an external signer
-func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, externalSignerAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
 	err := api.doMultiTenantChecks(ctx, txa.From, txa)
 	if err != nil {
 		return "", err
@@ -143,17 +143,13 @@ func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Contex
 
 	// check if the extension has been completed. if yes
 	// no acceptance required
-	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From, psi)
+	status, err := api.checkIfExtensionComplete(addressToVoteOn, externalSignerAddress, psi)
 	if err != nil {
 		return "", err
 	}
 
 	if status {
 		return "", errors.New("contract extension process complete. nothing to accept")
-	}
-
-	if !core.CheckIfAdminAccount(txa.From) {
-		return "", errors.New("account cannot accept extension")
 	}
 
 	// get all participants for the contract being extended
@@ -173,11 +169,11 @@ func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Contex
 	if err != nil {
 		return "", err
 	}
-	if isVoter := checkAddressInList(txArgs.From, voterList); !isVoter {
+	if isVoter := checkAddressInList(externalSignerAddress, voterList); !isVoter {
 		return "", errNotAcceptor
 	}
 
-	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From, psi) {
+	if api.checkAlreadyVoted(addressToVoteOn, externalSignerAddress, psi) {
 		return "", errors.New("already voted")
 	}
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)

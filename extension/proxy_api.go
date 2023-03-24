@@ -45,10 +45,10 @@ func (api *PrivateExtensionProxyAPI) ActiveExtensionContracts(ctx context.Contex
 	return extracted
 }
 
-func (api *PrivateExtensionProxyAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionProxyAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, externalSignerAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
 	log.Info("QLight - proxy enabled")
 	var result string
-	err := api.proxyClient.CallContext(ctx, &result, "quorumExtension_generateExtensionApprovalUuid", addressToVoteOn, txa)
+	err := api.proxyClient.CallContext(ctx, &result, "quorumExtension_generateExtensionApprovalUuid", addressToVoteOn, externalSignerAddress, txa)
 	return result, err
 }
 
