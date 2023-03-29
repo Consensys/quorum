@@ -45,6 +45,13 @@ func (api *PrivateExtensionProxyAPI) ActiveExtensionContracts(ctx context.Contex
 	return extracted
 }
 
+func (api *PrivateExtensionProxyAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, externalSignerAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
+	log.Info("QLight - proxy enabled")
+	var result string
+	err := api.proxyClient.CallContext(ctx, &result, "quorumExtension_generateExtensionApprovalUuid", addressToVoteOn, externalSignerAddress, txa)
+	return result, err
+}
+
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionProxyAPI) ApproveExtension(ctx context.Context, addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
