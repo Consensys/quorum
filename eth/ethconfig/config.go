@@ -302,6 +302,10 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.ValidatorSelectionMode = chainConfig.QBFT.ValidatorSelectionMode
 		config.Istanbul.Validators = chainConfig.QBFT.Validators
 
+		if chainConfig.QBFT.MaxRequestTimeoutSeconds != nil && *chainConfig.QBFT.MaxRequestTimeoutSeconds > 0 {
+			config.Istanbul.MaxRequestTimeoutSeconds = *chainConfig.QBFT.MaxRequestTimeoutSeconds
+		}
+
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 	// For Quorum, Raft run as a separate service, so
