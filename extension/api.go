@@ -85,16 +85,6 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 	return status, nil
 }
 
-// returns the contract being extended for the given management contract
-func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common.Address, psi types.PrivateStateIdentifier) (common.Address, error) {
-	psiManagementContractClient := api.privacyService.managementContract(psi)
-	defer psiManagementContractClient.Close()
-	caller, _ := psiManagementContractClient.Caller(addressToVoteOn)
-	opts := bind.CallOpts{Pending: true, From: from}
-
-	return caller.ContractToExtend(&opts)
-}
-
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) (bool, error) {
 	// check if the passed contract is public contract
@@ -135,6 +125,62 @@ func (api *PrivateExtensionAPI) doMultiTenantChecks(ctx context.Context, address
 		}
 	}
 	return nil
+}
+
+// GenerateExtensionApprovalUuid generates a uuid to be used for contract state extension approval when calling doVote within the management contract,
+// allowing the approval method to be called with an external signer
+func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Context, addressToVoteOn common.Address, externalSignerAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
+	err := api.doMultiTenantChecks(ctx, txa.From, txa)
+	if err != nil {
+		return "", err
+	}
+
+	psm, err := api.privacyService.apiBackendHelper.PSMR().ResolveForUserContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	psi := psm.ID
+
+	// check if the extension has been completed. if yes
+	// no acceptance required
+	status, err := api.checkIfExtensionComplete(addressToVoteOn, externalSignerAddress, psi)
+	if err != nil {
+		return "", err
+	}
+
+	if status {
+		return "", errors.New("contract extension process complete. nothing to accept")
+	}
+
+	// get all participants for the contract being extended
+	participants, err := api.privacyService.GetAllParticipants(api.privacyService.stateFetcher.getCurrentBlockHash(), addressToVoteOn, psi)
+	if err == nil {
+		txa.PrivateFor = append(txa.PrivateFor, participants...)
+	}
+
+	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
+	if err != nil {
+		return "", err
+	}
+
+	psiManagementContractClient := api.privacyService.managementContract(psi)
+	defer psiManagementContractClient.Close()
+	voterList, err := psiManagementContractClient.GetAllVoters(addressToVoteOn)
+	if err != nil {
+		return "", err
+	}
+	if isVoter := checkAddressInList(externalSignerAddress, voterList); !isVoter {
+		return "", errNotAcceptor
+	}
+
+	if api.checkAlreadyVoted(addressToVoteOn, externalSignerAddress, psi) {
+		return "", errors.New("already voted")
+	}
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
+	if err != nil {
+		return "", err
+	}
+	return uuid, nil
 }
 
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
@@ -212,8 +258,8 @@ func (api *PrivateExtensionAPI) ApproveExtension(ctx context.Context, addressToV
 
 // ExtendContract deploys a new extension management contract to the blockchain to start the process of extending
 // a contract to a new participant
-//Create a new extension contract that signifies that we want to add a new participant to an existing contract
-//This should contain:
+// Create a new extension contract that signifies that we want to add a new participant to an existing contract
+// This should contain:
 // - arguments for sending a new transaction (the same as sendTransaction)
 // - the contract address we want to extend
 // - the new PTM public key

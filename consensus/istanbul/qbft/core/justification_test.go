@@ -78,7 +78,6 @@ func testParameterizedCase(
 	preparesForTargetRound int,
 	preparesNotForTargetRound int,
 	messageJustified bool) {
-
 	pp := istanbul.NewRoundRobinProposerPolicy()
 	pp.Use(istanbul.ValidatorSortByByte())
 	validatorSet := validator.NewSet(generateValidators(quorumSize), pp)
@@ -143,7 +142,6 @@ func testParameterizedCase(
 	if err := isJustified(block, roundChangeMessages, prepareMessages, quorumSize); err == nil && !messageJustified {
 		t.Errorf("quorumSize = %v, rcForNil = %v, rcEqualToTargetRound = %v, rcLowerThanTargetRound = %v, rcHigherThanTargetRound = %v, preparesForTargetRound = %v, preparesNotForTargetRound = %v (Expected: %v, Actual: %v)",
 			quorumSize, rcForNil, rcEqualToTargetRound, rcLowerThanTargetRound, rcHigherThanTargetRound, preparesForTargetRound, preparesNotForTargetRound, err == nil, !messageJustified)
-
 	}
 }
 

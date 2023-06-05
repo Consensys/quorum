@@ -1,6 +1,4 @@
 /*
-
-
 // Copyright 2015 The go-ethereum Authors
 
 // This file is part of the go-ethereum library.
@@ -39,8 +37,8 @@ var (
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
-//returns whether we have a chain configuration that can't be updated
-//after the EIP155 HF has happened
+// returns whether we have a chain configuration that can't be updated
+// after the EIP155 HF has happened
 func GetIsQuorumEIP155Activated(db ethdb.KeyValueReader) bool {
 	data, _ := db.Get(quorumEIP155ActivatedPrefix)
 	return len(data) == 1

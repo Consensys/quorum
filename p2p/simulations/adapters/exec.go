@@ -179,7 +179,7 @@ func (n *ExecNode) Start(snapshots map[string][]byte) (err error) {
 	for id, node := range n.adapter.nodes {
 		confCopy.PeerAddrs[id.String()] = node.wsAddr
 	}
-	confData, err := json.Marshal(confCopy)
+	confData, err := json.Marshal(confCopy) // nolint:staticcheck
 	if err != nil {
 		return fmt.Errorf("error generating node config: %s", err)
 	}

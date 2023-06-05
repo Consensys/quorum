@@ -31,8 +31,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -275,10 +276,7 @@ type stubAuthenticationManager struct {
 }
 
 func (s *stubAuthenticationManager) Authenticate(_ context.Context, _ string) (*proto.PreAuthenticatedAuthenticationToken, error) {
-	expiredAt, err := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
-	if err != nil {
-		return nil, err
-	}
+	expiredAt := timestamppb.New(time.Now().Add(1 * time.Hour))
 	return &proto.PreAuthenticatedAuthenticationToken{
 		ExpiredAt: expiredAt,
 	}, nil

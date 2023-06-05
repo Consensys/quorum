@@ -123,22 +123,23 @@ func (p *ProposerPolicy) ClearRegistry() {
 }
 
 type Config struct {
-	RequestTimeout         uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockPeriod            uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	EmptyBlockPeriod       uint64                `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
-	ProposerPolicy         *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
-	Epoch                  uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
-	Ceil2Nby3Block         *big.Int              `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	AllowedFutureBlockTime uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	TestQBFTBlock          *big.Int              `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
-	BeneficiaryMode        *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
-	BlockReward            *math.HexOrDecimal256 `toml:",omitempty"` // Reward
-	MiningBeneficiary      *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
-	ValidatorContract      common.Address        `toml:",omitempty"`
-	Validators             []common.Address      `toml:",omitempty"`
-	ValidatorSelectionMode *string               `toml:",omitempty"`
-	Client                 bind.ContractCaller   `toml:",omitempty"`
-	Transitions            []params.Transition
+	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
+	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	EmptyBlockPeriod         uint64                `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
+	ProposerPolicy           *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
+	Epoch                    uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
+	Ceil2Nby3Block           *big.Int              `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	AllowedFutureBlockTime   uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	TestQBFTBlock            *big.Int              `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	BeneficiaryMode          *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
+	BlockReward              *math.HexOrDecimal256 `toml:",omitempty"` // Reward
+	MiningBeneficiary        *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
+	ValidatorContract        common.Address        `toml:",omitempty"`
+	Validators               []common.Address      `toml:",omitempty"`
+	ValidatorSelectionMode   *string               `toml:",omitempty"`
+	Client                   bind.ContractCaller   `toml:",omitempty"`
+	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
+	Transitions              []params.Transition
 }
 
 var DefaultConfig = &Config{
@@ -189,7 +190,8 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 
 	c.getTransitionValue(blockNumber, func(transition params.Transition) {
 		if transition.RequestTimeoutSeconds != 0 {
-			newConfig.RequestTimeout = transition.RequestTimeoutSeconds
+			// RequestTimeout is on milliseconds
+			newConfig.RequestTimeout = transition.RequestTimeoutSeconds * 1000
 		}
 		if transition.EpochLength != 0 {
 			newConfig.Epoch = transition.EpochLength
@@ -217,6 +219,9 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		}
 		if len(transition.Validators) > 0 {
 			newConfig.Validators = transition.Validators
+		}
+		if transition.MaxRequestTimeoutSeconds != nil {
+			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
 		}
 	})
 

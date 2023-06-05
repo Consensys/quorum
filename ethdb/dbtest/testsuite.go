@@ -312,7 +312,6 @@ func TestDatabaseSuite(t *testing.T, New func() ethdb.KeyValueStore) {
 			t.Errorf("got: %s; want: %s", got, want)
 		}
 	})
-
 }
 
 func iterateKeys(it ethdb.Iterator) []string {

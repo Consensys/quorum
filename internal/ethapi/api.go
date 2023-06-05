@@ -771,10 +771,10 @@ func (s *PublicBlockChainAPI) GetHeaderByHash(ctx context.Context, hash common.H
 }
 
 // GetBlockByNumber returns the requested canonical block.
-// * When blockNr is -1 the chain head is returned.
-// * When blockNr is -2 the pending chain head is returned.
-// * When fullTx is true all transactions in the block are returned, otherwise
-//   only the transaction hash is returned.
+//   - When blockNr is -1 the chain head is returned.
+//   - When blockNr is -2 the pending chain head is returned.
+//   - When fullTx is true all transactions in the block are returned, otherwise
+//     only the transaction hash is returned.
 func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
@@ -1233,7 +1233,6 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 			}
 			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil
 		}
-
 	}
 
 	//END QUORUM
@@ -1907,7 +1906,8 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 
 // SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
 // Quorum: introducing additional arguments encapsulated in PrivateTxArgs struct
-//		   to support private transactions processing.
+//
+//	to support private transactions processing.
 type SendTxArgs struct {
 	PrivateTxArgs // Quorum
 
@@ -2352,7 +2352,6 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 // SendRawPrivateTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
-
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(encodedTx); err != nil {
 		return common.Hash{}, err
@@ -2362,7 +2361,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, tx.From(), RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2391,7 +2390,7 @@ func (s *PublicTransactionPoolAPI) DistributePrivateTransaction(ctx context.Cont
 	if err := args.SetRawTransactionPrivateFrom(ctx, s.b, tx); err != nil {
 		return "", err
 	}
-	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, tx.From(), RawTransaction)
 	if err != nil {
 		return "", err
 	}
@@ -2775,11 +2774,9 @@ type Async struct {
 }
 
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
-
 	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
 
 	if asyncArgs.CallbackUrl != "" {
-
 		//don't need to nil check this since id is required for every geth rpc call
 		//even though this is stated in the specification as an "optional" parameter
 		jsonId := ctx.Value("id").(*json.RawMessage)
@@ -2804,7 +2801,6 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 			return
 		}
 	}
-
 }
 
 func newAsync(n int) *Async {
@@ -2828,7 +2824,6 @@ var async = newAsync(100)
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
-
 	select {
 	case async.sem <- struct{}{}:
 		go func() {
@@ -3187,7 +3182,6 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 					error:  reasonError,
 					reason: hexutil.Encode(data),
 				}
-
 			}
 			return nil, common.Hash{}, err
 		}

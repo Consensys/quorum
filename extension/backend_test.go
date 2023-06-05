@@ -153,7 +153,7 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 
 	service := &PrivacyService{
 		accountManager:   accountManager,
-		apiBackendHelper: &mockAPIBackendHelper,
+		apiBackendHelper: &mockAPIBackendHelper, //nolint:typecheck
 		config:           &config,
 	}
 
@@ -212,7 +212,7 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 	}
 	service := &PrivacyService{
 		accountManager:   accountManager,
-		apiBackendHelper: &mockAPIBackendHelper,
+		apiBackendHelper: &mockAPIBackendHelper, //nolint:typecheck
 		config:           &config,
 	}
 

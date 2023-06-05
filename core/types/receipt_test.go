@@ -129,8 +129,8 @@ func testConsensusFields(t *testing.T, decReceipt ReceiptForStorage, encReceipt 
 }
 
 func compareLogsConsensusFields(t *testing.T, encLogs []*Log, decLogs []*Log) {
-	if len(encLogs) != len(encLogs) {
-		t.Fatalf("Logs[] length mismatch, want %v, have %v", len(encLogs), len(encLogs))
+	if len(encLogs) != len(decLogs) {
+		t.Fatalf("Logs[] length mismatch, want %v, have %v", len(encLogs), len(decLogs))
 	}
 
 	for i := 0; i < len(encLogs); i++ {
@@ -177,7 +177,6 @@ func comparePSReceipts(t *testing.T, encPSReceipts map[PrivateStateIdentifier]*R
 				t.Errorf("PSReceipts[%s].ContractAddress mismatch, want %v, have %v", psi.String(), wantedPsiReceipt.ContractAddress, decPsiReceipt.ContractAddress)
 			}
 		}
-
 	}
 }
 
@@ -218,7 +217,6 @@ func encodeAsV3StoredReceiptRLP(want *Receipt) ([]byte, error) {
 }
 
 func TestReceiptForStorage_OnlySubsetOfFieldsPreservedDuringSerialisation(t *testing.T) {
-
 	fullReceipt := newFullReceipt(false, false, false)
 
 	buf := new(bytes.Buffer)

@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/plugin/security"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
@@ -54,11 +53,11 @@ func verifyExpiration(token *proto.PreAuthenticatedAuthenticationToken) error {
 	if token == nil {
 		return nil
 	}
-	expiredAt, err := ptypes.Timestamp(token.ExpiredAt)
+	err := token.ExpiredAt.CheckValid()
 	if err != nil {
 		return fmt.Errorf("invalid timestamp in token: %s", err)
 	}
-	if time.Now().Before(expiredAt) {
+	if time.Now().Before(token.ExpiredAt.AsTime()) {
 		return nil
 	}
 	return &securityError{"token expired"}

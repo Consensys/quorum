@@ -75,27 +75,6 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 	return res.StatusCode, nil
 }
 
-func (t *tesseraPrivateTxManager) submitJSONOld(method, path string, request interface{}, response interface{}) (int, error) {
-	apiVersion := ""
-	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request, apiVersion)
-	if err != nil {
-		return -1, fmt.Errorf("unable to build json request for (method:%s,path:%s). Cause: %v", method, path, err)
-	}
-	res, err := t.client.HttpClient.Do(req)
-	if err != nil {
-		return -1, fmt.Errorf("unable to submit request (method:%s,path:%s). Cause: %v", method, path, err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
-		body, _ := ioutil.ReadAll(res.Body)
-		return res.StatusCode, fmt.Errorf("%d status: %s", res.StatusCode, string(body))
-	}
-	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
-		return res.StatusCode, fmt.Errorf("unable to decode response body for (method:%s,path:%s). Cause: %v", method, path, err)
-	}
-	return res.StatusCode, nil
-}
-
 func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error) {
 	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
 		return "", nil, common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
@@ -163,7 +142,6 @@ func (t *tesseraPrivateTxManager) EncryptPayload(data []byte, from string, to []
 }
 
 func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
-
 	response := new(sendResponse)
 
 	if _, err := t.submitJSON("POST", "/storeraw", &storerawRequest{

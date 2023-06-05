@@ -62,7 +62,6 @@ func TestIsNodePermissioned(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func Test_isNodeBlackListed(t *testing.T) {
@@ -128,5 +127,4 @@ func writeNodeToFile(dataDir, fileName, url string) {
 	nodeList = append(nodeList, url)
 	blob, _ = json.Marshal(nodeList)
 	_ = ioutil.WriteFile(path, blob, 0644)
-
 }

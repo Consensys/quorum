@@ -260,7 +260,6 @@ func TestVerifyHeader(t *testing.T) {
 
 	// istanbulcommon.ErrEmptyCommittedSeals case
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header := engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1)
 	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header(), false)
 	if err != istanbulcommon.ErrEmptyCommittedSeals {
@@ -268,7 +267,7 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	// short extra data
-	header = block.Header()
+	header := block.Header()
 	header.Extra = []byte{}
 	err = engine.VerifyHeader(chain, header, false)
 	if err != istanbulcommon.ErrInvalidExtraDataFormat {

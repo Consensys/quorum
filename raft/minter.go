@@ -226,9 +226,9 @@ func throttle(rate time.Duration, f func()) func() {
 // This function spins continuously, blocking until a block should be created
 // (via requestMinting()). This is throttled by `minter.blockTime`:
 //
-//   1. A block is guaranteed to be minted within `blockTime` of being
-//      requested.
-//   2. We never mint a block more frequently than `blockTime`.
+//  1. A block is guaranteed to be minted within `blockTime` of being
+//     requested.
+//  2. We never mint a block more frequently than `blockTime`.
 func (minter *minter) mintingLoop() {
 	throttledMintNewBlock := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {

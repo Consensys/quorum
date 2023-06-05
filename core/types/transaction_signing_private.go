@@ -33,7 +33,7 @@ func (s QuorumPrivateTxSigner) Sender(tx *Transaction) (common.Address, error) {
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
 func (qs QuorumPrivateTxSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	r, s, _, err := HomesteadSigner{}.SignatureValues(tx, sig)
+	r, s, _, _ := HomesteadSigner{}.SignatureValues(tx, sig)
 	// update v for private transaction marker: needs to be 37 (0+37) or 38 (1+37) for a private transaction.
 	v := new(big.Int).SetBytes([]byte{sig[64] + 37})
 	return r, s, v, nil

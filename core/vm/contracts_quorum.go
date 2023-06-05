@@ -62,7 +62,8 @@ func (c *privacyMarker) RequiredGas(_ []byte) uint64 {
 // privacyMarker precompile execution
 // Retrieves private transaction from Tessera and executes it.
 // If we are not a participant, then just ensure public state remains in sync.
-//		input = 20 byte address of sender, 64 byte hash for the private transaction
+//
+//	input = 20 byte address of sender, 64 byte hash for the private transaction
 func (c *privacyMarker) Run(evm *EVM, _ []byte) ([]byte, error) {
 	log.Debug("Running privacy marker precompile")
 

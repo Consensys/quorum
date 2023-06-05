@@ -219,7 +219,6 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 		}
 
 		numBlocks = end - start
-		header = api.chain.GetHeaderByNumber(end)
 		blockNumber = rpc.BlockNumber(end)
 	}
 
@@ -241,12 +240,10 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 	for _, s := range signers {
 		signStatus[s] = 0
 	}
-
 	for n := start; n < end; n++ {
 		blockNum := rpc.BlockNumber(int64(n))
 		s, _ := api.GetSignersFromBlock(&blockNum)
 		signStatus[s.Author]++
-
 	}
 	return &Status{
 		SigningStatus: signStatus,

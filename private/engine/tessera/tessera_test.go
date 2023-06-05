@@ -269,7 +269,6 @@ func TestSend_groups(t *testing.T) {
 	assert.Equal(groups[2].PrivacyGroupId, "P1")
 	assert.Equal(groups[2].Type, "PANTHEON")
 	assert.Exactly(groups[2].Members, []string{"P1", "P2"})
-
 }
 
 func TestSend_whenTypical(t *testing.T) {
@@ -443,7 +442,6 @@ func TestSendRaw_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.
 		t.Fatalf("%s", err)
 	}
 	assert.Equal(engine.PrivacyFlagStandardPrivate, actualExtra.PrivacyFlag, "cached privacy flag")
-
 }
 
 func TestReceive_whenTypical(t *testing.T) {

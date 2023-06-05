@@ -17,7 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pborman/uuid"
-	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp" // nolint:staticcheck
 )
 
 // Returns true if provided string contains only alphanumeric characters with the exception of the character (.) otherwise false.
@@ -34,7 +34,6 @@ func isCleanEntryPoint(s string) bool {
 		return false
 	}
 	return regexp.MustCompile(`^[\w-_.]+$`).MatchString(s)
-
 }
 
 func unzipFile(output string, input *zip.File) error {

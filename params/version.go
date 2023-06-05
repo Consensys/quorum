@@ -26,9 +26,9 @@ const (
 	VersionPatch = 3        // Patch version component of the current release
 	VersionMeta  = "stable" // Version metadata to append to the version string
 
-	QuorumVersionMajor = 22
-	QuorumVersionMinor = 7
-	QuorumVersionPatch = 4
+	QuorumVersionMajor = 23
+	QuorumVersionMinor = 4
+	QuorumVersionPatch = 0
 	QuorumVersionMeta  = "fpt.blockchain.lab-0.5.4"
 )
 
@@ -62,7 +62,8 @@ var QuorumVersionWithMeta = func() string {
 
 // ArchiveVersion holds the textual version string used for Geth archives.
 // e.g. "1.8.11-dea1ce05" for stable releases, or
-//      "1.8.13-unstable-21c059b6" for unstable releases
+//
+//	"1.8.13-unstable-21c059b6" for unstable releases
 func ArchiveVersion(gitCommit string) string {
 	vsn := Version
 	if VersionMeta != "stable" {

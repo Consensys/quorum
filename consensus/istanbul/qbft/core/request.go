@@ -46,34 +46,55 @@ func (c *core) handleRequest(request *Request) error {
 
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
-		c.newRoundMutex.Lock()
-		defer c.newRoundMutex.Unlock()
-
-		if c.newRoundTimer != nil {
-			c.newRoundTimer.Stop()
-			c.newRoundTimer = nil
-		}
-
-		delay := time.Duration(0)
-
-		block, ok := request.Proposal.(*types.Block)
-		if ok && len(block.Transactions()) == 0 { // if empty block
-			config := c.config.GetConfig(c.current.Sequence())
-			if config.EmptyBlockPeriod > config.BlockPeriod {
-				log.Info("EmptyBlockPeriod detected adding delay to request", "EmptyBlockPeriod", config.EmptyBlockPeriod, "BlockTime", block.Time())
-				delay = time.Duration(config.EmptyBlockPeriod-config.BlockPeriod) * time.Second
-			}
-		}
-
-		c.newRoundTimer = time.AfterFunc(delay, func() {
-			c.newRoundTimer = nil
-
+		config := c.config.GetConfig(c.current.Sequence())
+		if config.EmptyBlockPeriod == 0 { // emptyBlockPeriod is not set
 			// Start ROUND-CHANGE timer
 			c.newRoundChangeTimer()
 
 			// Send PRE-PREPARE message to other validators
 			c.sendPreprepareMsg(request)
-		})
+		} else { // emptyBlockPeriod is set
+			c.newRoundMutex.Lock()
+			defer c.newRoundMutex.Unlock()
+
+			if c.newRoundTimer != nil {
+				c.newRoundTimer.Stop()
+				c.newRoundTimer = nil
+			}
+
+			delay := time.Duration(0)
+
+			block, ok := request.Proposal.(*types.Block)
+			if ok && len(block.Transactions()) == 0 { // if empty block
+				config := c.config.GetConfig(c.current.Sequence())
+
+				if config.EmptyBlockPeriod > config.BlockPeriod {
+					log.Info("EmptyBlockPeriod detected adding delay to request", "EmptyBlockPeriod", config.EmptyBlockPeriod, "BlockTime", block.Time())
+					// Because the seal has an additional delay on the block period you need to subtract it from the delay
+					delay = time.Duration(config.EmptyBlockPeriod-config.BlockPeriod) * time.Second
+					header := block.Header()
+					// Because the block period has already been added to the time we subtract it here
+					header.Time = header.Time + config.EmptyBlockPeriod - config.BlockPeriod
+					request.Proposal = block.WithSeal(header)
+				}
+			}
+			if delay > 0 {
+				c.newRoundTimer = time.AfterFunc(delay, func() {
+					c.newRoundTimer = nil
+					// Start ROUND-CHANGE timer
+					c.newRoundChangeTimer()
+
+					// Send PRE-PREPARE message to other validators
+					c.sendPreprepareMsg(request)
+				})
+			} else {
+				// Start ROUND-CHANGE timer
+				c.newRoundChangeTimer()
+
+				// Send PRE-PREPARE message to other validators
+				c.sendPreprepareMsg(request)
+			}
+		}
 	}
 
 	return nil

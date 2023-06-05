@@ -71,7 +71,6 @@ var quorumImmutabilityThreshold int
 
 // returns the immutability threshold set for the network
 func GetImmutabilityThreshold() int {
-
 	if quorumImmutabilityThreshold > 0 {
 		return quorumImmutabilityThreshold
 	}
@@ -80,7 +79,6 @@ func GetImmutabilityThreshold() int {
 }
 
 func GetImmutabilityThresholdWithDefault(defaultValue int) int {
-
 	if quorumImmutabilityThreshold > 0 {
 		return quorumImmutabilityThreshold
 	}

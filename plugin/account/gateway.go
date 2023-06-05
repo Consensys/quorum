@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -17,9 +16,7 @@ import (
 )
 
 type service struct {
-	client      proto.AccountServiceClient
-	mu          sync.Mutex
-	isStreaming bool
+	client proto.AccountServiceClient
 }
 
 func (g *service) Status(ctx context.Context) (string, error) {

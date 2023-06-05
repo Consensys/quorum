@@ -54,9 +54,9 @@ func IsSocketConfigured(cfg Config) bool {
 }
 
 // This will accept path as any of the following and return relevant configuration:
-//	- path set to "ignore"
-//	- path to an ipc file
-//  - path to a config file
+//   - path set to "ignore"
+//   - path to an ipc file
+//   - path to a config file
 func FetchConfigOrIgnore(path string) (Config, error) {
 	if path == "" || strings.EqualFold(path, "ignore") {
 		return NoConnectionConfig, nil

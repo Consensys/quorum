@@ -16,10 +16,10 @@ import (
 
 var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString
 
-//default gas limit to use if not passed in sendTxArgs
+// default gas limit to use if not passed in sendTxArgs
 var defaultGasLimit = uint64(4712384)
 
-//default gas price to use if not passed in sendTxArgs
+// default gas price to use if not passed in sendTxArgs
 var defaultGasPrice = big.NewInt(0)
 
 // PermAction represents actions in permission contract
@@ -650,7 +650,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 
 func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	var r *core.RoleInfo
-	r, err := core.RoleInfoMap.GetRole(orgId, roleId)
+	_, err := core.RoleInfoMap.GetRole(orgId, roleId)
 	if err != nil {
 		return false
 	}

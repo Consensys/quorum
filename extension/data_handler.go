@@ -52,13 +52,13 @@ func NewJsonFileDataHandler(dataDirectory string) *JsonFileDataHandler {
 }
 
 /*
-	The strategy when loading the save file is too check if the newer "psiContracts" field is present.
-	If so, then everything should exist under that key, and so we can unmarshal and return immediately.
+The strategy when loading the save file is too check if the newer "psiContracts" field is present.
+If so, then everything should exist under that key, and so we can unmarshal and return immediately.
 
-	If not, then the save file was made from a previous version. Load up all the data as before and
-	put it under the "private" PSI.
+If not, then the save file was made from a previous version. Load up all the data as before and
+put it under the "private" PSI.
 
-	It should never be the case the file contains both types of data at once.
+It should never be the case the file contains both types of data at once.
 */
 func (handler *JsonFileDataHandler) Load() (map[types.PrivateStateIdentifier]map[common.Address]*ExtensionContract, error) {
 	if _, err := os.Stat(handler.saveFile); !(err == nil || !os.IsNotExist(err)) {
