@@ -158,11 +158,6 @@ func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Contex
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
 
-	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
-	if err != nil {
-		return "", err
-	}
-
 	psiManagementContractClient := api.privacyService.managementContract(psi)
 	defer psiManagementContractClient.Close()
 	voterList, err := psiManagementContractClient.GetAllVoters(addressToVoteOn)
@@ -176,7 +171,7 @@ func (api *PrivateExtensionAPI) GenerateExtensionApprovalUuid(ctx context.Contex
 	if api.checkAlreadyVoted(addressToVoteOn, externalSignerAddress, psi) {
 		return "", errors.New("already voted")
 	}
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txa.PrivateFrom, txa.PrivateFor, api.privacyService.ptm)
 	if err != nil {
 		return "", err
 	}
