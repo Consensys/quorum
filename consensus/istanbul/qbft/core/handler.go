@@ -99,6 +99,7 @@ func (c *core) handleEvents() {
 	}()
 
 	for {
+		c.logger.Marc(log.LvlTrace, "MAIN EVENT HANDLING LOOP")
 		select {
 		case event, ok := <-c.events.Chan():
 			if !ok {
@@ -112,6 +113,7 @@ func (c *core) handleEvents() {
 				r := &Request{
 					Proposal: ev.Proposal,
 				}
+				c.logger.Marc(log.LvlTrace, "HANDLE REQUEST")
 				err := c.handleRequest(r)
 				if err == errFutureMessage {
 					// store request for later treatment
@@ -119,6 +121,7 @@ func (c *core) handleEvents() {
 				}
 			case istanbul.MessageEvent:
 				// we received a message from another validator
+				c.logger.Marc(log.LvlTrace, "HANDLE MESSAGE FROM VALIDATOR")
 				if err := c.handleEncodedMsg(ev.Code, ev.Payload); err != nil {
 					continue
 				}
@@ -128,6 +131,7 @@ func (c *core) handleEvents() {
 			case backlogEvent:
 				// we process again a future message that was backlogged
 				// no need to check signature as it was already node when we first received message
+				c.logger.Marc(log.LvlTrace, "HANDLE DECODED MESSAGE ON BACKLOG")
 				if err := c.handleDecodedMessage(ev.msg); err != nil {
 					continue
 				}
@@ -152,6 +156,7 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
+			c.logger.Marc(log.LvlTrace, "HANDLE COMMITTED")
 			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
 				c.handleFinalCommitted()
@@ -180,6 +185,8 @@ func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 		return err
 	}
 
+	c.logger.Marc(log.LvlTrace, "MESSAGE DECODED, HANDLING")
+
 	// Verify signatures and set source address
 	if err = c.verifySignatures(m); err != nil {
 		return err
@@ -193,6 +200,7 @@ func (c *core) handleDecodedMessage(m qbfttypes.QBFTMessage) error {
 	if err := c.checkMessage(m.Code(), &view); err != nil {
 		// Store in the backlog it it's a future message
 		if err == errFutureMessage {
+			c.logger.Marc(log.LvlTrace, "FUTURE MESSAGE, ADDING TO BACKLOG")
 			c.addToBacklog(m)
 		}
 		return err
@@ -207,12 +215,16 @@ func (c *core) deliverMessage(m qbfttypes.QBFTMessage) error {
 
 	switch m.Code() {
 	case qbfttypes.PreprepareCode:
+		c.logger.Marc(log.LvlTrace, "MESSAGE WAS PREPREPARE")
 		err = c.handlePreprepareMsg(m.(*qbfttypes.Preprepare))
 	case qbfttypes.PrepareCode:
+		c.logger.Marc(log.LvlTrace, "MESSAGE WAS PREPARE")
 		err = c.handlePrepare(m.(*qbfttypes.Prepare))
 	case qbfttypes.CommitCode:
+		c.logger.Marc(log.LvlTrace, "MESSAGE WAS COMMIT")
 		err = c.handleCommitMsg(m.(*qbfttypes.Commit))
 	case qbfttypes.RoundChangeCode:
+		c.logger.Marc(log.LvlTrace, "MESSAGE WAS ROUND CHANGE")
 		err = c.handleRoundChange(m.(*qbfttypes.RoundChange))
 	default:
 		c.logger.Error("QBFT: invalid message code", "code", m.Code())
@@ -224,6 +236,7 @@ func (c *core) deliverMessage(m qbfttypes.QBFTMessage) error {
 
 func (c *core) handleTimeoutMsg() {
 	logger := c.currentLogger(true, nil)
+	logger.Marc(log.LvlTrace, "HANDLING ROUND CHANGE TIMEOUT MESSAGE")
 	// Start the new round
 	round := c.current.Round()
 	nextRound := new(big.Int).Add(round, common.Big1)

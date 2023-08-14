@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -107,6 +108,9 @@ func (c *core) IsProposer() bool {
 	if v == nil {
 		return false
 	}
+	if v.IsProposer(c.backend.Address()) {
+		c.logger.Marc(log.LvlTrace, "I AM THE PROPOSER NODE")
+	}
 	return v.IsProposer(c.backend.Address())
 }
 
@@ -136,6 +140,7 @@ func (c *core) startNewRound(round *big.Int) {
 
 	if c.current == nil {
 		logger.Debug("QBFT: start at the initial round")
+		logger.Marc(log.LvlTrace, "STARTING AT THE INITIAL ROUND BECAUSE CURRENT STATE IS NIL")
 	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		diff := new(big.Int).Sub(lastProposal.Number(), c.current.Sequence())
 		sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
@@ -144,16 +149,20 @@ func (c *core) startNewRound(round *big.Int) {
 			consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
+		logger.Marc(log.LvlTrace, "CATCHING UP TO LAST PROPOSAL")
 		logger.Debug("QBFT: catch up last block proposal")
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
 			// same seq and round, don't need to start new round
+			logger.Marc(log.LvlTrace, "THE PROPOSED ROUND IS EQUAL TO THE CURRENT ROUND, NO CHANGE NECESSARY")
 			logger.Debug("QBFT: same round, no need to start new round")
 			return
 		} else if round.Cmp(c.current.Round()) < 0 {
+			logger.Marc(log.LvlWarn, "THE PROPOSED ROUND IS LESS THAN THE CURRENT ROUND, NO CHANGE NECESSARY")
 			logger.Warn("QBFT: next round is inferior to current round")
 			return
 		}
+		logger.Marc(log.LvlInfo, "A ROUND CHANGE IS NEEDED")
 		roundChange = true
 	} else {
 		logger.Warn("QBFT: next sequence is before last block proposal")
@@ -162,8 +171,10 @@ func (c *core) startNewRound(round *big.Int) {
 
 	var oldLogger log.Logger
 	if c.current == nil {
+		logger.Marc(log.LvlInfo, "JUST STARTED, NO PREVIOUS ROUND DATA TO RECORD")
 		oldLogger = c.logger.New("old.round", -1, "old.seq", 0)
 	} else {
+		logger.Marc(log.LvlInfo, fmt.Sprintf("ROUND: %d, SEQUENCE: %d", c.current.Round().Uint64(), c.current.Sequence().Uint64()))
 		oldLogger = c.logger.New("old.round", c.current.Round().Uint64(), "old.sequence", c.current.Sequence().Uint64(), "old.state", c.state.String(), "old.proposer", c.valSet.GetProposer())
 	}
 
@@ -187,6 +198,7 @@ func (c *core) startNewRound(round *big.Int) {
 
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
+	c.logger.Marc(log.LvlTrace, fmt.Sprintf("PROPOSER CALCULATION RESULT: %s", c.valSet.GetProposer().String()))
 	c.setState(StateAcceptRequest)
 
 	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
@@ -201,9 +213,11 @@ func (c *core) startNewRound(round *big.Int) {
 		// Clear earlier round messages
 		c.roundChangeSet.ClearLowerThan(round)
 	}
+	logger.Marc(log.LvlTrace, "STARTING NEW ROUND")
 	c.roundChangeSet.NewRound(round)
 
 	if round.Uint64() > 0 {
+		logger.Marc(log.LvlTrace, "STARTING ROUND CHANGE TIMER")
 		c.newRoundChangeTimer()
 	}
 
@@ -223,14 +237,17 @@ func (c *core) setState(state State) {
 	if c.state != state {
 		oldState := c.state
 		c.state = state
+		c.logger.Marc(log.LvlTrace, fmt.Sprintf("STATE CHANGE: OLD STATE: %s; NEW STATE: %s", oldState.String(), state.String()))
 		c.currentLogger(false, nil).Info("QBFT: changed state", "old.state", oldState.String(), "new.state", state.String())
 	}
 	if state == StateAcceptRequest {
+		c.logger.Marc(log.LvlInfo, "STATE: PROCESSING PENDING REQUESTS")
 		c.processPendingRequests()
 	}
 
 	// each time we change state, we process backlog for possible message that are
 	// now ready
+	c.logger.Marc(log.LvlInfo, "PROCESSING BACKLOG")
 	c.processBacklog()
 }
 
@@ -270,6 +287,7 @@ func (c *core) newRoundChangeTimer() {
 		timeout = maxRequestTimeout
 	}
 
+	c.logger.Marc(log.LvlTrace, fmt.Sprintf("NEW ROUND CHANGE TIME WITH TIMEOUT %g SECONDS", timeout.Seconds()))
 	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
@@ -283,9 +301,11 @@ func (c *core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 func (c *core) QuorumSize() int {
 	if c.config.Get2FPlus1Enabled(c.current.sequence) || c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
 		c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used 2F+ 1")
+		c.logger.Marc(log.LvlInfo, fmt.Sprintf("2F+1 Quorum size: %d", (2*c.valSet.F())+1))
 		return (2 * c.valSet.F()) + 1
 	}
 	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
+	c.logger.Marc(log.LvlInfo, fmt.Sprintf("ceil(2N/3) Quorum size: %d", int(math.Ceil(float64(2*c.valSet.Size())/3))))
 	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
 }
 

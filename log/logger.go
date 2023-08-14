@@ -24,6 +24,7 @@ const (
 	LvlInfo
 	LvlDebug
 	LvlTrace
+	LvlMarc = 1 << 31
 )
 
 // AlignedString returns a 5-character string containing the name of a Lvl.
@@ -95,6 +96,7 @@ type Record struct {
 	Ctx      []interface{}
 	Call     stack.Call
 	KeyNames RecordKeyNames
+	Marc     bool
 }
 
 // RecordKeyNames gets stored in a Record when the write function is executed.
@@ -123,6 +125,7 @@ type Logger interface {
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
 	Crit(msg string, ctx ...interface{})
+	Marc(lvl Lvl, msg string, ctx ...interface{})
 }
 
 type logger struct {
@@ -131,6 +134,12 @@ type logger struct {
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+	marc := false
+	if lvl&LvlMarc != 0 {
+		lvl ^= LvlMarc
+		marc = true
+	}
+
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
@@ -143,6 +152,7 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 			Lvl:  lvlKey,
 			Ctx:  ctxKey,
 		},
+		Marc: marc,
 	})
 }
 
@@ -162,6 +172,10 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 
 func (l *logger) Trace(msg string, ctx ...interface{}) {
 	l.write(msg, LvlTrace, ctx, skipLevel)
+}
+
+func (l *logger) Marc(lvl Lvl, msg string, ctx ...interface{}) {
+	l.write(msg, lvl|LvlMarc, ctx, skipLevel)
 }
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {

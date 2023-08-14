@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -87,6 +88,7 @@ func (c *core) broadcastCommit() {
 // - when quorum of COMMIT messages is reached then update state and commits
 func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 	logger := c.currentLogger(true, commit)
+	logger.Marc(log.LvlTrace, "VALIDATING COMMIT MESSAGE")
 
 	logger.Info("QBFT: handle COMMIT message", "commits.count", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
 
@@ -107,6 +109,7 @@ func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 	// If we reached thresho
 	if c.current.QBFTCommits.Size() >= c.QuorumSize() {
 		logger.Info("QBFT: received quorum of COMMIT messages")
+		logger.Marc(log.LvlTrace, "RECEIVED QUORUM OF COMMIT MESSAGES, MOVING TO COMMIT QBFT")
 		c.commitQBFT()
 	} else {
 		logger.Debug("QBFT: accepted new COMMIT messages")

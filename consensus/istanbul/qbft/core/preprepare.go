@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -38,6 +39,7 @@ func (c *core) sendPreprepareMsg(request *Request) {
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+		c.logger.Marc(log.LvlTrace, "CREATING AND SIGNING PREPREPARE MESASGE WITH BLOCK PROPOSED AS PROPOSER")
 		// Creates PRE-PREPARE message
 		curView := c.currentView()
 		preprepare := qbfttypes.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
@@ -102,6 +104,7 @@ func (c *core) sendPreprepareMsg(request *Request) {
 // - validates PRE-PREPARE message block proposal
 func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 	logger := c.currentLogger(true, preprepare)
+	logger.Marc(log.LvlTrace, "HANDLING PRE-PREPARE MESSAGE")
 
 	logger = logger.New("proposal.number", preprepare.Proposal.Number().Uint64(), "proposal.hash", preprepare.Proposal.Hash().String())
 
@@ -123,8 +126,10 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 
 	// Validates PRE-PREPARE block proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
+		logger.Marc(log.LvlTrace, "PRE-PREPARE VERIFICATION ERROR")
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
+			logger.Marc(log.LvlTrace, "PROPOSAL IS FOR FUTURE BLOCK, TO BE HANDLED LATER")
 			logger.Info("QBFT: PRE-PREPARE block proposal is in the future (will be treated again later)", "duration", duration)
 
 			// start a timer to re-input PRE-PREPARE message as a backlog event
@@ -146,8 +151,10 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
 		c.logger.Info("QBFT: accepted PRE-PREPARE message")
+		logger.Marc(log.LvlTrace, "ACCEPTED PRE-PREPARE MESSAGE")
 
 		// Re-initialize ROUND-CHANGE timer
+		logger.Marc(log.LvlTrace, "STARTING NEW ROUND CHANGE TIMER")
 		c.newRoundChangeTimer()
 		c.consensusTimestamp = time.Now()
 
@@ -156,6 +163,7 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 		c.setState(StatePreprepared)
 
 		// Broadcast prepare message to other validators
+		logger.Marc(log.LvlTrace, "BROADCASTING PREPARE MESSAGE TO VALIDATORS")
 		c.broadcastPrepare()
 	}
 
