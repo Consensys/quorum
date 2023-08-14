@@ -1,4 +1,4 @@
-name: Gradle CI
+name: Partior Golang CI
 on:
   pull_request:
     branches: [ main, release/**, hotfix/** ]
