@@ -1,0 +1,18 @@
+name: Partior Golang CI
+on:
+  pull_request:
+    branches: [ main, base/**, release/**, hotfix/** ]
+    paths-ignore:
+      - '.github/**'
+  push:
+    branches: [ main, base/** ]
+    paths-ignore:
+      - '.github/**'
+  workflow_dispatch:  
+jobs:
+  ci-pipeline:
+    uses: partior-libs/controller-3p-pipelines/.github/workflows/pipeline-template-go-ci-quorum.yaml@main
+    with:
+      CONTROLLER-REPO: partior-libs/controller-3p-pipelines
+      PROJECT-REPO: ${{ github.repository }}
+    secrets: inherit
