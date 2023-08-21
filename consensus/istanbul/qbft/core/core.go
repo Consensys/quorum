@@ -78,8 +78,9 @@ type core struct {
 	backlogs   map[common.Address]*prque.Prque
 	backlogsMu *sync.Mutex
 
-	current   *roundState
-	handlerWg *sync.WaitGroup
+	current      *roundState
+	currentMutex sync.Mutex
+	handlerWg    *sync.WaitGroup
 
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
@@ -116,6 +117,9 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
 func (c *core) startNewRound(round *big.Int) {
+	c.currentMutex.Lock()
+	defer c.currentMutex.Unlock()
+
 	var logger log.Logger
 	if c.current == nil {
 		logger = c.logger.New("old.round", -1, "old.seq", 0)

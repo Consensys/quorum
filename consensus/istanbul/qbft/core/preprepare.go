@@ -34,6 +34,11 @@ import (
 // - extends PRE-PREPARE message with ROUND-CHANGE and PREPARE justification
 // - broadcast PRE-PREPARE message to other validators
 func (c *core) sendPreprepareMsg(request *Request) {
+	// c.current and c.valSet (checked in IsProposer()) is updated asynchronously in startNewRound(),
+	// need to prevent race condition with mutex
+	c.currentMutex.Lock()
+	defer c.currentMutex.Unlock()
+
 	logger := c.currentLogger(true, nil)
 
 	// If I'm the proposer and I have the same sequence with the proposal
