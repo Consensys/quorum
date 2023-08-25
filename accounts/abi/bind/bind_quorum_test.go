@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/stretchr/testify/require"
 )
 
@@ -131,6 +132,7 @@ func TestBoundContract_Transact_Transaction_PrivateTransaction(t *testing.T) {
 	wantNonce := uint64(senderNonce)
 	wantTo := &contractAddr
 	wantData := tmPrivatePayloadHash.Bytes()
+	wantPrivacyFlag := engine.PrivacyFlagStandardPrivate
 
 	require.NoError(t, err)
 	require.NotNil(t, tx)
@@ -138,6 +140,42 @@ func TestBoundContract_Transact_Transaction_PrivateTransaction(t *testing.T) {
 	require.Equal(t, wantTo, tx.To())
 	require.Equal(t, wantData, tx.Data())
 	require.True(t, tx.IsPrivate())
+	require.Equal(t, wantPrivacyFlag, transactor.capturedInternalPrivateTransactionArgs.PrivacyFlag)
+}
+
+func TestBoundContract_Transact_Transaction_PrivateTransaction_EnhancedPrivacy(t *testing.T) {
+	transactor := &mockTransactor{}
+
+	contractAddr := common.HexToAddress("0x1932c48b2bf8102ba33b4a6b545c32236e342f34")
+	c := NewBoundContract(contractAddr, abi.ABI{}, nil, transactor, nil)
+
+	senderNonce := 1
+
+	opts := &TransactOpts{
+		Nonce:       big.NewInt(int64(senderNonce)),
+		PrivateFor:  []string{"tm1"},
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+
+		// arbitrary values to skip the logic we're not testing
+		GasPrice: big.NewInt(0),
+		GasLimit: uint64(1),
+		Signer:   passthroughSigner,
+	}
+
+	tx, err := c.transact(opts, &contractAddr, nil)
+
+	wantNonce := uint64(senderNonce)
+	wantTo := &contractAddr
+	wantData := tmPrivatePayloadHash.Bytes()
+	wantPrivacyFlag := engine.PrivacyFlagPartyProtection
+
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	require.Equal(t, wantNonce, tx.Nonce())
+	require.Equal(t, wantTo, tx.To())
+	require.Equal(t, wantData, tx.Data())
+	require.True(t, tx.IsPrivate())
+	require.Equal(t, wantPrivacyFlag, transactor.capturedInternalPrivateTransactionArgs.PrivacyFlag)
 }
 
 func TestBoundContract_Transact_Transaction_PrivacyPrecompile(t *testing.T) {
@@ -210,7 +248,8 @@ func (s *mockTransactor) DistributeTransaction(_ context.Context, tx *types.Tran
 	return tmPrivateTxHash.Hex(), nil
 }
 
-func (s *mockTransactor) SendTransaction(_ context.Context, _ *types.Transaction, _ PrivateTxArgs) error {
+func (s *mockTransactor) SendTransaction(_ context.Context, _ *types.Transaction, args PrivateTxArgs) error {
+	s.capturedInternalPrivateTransactionArgs = args
 	return nil
 }
 
