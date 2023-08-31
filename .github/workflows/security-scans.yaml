@@ -1,0 +1,15 @@
+name: Security Scans
+on:
+  push:
+    branches: [ main, 'release/**' ]
+    
+  workflow_dispatch:
+
+  schedule:
+  # Runs daily at 00:00 - need to convert to UTC + 8 (Singapore)
+  - cron: 0 17 * * *
+
+jobs:
+  security-pipeline: 
+    uses: partior-sec-eng/security-scanning-pipeline/.github/workflows/security-scanning.yaml@main
+    secrets: inherit
