@@ -228,6 +228,8 @@ func (c *core) handleTimeoutMsg() {
 	round := c.current.Round()
 	nextRound := new(big.Int).Add(round, common.Big1)
 
+	logger.Warn("BP: handler.go:handleTimeoutMsg : timeout happened, starting new round and BCing round change msg")
+
 	logger.Warn("QBFT: TIMER CHANGING ROUND", "pr", c.current.preparedRound)
 	c.startNewRound(nextRound)
 	logger.Warn("QBFT: TIMER CHANGED ROUND", "pr", c.current.preparedRound)

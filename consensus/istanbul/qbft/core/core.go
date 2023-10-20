@@ -138,6 +138,10 @@ func (c *core) startNewRound(round *big.Int) {
 
 	logger.Info("QBFT: initialize new round")
 
+	logger.Warn("BP: Core.go:startNewRound - Starting a new round ")
+
+	logger.Warn("BP: Core.go:startNewRound - check proposal number, sequence number order ")
+
 	if c.current == nil {
 		logger.Debug("QBFT: start at the initial round")
 	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
@@ -189,6 +193,7 @@ func (c *core) startNewRound(round *big.Int) {
 	// New snapshot for new round
 	c.updateRoundState(newView, c.valSet, roundChange)
 
+	logger.Warn("BP: Core.go:startNewRound - reset state and figure out proposer")
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.setState(StateAcceptRequest)
@@ -196,7 +201,7 @@ func (c *core) startNewRound(round *big.Int) {
 	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
 		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
 	}
-
+	logger.Warn("BP: Core.go:startNewRound - Do not touch preparedPrepares for round changes , clear for new sequence ")
 	// Update RoundChangeSet by deleting older round messages
 	if round.Uint64() == 0 {
 		c.QBFTPreparedPrepares = nil

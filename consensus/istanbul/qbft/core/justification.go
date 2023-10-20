@@ -42,6 +42,7 @@ func isJustified(
 			}
 		}
 	}
+	log.Warn("BP: justification.go:isJustified - All the prepare messages match round of proposal")
 
 	if preparedRound == nil {
 		return hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages, quorumSize)
@@ -53,12 +54,14 @@ func isJustified(
 // Checks whether a set of ROUND-CHANGE messages has `quorumSize` messages with nil prepared round and
 // prepared block.
 func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, quorumSize int) error {
+	log.Warn("BP: justification.go:isJustified - Checking for a quorum of RC messages without prepared round")
 	nilCount := 0
 	for _, m := range roundChangeMessages {
 		log.Trace("QBFT: hasQuorumOfRoundChangeMessagesForNil", "rc", m)
 		if (m.PreparedRound == nil || m.PreparedRound.Cmp(common.Big0) == 0) && common.EmptyHash(m.PreparedDigest) {
 			nilCount++
 			if nilCount == quorumSize {
+				log.Warn("BP: justification.go:hasQuorumOfRoundChangeMessagesForNil - Found a quorum of RC messages without prepared round")
 				return nil
 			}
 		}
@@ -71,6 +74,7 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*qbfttypes.Signe
 func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock istanbul.Proposal, quorumSize int) error {
 	lowerOrEqualRoundCount := 0
 	hasMatchingMessage := false
+	log.Warn("BP: justification.go:hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock - check if the highest prepared round of RC messages  have prepared messages quorum")
 	for _, m := range roundChangeMessages {
 		log.Trace("QBFT: hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock", "rc", m)
 		if m.PreparedRound == nil || m.PreparedRound.Cmp(preparedRound) <= 0 {

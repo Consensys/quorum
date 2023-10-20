@@ -33,6 +33,7 @@ import (
 
 // broadcastNextRoundChange sends the ROUND CHANGE message with current round + 1
 func (c *core) broadcastNextRoundChange() {
+	c.currentLogger(true, nil).Warn("BP: roundchange.go:broadcastRoundChange - broadcast round change with current+1 round ")
 	cv := c.currentView()
 	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
@@ -46,7 +47,7 @@ func (c *core) broadcastNextRoundChange() {
 // - broadcast the ROUND-CHANGE message with the given round
 func (c *core) broadcastRoundChange(round *big.Int) {
 	logger := c.currentLogger(true, nil)
-
+	logger.Warn("BP: roundchange.go:broadcastRoundChange - broadcast round change with current round ")
 	// Validates new round corresponds to current view
 	cv := c.currentView()
 	if cv.Round.Cmp(round) > 0 {
@@ -100,6 +101,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	view := roundChange.View()
 	currentRound := c.currentView().Round
 
+	logger.Warn("BP: roundchange.go:handleRoundChange - keep track of number of validators sending messages received for 1)current round 2)a higher round ")
+
 	// number of validators we received ROUND-CHANGE from for a round higher than the current one
 	num := c.roundChangeSet.higherRoundMessages(currentRound)
 
@@ -136,6 +139,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	if num == c.valSet.F()+1 {
 		// We received F+1 ROUND-CHANGE messages (this may happen before our timeout exprired)
 		// we start new round and broadcast ROUND-CHANGE message
+		logger.Warn("BP: roundchange.go:handleRoundChange - received RC messages from F+1 validators for higher round")
+		logger.Warn("BP: roundchange.go:handleRoundChange - start and broadcast new round change with minimum of these higher rounds")
 		newRound := c.roundChangeSet.getMinRoundChange(currentRound)
 
 		logger.Info("QBFT: received F+1 ROUND-CHANGE messages", "F", c.valSet.F())
@@ -150,6 +155,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 		// If we have received a quorum of PREPARE message
 		// then we propose the same block proposal again if not we
 		// propose the block proposal that we generated
+
+		logger.Warn("BP: roundchange.go:handleRoundChange - this node is proposer, Quorum for current round RC messages - use highest prepared value with preprepare message")
 		_, proposal := c.highestPrepared(currentRound)
 		if proposal == nil {
 			if c.current != nil && c.current.pendingRequest != nil {
@@ -160,6 +167,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 			}
 		}
 
+		logger.Warn("BP: roundchange.go:handleRoundChange - justify RC, prepared round and value shouldn't be set in all messages in Quorum")
+		logger.Warn("BP: roundchange.go:handleRoundChange - or the highest prepared round of RC messages should have prepared messages quorum")
 		// Prepare justification for ROUND-CHANGE messages
 		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
 		rcSignedPayloads := make([]*qbfttypes.SignedRoundChangePayload, 0)

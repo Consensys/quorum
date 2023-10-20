@@ -88,6 +88,8 @@ func (c *core) broadcastCommit() {
 func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 	logger := c.currentLogger(true, commit)
 
+	logger.Warn("BP: commit.go:handleCommitMsg : get quorum of valid commit messages, stop timer and commit")
+
 	logger.Info("QBFT: handle COMMIT message", "commits.count", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
 
 	// Check digest
@@ -135,6 +137,7 @@ func (c *core) commitQBFT() {
 		// Commit proposal to database
 		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
 			c.currentLogger(true, nil).Error("QBFT: error committing proposal", "err", err)
+			c.currentLogger(true, nil).Warn("BP: commit.go:handleCommitMsg : commit failed, broadcasting round change msgs")
 			c.broadcastNextRoundChange()
 			return
 		}

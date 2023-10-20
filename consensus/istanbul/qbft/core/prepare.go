@@ -55,6 +55,8 @@ func (c *core) broadcastPrepare() {
 		return
 	}
 
+	logger.Warn("BP: Prepare.go:broadcastPrepare straightforward create prepare message, sign, encode and broadcast!")
+
 	withMsg(logger, prepare).Info("QBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
@@ -62,6 +64,7 @@ func (c *core) broadcastPrepare() {
 		withMsg(logger, prepare).Error("QBFT: failed to broadcast PREPARE message", "err", err)
 		return
 	}
+
 }
 
 // handlePrepare is called when receiving a PREPARE message
@@ -74,6 +77,8 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	logger := c.currentLogger(true, prepare).New()
 
 	logger.Info("QBFT: handle PREPARE message", "prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
+
+	logger.Warn("BP: Prepare.go:handlePrepare : validate and keep adding to a set till quorum is reached!")
 
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
@@ -94,6 +99,8 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 		logger.Info("QBFT: received quorum of PREPARE messages")
 
+		logger.Warn("BP: Prepare.go:handlePrepare : quorum achieved, group and save these prepare messages to use for round change justification")
+
 		// Accumulates PREPARE messages
 		c.current.preparedRound = c.currentView().Round
 		c.QBFTPreparedPrepares = make([]*qbfttypes.Prepare, 0)
@@ -108,7 +115,7 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 			logger.Debug("QBFT: PREPARE message matches proposal", "proposal", c.current.Proposal().Hash(), "prepare", prepare.Digest)
 			c.current.preparedBlock = c.current.Proposal()
 		}
-
+		logger.Warn("BP: Prepare.go:handlePrepare :Broadcast commit message")
 		c.setState(StatePrepared)
 		c.broadcastCommit()
 	} else {

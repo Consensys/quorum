@@ -35,6 +35,9 @@ func (c *core) handleRequest(request *Request) error {
 
 	logger.Info("QBFT: handle block proposal request")
 
+	logger.Warn("BP: Request.go:handleRequest - requests published as events get picked up and start consensus process for a block")
+	logger.Warn("BP: Request.go:handleRequest - This node is proposer for this round")
+
 	if err := c.checkRequestMsg(request); err != nil {
 		if err == errInvalidMessage {
 			logger.Error("QBFT: invalid request")
@@ -46,6 +49,7 @@ func (c *core) handleRequest(request *Request) error {
 
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
+		logger.Warn("BP: Request.go:handleRequest - verify the state of consensus process - it is in accept request state")
 		config := c.config.GetConfig(c.current.Sequence())
 		if config.EmptyBlockPeriod == 0 { // emptyBlockPeriod is not set
 			// Start ROUND-CHANGE timer
@@ -96,6 +100,8 @@ func (c *core) handleRequest(request *Request) error {
 			}
 		}
 	}
+	logger.Warn("BP: Request.go:handleRequest - check and handle couple of empty block period cases , start round change timer(new timer for normal rounds)")
+	logger.Warn("BP: Request.go:handleRequest - Call sendPreprepareMsg, which will build the message, sign it and broadcast it)")
 
 	return nil
 }
@@ -138,6 +144,8 @@ func (c *core) processPendingRequests() {
 	logger := c.currentLogger(true, nil)
 	logger.Debug("QBFT: lookup for pending block proposal requests")
 
+	logger.Warn("Request.go - processPendingRequests - Check for pending requests on state changes to verify and pick next block to propose")
+
 	for !(c.pendingRequests.Empty()) {
 		m, prio := c.pendingRequests.Pop()
 		r, ok := m.(*Request)
@@ -158,6 +166,7 @@ func (c *core) processPendingRequests() {
 		}
 		logger.Debug("QBFT: found pending block proposal request", "proposal.number", r.Proposal.Number(), "proposal.hash", r.Proposal.Hash())
 
+		logger.Warn("BP: Request.go:processPendingRequests - Once a block is verified and selected, publish an event with the block in proposal ")
 		go c.sendEvent(istanbul.RequestEvent{
 			Proposal: r.Proposal,
 		})

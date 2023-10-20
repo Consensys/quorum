@@ -41,12 +41,17 @@ func (c *core) sendPreprepareMsg(request *Request) {
 
 	logger := c.currentLogger(true, nil)
 
+	logger.Warn("BP: Preprepare.go:sendPreprepareMsg - Called from normal handle request path and round change path)")
+
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		// Creates PRE-PREPARE message
 		curView := c.currentView()
 		preprepare := qbfttypes.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
 		preprepare.SetSource(c.Address())
+
+		logger.Warn("BP: Preprepare.go:sendPreprepareMsg - check block number validity, if this node is proposer)")
+		logger.Warn("BP: Preprepare.go:sendPreprepareMsg - build a preprepare message with sequence number, round number, proposed value - block contents)")
 
 		// Sign payload
 		encodedPayload, err := preprepare.EncodePayloadForSigning()
@@ -61,6 +66,8 @@ func (c *core) sendPreprepareMsg(request *Request) {
 		}
 		preprepare.SetSignature(signature)
 
+		logger.Warn("BP: Preprepare.go:sendPreprepareMsg - Encode and sign the message)")
+
 		// Extend PRE-PREPARE message with ROUND-CHANGE justification
 		if request.RCMessages != nil {
 			preprepare.JustificationRoundChanges = make([]*qbfttypes.SignedRoundChangePayload, 0)
@@ -69,12 +76,15 @@ func (c *core) sendPreprepareMsg(request *Request) {
 				withMsg(logger, preprepare).Trace("QBFT: add ROUND-CHANGE justification", "rc", m.(*qbfttypes.RoundChange).SignedRoundChangePayload)
 			}
 			withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+			logger.Warn("BP: Preprepare.go:sendPreprepareMsg - Add round change messages to the preprepare message if required - other validators check on receipt)")
+
 		}
 
 		// Extend PRE-PREPARE message with PREPARE justification
 		if request.PrepareMessages != nil {
 			preprepare.JustificationPrepares = request.PrepareMessages
 			withMsg(logger, preprepare).Trace("QBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+			logger.Warn("BP: Preprepare.go:sendPreprepareMsg - Adding more prepare messages info)")
 		}
 
 		// RLP-encode message
@@ -94,6 +104,8 @@ func (c *core) sendPreprepareMsg(request *Request) {
 			return
 		}
 
+		logger.Warn("BP: Preprepare.go:sendPreprepareMsg - broadcast message)")
+
 		// Set the preprepareSent to the current round
 		c.current.preprepareSent = curView.Round
 	}
@@ -112,6 +124,8 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 
 	c.logger.Info("QBFT: handle PRE-PREPARE message")
 
+	logger.Warn("BP: Preprepare.go:handlePreprepareMsg - check if sender is the proposer for this round)")
+
 	// Validates PRE-PREPARE message comes from current proposer
 	if !c.valSet.IsProposer(preprepare.Source()) {
 		logger.Warn("QBFT: ignore PRE-PREPARE message from non proposer", "proposer", c.valSet.GetProposer().Address())
@@ -124,8 +138,11 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 			logger.Warn("QBFT: invalid PRE-PREPARE message justification", "err", err)
 			return errInvalidPreparedBlock
 		}
-	}
+		logger.Warn("BP: Preprepare.go:handlePreprepareMsg - Msg received not in first round. Check attached info to the message if this is justified)")
+		logger.Warn("BP: Preprepare.go:handlePreprepareMsg - RC and other messages received from the sender looked at for justification?)")
 
+	}
+	logger.Warn("BP: Preprepare.go:handlePreprepareMsg - Block value, etc are now validated in the backend)")
 	// Validates PRE-PREPARE block proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
@@ -151,6 +168,8 @@ func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
 		c.logger.Info("QBFT: accepted PRE-PREPARE message")
+
+		logger.Warn("BP: Preprepare.go:handlePreprepareMsg - Accepted the received preprepare msg, start timer and broadcast prepare messages)")
 
 		// Re-initialize ROUND-CHANGE timer
 		c.newRoundChangeTimer()
