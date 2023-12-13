@@ -33,6 +33,7 @@ func (c *core) sendPrepare() {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
+	c.logger.Info("Broadcasting prepare message")
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgPrepare,
 		Msg:  encodedSubject,
@@ -42,23 +43,33 @@ func (c *core) sendPrepare() {
 func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
+
+	c.logger.Info("Decoding prepare message")
 	err := msg.Decode(&prepare)
 	if err != nil {
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
 
+
+	c.logger.Info("Checking prepare message view")
 	if err := c.checkMessage(ibfttypes.MsgPrepare, prepare.View); err != nil {
 		return err
 	}
 
 	// If it is locked, it can only process on the locked block.
 	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
+
+	c.logger.Info("Verifying prepare")
 	if err := c.verifyPrepare(prepare, src); err != nil {
 		return err
 	}
 
+
+	c.logger.Info("Accept prepare")
 	c.acceptPrepare(msg, src)
 
+
+	c.logger.Info("Sending commit")
 	// Change to Prepared state if we've received enough PREPARE messages or it is locked
 	// and we are in earlier state before Prepared state.
 	if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) &&

@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func (c *core) handleRequest(request *istanbul.Request) error {
@@ -32,7 +33,7 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 		logger.Warn("unexpected request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		return err
 	}
-	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+	logger.Info("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.current.pendingRequest = request
 	if c.state == ibfttypes.StateAcceptRequest {
@@ -74,9 +75,12 @@ func (c *core) processPendingRequests() {
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()
 
+	log.Info("Processing pending requests", "Current qlen", c.pendingRequests.Size())
+
 	for !(c.pendingRequests.Empty()) {
 		m, prio := c.pendingRequests.Pop()
 		r, ok := m.(*istanbul.Request)
+		log.Info("Retrieving request from queue",  "Proposal Number", r.Proposal.Number())
 		if !ok {
 			c.logger.Warn("Malformed request, skip", "msg", m)
 			continue
@@ -94,6 +98,7 @@ func (c *core) processPendingRequests() {
 		}
 		c.logger.Trace("Post pending request", "number", r.Proposal.Number(), "hash", r.Proposal.Hash())
 
+		log.Info("Sending event with the proposal")
 		go c.sendEvent(istanbul.RequestEvent{
 			Proposal: r.Proposal,
 		})

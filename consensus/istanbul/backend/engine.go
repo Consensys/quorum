@@ -346,14 +346,14 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If an in-memory snapshot was found, use that
 		if s, ok := sb.recents.Get(hash); ok {
 			snap = s.(*Snapshot)
-			sb.snapLogger(snap).Trace("BFT: loaded voting snapshot from cache")
+			sb.snapLogger(snap).Info("BFT: loaded voting snapshot from cache")
 			break
 		}
 		// If an on-disk checkpoint snapshot can be found, use that
 		if number%checkpointInterval == 0 {
 			if s, err := loadSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, sb.db, hash); err == nil {
 				snap = s
-				sb.snapLogger(snap).Trace("BFT: loaded voting snapshot from database")
+				sb.snapLogger(snap).Info("BFT: loaded voting snapshot from database")
 				break
 			}
 		}
@@ -380,7 +380,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 					BlockNumber: big.NewInt(0),
 				}
 				validators, err = validatorContractCaller.GetValidators(&opts)
-				log.Trace("BFT: Initialising snap with contract validators", "address", validatorContract, "validators", validators)
+				log.Info("BFT: Initialising snap with contract validators", "address", validatorContract, "validators", validators)
 				if err != nil {
 					log.Error("BFT: invalid smart contract in genesis alloc", "err", err)
 					return nil, err
@@ -401,6 +401,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				}
 			}
 
+			sb.logger.Info("Creating an authorization snapshot")
 			snap = newSnapshot(sb.config.GetConfig(new(big.Int).SetUint64(number)).Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
 			if err := sb.storeSnap(snap); err != nil {
 				return nil, err
@@ -444,7 +445,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	validatorContract := sb.config.GetValidatorContractAddress(targetBlockHeight)
 	// we only need to update the validator set if it's a new block
 	if len(headers) == 0 && validatorContract != (common.Address{}) && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.ContractMode {
-		sb.logger.Trace("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
+		sb.logger.Info("Applying snap with smart contract validators", "address", validatorContract, "client", sb.config.Client)
 
 		validatorContractCaller, err := contract.NewValidatorContractInterfaceCaller(validatorContract, sb.config.Client)
 
@@ -461,7 +462,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 			log.Error("BFT: invalid validator smart contract", "err", err)
 			return nil, err
 		}
-		sb.logger.Trace("Fetched validators from smart contract", "validators", validators)
+		sb.logger.Info("Fetched validators from smart contract", "validators", validators)
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		snap.ValSet = valSet
 	} else if validatorsFromTransitions := sb.config.GetValidatorsAt(targetBlockHeight); len(validatorsFromTransitions) > 0 && sb.config.GetValidatorSelectionMode(targetBlockHeight) == params.BlockHeaderMode {
@@ -563,7 +564,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		}
 	}
 
-	logger.Debug("BFT: add vote to tally")
+	logger.Info("BFT: add vote to tally")
 	if snap.cast(candidate, authorize) {
 		snap.Votes = append(snap.Votes, &Vote{
 			Validator: validator,

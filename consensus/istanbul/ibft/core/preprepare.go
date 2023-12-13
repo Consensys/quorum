@@ -29,6 +29,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+		logger.Info("I am the proposer and I have the same sequence number as the request")
 		curView := c.currentView()
 		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
 			View:     curView,
@@ -42,12 +43,14 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			Code: ibfttypes.MsgPreprepare,
 			Msg:  preprepare,
 		})
+		logger.Info("Broadcasting message", "proposal number", request.Proposal.Number())
 	}
 }
 
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
+	logger.Info("Decoding prepare message")
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
@@ -55,6 +58,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		return istanbulcommon.ErrFailedDecodePreprepare
 	}
 
+	logger.Info("Checking the current view with the message view")
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
@@ -74,12 +78,16 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		return err
 	}
 
+	logger.Info("Checking if message comes from current proposer")
 	// Check if the message comes from current proposer
 	if !c.valSet.IsProposer(src.Address()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return istanbulcommon.ErrNotFromProposer
 	}
 
+
+
+	logger.Info("Checking the proposal")
 	// Verify the proposal we received
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
@@ -105,6 +113,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		if c.current.IsHashLocked() {
 			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
 				// Broadcast COMMIT and enters Prepared state directly
+				c.logger.Info("Locked hash Accepting pre-prepare message, setting state to prepared and sending commit directly")
 				c.acceptPreprepare(preprepare)
 				c.setState(ibfttypes.StatePrepared)
 				c.sendCommit()
@@ -116,6 +125,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			// Either
 			//   1. the locked proposal and the received proposal match
 			//   2. we have no locked proposal
+			c.logger.Info("Accepting pre-prepare message, setting state to preprepared and sending commit directly")
 			c.acceptPreprepare(preprepare)
 			c.setState(ibfttypes.StatePreprepared)
 			c.sendPrepare()

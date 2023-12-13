@@ -173,8 +173,10 @@ func (c *core) commit() {
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
 
+		c.logger.Info("Doing backend commit")
 		if err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1)); err != nil {
 			c.current.UnlockHash() //Unlock block when insertion fails
+			c.logger.Info("Error , so sending next round change")
 			c.sendNextRoundChange()
 			return
 		}
@@ -196,7 +198,7 @@ func (c *core) startNewRound(round *big.Int) {
 	// Try to get last proposal
 	lastProposal, lastProposer := c.backend.LastProposal()
 	if c.current == nil {
-		logger.Trace("Start to the initial round")
+		logger.Info("Start to the initial round")
 	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		diff := new(big.Int).Sub(lastProposal.Number(), c.current.Sequence())
 		sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
@@ -205,7 +207,7 @@ func (c *core) startNewRound(round *big.Int) {
 			consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
-		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+		logger.Info("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
 			// same seq and round, don't need to start new round
@@ -226,6 +228,7 @@ func (c *core) startNewRound(round *big.Int) {
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
+		logger.Info("generating new view ", "Sequence", newView.Sequence, "Round", newView.Round)
 	} else {
 		newView = &istanbul.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
@@ -249,12 +252,16 @@ func (c *core) startNewRound(round *big.Int) {
 	// Clear invalid ROUND CHANGE messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
+	logger.Info("Updating the current round")
 	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
+
+	logger.Info("Updating the current proposer")
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(ibfttypes.StateAcceptRequest)
 	if roundChange && c.IsProposer() && c.current != nil {
+		logger.Info("I am the proposer let me send the pending request as preprepare")
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
 		if c.current.IsHashLocked() {
@@ -268,7 +275,7 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
+	logger.Info("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
@@ -284,7 +291,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()
 
-	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
+	logger.Info("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
 }
 
 // updateRoundState updates round state by checking if locking block is necessary

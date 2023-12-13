@@ -112,6 +112,7 @@ func (c *core) IsProposer() bool {
 }
 
 func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
+	log.Info("Checking if proposal is current ")
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 

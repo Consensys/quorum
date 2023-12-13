@@ -29,6 +29,7 @@ import (
 // sendNextRoundChange sends the ROUND CHANGE message with current round + 1
 func (c *core) sendNextRoundChange() {
 	cv := c.currentView()
+	c.logger.Info("Sending round change")
 	c.sendRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
@@ -61,6 +62,8 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
+
+	c.logger.Info("Broadcasting round change")
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgRoundChange,
 		Msg:  payload,
@@ -72,11 +75,13 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 
 	// Decode ROUND CHANGE message
 	var rc *istanbul.Subject
+	logger.Info("Decoding round change message")
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return istanbulcommon.ErrInvalidMessage
 	}
 
+	logger.Info("checking round change message")
 	if err := c.checkMessage(ibfttypes.MsgRoundChange, rc.View); err != nil {
 		return err
 	}
@@ -84,6 +89,7 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 	cv := c.currentView()
 	roundView := rc.View
 
+	logger.Info("Adding round change message to its set")
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	num, err := c.roundChangeSet.Add(roundView.Round, msg)
@@ -97,11 +103,13 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 	// try to catch up the round number.
 	if c.waitingForRoundChange && num == c.valSet.F()+1 {
 		if cv.Round.Cmp(roundView.Round) < 0 {
+			logger.Info("round change since views are different")
 			c.sendRoundChange(roundView.Round)
 		}
 		return nil
 	} else if num == c.QuorumSize() && (c.waitingForRoundChange || cv.Round.Cmp(roundView.Round) < 0) {
 		// We've received 2f+1/Ceil(2N/3) ROUND CHANGE messages, start a new round immediately.
+		logger.Info("starting new round on reaching quorum")
 		c.startNewRound(roundView.Round)
 		return nil
 	} else if cv.Round.Cmp(roundView.Round) < 0 {

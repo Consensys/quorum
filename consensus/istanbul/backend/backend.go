@@ -225,6 +225,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// Remove ValidatorSet added to ProposerPolicy registry, if not done, the registry keeps increasing size with each block height
 	sb.config.ProposerPolicy.ClearRegistry()
 
+	sb.logger.Info("Update block's header")
 	// update block's header
 	block = block.WithSeal(h)
 
@@ -256,6 +257,8 @@ func (sb *Backend) EventMux() *event.TypeMux {
 
 // Verify implements istanbul.Backend.Verify
 func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
+
+	sb.logger.Info("Checking for proposal is type of block")
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
@@ -263,6 +266,8 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return 0, istanbulcommon.ErrInvalidProposal
 	}
 
+
+	sb.logger.Info("Checking for bad proposal")
 	// check bad block
 	if sb.HasBadProposal(block.Hash()) {
 		sb.logger.Warn("BFT: bad block proposal", "proposal", proposal)
@@ -270,6 +275,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
+	sb.logger.Info("Proposal authorization snapshot")
 	snap, err := sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil)
 	if err != nil {
 		return 0, err

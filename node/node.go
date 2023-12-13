@@ -190,6 +190,9 @@ func (n *Node) Start() error {
 	n.startStopLock.Lock()
 	defer n.startStopLock.Unlock()
 
+	logger := log.New("Node Name",n.config.Name)
+	logger.Info("Starting node" )
+
 	n.lock.Lock()
 	switch n.state {
 	case runningState:
@@ -210,6 +213,7 @@ func (n *Node) Start() error {
 	// End Quorum
 
 	// open networking and RPC endpoints
+	logger.Info("Adding networking and RPC endpoints")
 	err := n.openEndpoints()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
@@ -220,6 +224,8 @@ func (n *Node) Start() error {
 		n.doClose(nil)
 		return err
 	}
+
+	logger.Info("Adding Lifecycles")
 	// Start all registered lifecycles.
 	var started []Lifecycle
 	for _, lifecycle := range lifecycles {

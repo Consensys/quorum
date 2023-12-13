@@ -27,8 +27,11 @@ import (
 func (c *core) Start() error {
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
+	c.logger.Info("Subscribing to events")
 	c.subscribeEvents()
+	c.logger.Info("Adding myself to the handler wait group")
 	c.handlerWg.Add(1)
+	c.logger.Info("Handling events")
 	go c.handleEvents()
 
 	// Start a new round from last sequence + 1
@@ -79,9 +82,11 @@ func (c *core) handleEvents() {
 		c.handlerWg.Done()
 	}()
 
+	c.logger.Info("Perpetually waiting for events")
 	for {
 		select {
 		case event, ok := <-c.events.Chan():
+			c.logger.Info("Received event ", "event", event)
 			if !ok {
 				return
 			}
@@ -137,6 +142,8 @@ func (c *core) sendEvent(ev interface{}) {
 
 func (c *core) handleMsg(payload []byte) error {
 	logger := c.logger.New()
+
+	logger.Info("Handling message")
 
 	// Decode message and check its signature
 	msg := new(ibfttypes.Message)
