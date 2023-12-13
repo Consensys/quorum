@@ -124,5 +124,22 @@ contract NFTCollateralLoan {
         delete proposals[_proposalId];
     }
 
+    // actOnLoanDateExpiry gives back NFT to lender
+    function actOnLoanDateExpiry(uint256 _proposalId) public {
+        LoanProposal storage proposal = proposals[_proposalId];
+
+        // Check if its still due 
+        require(!proposal.isPaidBack, "Loan is already paid back");
+
+        if (block.timestamp > proposal.dueDate) 
+            return;
+        
+        // Transfer NFT to the lender
+        IERC721 nftContract = IERC721(proposal.nftContractAddress);
+        nftContract.transferFrom(address(this), proposal.lender, proposal.nftTokenId);
+
+        proposal.isPaidBack = true; //
+    }
+
 }
 
