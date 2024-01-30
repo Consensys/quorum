@@ -1,8 +1,6 @@
 package raft
 
-import (
-	etcdRaft "github.com/coreos/etcd/raft"
-)
+import etcd "github.com/ethereum/go-ethereum/raft/etcd/raft"
 
 const (
 	//protocolName           = "raft"
@@ -10,7 +8,7 @@ const (
 
 	//raftMsg = 0x00
 
-	minterRole = etcdRaft.LEADER
+	minterRole = etcd.LEADER
 	//verifierRole = etcdRaft.NOT_LEADER
 
 	// Raft's ticker interval
@@ -26,8 +24,6 @@ const (
 	snapshotPeriod = 250
 
 	//peerUrlKeyPrefix = "peerUrl-"
-
-	chainExtensionMessage = "Successfully extended chain"
 )
 
 var (

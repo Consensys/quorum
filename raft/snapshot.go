@@ -333,7 +333,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 		pm.syncBlockchainUntil(latestBlockHash)
 		pm.logNewlyAcceptedTransactions(preSyncHead)
 
-		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
+		log.Info("Successfully extended chain", "hash", pm.blockchain.CurrentBlock().Hash())
 	} else {
 		// added for permissions changes to indicate node sync up has started
 		core.SetSyncStatus()
@@ -356,13 +356,13 @@ func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
 	pm.mu.RUnlock()
 
 	for {
-		for peerId, peer := range peerMap {
-			log.Info("synchronizing with peer", "peer id", peerId, "hash", hash)
+		for _, peer := range peerMap {
+			nodeId := peer.p2pNode.ID().String()
 
-			peerId := peer.p2pNode.ID().String()
+			log.Info("synchronizing blockchain with peer", "peer", nodeId, "hash", hash)
 
-			if err := pm.downloader.Synchronise(peerId, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
-				log.Info("failed to synchronize with peer", "peer id", peerId)
+			if err := pm.downloader.Synchronise(nodeId, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
+				log.Info("failed to synchronize blockchain with peer", "peer", nodeId)
 
 				time.Sleep(500 * time.Millisecond)
 			} else {

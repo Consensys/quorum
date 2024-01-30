@@ -22,6 +22,7 @@ import (
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
 	mapset "github.com/deckarep/golang-set"
+	etcd "github.com/ethereum/go-ethereum/raft/etcd/raft"
 	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -75,7 +76,7 @@ type ProtocolManager struct {
 	confChangeProposalC chan raftpb.ConfChange // for config changes from js console to raft
 
 	// Raft transport
-	unsafeRawNode etcdRaft.Node
+	unsafeRawNode etcd.Node
 	transport     *rafthttp.Transport
 	httpstopc     chan struct{}
 	httpdonec     chan struct{}
@@ -90,8 +91,8 @@ type ProtocolManager struct {
 	wal    *wal.WAL
 
 	// Storage
-	quorumRaftDb *leveldb.DB             // Persistent storage for last-applied raft index
-	raftStorage  *etcdRaft.MemoryStorage // Volatile raft storage
+	quorumRaftDb *leveldb.DB         // Persistent storage for last-applied raft index
+	raftStorage  *etcd.MemoryStorage // Volatile raft storage
 }
 
 var errNoLeaderElected = errors.New("no leader is currently elected")
@@ -108,7 +109,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
-		leader:              uint16(etcdRaft.None),
+		leader:              uint16(etcd.None),
 		removedPeers:        mapset.NewSet(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
@@ -123,7 +124,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		raftId:              raftId,
 		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
-		raftStorage:         etcdRaft.NewMemoryStorage(),
+		raftStorage:         etcd.NewMemoryStorage(),
 		minter:              minter,
 		downloader:          downloader,
 		useDns:              useDns,
@@ -236,7 +237,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 // `raft.Node`, `pm.unsafeRawNode`, to us. This re-entrance through a separate
 // thread will cause a nil pointer dereference. To work around this, this
 // getter method should be used instead of reading `pm.unsafeRawNode` directly.
-func (pm *ProtocolManager) rawNode() etcdRaft.Node {
+func (pm *ProtocolManager) rawNode() etcd.Node {
 	for pm.unsafeRawNode == nil {
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -544,7 +545,7 @@ func (pm *ProtocolManager) startRaft() {
 	//       bugs"
 	enablePreVote := true
 
-	raftConfig := &etcdRaft.Config{
+	raftConfig := &etcd.Config{
 		Applied:       lastAppliedIndex,
 		ID:            uint64(pm.raftId),
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -581,10 +582,10 @@ func (pm *ProtocolManager) startRaft() {
 	if walExisted {
 		log.Info("remounting an existing raft log; connecting to peers.")
 
-		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
+		pm.unsafeRawNode = etcd.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
+		pm.unsafeRawNode = etcd.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
@@ -603,7 +604,7 @@ func (pm *ProtocolManager) startRaft() {
 		for _, peerAddress := range peerAddresses {
 			pm.addPeer(peerAddress)
 		}
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers)
+		pm.unsafeRawNode = etcd.StartNode(raftConfig, raftPeers)
 	}
 	log.Info("raft node started")
 	go pm.serveRaft()
@@ -734,15 +735,13 @@ func (pm *ProtocolManager) serveLocalProposals() {
 				return
 			}
 
-			size, r, err := rlp.EncodeToReader(block)
+			data, err := rlp.EncodeToBytes(block)
 			if err != nil {
-				panic(fmt.Sprintf("error: failed to send RLP-encoded block: %s", err.Error()))
+				panic(fmt.Sprintf("error: failed to send RLP-encoded block: %v", err))
 			}
-			var buffer = make([]byte, uint32(size))
-			r.Read(buffer)
 
 			// blocks until accepted by the raft state machine
-			pm.rawNode().Propose(context.TODO(), buffer)
+			pm.rawNode().Propose(context.TODO(), data)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
 				log.Info("error: read from confChangeProposalC failed")
@@ -859,7 +858,7 @@ func (pm *ProtocolManager) eventLoop() {
 				pm.updateLeader(rd.SoftState.Lead)
 			}
 
-			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
+			if snap := rd.Snapshot; !etcd.IsEmptySnap(snap) {
 				pm.saveRaftSnapshot(snap)
 				pm.applyRaftSnapshot(snap)
 				pm.advanceAppliedIndex(snap.Metadata.Index)
@@ -995,9 +994,9 @@ func (pm *ProtocolManager) eventLoop() {
 	}
 }
 
-func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, peerAddresses []*Address, localAddress *Address) {
+func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcd.Peer, peerAddresses []*Address, localAddress *Address) {
 	initialNodes := pm.bootstrapNodes
-	raftPeers = make([]etcdRaft.Peer, len(initialNodes))  // Entire cluster
+	raftPeers = make([]etcd.Peer, len(initialNodes))      // Entire cluster
 	peerAddresses = make([]*Address, len(initialNodes)-1) // Cluster without *this* node
 
 	peersSeen := 0
@@ -1007,7 +1006,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
 		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
-		raftPeers[i] = etcdRaft.Peer{
+		raftPeers[i] = etcd.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),
 		}

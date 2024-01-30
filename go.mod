@@ -2,8 +2,10 @@ module github.com/ethereum/go-ethereum
 
 go 1.15
 
-// Quorum - Replace Go modules that use modifications done by us
-replace github.com/coreos/etcd => github.com/Consensys/etcd v3.3.13-quorum197+incompatible
+// Quorum - Replaced Go modules which required for etcd
+replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.6
+
+replace google.golang.org/grpc/naming => google.golang.org/grpc v1.23.0
 
 // End Quorum
 
@@ -22,7 +24,7 @@ require (
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.14.0
 	github.com/consensys/gnark-crypto v0.4.1-0.20210426202927-39ac3d4b3f1f
-	github.com/coreos/etcd v3.3.20+incompatible
+	github.com/coreos/etcd v3.3.27+incompatible
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
@@ -31,6 +33,7 @@ require (
 	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/eapache/channels v1.1.0
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0
