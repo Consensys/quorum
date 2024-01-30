@@ -94,11 +94,15 @@ func TestCheckCompatible(t *testing.T) {
 		head        uint64
 		wantErr     *ConfigCompatError
 	}
-	var storedMaxCodeConfig0, storedMaxCodeConfig1, storedMaxCodeConfig2 []MaxCodeConfigStruct
+	var storedMaxCodeConfig0, storedMaxCodeConfig1 []MaxCodeConfigStruct
 	defaultRec := MaxCodeConfigStruct{big.NewInt(0), 24}
+	defaultTRec := Transition{Block: defaultRec.Block, ContractSizeLimit: defaultRec.Size}
 	rec1 := MaxCodeConfigStruct{big.NewInt(5), 32}
+	tRec1 := Transition{Block: rec1.Block, ContractSizeLimit: rec1.Size}
 	rec2 := MaxCodeConfigStruct{big.NewInt(10), 40}
+	tRec2 := Transition{Block: rec2.Block, ContractSizeLimit: rec2.Size}
 	rec3 := MaxCodeConfigStruct{big.NewInt(8), 40}
+	tRec3 := Transition{Block: rec3.Block, ContractSizeLimit: rec3.Size}
 
 	storedMaxCodeConfig0 = append(storedMaxCodeConfig0, defaultRec)
 
@@ -106,17 +110,19 @@ func TestCheckCompatible(t *testing.T) {
 	storedMaxCodeConfig1 = append(storedMaxCodeConfig1, rec1)
 	storedMaxCodeConfig1 = append(storedMaxCodeConfig1, rec2)
 
-	storedMaxCodeConfig2 = append(storedMaxCodeConfig2, rec1)
-	storedMaxCodeConfig2 = append(storedMaxCodeConfig2, rec2)
+	var storedMaxCodeConfig2 []Transition
+	storedMaxCodeConfig2 = append(storedMaxCodeConfig2, defaultTRec)
+	storedMaxCodeConfig2 = append(storedMaxCodeConfig2, tRec1)
+	storedMaxCodeConfig2 = append(storedMaxCodeConfig2, tRec2)
 
-	var passedValidMaxConfig0 []MaxCodeConfigStruct
-	passedValidMaxConfig0 = append(passedValidMaxConfig0, defaultRec)
-	passedValidMaxConfig0 = append(passedValidMaxConfig0, rec1)
+	var passedValidMaxConfig0 []Transition
+	passedValidMaxConfig0 = append(passedValidMaxConfig0, defaultTRec)
+	passedValidMaxConfig0 = append(passedValidMaxConfig0, tRec1)
 
-	var passedValidMaxConfig1 []MaxCodeConfigStruct
-	passedValidMaxConfig1 = append(passedValidMaxConfig1, defaultRec)
-	passedValidMaxConfig1 = append(passedValidMaxConfig1, rec1)
-	passedValidMaxConfig1 = append(passedValidMaxConfig1, rec3)
+	var passedValidMaxConfig1 []Transition
+	passedValidMaxConfig1 = append(passedValidMaxConfig1, defaultTRec)
+	passedValidMaxConfig1 = append(passedValidMaxConfig1, tRec1)
+	passedValidMaxConfig1 = append(passedValidMaxConfig1, tRec3)
 
 	tests := []test{
 		{stored: AllEthashProtocolChanges, new: AllEthashProtocolChanges, head: 0, wantErr: nil},
@@ -247,10 +253,10 @@ func TestCheckCompatible(t *testing.T) {
 		},
 		{
 			stored: &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
-			new:    &ChainConfig{MaxCodeSizeConfig: nil},
+			new:    &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
 			head:   4,
 			wantErr: &ConfigCompatError{
-				What:         "genesis file missing max code size information",
+				What:         "genesis file missing contract size limit information in transitions",
 				StoredConfig: big.NewInt(4),
 				NewConfig:    big.NewInt(4),
 				RewindTo:     3,
@@ -258,16 +264,16 @@ func TestCheckCompatible(t *testing.T) {
 		},
 		{
 			stored:  &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
-			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
+			new:     &ChainConfig{Transitions: storedMaxCodeConfig2},
 			head:    4,
 			wantErr: nil,
 		},
 		{
 			stored: &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
-			new:    &ChainConfig{MaxCodeSizeConfig: passedValidMaxConfig0},
+			new:    &ChainConfig{Transitions: passedValidMaxConfig0},
 			head:   10,
 			wantErr: &ConfigCompatError{
-				What:         "maxCodeSizeConfig data incompatible. updating maxCodeSize for past",
+				What:         "maxCodeSizeConfig data incompatible with transitions.contractsizelimit. attempting to update maxCodeSize for the past",
 				StoredConfig: big.NewInt(10),
 				NewConfig:    big.NewInt(10),
 				RewindTo:     9,
@@ -275,48 +281,31 @@ func TestCheckCompatible(t *testing.T) {
 		},
 		{
 			stored:  &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig0},
-			new:     &ChainConfig{MaxCodeSizeConfig: passedValidMaxConfig0},
+			new:     &ChainConfig{Transitions: passedValidMaxConfig0},
 			head:    4,
 			wantErr: nil,
 		},
 		{
 			stored:  &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
-			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
+			new:     &ChainConfig{Transitions: storedMaxCodeConfig2},
 			head:    12,
 			wantErr: nil,
 		},
 		{
 			stored: &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
-			new:    &ChainConfig{MaxCodeSizeConfig: passedValidMaxConfig1},
+			new:    &ChainConfig{Transitions: passedValidMaxConfig1},
 			head:   12,
 			wantErr: &ConfigCompatError{
-				What:         "maxCodeSizeConfig data incompatible. maxCodeSize historical data does not match",
+				What:         "maxCodeSizeConfig data incompatible with transitions.contractsizelimit. maxCodeSize historical data does not match",
 				StoredConfig: big.NewInt(12),
 				NewConfig:    big.NewInt(12),
 				RewindTo:     11,
 			},
 		},
-		{
-			stored:  &ChainConfig{MaxCodeSize: 32},
-			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig2},
-			head:    8,
-			wantErr: nil,
-		},
-		{
-			stored:  &ChainConfig{MaxCodeSize: 32},
-			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig2},
-			head:    15,
-			wantErr: nil,
-		},
-		{
-			stored:  &ChainConfig{MaxCodeSize: 32, MaxCodeSizeChangeBlock: big.NewInt(10)},
-			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
-			head:    15,
-			wantErr: nil,
-		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
+		t.Logf("Test %d", i)
 		err := test.stored.CheckCompatible(test.new, test.head, false)
 		if !reflect.DeepEqual(err, test.wantErr) {
 			t.Errorf("error mismatch:\nstored: %v\nnew: %v\nhead: %v\nerr: %v\nwant: %v", test.stored, test.new, test.head, err, test.wantErr)
@@ -462,20 +451,20 @@ func TestGetMaxCodeSize(t *testing.T) {
 		{RinkebyChainConfig, 0, MaxCodeSize},
 		{GoerliChainConfig, 0, MaxCodeSize},
 		{YoloV3ChainConfig, 0, MaxCodeSize},
-		{AllEthashProtocolChanges, 0, 35 * 1024},
-		{AllCliqueProtocolChanges, 0, maxCodeDefault},
+		{AllEthashProtocolChanges, 0, MaxCodeSize},
+		{AllCliqueProtocolChanges, 0, MaxCodeSize},
 		{TestChainConfig, 0, maxCodeDefault},
 		{QuorumTestChainConfig, 0, maxCodeDefault},
 		{QuorumMPSTestChainConfig, 0, maxCodeDefault},
-		{&config1, 0, MaxCodeSize},
-		{&config1, 1, MaxCodeSize},
-		{&config1, 2, 28 * 1024},
-		{&config1, 3, 28 * 1024},
-		{&config1, 4, 32 * 1024},
-		{&config2, 0, MaxCodeSize},
-		{&config2, 1, MaxCodeSize},
-		{&config2, 2, 36 * 1024},
-		{&config2, 3, 36 * 1024},
+		{&config1, 0, maxCodeDefault},
+		{&config1, 1, maxCodeDefault},
+		{&config1, 2, maxCodeDefault},
+		{&config1, 3, maxCodeDefault},
+		{&config1, 4, maxCodeDefault},
+		{&config2, 0, maxCodeDefault},
+		{&config2, 1, maxCodeDefault},
+		{&config2, 2, maxCodeDefault},
+		{&config2, 3, maxCodeDefault},
 		{&config3, 0, MaxCodeSize},
 		{&config3, 1, MaxCodeSize},
 		{&config3, 2, 50 * 1024},
