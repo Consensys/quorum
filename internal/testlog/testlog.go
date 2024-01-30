@@ -80,6 +80,14 @@ func (l *logger) Trace(msg string, ctx ...interface{}) {
 	l.flush()
 }
 
+func (l *logger) Marc(lvl log.Lvl, msg string, ctx ...interface{}) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.Marc(lvl, msg, ctx...)
+	l.flush()
+}
+
 func (l *logger) Debug(msg string, ctx ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()

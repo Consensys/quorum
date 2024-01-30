@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -47,6 +48,7 @@ func (c *core) broadcastNextRoundChange() {
 func (c *core) broadcastRoundChange(round *big.Int) {
 	logger := c.currentLogger(true, nil)
 
+	logger.Marc(log.LvlTrace, "BROADCAST ROUND CHANGE")
 	// Validates new round corresponds to current view
 	cv := c.currentView()
 	if cv.Round.Cmp(round) > 0 {
@@ -96,6 +98,7 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 // - when quorum of ROUND-CHANGE messages is reached then
 func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	logger := c.currentLogger(true, roundChange)
+	logger.Marc(log.LvlTrace, "RECEIVED ROUND CHANGE MESSAGE FROM VALIDATOR")
 
 	view := roundChange.View()
 	currentRound := c.currentView().Round
@@ -106,6 +109,7 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	// number of validators we received ROUND-CHANGE from for the current round
 	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
 
+	logger.Marc(log.LvlTrace, fmt.Sprintf("RECEIVED A TOTAL OF %d ROUND CHANGES WITH HIGHER ROUND CHANGE FROM %d VALIDATORS.", num, currentRoundMessages))
 	logger.Info("QBFT: handle ROUND-CHANGE message", "higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
 
 	// Add ROUND-CHANGE message to message set
@@ -131,6 +135,8 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	// number of validators we received ROUND-CHANGE from for the current round
 	currentRoundMessages = c.roundChangeSet.getRCMessagesForGivenRound(currentRound)
 
+	logger.Marc(log.LvlTrace, fmt.Sprintf("RECEIVED A TOTAL OF %d ROUND CHANGES WITH HIGHER ROUND CHANGE FROM %d VALIDATORS.", num, currentRoundMessages))
+
 	logger = logger.New("higherRoundChanges.count", num, "currentRoundChanges.count", currentRoundMessages)
 
 	if num == c.valSet.F()+1 {
@@ -138,12 +144,16 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 		// we start new round and broadcast ROUND-CHANGE message
 		newRound := c.roundChangeSet.getMinRoundChange(currentRound)
 
+		logger.Marc(log.LvlTrace, "RECEIVED F+1 ROUND CHANGE MESSAGES, STARTING NEW ROUND")
+
 		logger.Info("QBFT: received F+1 ROUND-CHANGE messages", "F", c.valSet.F())
 
 		c.startNewRound(newRound)
 		c.broadcastRoundChange(newRound)
 	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
 		logger.Info("QBFT: received quorum of ROUND-CHANGE messages")
+
+		logger.Marc(log.LvlTrace, "RECEIVED QUORUM OF ROUND CHANGE MESSAGES AS PROPOSER")
 
 		// We received quorum of ROUND-CHANGE for current round and we are proposer
 
@@ -160,6 +170,7 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 			}
 		}
 
+		logger.Marc(log.LvlTrace, "PREPARE JUSTIFICATION FOR ROUND CHANGE MESSAGES")
 		// Prepare justification for ROUND-CHANGE messages
 		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
 		rcSignedPayloads := make([]*qbfttypes.SignedRoundChangePayload, 0)
@@ -179,6 +190,7 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 			RCMessages:      roundChangeMessages,
 			PrepareMessages: prepareMessages,
 		}
+		logger.Marc(log.LvlTrace, "SEND PREPREPARE MESSAGE")
 		c.sendPreprepareMsg(r)
 	} else {
 		logger.Debug("QBFT: accepted ROUND-CHANGE messages")
