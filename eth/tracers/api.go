@@ -132,7 +132,7 @@ func (context *chainContext) CheckAndSetPrivateState(txLogs []*types.Log, privat
 
 // End Quorum
 
-// chainContext construts the context reader which is used by the evm for reading
+// chainContext constructs the context reader which is used by the evm for reading
 // the necessary chain context.
 func (api *API) chainContext(ctx context.Context) core.ChainContext {
 	return &chainContext{api: api, ctx: ctx}
@@ -226,13 +226,13 @@ type blockTraceTask struct {
 	statedb *state.StateDB   // Intermediate state prepped for tracing
 	block   *types.Block     // Block to trace the transactions from
 	rootref common.Hash      // Trie root reference held for this task
-	results []*txTraceResult // Trace results procudes by the task
+	results []*txTraceResult // Trace results produced by the task
 	// Quorum
 	privateStateDb   *state.StateDB
 	privateStateRepo mps.PrivateStateRepository
 }
 
-// blockTraceResult represets the results of tracing a single block when an entire
+// blockTraceResult represents the results of tracing a single block when an entire
 // chain is being traced.
 type blockTraceResult struct {
 	Block  hexutil.Uint64   `json:"block"`  // Block number corresponding to this trace
@@ -730,7 +730,7 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 		}
 	}
 	for i, tx := range block.Transactions() {
-		// Prepare the trasaction for un-traced execution
+		// Prepare the transaction for un-traced execution
 		var (
 			msg, _    = tx.AsMessage(signer)
 			txContext = core.NewEVMTxContext(msg)
@@ -955,7 +955,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *txTrac
 				return nil, err
 			}
 		}
-		// Constuct the JavaScript tracer to execute with
+		// Construct the JavaScript tracer to execute with
 		if tracer, err = New(*config.Tracer, txContext); err != nil {
 			return nil, err
 		}
