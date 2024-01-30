@@ -554,11 +554,12 @@ type Stream struct {
 	// auxiliary buffer for integer decoding
 	uintbuf []byte
 
-	kind    Kind   // kind of value ahead
-	size    uint64 // size of value ahead
-	byteval byte   // value of single byte in type tag
-	kinderr error  // error from last readKind
-	stack   []listpos
+	kind                  Kind   // kind of value ahead
+	size                  uint64 // size of value ahead
+	byteval               byte   // value of single byte in type tag
+	kinderr               error  // error from last readKind
+	stack                 []listpos
+	IgnoreCanonIntForByte bool
 }
 
 type listpos struct{ pos, size uint64 }
@@ -661,7 +662,7 @@ func (s *Stream) uint(maxbits int) (uint64, error) {
 	}
 	switch kind {
 	case Byte:
-		if s.byteval == 0 {
+		if !s.IgnoreCanonIntForByte && s.byteval == 0 {
 			return 0, ErrCanonInt
 		}
 		s.kind = -1 // rearm Kind
