@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync/atomic"
@@ -55,6 +56,20 @@ var (
 The init command initializes a new genesis block and definition for the network.
 This is a destructive action and changes the network in which you will be
 participating.
+
+It expects the genesis file as argument.`,
+	}
+	updateCommand = cli.Command{
+		Action:    utils.MigrateFlags(updateTransitions),
+		Name:      "update",
+		Usage:     "Update genesis block with new transitions",
+		ArgsUsage: "<genesisPath>",
+		Flags: []cli.Flag{
+			utils.DataDirFlag,
+		},
+		Category: "BLOCKCHAIN COMMANDS",
+		Description: `
+The update commands updates the chain data configuration in genesis block for new transition changes.
 
 It expects the genesis file as argument.`,
 	}
@@ -204,6 +219,64 @@ func getIsQuorum(file io.Reader) bool {
 
 	// unspecified defaults to true
 	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
+}
+
+// updateTransitions will update genesis block with the new transitions data
+func updateTransitions(ctx *cli.Context) error {
+	// Open and initialise both full and light databases
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	// Make sure we have a valid genesis JSON
+	genesisPath := ctx.Args().First()
+	if len(genesisPath) == 0 {
+		utils.Fatalf("Must supply path to genesis JSON file")
+	}
+	file, err := os.Open(genesisPath)
+	if err != nil {
+		utils.Fatalf("Failed to read genesis file: %v", err)
+	}
+	defer file.Close()
+
+	genesis := new(core.Genesis)
+	if err := json.NewDecoder(file).Decode(genesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	// Quorum
+	file.Seek(0, 0)
+	genesis.Config.IsQuorum = getIsQuorum(file)
+
+	if genesis.Config.IsQuorum {
+		err = genesis.Config.CheckTransitionsData()
+		if err != nil {
+			utils.Fatalf("transitions data invalid: %v", err)
+		}
+	} else {
+		return fmt.Errorf("update transitions only apply to quorum configuration")
+	}
+
+	// Update transitions and recommit to db
+	for _, name := range []string{"chaindata", "lightchaindata"} {
+		chaindb, err := stack.OpenDatabase(name, 0, 0, "", false)
+		if err != nil {
+			utils.Fatalf("Failed to open database: %v", err)
+		}
+		stored := rawdb.ReadCanonicalHash(chaindb, 0)
+		storedcfg := rawdb.ReadChainConfig(chaindb, stored)
+		if storedcfg == nil {
+			return fmt.Errorf("found genesis block without chain config")
+		}
+		// Check that new transitions have changed before updating them
+		if !reflect.DeepEqual(storedcfg.Transitions, genesis.Config.Transitions) {
+			log.Info("Change found in transitions, proceeding to update chain config")
+			storedcfg.Transitions = genesis.Config.Transitions
+			rawdb.WriteChainConfig(chaindb, stored, storedcfg)
+		} else {
+			log.Info("No change in transitions, no update required to chain config")
+		}
+	}
+	return nil
 }
 
 // initGenesis will initialise the given JSON format genesis file and writes it as
