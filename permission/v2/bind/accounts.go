@@ -1055,9 +1055,9 @@ func (_AcctManager *AcctManagerFilterer) ParseAccountStatusChanged(log types.Log
 	return event, nil
 }
 
-// AcctManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the AcctManager contract.
-type AcctManagerInitializedIterator struct {
-	Event *AcctManagerInitialized // Event containing the contract specifics and raw log
+// AcctManagerInitializedAccsIterator is returned from FilterInitializedAccs and is used to iterate over the raw logs and unpacked data for InitializedAccs events raised by the AcctManager contract.
+type AcctManagerInitializedAccsIterator struct {
+	Event *AcctManagerInitializedAccs // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1071,7 +1071,7 @@ type AcctManagerInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *AcctManagerInitializedIterator) Next() bool {
+func (it *AcctManagerInitializedAccsIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1080,7 +1080,7 @@ func (it *AcctManagerInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(AcctManagerInitialized)
+			it.Event = new(AcctManagerInitializedAccs)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1095,7 +1095,7 @@ func (it *AcctManagerInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(AcctManagerInitialized)
+		it.Event = new(AcctManagerInitializedAccs)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1111,41 +1111,41 @@ func (it *AcctManagerInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *AcctManagerInitializedIterator) Error() error {
+func (it *AcctManagerInitializedAccsIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *AcctManagerInitializedIterator) Close() error {
+func (it *AcctManagerInitializedAccsIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// AcctManagerInitialized represents a Initialized event raised by the AcctManager contract.
-type AcctManagerInitialized struct {
+// AcctManagerInitializedAccs represents a InitializedAccs event raised by the AcctManager contract.
+type AcctManagerInitializedAccs struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedAccs is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_AcctManager *AcctManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*AcctManagerInitializedIterator, error) {
+func (_AcctManager *AcctManagerFilterer) FilterInitializedAccs(opts *bind.FilterOpts) (*AcctManagerInitializedAccsIterator, error) {
 
 	logs, sub, err := _AcctManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &AcctManagerInitializedIterator{contract: _AcctManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &AcctManagerInitializedAccsIterator{contract: _AcctManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedAccsTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedAccs is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_AcctManager *AcctManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *AcctManagerInitialized) (event.Subscription, error) {
+func (_AcctManager *AcctManagerFilterer) WatchInitializedAccs(opts *bind.WatchOpts, sink chan<- *AcctManagerInitializedAccs) (event.Subscription, error) {
 
 	logs, sub, err := _AcctManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -1157,7 +1157,7 @@ func (_AcctManager *AcctManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(AcctManagerInitialized)
+				event := new(AcctManagerInitializedAccs)
 				if err := _AcctManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -1179,11 +1179,11 @@ func (_AcctManager *AcctManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedAccs is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_AcctManager *AcctManagerFilterer) ParseInitialized(log types.Log) (*AcctManagerInitialized, error) {
-	event := new(AcctManagerInitialized)
+func (_AcctManager *AcctManagerFilterer) ParseInitializedAccs(log types.Log) (*AcctManagerInitializedAccs, error) {
+	event := new(AcctManagerInitializedAccs)
 	if err := _AcctManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}

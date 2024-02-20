@@ -443,9 +443,9 @@ func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) ParseContract
 	return event, nil
 }
 
-// ContractWhitelistManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the ContractWhitelistManager contract.
-type ContractWhitelistManagerInitializedIterator struct {
-	Event *ContractWhitelistManagerInitialized // Event containing the contract specifics and raw log
+// ContractWhitelistManagerInitializedWhitelistIterator is returned from FilterInitializedWhitelist and is used to iterate over the raw logs and unpacked data for InitializedWhitelist events raised by the ContractWhitelistManager contract.
+type ContractWhitelistManagerInitializedWhitelistIterator struct {
+	Event *ContractWhitelistManagerInitializedWhitelist // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -459,7 +459,7 @@ type ContractWhitelistManagerInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *ContractWhitelistManagerInitializedIterator) Next() bool {
+func (it *ContractWhitelistManagerInitializedWhitelistIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -468,7 +468,7 @@ func (it *ContractWhitelistManagerInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(ContractWhitelistManagerInitialized)
+			it.Event = new(ContractWhitelistManagerInitializedWhitelist)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -483,7 +483,7 @@ func (it *ContractWhitelistManagerInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(ContractWhitelistManagerInitialized)
+		it.Event = new(ContractWhitelistManagerInitializedWhitelist)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -499,41 +499,41 @@ func (it *ContractWhitelistManagerInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *ContractWhitelistManagerInitializedIterator) Error() error {
+func (it *ContractWhitelistManagerInitializedWhitelistIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *ContractWhitelistManagerInitializedIterator) Close() error {
+func (it *ContractWhitelistManagerInitializedWhitelistIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// ContractWhitelistManagerInitialized represents a Initialized event raised by the ContractWhitelistManager contract.
-type ContractWhitelistManagerInitialized struct {
+// ContractWhitelistManagerInitializedWhitelist represents a InitializedWhitelist event raised by the ContractWhitelistManager contract.
+type ContractWhitelistManagerInitializedWhitelist struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedWhitelist is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*ContractWhitelistManagerInitializedIterator, error) {
+func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) FilterInitializedWhitelist(opts *bind.FilterOpts) (*ContractWhitelistManagerInitializedWhitelistIterator, error) {
 
 	logs, sub, err := _ContractWhitelistManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &ContractWhitelistManagerInitializedIterator{contract: _ContractWhitelistManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &ContractWhitelistManagerInitializedWhitelistIterator{contract: _ContractWhitelistManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedWhitelistTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedWhitelist is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *ContractWhitelistManagerInitialized) (event.Subscription, error) {
+func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) WatchInitializedWhitelist(opts *bind.WatchOpts, sink chan<- *ContractWhitelistManagerInitializedWhitelist) (event.Subscription, error) {
 
 	logs, sub, err := _ContractWhitelistManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -545,7 +545,7 @@ func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) WatchInitiali
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(ContractWhitelistManagerInitialized)
+				event := new(ContractWhitelistManagerInitializedWhitelist)
 				if err := _ContractWhitelistManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -567,11 +567,11 @@ func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) WatchInitiali
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedWhitelist is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) ParseInitialized(log types.Log) (*ContractWhitelistManagerInitialized, error) {
-	event := new(ContractWhitelistManagerInitialized)
+func (_ContractWhitelistManager *ContractWhitelistManagerFilterer) ParseInitializedWhitelist(log types.Log) (*ContractWhitelistManagerInitializedWhitelist, error) {
+	event := new(ContractWhitelistManagerInitializedWhitelist)
 	if err := _ContractWhitelistManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}

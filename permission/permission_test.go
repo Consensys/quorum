@@ -145,39 +145,79 @@ func setup() {
 
 	var permUpgrInstance *v1bind.PermUpgr
 	var permUpgrInstanceE *v2bind.PermUpgr
+	var permInterfaceInstance *v2bind.PermInterface
+	var nodeManagerInstance *v2bind.NodeManager
+	var roleManagerInstance *v2bind.RoleManager
+	var acctManagerInstance *v2bind.AcctManager
+	var orgManagerInstance *v2bind.OrgManager
+	var voterManagerInstance *v2bind.VoterManager
+	var permImplInstance *v2bind.PermImpl
 
 	guardianTransactor, _ := bind.NewKeyedTransactorWithChainID(guardianKey, ethereum.BlockChain().Config().ChainID)
 
 	if v2Flag {
-		permUpgrAddress, _, permUpgrInstanceE, err = v2bind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstanceE, err = v2bind.DeployPermUpgr(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = v2bind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, permInterfaceInstance, err = v2bind.DeployPermInterface(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = v2bind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, nodeManagerInstance, err = v2bind.DeployNodeManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = v2bind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, roleManagerInstance, err = v2bind.DeployRoleManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = v2bind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, acctManagerInstance, err = v2bind.DeployAcctManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = v2bind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, orgManagerInstance, err = v2bind.DeployOrgManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = v2bind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, voterManagerInstance, err = v2bind.DeployVoterManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = v2bind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, permImplInstance, err = v2bind.DeployPermImpl(guardianTransactor, contrBackend)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// call initialize
+		_, err := permUpgrInstanceE.Initialize(guardianTransactor, guardianAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = permInterfaceInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = nodeManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = roleManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = acctManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = orgManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = voterManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = permImplInstance.Initialize(guardianTransactor, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}

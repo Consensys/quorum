@@ -542,9 +542,9 @@ func (_NodeManager *NodeManagerTransactorSession) UpdateNodeStatus(_enodeId stri
 	return _NodeManager.Contract.UpdateNodeStatus(&_NodeManager.TransactOpts, _enodeId, _ip, _port, _raftport, _orgId, _action)
 }
 
-// NodeManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the NodeManager contract.
-type NodeManagerInitializedIterator struct {
-	Event *NodeManagerInitialized // Event containing the contract specifics and raw log
+// NodeManagerInitializedNodesIterator is returned from FilterInitializedNodes and is used to iterate over the raw logs and unpacked data for InitializedNodes events raised by the NodeManager contract.
+type NodeManagerInitializedNodesIterator struct {
+	Event *NodeManagerInitializedNodes // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -558,7 +558,7 @@ type NodeManagerInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *NodeManagerInitializedIterator) Next() bool {
+func (it *NodeManagerInitializedNodesIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -567,7 +567,7 @@ func (it *NodeManagerInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(NodeManagerInitialized)
+			it.Event = new(NodeManagerInitializedNodes)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -582,7 +582,7 @@ func (it *NodeManagerInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(NodeManagerInitialized)
+		it.Event = new(NodeManagerInitializedNodes)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -598,41 +598,41 @@ func (it *NodeManagerInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *NodeManagerInitializedIterator) Error() error {
+func (it *NodeManagerInitializedNodesIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *NodeManagerInitializedIterator) Close() error {
+func (it *NodeManagerInitializedNodesIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// NodeManagerInitialized represents a Initialized event raised by the NodeManager contract.
-type NodeManagerInitialized struct {
+// NodeManagerInitializedNodes represents a InitializedNodes event raised by the NodeManager contract.
+type NodeManagerInitializedNodes struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedNodes is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_NodeManager *NodeManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*NodeManagerInitializedIterator, error) {
+func (_NodeManager *NodeManagerFilterer) FilterInitializedNodes(opts *bind.FilterOpts) (*NodeManagerInitializedNodesIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &NodeManagerInitializedIterator{contract: _NodeManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &NodeManagerInitializedNodesIterator{contract: _NodeManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedNodesTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedNodes is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_NodeManager *NodeManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *NodeManagerInitialized) (event.Subscription, error) {
+func (_NodeManager *NodeManagerFilterer) WatchInitializedNodes(opts *bind.WatchOpts, sink chan<- *NodeManagerInitializedNodes) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -644,7 +644,7 @@ func (_NodeManager *NodeManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(NodeManagerInitialized)
+				event := new(NodeManagerInitializedNodes)
 				if err := _NodeManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -666,11 +666,11 @@ func (_NodeManager *NodeManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedNodes is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_NodeManager *NodeManagerFilterer) ParseInitialized(log types.Log) (*NodeManagerInitialized, error) {
-	event := new(NodeManagerInitialized)
+func (_NodeManager *NodeManagerFilterer) ParseInitializedNodes(log types.Log) (*NodeManagerInitializedNodes, error) {
+	event := new(NodeManagerInitializedNodes)
 	if err := _NodeManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}

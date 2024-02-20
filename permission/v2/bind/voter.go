@@ -342,9 +342,9 @@ func (_VoterManager *VoterManagerTransactorSession) ProcessVote(_authOrg string,
 	return _VoterManager.Contract.ProcessVote(&_VoterManager.TransactOpts, _authOrg, _vAccount, _pendingOp)
 }
 
-// VoterManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the VoterManager contract.
-type VoterManagerInitializedIterator struct {
-	Event *VoterManagerInitialized // Event containing the contract specifics and raw log
+// VoterManagerInitializedVoterIterator is returned from FilterInitializedVoter and is used to iterate over the raw logs and unpacked data for InitializedVoter events raised by the VoterManager contract.
+type VoterManagerInitializedVoterIterator struct {
+	Event *VoterManagerInitializedVoter // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -358,7 +358,7 @@ type VoterManagerInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *VoterManagerInitializedIterator) Next() bool {
+func (it *VoterManagerInitializedVoterIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -367,7 +367,7 @@ func (it *VoterManagerInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(VoterManagerInitialized)
+			it.Event = new(VoterManagerInitializedVoter)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -382,7 +382,7 @@ func (it *VoterManagerInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(VoterManagerInitialized)
+		it.Event = new(VoterManagerInitializedVoter)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -398,41 +398,41 @@ func (it *VoterManagerInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *VoterManagerInitializedIterator) Error() error {
+func (it *VoterManagerInitializedVoterIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *VoterManagerInitializedIterator) Close() error {
+func (it *VoterManagerInitializedVoterIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// VoterManagerInitialized represents a Initialized event raised by the VoterManager contract.
-type VoterManagerInitialized struct {
+// VoterManagerInitializedVoter represents a InitializedVoter event raised by the VoterManager contract.
+type VoterManagerInitializedVoter struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedVoter is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_VoterManager *VoterManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*VoterManagerInitializedIterator, error) {
+func (_VoterManager *VoterManagerFilterer) FilterInitializedVoter(opts *bind.FilterOpts) (*VoterManagerInitializedVoterIterator, error) {
 
 	logs, sub, err := _VoterManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &VoterManagerInitializedIterator{contract: _VoterManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &VoterManagerInitializedVoterIterator{contract: _VoterManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedVoterTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedVoter is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_VoterManager *VoterManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *VoterManagerInitialized) (event.Subscription, error) {
+func (_VoterManager *VoterManagerFilterer) WatchInitializedVoter(opts *bind.WatchOpts, sink chan<- *VoterManagerInitializedVoter) (event.Subscription, error) {
 
 	logs, sub, err := _VoterManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -444,7 +444,7 @@ func (_VoterManager *VoterManagerFilterer) WatchInitialized(opts *bind.WatchOpts
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(VoterManagerInitialized)
+				event := new(VoterManagerInitializedVoter)
 				if err := _VoterManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -466,11 +466,11 @@ func (_VoterManager *VoterManagerFilterer) WatchInitialized(opts *bind.WatchOpts
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedVoter is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_VoterManager *VoterManagerFilterer) ParseInitialized(log types.Log) (*VoterManagerInitialized, error) {
-	event := new(VoterManagerInitialized)
+func (_VoterManager *VoterManagerFilterer) ParseInitializedVoter(log types.Log) (*VoterManagerInitializedVoter, error) {
+	event := new(VoterManagerInitializedVoter)
 	if err := _VoterManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}

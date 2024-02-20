@@ -665,9 +665,9 @@ func (_RoleManager *RoleManagerTransactorSession) SetAccessLevelForUnconfiguredA
 	return _RoleManager.Contract.SetAccessLevelForUnconfiguredAccount(&_RoleManager.TransactOpts, _accessLevel)
 }
 
-// RoleManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the RoleManager contract.
-type RoleManagerInitializedIterator struct {
-	Event *RoleManagerInitialized // Event containing the contract specifics and raw log
+// RoleManagerInitializedRolesIterator is returned from FilterInitializedRoles and is used to iterate over the raw logs and unpacked data for InitializedRoles events raised by the RoleManager contract.
+type RoleManagerInitializedRolesIterator struct {
+	Event *RoleManagerInitializedRoles // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -681,7 +681,7 @@ type RoleManagerInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *RoleManagerInitializedIterator) Next() bool {
+func (it *RoleManagerInitializedRolesIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -690,7 +690,7 @@ func (it *RoleManagerInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(RoleManagerInitialized)
+			it.Event = new(RoleManagerInitializedRoles)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -705,7 +705,7 @@ func (it *RoleManagerInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(RoleManagerInitialized)
+		it.Event = new(RoleManagerInitializedRoles)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -721,41 +721,41 @@ func (it *RoleManagerInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *RoleManagerInitializedIterator) Error() error {
+func (it *RoleManagerInitializedRolesIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *RoleManagerInitializedIterator) Close() error {
+func (it *RoleManagerInitializedRolesIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// RoleManagerInitialized represents a Initialized event raised by the RoleManager contract.
-type RoleManagerInitialized struct {
+// RoleManagerInitializedRoles represents a InitializedRoles event raised by the RoleManager contract.
+type RoleManagerInitializedRoles struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedRoles is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_RoleManager *RoleManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*RoleManagerInitializedIterator, error) {
+func (_RoleManager *RoleManagerFilterer) FilterInitializedRoles(opts *bind.FilterOpts) (*RoleManagerInitializedRolesIterator, error) {
 
 	logs, sub, err := _RoleManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &RoleManagerInitializedIterator{contract: _RoleManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &RoleManagerInitializedRolesIterator{contract: _RoleManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedRolesTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedRoles is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_RoleManager *RoleManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *RoleManagerInitialized) (event.Subscription, error) {
+func (_RoleManager *RoleManagerFilterer) WatchInitializedRoles(opts *bind.WatchOpts, sink chan<- *RoleManagerInitializedRoles) (event.Subscription, error) {
 
 	logs, sub, err := _RoleManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -767,7 +767,7 @@ func (_RoleManager *RoleManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(RoleManagerInitialized)
+				event := new(RoleManagerInitializedRoles)
 				if err := _RoleManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -789,11 +789,11 @@ func (_RoleManager *RoleManagerFilterer) WatchInitialized(opts *bind.WatchOpts, 
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedRoles is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_RoleManager *RoleManagerFilterer) ParseInitialized(log types.Log) (*RoleManagerInitialized, error) {
-	event := new(RoleManagerInitialized)
+func (_RoleManager *RoleManagerFilterer) ParseInitializedRoles(log types.Log) (*RoleManagerInitializedRoles, error) {
+	event := new(RoleManagerInitializedRoles)
 	if err := _RoleManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}

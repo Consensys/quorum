@@ -1031,9 +1031,9 @@ func (_PermInterface *PermInterfaceTransactorSession) UpdateOrgStatus(_orgId str
 	return _PermInterface.Contract.UpdateOrgStatus(&_PermInterface.TransactOpts, _orgId, _action)
 }
 
-// PermInterfaceInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the PermInterface contract.
-type PermInterfaceInitializedIterator struct {
-	Event *PermInterfaceInitialized // Event containing the contract specifics and raw log
+// PermInterfaceInitializedPermIfaceIterator is returned from FilterInitializedPermIface and is used to iterate over the raw logs and unpacked data for InitializedPermIface events raised by the PermInterface contract.
+type PermInterfaceInitializedPermIfaceIterator struct {
+	Event *PermInterfaceInitializedPermIface // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1047,7 +1047,7 @@ type PermInterfaceInitializedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *PermInterfaceInitializedIterator) Next() bool {
+func (it *PermInterfaceInitializedPermIfaceIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1056,7 +1056,7 @@ func (it *PermInterfaceInitializedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(PermInterfaceInitialized)
+			it.Event = new(PermInterfaceInitializedPermIface)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1071,7 +1071,7 @@ func (it *PermInterfaceInitializedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(PermInterfaceInitialized)
+		it.Event = new(PermInterfaceInitializedPermIface)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1087,41 +1087,41 @@ func (it *PermInterfaceInitializedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *PermInterfaceInitializedIterator) Error() error {
+func (it *PermInterfaceInitializedPermIfaceIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *PermInterfaceInitializedIterator) Close() error {
+func (it *PermInterfaceInitializedPermIfaceIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// PermInterfaceInitialized represents a Initialized event raised by the PermInterface contract.
-type PermInterfaceInitialized struct {
+// PermInterfaceInitializedPermIface represents a InitializedPermIface event raised by the PermInterface contract.
+type PermInterfaceInitializedPermIface struct {
 	Version uint64
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// FilterInitializedPermIface is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_PermInterface *PermInterfaceFilterer) FilterInitialized(opts *bind.FilterOpts) (*PermInterfaceInitializedIterator, error) {
+func (_PermInterface *PermInterfaceFilterer) FilterInitializedPermIface(opts *bind.FilterOpts) (*PermInterfaceInitializedPermIfaceIterator, error) {
 
 	logs, sub, err := _PermInterface.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &PermInterfaceInitializedIterator{contract: _PermInterface.contract, event: "Initialized", logs: logs, sub: sub}, nil
+	return &PermInterfaceInitializedPermIfaceIterator{contract: _PermInterface.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-var InitializedTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
+var InitializedPermIfaceTopicHash = "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2"
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// WatchInitializedPermIface is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_PermInterface *PermInterfaceFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *PermInterfaceInitialized) (event.Subscription, error) {
+func (_PermInterface *PermInterfaceFilterer) WatchInitializedPermIface(opts *bind.WatchOpts, sink chan<- *PermInterfaceInitializedPermIface) (event.Subscription, error) {
 
 	logs, sub, err := _PermInterface.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
@@ -1133,7 +1133,7 @@ func (_PermInterface *PermInterfaceFilterer) WatchInitialized(opts *bind.WatchOp
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(PermInterfaceInitialized)
+				event := new(PermInterfaceInitializedPermIface)
 				if err := _PermInterface.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
@@ -1155,11 +1155,11 @@ func (_PermInterface *PermInterfaceFilterer) WatchInitialized(opts *bind.WatchOp
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
+// ParseInitializedPermIface is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
 // Solidity: event Initialized(uint64 version)
-func (_PermInterface *PermInterfaceFilterer) ParseInitialized(log types.Log) (*PermInterfaceInitialized, error) {
-	event := new(PermInterfaceInitialized)
+func (_PermInterface *PermInterfaceFilterer) ParseInitializedPermIface(log types.Log) (*PermInterfaceInitializedPermIface, error) {
+	event := new(PermInterfaceInitializedPermIface)
 	if err := _PermInterface.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}
