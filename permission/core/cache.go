@@ -618,6 +618,20 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 	return false
 }
 
+func (c *ContractWhitelistCache) UpsertContractWhitelist(contract common.Address) {
+	c.c.Add(contract, &ContractWhitelistInfo{contract})
+}
+
+func (c *ContractWhitelistCache) GetContractWhitelist() []ContractWhitelistInfo {
+	clist := make([]ContractWhitelistInfo, len(c.c.Keys()))
+	for i, k := range c.c.Keys() {
+		v, _ := c.c.Get(k)
+		vp := v.(*ContractWhitelistInfo)
+		clist[i] = *vp
+	}
+	return clist
+}
+
 // validates if the account can transact from the current node
 func ValidateNodeForTxn(nodeId enode.ID, from common.Address) bool {
 	if !PermissionsEnabled() || nodeId == (enode.ID{}) {

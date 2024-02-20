@@ -16,6 +16,33 @@ type Backend struct {
 	Contr *Init
 }
 
+func (b *Backend) ManageContractWhitelistPermissions() error {
+	chContractWhitelistModified := make(chan *eb.ContractWhitelistManagerContractWhitelistModified)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+
+	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistModified(opts, chContractWhitelistModified); err != nil {
+		return fmt.Errorf("failed ContractWhitelistModified: %v", err)
+	}
+	go func() {
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtAccessModified := <-chContractWhitelistModified:
+				core.ContractWhitelistMap.UpsertContractWhitelist(evtAccessModified.Contract)
+
+			case <-stopChan:
+				log.Info("quit whitelist contract watch")
+				return
+			}
+		}
+	}()
+	return nil
+}
+
 func (b *Backend) ManageAccountPermissions() error {
 	chAccessModified := make(chan *eb.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *eb.AcctManagerAccountAccessRevoked)

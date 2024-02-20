@@ -48,18 +48,20 @@ type Node struct {
 type Init struct {
 	Backend ptype.ContractBackend
 	//binding contracts
-	PermUpgr   *binding.PermUpgr
-	PermInterf *binding.PermInterface
-	PermNode   *binding.NodeManager
-	PermAcct   *binding.AcctManager
-	PermRole   *binding.RoleManager
-	PermOrg    *binding.OrgManager
+	PermUpgr         *binding.PermUpgr
+	PermInterf       *binding.PermInterface
+	PermNode         *binding.NodeManager
+	PermAcct         *binding.AcctManager
+	PermRole         *binding.RoleManager
+	PermOrg          *binding.OrgManager
+	PermCtrWhitelist *binding.ContractWhitelistManager
 	//sessions
-	PermInterfSession *binding.PermInterfaceSession
-	permOrgSession    *binding.OrgManagerSession
-	permNodeSession   *binding.NodeManagerSession
-	permRoleSession   *binding.RoleManagerSession
-	permAcctSession   *binding.AcctManagerSession
+	PermInterfSession       *binding.PermInterfaceSession
+	permOrgSession          *binding.OrgManagerSession
+	permNodeSession         *binding.NodeManagerSession
+	permRoleSession         *binding.RoleManagerSession
+	permAcctSession         *binding.AcctManagerSession
+	permCtrWhitelistSession *binding.ContractWhitelistManagerSession
 }
 
 func (a *Account) AssignAccountRole(_args ptype.TxArgs) (*types.Transaction, error) {
@@ -92,6 +94,14 @@ func (i *Init) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, str
 
 func (i *Init) GetNumberOfAccounts() (*big.Int, error) {
 	return i.permAcctSession.GetNumberOfAccounts()
+}
+
+func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, error) {
+	return i.permCtrWhitelistSession.GetContractWhitelistDetailsFromIndex(_cIndex)
+}
+
+func (i *Init) GetNumberOfWhitelistedContracts() (*big.Int, error) {
+	return i.permCtrWhitelistSession.GetNumberOfWhitelistedContracts()
 }
 
 func (i *Init) GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {

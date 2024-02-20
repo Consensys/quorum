@@ -43,6 +43,15 @@ contract ContractWhitelistManager {
         return contractWhitelist.length;
     }
 
+    /** @notice returns the contract whitelist details a given contract whitelist index
+      * @param  _cIndex contract index
+      * @return contract contract address
+      */
+    function getContractWhitelistDetailsFromIndex(uint _cIndex) external view returns
+    (address) {
+        return contractWhitelist[_cIndex].contractAddress;
+    }
+
 
     /** @notice function to add a new whitelisted contract
       * @param _contract - contract address

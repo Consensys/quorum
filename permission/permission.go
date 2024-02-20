@@ -43,11 +43,12 @@ func (p *PermissionCtrl) AfterStart() error {
 	// set the default access to ReadOnly
 	pcore.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.IsV2Permission())
 	for _, f := range []func() error{
-		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
-		p.backend.ManageOrgPermissions,     // monitor org management related events
-		p.backend.ManageNodePermissions,    // monitor org  level Node management events
-		p.backend.ManageRolePermissions,    // monitor org level role management events
-		p.backend.ManageAccountPermissions, // monitor org level account management events
+		p.monitorQIP714Block,                         // monitor block number to activate new permissions controls
+		p.backend.ManageOrgPermissions,               // monitor org management related events
+		p.backend.ManageNodePermissions,              // monitor org  level Node management events
+		p.backend.ManageRolePermissions,              // monitor org level role management events
+		p.backend.ManageAccountPermissions,           // monitor org level account management events
+		p.backend.ManageContractWhitelistPermissions, // monitor contract whitelist events
 	} {
 		if err := f(); err != nil {
 			return err
@@ -239,16 +240,16 @@ func (p *PermissionCtrl) populateAccountsFromContract() error {
 
 // populates the contract whitelist details from contract into cache
 func (p *PermissionCtrl) populateContractWhitelistFromContract() error {
-	// if numberOfRoles, err := p.contract.GetNumberOfAccounts(); err == nil {
-	// 	iOrgNum := numberOfRoles.Uint64()
-	// 	for k := uint64(0); k < iOrgNum; k++ {
-	// 		if addr, org, role, status, orgAdmin, err := p.contract.GetAccountDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-	// 			pcore.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, pcore.AcctStatus(int(status.Int64())))
-	// 		}
-	// 	}
-	// } else {
-	// 	return err
-	// }
+	if numberOfWhitelistedContracts, err := p.contract.GetNumberOfWhitelistedContracts(); err == nil {
+		iContract := numberOfWhitelistedContracts.Uint64()
+		for k := uint64(0); k < iContract; k++ {
+			if addr, err := p.contract.GetContractWhitelistDetailsFromIndex(big.NewInt(int64(k))); err == nil {
+				pcore.ContractWhitelistMap.UpsertContractWhitelist(addr)
+			}
+		}
+	} else {
+		return err
+	}
 	return nil
 }
 

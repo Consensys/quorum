@@ -53,6 +53,7 @@ const (
 	roleCacheSize              = 4
 	nodeCacheSize              = 2
 	accountCacheSize           = 4
+	contractWhitelistCacheSize = 4
 )
 
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
@@ -261,7 +262,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)
 
 	assert.NoError(t, err)
 
@@ -301,7 +302,7 @@ func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
-	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)) {
+	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)) {
 		t.Fail()
 	}
 	return NewQuorumControlsAPI(pc)
@@ -760,7 +761,7 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)
 	assert.NoError(t, err)
 
 	d, _ := ioutil.TempDir("", "qdata")

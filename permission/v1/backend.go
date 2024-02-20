@@ -16,6 +16,10 @@ type Backend struct {
 	Contr *Init
 }
 
+func (b *Backend) ManageContractWhitelistPermissions() error {
+	return nil // contract whitelist is only supported for v2 permission
+}
+
 func (b *Backend) ManageAccountPermissions() error {
 	chAccessModified := make(chan *pb.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *pb.AcctManagerAccountAccessRevoked)

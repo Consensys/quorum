@@ -92,6 +92,9 @@ type InitService interface {
 	GetNumberOfAccounts() (*big.Int, error)
 	GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error)
 
+	GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, error)
+	GetNumberOfWhitelistedContracts() (*big.Int, error)
+
 	GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 		RoleId     string
 		OrgId      string
