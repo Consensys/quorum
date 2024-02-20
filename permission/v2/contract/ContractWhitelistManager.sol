@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 
 /** @title Contract whitelist manager contract
   * @notice This contract holds implementation logic for all contract whitelisting
@@ -9,7 +10,7 @@ import "./PermissionsUpgradable.sol";
     there are few view functions exposed as public and can be called directly.
     these are invoked by quorum for populating permissions data in cache
   */
-contract ContractWhitelistManager {
+contract ContractWhitelistManager is Initializable {
     PermissionsUpgradable private permUpgradable;
     struct ContractWhitelistDetails {
         address contractAddress;
@@ -30,11 +31,11 @@ contract ContractWhitelistManager {
         _;
     }
 
-    /// @notice constructor. sets the permissions upgradable address
-    constructor (address _permUpgradable) public {
+    /// @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
-
 
     /** @notice returns the total number of whitelisted contracts
       * @return total number whitelisted contracts
