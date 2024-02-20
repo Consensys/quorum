@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 /** @title Organization manager contract
   * @notice This contract holds implementation logic for all org management
     functionality. This can be called only by the implementation
@@ -17,7 +18,7 @@ import "./PermissionsUpgradable.sol";
      Once the node is blacklisted no further activity on the node is
      possible.
   */
-contract OrgManager {
+contract OrgManager is Initializable {
     string private adminOrgId;
     PermissionsUpgradable private permUpgradable;
     // checks if first time network boot up has happened or not
@@ -52,7 +53,7 @@ contract OrgManager {
     event OrgSuspensionRevoked(string _orgId, string _porgId, string _ultParent,
         uint _level);
 
-    /** @notice confirms that the caller is the address of implementation
+    /** notice: confirms that the caller is the address of implementation
         contract
     */
     modifier onlyImplementation{
@@ -60,29 +61,29 @@ contract OrgManager {
         _;
     }
 
-    /** @notice checks if the org id does not exists
-      * @param _orgId - org id
-      * @return true if org does not exist
+    /** notice: checks if the org id does not exists
+      * param: _orgId - org id
+      * return: true if org does not exist
       */
     modifier orgDoesNotExist(string memory _orgId) {
         require(checkOrgExists(_orgId) == false, "org exists");
         _;
     }
 
-    /** @notice checks if the org id does exists
-      * @param _orgId - org id
-      * @return true if org exists
+    /** notice: checks if the org id does exists
+      * param: _orgId - org id
+      * return: true if org exists
       */
     modifier orgExists(string memory _orgId) {
         require(checkOrgExists(_orgId) == true, "org does not exist");
         _;
     }
 
-    /** @notice constructor. sets the permissions upgradable address
-      */
-    constructor (address _permUpgradable) public {
+    // @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");        
         permUpgradable = PermissionsUpgradable(_permUpgradable);
-    }
+    }    
 
     /** @notice called at the time of network initialization. sets the depth
         breadth for sub orgs creation. and creates the default network
@@ -346,7 +347,9 @@ contract OrgManager {
         }
         orgNum++;
         OrgIndex[oid] = orgNum;
-        uint256 id = orgList.length++;
+
+        uint256 id = orgList.length;
+        orgList.push();
         if (_level == 1) {
             orgList[id].level = _level;
             orgList[id].pindex = 0;
@@ -363,8 +366,7 @@ contract OrgManager {
             orgList[id].level = orgList[parentIndex].level + 1;
             orgList[id].pindex = parentIndex;
             orgList[id].ultParent = orgList[parentIndex].ultParent;
-            uint256 subOrgId = orgList[parentIndex].subOrgIndexList.length++;
-            orgList[parentIndex].subOrgIndexList[subOrgId] = id;
+            orgList[parentIndex].subOrgIndexList.push(id);
             orgList[id].fullOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
         }
         orgList[id].orgId = _orgId;
@@ -384,7 +386,10 @@ contract OrgManager {
       * @return org index
       */
     function _getOrgIndex(string memory _orgId) private view returns (uint){
-        return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
+        uint _orgIndex = OrgIndex[keccak256(abi.encodePacked(_orgId))];
+        if (_orgIndex == 0) {
+            return type(uint).max;
+        }
+        return _orgIndex - 1;
     }
-
 }

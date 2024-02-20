@@ -3,7 +3,7 @@
 // this is to generate go binding for smart contracts used in permissioning
 //
 // Require:
-// 1. solc 0.5.4
+// 1. solc 0.8.1
 // 2. abigen (make all from root)
 
 //go:generate solc --abi --bin -o . --overwrite ../AccountManager.sol
@@ -15,6 +15,7 @@
 //go:generate solc --abi --bin -o . --overwrite ../RoleManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../VoterManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../ContractWhitelistManager.sol
+//go:generate solc --abi --bin -o . --overwrite ../openzeppelin-v5/Initializable.sol
 
 //go:generate abigen -pkg bind -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type AcctManager               -out ../../bind/accounts.go
 //go:generate abigen -pkg bind -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type NodeManager               -out ../../bind/nodes.go

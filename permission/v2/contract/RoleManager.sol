@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 /** @title Role manager contract
   * @notice This contract holds implementation logic for all role management
     functionality. This can be called only by the implementation
@@ -8,7 +9,7 @@ import "./PermissionsUpgradable.sol";
     can be called directly. these are invoked by quorum for populating
     permissions data in cache
   */
-contract RoleManager {
+contract RoleManager is Initializable {
     PermissionsUpgradable private permUpgradable;
 
     struct RoleDetails {
@@ -23,12 +24,13 @@ contract RoleManager {
     RoleDetails[] private roleList;
     mapping(bytes32 => uint256) private roleIndex;
     uint256 private numberOfRoles;
+    uint256 private defaultAccessForUnconfiguredAccounts;
 
     event RoleCreated(string _roleId, string _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin);
     event RoleRevoked(string _roleId, string _orgId);
 
-    /** @notice confirms that the caller is the address of implementation
+    /** notice: confirms that the caller is the address of implementation
          contract
      */
     modifier onlyImplementation {
@@ -36,11 +38,13 @@ contract RoleManager {
         _;
     }
 
-    /** @notice constructor. sets the permissions upgradable address
-      */
-    constructor (address _permUpgradable) public {
+    // @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");
+        
         permUpgradable = PermissionsUpgradable(_permUpgradable);
-    }
+        defaultAccessForUnconfiguredAccounts = 5;
+    }  
 
     /** @notice function to add a new role definition to an organization
       * @param _roleId - unique identifier for the role being added
@@ -67,7 +71,6 @@ contract RoleManager {
         roleIndex[keccak256(abi.encode(_roleId, _orgId))] = numberOfRoles;
         roleList.push(RoleDetails(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin, true));
         emit RoleCreated(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin);
-
     }
 
     /** @notice function to remove an existing role definition from an organization
@@ -129,11 +132,12 @@ contract RoleManager {
     /** @notice returns the role details for a passed role id and org
       * @param _roleId - unique identifier for the role being added
       * @param _orgId - org id to which the role belongs
-      * @return role id
-      * @return org id
-      * @return access type
-      * @return bool to indicate if the role is a voter role
-      * @return bool to indicate if the role is active
+      * @return roleId
+      * @return orgId
+      * @return accessType
+      * @return voter - bool to indicate if the role is a voter role
+      * @return admin
+      * @return active - bool to indicate if the role is active
       */
     function getRoleDetails(string calldata _roleId, string calldata _orgId)
     external view returns (string memory roleId, string memory orgId,
@@ -149,11 +153,12 @@ contract RoleManager {
 
     /** @notice returns the role details for a passed role index
       * @param _rIndex - unique identifier for the role being added
-      * @return role id
-      * @return org id
-      * @return access type
-      * @return bool to indicate if the role is a voter role
-      * @return bool to indicate if the role is active
+      * @return roleId
+      * @return orgId
+      * @return accessType
+      * @return voter - bool to indicate if the role is a voter role
+      * @return admin
+      * @return active - bool to indicate if the role is active
       */
     function getRoleDetailsFromIndex(uint256 _rIndex) external view returns
     (string memory roleId, string memory orgId, uint256 accessType,
@@ -208,9 +213,20 @@ contract RoleManager {
         string calldata _ultParent, uint256 _typeOfTxn) external view returns (bool) {
         uint256 access = roleAccess(_roleId, _orgId, _ultParent);
 
+        return isTransactionAllowedBasedOnRoleAccess(access, _typeOfTxn);
+    }
+
+    function isTransactionAllowedBasedOnRoleAccess(uint256 access, uint256 _typeOfTxn) public pure returns (bool) {
+
         if (access == 3) {
             return true;
         }
+
+        /** typeOfTxn
+            1 - value transfer
+            2 - contract deploy
+            3 - contract call **/
+
         if (_typeOfTxn == 1 && (access == 1 || access == 5 || access == 6)){
             return true;
         }
@@ -231,6 +247,28 @@ contract RoleManager {
       */
     function _getRoleIndex(string memory _roleId, string memory _orgId)
     internal view returns (uint256) {
-        return roleIndex[keccak256(abi.encode(_roleId, _orgId))] - 1;
+        uint256 _roleIndex = roleIndex[keccak256(abi.encode(_roleId, _orgId))];
+        if (_roleIndex == 0){
+            return type(uint256).max;
+        }
+        return _roleIndex - 1;
+    }
+
+    /** @notice function to set the default access level for unconfigured account. 
+            Unconfigured account does not have role and org membership but is assigned
+            a default access level of 5 (transfer value and/or call contract) 
+      * @param _accessLevel - set the default access level for unconfigured account.
+      */
+    function setAccessLevelForUnconfiguredAccount(uint256 _accessLevel) external 
+        onlyImplementation
+    {
+        require(_accessLevel >= 0 && _accessLevel <= 7, "accessLevel value should be between 0 to 7");
+        defaultAccessForUnconfiguredAccounts = _accessLevel;
+    }
+
+    /** @notice get the default access level for unconfigured account. */
+    function getAccessLevelForUnconfiguredAccount() external view returns (uint256)
+    {
+        return defaultAccessForUnconfiguredAccounts;
     }
 }

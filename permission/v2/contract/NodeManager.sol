@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 /** @title Node manager contract
   * @notice This contract holds implementation logic for all node management
     functionality. This can be called only by the implementation contract.
@@ -18,7 +19,7 @@ import "./PermissionsUpgradable.sol";
      Once the node is blacklisted no further activity on the node is
      possible.
   */
-contract NodeManager {
+contract NodeManager is Initializable{
     PermissionsUpgradable private permUpgradable;
 
     struct NodeDetails {
@@ -38,7 +39,8 @@ contract NodeManager {
     mapping(bytes32 => uint256) private enodeIdToIndex;
     // tracking total number of nodes in network
     uint256 private numberOfNodes;
-
+    // whether to do source IP validation during checks of connection is allowed. This is enabled by default.
+    bool private isIpValidationEnabled = true;
 
     // node permission events for new node propose
     event NodeProposed(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
@@ -87,17 +89,20 @@ contract NodeManager {
         _;
     }
 
-    /** @notice constructor. sets the permissions upgradable address
-      */
-    constructor (address _permUpgradable) public {
+    // @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice fetches the node details given an enode id
       * @param _enodeId full enode id
-      * @return org id
-      * @return enode id
-      * @return status of the node
+      * @return _orgId
+      * @return _enodeId
+      * @return _ip
+      * @return _port
+      * @return _raftport
+      * @return _nodeStatus - status of the node
       */
     function getNodeDetails(string calldata enodeId) external view
     returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, uint256 _nodeStatus) {
@@ -112,12 +117,12 @@ contract NodeManager {
 
     /** @notice fetches the node details given the index of the enode
       * @param _nodeIndex node index
-      * @return org id
-      * @return enode id
-      * @return ip of the node
-      * @return port of the node
-      * @return raftport of the node
-      * @return status of the node
+      * @return _orgId
+      * @return _enodeId
+      * @return _ip of the node
+      * @return _port of the node
+      * @return _raftport of the node
+      * @return _nodeStatus of the node
       */
     function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
     returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, uint256 _nodeStatus) {
@@ -265,7 +270,11 @@ contract NodeManager {
       */
     function _getNodeIndex(string memory _enodeId) internal view
     returns (uint256) {
-        return enodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
+        uint256 enodeIndex = enodeIdToIndex[keccak256(abi.encode(_enodeId))];
+        if (enodeIndex == 0){
+            return type(uint256).max;
+        }
+        return enodeIndex - 1;
     }
 
     /** @notice checks if enode id is linked to the org id passed
@@ -289,6 +298,15 @@ contract NodeManager {
         return nodeList[_getNodeIndex(_enodeId)].status;
     }
 
+    /** @notice specify whether to perform source node IP validation in determining the connection permission.
+        This is enabled by default.
+      * @param _isIpValidationEnabled whether to enable or disable the IP validation
+      */
+    function setIpValidation(bool _isIpValidationEnabled) public 
+    onlyImplementation {
+        isIpValidationEnabled = _isIpValidationEnabled;
+    }
+
     /** @notice checks if the node is allowed to connect or not
     * @param _enodeId enode id
     * @param _ip IP of node
@@ -301,7 +319,11 @@ contract NodeManager {
             return false;
         }
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if (nodeList[nodeIndex].status == 2 && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
+        if (nodeList[nodeIndex].status == 2 
+            && (!isIpValidationEnabled 
+                || keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))
+            )
+        ) {
             return true;
         }
 

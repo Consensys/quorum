@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 
 /** @title Account manager contract
   * @notice This contract holds implementation logic for all account management
@@ -24,7 +25,7 @@ import "./PermissionsUpgradable.sol";
      admin account will be in revoked status and can be assigned a new role
      later
   */
-contract AccountManager {
+contract AccountManager is Initializable {
     PermissionsUpgradable private permUpgradable;
     struct AccountAccessDetails {
         address account;
@@ -66,8 +67,9 @@ contract AccountManager {
         _;
     }
 
-    /// @notice constructor. sets the permissions upgradable address
-    constructor (address _permUpgradable) public {
+    /// @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
@@ -172,8 +174,8 @@ contract AccountManager {
         the time of adding a new account as org admin account. at org
         level there can be one org admin account only
       * @param _orgId - org id
-      * @return bool to indicate if voter update is required or not
-      * @return _adminRole - indicates of the role is an admin role
+      * @return voterUpdate - bool to indicate if voter update is required or not
+      * @return account - indicates of the role is an admin role
       */
     function removeExistingAdmin(string calldata _orgId) external
     onlyImplementation
@@ -195,7 +197,7 @@ contract AccountManager {
     /** @notice function to add an account as network admin or org admin.
       * @param _orgId - org id
       * @param _account - account id
-      * @return bool to indicate if voter update is required or not
+      * @return voterUpdate - bool to indicate if voter update is required or not
       */
     function addNewAdmin(string calldata _orgId, address _account) external
     onlyImplementation
@@ -271,7 +273,6 @@ contract AccountManager {
       * @param _account - account id
       * @param _orgId - org id
       * @return bool true if the account does not exists or exists and belongs
-      * @return passed org
       */
     function validateAccount(address _account, string calldata _orgId) external
     view returns (bool){
@@ -348,6 +349,9 @@ contract AccountManager {
       * @return account index
       */
     function _getAccountIndex(address _account) internal view returns (uint256) {
+        if (accountIndex[_account] == 0){
+            return type(uint256).max;
+        }
         return accountIndex[_account] - 1;
     }
 

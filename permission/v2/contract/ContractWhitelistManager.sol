@@ -1,5 +1,5 @@
 
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.4;
 
 import "./PermissionsUpgradable.sol";
 
@@ -54,7 +54,7 @@ contract ContractWhitelistManager {
         // Check if contract already exists
         uint256 cIndex = _getContractIndex(_contract);
         if (contractIndex[_contract] != 0) {
-            contractWhitelist[cIndex].addr = _contract;
+            contractWhitelist[cIndex].contractAddress = _contract;
         }
         else {
             numContracts ++;

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./RoleManager.sol";
 import "./AccountManager.sol";
@@ -6,13 +6,14 @@ import "./VoterManager.sol";
 import "./NodeManager.sol";
 import "./OrgManager.sol";
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 
 /** @title Permissions Implementation Contract
   * @notice This contract holds implementation logic for all permissions
     related functionality. This can be called only by the interface
     contract.
   */
-contract PermissionsImplementation {
+contract PermissionsImplementation is Initializable {
     AccountManager private accountManager;
     RoleManager private roleManager;
     VoterManager private voterManager;
@@ -86,7 +87,7 @@ contract PermissionsImplementation {
       * @param _orgId org id
       */
     modifier orgExists(string memory _orgId) {
-        require(_checkOrgExists(_orgId) == true, "org does not exist");
+        require(_checkOrgExists(_orgId), "org does not exist");
         _;
     }
 
@@ -94,11 +95,11 @@ contract PermissionsImplementation {
       * @param _orgId org id
       */
     modifier orgApproved(string memory _orgId) {
-        require(checkOrgApproved(_orgId) == true, "org not in approved status");
+        require(checkOrgApproved(_orgId), "org not in approved status");
         _;
     }
 
-    /** @notice constructor accepts the contracts addresses of other deployed
+    /** @notice initialize accepts the contracts addresses of other deployed
         contracts of the permissions model
       * @param _permUpgradable - address of permissions upgradable contract
       * @param _orgManager - address of org manager contract
@@ -107,8 +108,16 @@ contract PermissionsImplementation {
       * @param _voterManager - address of voter manager contract
       * @param _nodeManager - address of node manager contract
       */
-    constructor (address _permUpgradable, address _orgManager, address _rolesManager,
-        address _accountManager, address _voterManager, address _nodeManager) public {
+    function initialize(address _permUpgradable, address _orgManager, address _rolesManager,
+        address _accountManager, address _voterManager, address _nodeManager) public initializer {
+
+        require(_permUpgradable!=address(0x0), "_permUpgradable cannot be an empty address");
+        require(_orgManager!=address(0x0), "_orgManager cannot be an empty address");
+        require(_rolesManager!=address(0x0), "_rolesManager cannot be an empty address");
+        require(_accountManager!=address(0x0), "_accountManager cannot be an empty address");
+        require(_voterManager!=address(0x0), "_voterManager cannot be an empty address");
+        require(_nodeManager!=address(0x0), "_nodeManager cannot be an empty address");
+
         permUpgradable = PermissionsUpgradable(_permUpgradable);
         orgManager = OrgManager(_orgManager);
         roleManager = RoleManager(_rolesManager);
@@ -165,6 +174,18 @@ contract PermissionsImplementation {
         roleManager.addRole(adminRole, adminOrg, fullAccess, true, true);
         accountManager.setDefaults(adminRole, orgAdminRole);
     }
+
+    /** @notice specify whether to perform source node IP validation in determining the connection permission.
+        This can only be set before network initialization is finalized
+      * @param _isIpValidationEnabled whether to enable or disable the IP validation
+      */
+    function setIpValidation(bool _isIpValidationEnabled) external 
+    onlyInterface
+    networkBootStatus(false)
+    {
+        nodeManager.setIpValidation(_isIpValidationEnabled);
+    }
+
     /** @notice as a part of network initialization add all nodes which
         are part of static-nodes.json as nodes belonging to
         network admin org
@@ -733,28 +754,56 @@ contract PermissionsImplementation {
       */
     function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes calldata _payload)
     external view returns (bool) {
+
         if (!networkBoot){
             return true;
         }
 
-        if (accountManager.getAccountStatus(_sender) == 2) {
+        uint256 accountStatus = accountManager.getAccountStatus(_sender);
+        if (accountStatus == 2 || accountStatus == 0) {
+
+            uint256 typeOfxn = 1; // value transfer
+            if (_target == address(0)) {
+                typeOfxn = 2; // contract deploy
+            }
+            else if (_payload.length > 0) {
+                typeOfxn = 3; // contract call
+            }
+            
+            if (accountStatus == 0) { // account is unconfigured or does not exist in EP records will use default access level
+              return roleManager.isTransactionAllowedBasedOnRoleAccess(
+                roleManager.getAccessLevelForUnconfiguredAccount(), 
+                typeOfxn);
+            }
+
             (string memory act_org, string memory act_role) = accountManager.getAccountOrgRole(_sender);
             string memory act_uOrg = _getUltimateParent(act_org);
             if (orgManager.checkOrgActive(act_org)) {
                 if (isNetworkAdmin(_sender) || isOrgAdmin(_sender, act_org)) {
                     return true;
                 }
-
-                uint256 typeOfxn = 1;
-                if (_target == address(0)) {
-                    typeOfxn = 2;
-                }
-                else if (_payload.length > 0) {
-                    typeOfxn = 3;
-                }
                 return roleManager.transactionAllowed(act_role, act_org, act_uOrg, typeOfxn);
             }
         }
         return false;
+    }
+
+    /** @notice function to set the default access level for unconfigured account. 
+            Unconfigured account does not have role and org membership but is assigned
+            a default access level of 5 (transfer value and/or call contract) 
+      * @param _accessLevel - set the default access level for unconfigured account.
+      * @param _caller - the account address doing the operation
+      */
+    function setAccessLevelForUnconfiguredAccount(uint256 _accessLevel, address _caller) public
+      onlyInterface
+      networkAdmin(_caller)
+    {
+        roleManager.setAccessLevelForUnconfiguredAccount(_accessLevel);
+    }
+
+    /** @notice get the default access level for unconfigured account. */
+    function getAccessLevelForUnconfiguredAccount() external view returns (uint256)
+    {
+        return roleManager.getAccessLevelForUnconfiguredAccount();
     }
 }

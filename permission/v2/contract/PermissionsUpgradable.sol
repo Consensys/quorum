@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsInterface.sol";
+import "./openzeppelin-v5/Initializable.sol";
 
 /** @title Permissions Upgradable Contract
   * @notice This contract holds the address of current permissions implementation
@@ -8,7 +9,7 @@ import "./PermissionsInterface.sol";
     guardian account can change the implementation contract address as
     business needs.
   */
-contract PermissionsUpgradable {
+contract PermissionsUpgradable is Initializable {
 
     address private guardian;
     address private permImpl;
@@ -16,10 +17,9 @@ contract PermissionsUpgradable {
     // initDone ensures that init can be called only once
     bool private initDone;
 
-    /** @notice constructor
-      * @param _guardian account address
-      */
-    constructor (address _guardian) public{
+    /// @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _guardian) public initializer {
+        require(_guardian != address(0x0), "Cannot set to empty address");
         guardian = _guardian;
         initDone = false;
     }

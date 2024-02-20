@@ -1,6 +1,7 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.8.17;
 
 import "./PermissionsUpgradable.sol";
+import "./openzeppelin-v5/Initializable.sol";
 
 /** @title Voter manager contract
   * @notice This contract holds implementation logic for all account voter and
@@ -19,7 +20,7 @@ import "./PermissionsUpgradable.sol";
         5 - Blacklisted node recovery
         6 - Blacklisted account recovery
   */
-contract VoterManager {
+contract VoterManager is Initializable {
     PermissionsUpgradable private permUpgradable;
     struct PendingOpDetails {
         string orgId;
@@ -73,11 +74,12 @@ contract VoterManager {
         _;
     }
 
-    /** @notice constructor. sets the permissions upgradable address
-      */
-    constructor (address _permUpgradable) public {
+    // @notice initialized only once. sets the permissions upgradable address
+    function initialize(address _permUpgradable) public initializer {
+        require(_permUpgradable != address(0x0), "Cannot set to empty address");
+        
         permUpgradable = PermissionsUpgradable(_permUpgradable);
-    }
+    } 
 
     /** @notice function to add a new voter account to the organization
       * @param _orgId org id
@@ -91,7 +93,8 @@ contract VoterManager {
         if (VoterOrgIndex[keccak256(abi.encode(_orgId))] == 0) {
             orgNum++;
             VoterOrgIndex[keccak256(abi.encode(_orgId))] = orgNum;
-            uint256 id = orgVoterList.length++;
+            uint256 id = orgVoterList.length;
+            orgVoterList.push();
             orgVoterList[id].orgId = _orgId;
             orgVoterList[id].voterCount = 1;
             orgVoterList[id].validVoterCount = 1;
@@ -237,14 +240,22 @@ contract VoterManager {
     function _getVoterIndex(string memory _orgId, address _vAccount)
     internal view returns (uint256) {
         uint256 orgIndex = _getVoterOrgIndex(_orgId);
-        return orgVoterList[orgIndex].voterIndex[_vAccount] - 1;
+        uint256 voterIndex = orgVoterList[orgIndex].voterIndex[_vAccount];
+        if (voterIndex == 0){
+          return type(uint256).max; 
+        }
+        return voterIndex - 1;
     }
 
     /** @notice returns the org index for the org from voter list
       */
     function _getVoterOrgIndex(string memory _orgId)
     internal view returns (uint256) {
-        return VoterOrgIndex[keccak256(abi.encode(_orgId))] - 1;
+        uint256 voterOrgIndex = VoterOrgIndex[keccak256(abi.encode(_orgId))];
+        if (voterOrgIndex == 0){
+          return type(uint256).max;
+        }
+        return voterOrgIndex - 1;
     }
 
 }
