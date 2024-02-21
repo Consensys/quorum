@@ -208,7 +208,6 @@ contract PermissionsInterface is Initializable {
       */
     function addNode(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport) public {
         permImplementation.addNode(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
-
     }
 
     /** @notice interface to update node status
@@ -222,6 +221,28 @@ contract PermissionsInterface is Initializable {
     function updateNodeStatus(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport,
         uint256 _action) public {
         permImplementation.updateNodeStatus(_orgId, _enodeId, _ip, _port, _raftport, _action, msg.sender);
+    }
+
+    /** @notice interface to add/update contract whitelist
+      * @param _contractAddress contract address to be added to whitelist
+      * @param _contractKey human readable identifier for a smart contract
+      */
+    function addContractWhitelist(string calldata  _contractKey, address _contractAddress) public {
+        permImplementation.addContractWhitelist(_contractKey, _contractAddress, msg.sender);
+    }
+
+    /** @notice interface to revoke a contract whitelist by contract address
+      * @param _contractAddress contract to be removed from whitelist
+      */
+    function revokeContractWhitelistByAddress(address _contractAddress) public {
+        permImplementation.revokeContractWhitelistByAddress(_contractAddress, msg.sender);
+    }
+
+    /** @notice interface to revoke a contract whitelist by contract key
+      * @param _contractKey contract to be removed from whitelist
+      */
+    function revokeContractWhitelistByKey(string memory _contractKey) public {
+        permImplementation.revokeContractWhitelistByKey(_contractKey, msg.sender);
     }
 
     /** @notice interface to initiate blacklisted node recovery
@@ -299,7 +320,6 @@ contract PermissionsInterface is Initializable {
     function assignAccountRole(address _account, string calldata _orgId,
         string calldata _roleId) external {
         permImplementation.assignAccountRole(_account, _orgId, _roleId, msg.sender);
-
     }
 
     /** @notice interface to check if passed account is an network admin account

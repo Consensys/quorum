@@ -71,7 +71,7 @@ var (
 	v2Flag          bool
 
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
-	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
+	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress, contractWhitelistManagerAddress common.Address
 )
 
 func TestMain(m *testing.M) {
@@ -151,6 +151,7 @@ func setup() {
 	var acctManagerInstance *v2bind.AcctManager
 	var orgManagerInstance *v2bind.OrgManager
 	var voterManagerInstance *v2bind.VoterManager
+	var contractWhitelistManagerInstance *v2bind.ContractWhitelistManager
 	var permImplInstance *v2bind.PermImpl
 
 	guardianTransactor, _ := bind.NewKeyedTransactorWithChainID(guardianKey, ethereum.BlockChain().Config().ChainID)
@@ -181,6 +182,10 @@ func setup() {
 			t.Fatal(err)
 		}
 		voterManagerAddress, _, voterManagerInstance, err = v2bind.DeployVoterManager(guardianTransactor, contrBackend)
+		if err != nil {
+			t.Fatal(err)
+		}
+		contractWhitelistManagerAddress, _, contractWhitelistManagerInstance, err = v2bind.DeployContractWhitelistManager(guardianTransactor, contrBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,7 +222,11 @@ func setup() {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = permImplInstance.Initialize(guardianTransactor, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		_, err = contractWhitelistManagerInstance.Initialize(guardianTransactor, permUpgrAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = permImplInstance.Initialize(guardianTransactor, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress, contractWhitelistManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
