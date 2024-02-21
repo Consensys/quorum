@@ -71,8 +71,8 @@ func (i *Init) GetNumberOfAccounts() (*big.Int, error) {
 	return i.permAcctSession.GetNumberOfAccounts()
 }
 
-func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, error) {
-	return common.Address{}, nil // contract whitelist only supported for v2 permissions
+func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, string, *big.Int, error) {
+	return common.Address{}, "", nil, nil // contract whitelist only supported for v2 permissions
 }
 
 func (i *Init) GetNumberOfWhitelistedContracts() (*big.Int, error) {

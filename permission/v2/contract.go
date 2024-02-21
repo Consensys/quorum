@@ -96,7 +96,7 @@ func (i *Init) GetNumberOfAccounts() (*big.Int, error) {
 	return i.permAcctSession.GetNumberOfAccounts()
 }
 
-func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, error) {
+func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, string, *big.Int, error) {
 	return i.permCtrWhitelistSession.GetContractWhitelistDetailsFromIndex(_cIndex)
 }
 

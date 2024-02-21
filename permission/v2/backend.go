@@ -32,7 +32,9 @@ func (b *Backend) ManageContractWhitelistPermissions() error {
 		for {
 			select {
 			case evtAccessModified := <-chContractWhitelistModified:
-				core.ContractWhitelistMap.UpsertContractWhitelist(evtAccessModified.Contract)
+				core.ContractWhitelistMap.UpsertContractWhitelist(evtAccessModified.ContractAddr, evtAccessModified.ContractKey)
+
+			// TODO(rl): Add access revoked
 
 			case <-stopChan:
 				log.Info("quit whitelist contract watch")

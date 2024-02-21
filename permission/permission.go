@@ -30,7 +30,7 @@ func (p *PermissionCtrl) AfterStart() error {
 		return fmt.Errorf("populateInitPermissions failed to bind contracts: %v", err)
 	}
 
-	// populate the initial list of permissioned nodes and account accesses
+	// populate the initial list of permissioned nodes, account accesses and contract whitelist
 	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
 		params.DEFAULT_NODECACHE_SIZE, params.DEFAULT_ACCOUNTCACHE_SIZE, params.DEFAULT_WHITELISTCACHE_SIZE); err != nil {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
@@ -243,8 +243,10 @@ func (p *PermissionCtrl) populateContractWhitelistFromContract() error {
 	if numberOfWhitelistedContracts, err := p.contract.GetNumberOfWhitelistedContracts(); err == nil {
 		iContract := numberOfWhitelistedContracts.Uint64()
 		for k := uint64(0); k < iContract; k++ {
-			if addr, err := p.contract.GetContractWhitelistDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				pcore.ContractWhitelistMap.UpsertContractWhitelist(addr)
+			if addr, key, status, err := p.contract.GetContractWhitelistDetailsFromIndex(big.NewInt(int64(k))); err == nil {
+				if status.Cmp(big.NewInt(1)) == 0 {
+					pcore.ContractWhitelistMap.UpsertContractWhitelist(addr, key)
+				}
 			}
 		}
 	} else {

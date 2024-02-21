@@ -106,6 +106,10 @@ func (q *QuorumControlsAPI) AcctList() []core.AccountInfo {
 	return core.AcctInfoMap.GetAcctList()
 }
 
+func (q *QuorumControlsAPI) ContractWhitelist() []core.ContractWhitelistInfo {
+	return core.ContractWhitelistMap.GetContractWhitelist()
+}
+
 func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (core.OrgDetailInfo, error) {
 	o, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {

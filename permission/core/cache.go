@@ -132,7 +132,9 @@ type OrgDetailInfo struct {
 }
 
 type ContractWhitelistInfo struct {
-	ContractAddress common.Address `json:"address"` // we might accept function selectors in future
+	ContractAddress         common.Address `json:"address"`
+	ContractKey             string         `json:"key"`
+	ContractWhitelistStatus uint8          `json:"status"`
 }
 
 var syncStarted = false
@@ -618,8 +620,8 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 	return false
 }
 
-func (c *ContractWhitelistCache) UpsertContractWhitelist(contract common.Address) {
-	c.c.Add(contract, &ContractWhitelistInfo{contract})
+func (c *ContractWhitelistCache) UpsertContractWhitelist(contract common.Address, key string) {
+	c.c.Add(contract, &ContractWhitelistInfo{contract, key, 0})
 }
 
 func (c *ContractWhitelistCache) GetContractWhitelist() []ContractWhitelistInfo {
