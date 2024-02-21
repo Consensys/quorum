@@ -139,6 +139,8 @@ type Backend interface {
 	GetAuditService(auditBackend ContractBackend) (AuditService, error)
 	// control service for account management service
 	GetControlService(controlBackend ContractBackend) (ControlService, error)
+	// contract whitelist service for enhanced privacy contract whitelisting service
+	GetContractWhitelistService(transactOpts *bind.TransactOpts, roleBackend ContractBackend) (ContractWhitelistService, error)
 	// Monitors account access related events and updates the cache accordingly
 	ManageAccountPermissions() error
 	// Monitors Node management events and updates cache accordingly

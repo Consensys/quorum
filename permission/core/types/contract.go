@@ -14,16 +14,18 @@ import (
 
 // TxArgs holds arguments required for execute functions
 type TxArgs struct {
-	OrgId      string
-	POrgId     string
-	Url        string
-	RoleId     string
-	IsVoter    bool
-	IsAdmin    bool
-	AcctId     common.Address
-	AccessType uint8
-	Action     uint8
-	Txa        ethapi.SendTxArgs
+	OrgId           string
+	POrgId          string
+	Url             string
+	RoleId          string
+	IsVoter         bool
+	IsAdmin         bool
+	AcctId          common.Address
+	AccessType      uint8
+	Action          uint8
+	ContractKey     string
+	ContractAddress common.Address
+	Txa             ethapi.SendTxArgs
 }
 
 type ContractBackend struct {
@@ -33,6 +35,12 @@ type ContractBackend struct {
 	IsRaft     bool
 	UseDns     bool
 	ChainID    *big.Int
+}
+
+type ContractWhitelistService interface {
+	AddWhitelist(_args TxArgs) (*types.Transaction, error)
+	RevokeWhitelistByAddress(_args TxArgs) (*types.Transaction, error)
+	RevokeWhitelistByKey(_args TxArgs) (*types.Transaction, error)
 }
 
 type RoleService interface {

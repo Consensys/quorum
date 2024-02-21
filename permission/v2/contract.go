@@ -45,6 +45,10 @@ type Node struct {
 	Backend *PermissionModelV2
 }
 
+type ContractWhitelist struct {
+	Backend *PermissionModelV2
+}
+
 type Init struct {
 	Backend ptype.ContractBackend
 	//binding contracts
@@ -325,6 +329,18 @@ func (n *Node) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) 
 		return nil, err
 	}
 	return n.Backend.PermInterfSession.UpdateNodeStatus(_args.OrgId, enodeId, ip, port, raftPort, big.NewInt(int64(_args.Action)))
+}
+
+func (c *ContractWhitelist) AddWhitelist(_args ptype.TxArgs) (*types.Transaction, error) {
+	return c.Backend.PermInterfSession.AddContractWhitelist(_args.ContractKey, _args.ContractAddress)
+}
+
+func (c *ContractWhitelist) RevokeWhitelistByKey(_args ptype.TxArgs) (*types.Transaction, error) {
+	return c.Backend.PermInterfSession.RevokeContractWhitelistByKey(_args.ContractKey)
+}
+
+func (c *ContractWhitelist) RevokeWhitelistByAddress(_args ptype.TxArgs) (*types.Transaction, error) {
+	return c.Backend.PermInterfSession.RevokeContractWhitelistByAddress(_args.ContractAddress)
 }
 
 func (i *Init) bindContract() error {

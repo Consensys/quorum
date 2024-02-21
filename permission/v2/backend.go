@@ -323,6 +323,14 @@ func getInterfaceContractSession(permInterfaceInstance *eb.PermInterface, contra
 	return ps, nil
 }
 
+func (b *Backend) GetContractWhitelistService(transactOpts *bind.TransactOpts, contractWhitelistBackend ptype.ContractBackend) (ptype.ContractWhitelistService, error) {
+	backEnd, err := getBackendWithTransactOpts(contractWhitelistBackend, transactOpts)
+	if err != nil {
+		return nil, err
+	}
+	return &ContractWhitelist{Backend: backEnd}, nil
+}
+
 func (b *Backend) GetRoleService(transactOpts *bind.TransactOpts, roleBackend ptype.ContractBackend) (ptype.RoleService, error) {
 	backEnd, err := getBackendWithTransactOpts(roleBackend, transactOpts)
 	if err != nil {

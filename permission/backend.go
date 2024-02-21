@@ -147,6 +147,14 @@ func NewPermissionContractService(ethClnt bind.ContractBackend, permissionV2 boo
 	}
 }
 
+func (p *PermissionCtrl) NewPermissionContractWhitelistService(txa ethapi.SendTxArgs) (ptype.ContractWhitelistService, error) {
+	transactOpts, err := p.getTxParams(txa)
+	if err != nil {
+		return nil, err
+	}
+	return p.backend.GetContractWhitelistService(transactOpts, p.getContractBackend())
+}
+
 func (p *PermissionCtrl) NewPermissionRoleService(txa ethapi.SendTxArgs) (ptype.RoleService, error) {
 	transactOpts, err := p.getTxParams(txa)
 	if err != nil {
