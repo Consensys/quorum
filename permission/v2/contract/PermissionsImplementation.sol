@@ -356,7 +356,7 @@ contract PermissionsImplementation is Initializable {
     /** @notice interface to revoke a contract whitelist by contract address
       * @param _contractAddress contract address to be removed from whitelist
       */
-    function revokeContractWhitelistByAddress(address _contractAddress, address _caller) public 
+    function revokeContractWhitelistByAddress(address _contractAddress, address _caller) external 
     onlyInterface networkAdmin(_caller) {
         contractWhitelistManager.revokeWhitelistByAddress(_contractAddress);
     }
@@ -364,7 +364,7 @@ contract PermissionsImplementation is Initializable {
     /** @notice interface to revoke a contract whitelist by contract key
       * @param _contractKey contract address to be removed from whitelist
       */
-    function revokeContractWhitelistByKey(string calldata _contractKey, address _caller) public 
+    function revokeContractWhitelistByKey(string calldata _contractKey, address _caller) external 
     onlyInterface networkAdmin(_caller) {
         contractWhitelistManager.revokeWhitelistByKey(_contractKey);
     }

@@ -227,21 +227,21 @@ contract PermissionsInterface is Initializable {
       * @param _contractAddress contract address to be added to whitelist
       * @param _contractKey human readable identifier for a smart contract
       */
-    function addContractWhitelist(string calldata  _contractKey, address _contractAddress) public {
+    function addContractWhitelist(string calldata  _contractKey, address _contractAddress) external {
         permImplementation.addContractWhitelist(_contractKey, _contractAddress, msg.sender);
     }
 
     /** @notice interface to revoke a contract whitelist by contract address
       * @param _contractAddress contract to be removed from whitelist
       */
-    function revokeContractWhitelistByAddress(address _contractAddress) public {
+    function revokeContractWhitelistByAddress(address _contractAddress) external {
         permImplementation.revokeContractWhitelistByAddress(_contractAddress, msg.sender);
     }
 
     /** @notice interface to revoke a contract whitelist by contract key
       * @param _contractKey contract to be removed from whitelist
       */
-    function revokeContractWhitelistByKey(string memory _contractKey) public {
+    function revokeContractWhitelistByKey(string memory _contractKey) external {
         permImplementation.revokeContractWhitelistByKey(_contractKey, msg.sender);
     }
 

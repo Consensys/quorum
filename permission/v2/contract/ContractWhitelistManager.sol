@@ -16,7 +16,8 @@ import "./openzeppelin-v5/Initializable.sol";
         2 - Revoked
   */
 contract ContractWhitelistManager is Initializable {
-    PermissionsUpgradable private permUpgradable;
+
+    bytes32 private constant CONTRACT_WHITELIST_STORAGE_POSITION = keccak256(abi.encode(uint256(keccak256("quorum.storage.contractwhitelist")) - 1)) & ~bytes32(uint256(0xff));
 
     struct ContractWhitelistDetails {
         address contractAddress;
@@ -24,10 +25,13 @@ contract ContractWhitelistManager is Initializable {
         uint8 whitelistStatus;
     }
 
-    ContractWhitelistDetails[] private contractWhitelist;
-    mapping(address => uint) private contractIndexByAddress;
-    mapping(string => uint) private contractIndexByKey;
-    uint private numContracts;
+    struct ContractWhitelistStorage {
+        PermissionsUpgradable permUpgradable;
+        ContractWhitelistDetails[] contractWhitelist;
+        mapping(address => uint) contractIndexByAddress;
+        mapping(string => uint) contractIndexByKey;
+        uint numContracts;
+    }
 
     // contract whitelist events
     event ContractWhitelistModified(address _contractAddr, string _contractKey, uint8 _status);
@@ -37,21 +41,21 @@ contract ContractWhitelistManager is Initializable {
         contract
       */
     modifier onlyImplementation {
-        require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
+        require(msg.sender == contractWhitelistStorage().permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 
     /// @notice initialized only once. sets the permissions upgradable address
-    function initialize(address _permUpgradable) public initializer {
+    function initialize(address _permUpgradable) external initializer {
         require(_permUpgradable != address(0x0), "Cannot set to empty address");
-        permUpgradable = PermissionsUpgradable(_permUpgradable);
+        contractWhitelistStorage().permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice returns the total number of whitelisted contracts
       * @return total number whitelisted contracts
       */
     function getNumberOfWhitelistedContracts() external view returns (uint) {
-        return contractWhitelist.length;
+        return contractWhitelistStorage().contractWhitelist.length;
     }
 
     /** @notice returns the contract whitelist details a given contract whitelist index
@@ -62,7 +66,8 @@ contract ContractWhitelistManager is Initializable {
       */
     function getContractWhitelistDetailsFromIndex(uint _cIndex) external view returns
     (address, string memory, uint status) {
-        return (contractWhitelist[_cIndex].contractAddress, contractWhitelist[_cIndex].contractKey, contractWhitelist[_cIndex].whitelistStatus);
+        ContractWhitelistDetails memory details = contractWhitelistStorage().contractWhitelist[_cIndex];
+        return (details.contractAddress, details.contractKey, details.whitelistStatus);
     }
 
     /** @notice function to add/update whitelisted contract
@@ -72,17 +77,18 @@ contract ContractWhitelistManager is Initializable {
     function addWhitelist(string calldata _key, address _contract) external
     onlyImplementation {
         // Check if contract already exists
-        if (contractIndexByKey[_key] != 0) {
+        ContractWhitelistStorage storage cs = contractWhitelistStorage();
+        if (cs.contractIndexByKey[_key] != 0) {
             uint256 cIndex = _getContractIndexByKey(_key);
-            contractWhitelist[cIndex].contractAddress = _contract;
-            contractWhitelist[cIndex].contractKey = _key;
-            contractWhitelist[cIndex].whitelistStatus = 1;
+            cs.contractWhitelist[cIndex].contractAddress = _contract;
+            cs.contractWhitelist[cIndex].contractKey = _key;
+            cs.contractWhitelist[cIndex].whitelistStatus = 1;
         }
         else {
-            numContracts++;
-            contractIndexByKey[_key] = numContracts;
-            contractIndexByAddress[_contract] = numContracts;
-            contractWhitelist.push(ContractWhitelistDetails(_contract, _key, 1));
+            cs.numContracts++;
+            cs.contractIndexByKey[_key] = cs.numContracts;
+            cs.contractIndexByAddress[_contract] = cs.numContracts;
+            cs.contractWhitelist.push(ContractWhitelistDetails(_contract, _key, 1));
         }
         emit ContractWhitelistModified(_contract, _key, 1);
     }
@@ -93,10 +99,10 @@ contract ContractWhitelistManager is Initializable {
     function revokeWhitelistByAddress(address _contract) external
     onlyImplementation {
         // Check if contract already exists
-        require((contractIndexByAddress[_contract]) != 0, "whitelist does not exists");
+        require((contractWhitelistStorage().contractIndexByAddress[_contract]) != 0, "whitelist does not exists");
         uint256 cIndex = _getContractIndexByAddress(_contract);
-        contractWhitelist[cIndex].whitelistStatus = 2;
-        emit ContractWhitelistRevoked(_contract, contractWhitelist[cIndex].contractKey, 2);
+        contractWhitelistStorage().contractWhitelist[cIndex].whitelistStatus = 2;
+        emit ContractWhitelistRevoked(_contract, contractWhitelistStorage().contractWhitelist[cIndex].contractKey, 2);
     }
 
     /** @notice function to revoke whitelisted contract by contract key
@@ -105,10 +111,10 @@ contract ContractWhitelistManager is Initializable {
     function revokeWhitelistByKey(string calldata _key) external
     onlyImplementation {
         // Check if contract already exists
-        require((contractIndexByKey[_key]) != 0, "whitelist does not exists");
+        require((contractWhitelistStorage().contractIndexByKey[_key]) != 0, "whitelist does not exists");
         uint256 cIndex = _getContractIndexByKey(_key);
-        contractWhitelist[cIndex].whitelistStatus = 2;
-        emit ContractWhitelistRevoked(contractWhitelist[cIndex].contractAddress, _key, 2);
+        contractWhitelistStorage().contractWhitelist[cIndex].whitelistStatus = 2;
+        emit ContractWhitelistRevoked(contractWhitelistStorage().contractWhitelist[cIndex].contractAddress, _key, 2);
     }
 
     /** @notice returns the index for a given contract address
@@ -116,7 +122,7 @@ contract ContractWhitelistManager is Initializable {
       * @return contract index
       */
     function _getContractIndexByAddress(address _contract) internal view returns (uint256) {
-        return contractIndexByAddress[_contract] - 1;
+        return contractWhitelistStorage().contractIndexByAddress[_contract] - 1;
     }
 
     /** @notice returns the index for a given contract key
@@ -124,6 +130,19 @@ contract ContractWhitelistManager is Initializable {
       * @return contract index
       */
     function _getContractIndexByKey(string calldata _key) internal view returns (uint256) {
-        return contractIndexByKey[_key] - 1;
+        return contractWhitelistStorage().contractIndexByKey[_key] - 1;
+    }
+
+    function contractWhitelistStorage()
+        internal
+        pure
+        returns (ContractWhitelistStorage storage cs)
+    {
+        // Specifies a random position from a hash of a string
+        bytes32 storagePosition = CONTRACT_WHITELIST_STORAGE_POSITION;
+        // Set the position of our struct in contract storage
+        assembly {
+            cs.slot := storagePosition
+        }
     }
 }
