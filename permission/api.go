@@ -1017,8 +1017,8 @@ func (q *QuorumControlsAPI) valAddContractWhitelist(args ptype.TxArgs) error {
 		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
-	if er := q.isOrgAdmin(args.Txa.From, args.OrgId); er != nil {
-		return er
+	if !q.isNetworkAdmin(args.Txa.From) {
+		return ptype.ErrNotNetworkAdmin
 	}
 	return nil
 }
@@ -1028,8 +1028,8 @@ func (q *QuorumControlsAPI) valRevokeContractWhitelist(args ptype.TxArgs) error 
 		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
-	if er := q.isOrgAdmin(args.Txa.From, args.OrgId); er != nil {
-		return er
+	if !q.isNetworkAdmin(args.Txa.From) {
+		return ptype.ErrNotNetworkAdmin
 	}
 	return nil
 }

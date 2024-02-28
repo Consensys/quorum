@@ -374,6 +374,11 @@ func (i *Init) bindContract() error {
 	}); err != nil {
 		return err
 	}
+	if err := ptype.BindContract(&i.PermCtrWhitelist, func() (interface{}, error) {
+		return binding.NewContractWhitelistManager(i.Backend.PermConfig.ContractWhitelistAddress, i.Backend.EthClnt)
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -423,6 +428,14 @@ func (i *Init) initSession() {
 	//populate accounts
 	i.permAcctSession = &binding.AcctManagerSession{
 		Contract: i.PermAcct,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+
+	//populate contract whitelist
+	i.permCtrWhitelistSession = &binding.ContractWhitelistManagerSession{
+		Contract: i.PermCtrWhitelist,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
