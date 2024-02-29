@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private/engine"
 )
 
@@ -86,6 +87,10 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 	log.Trace("Verify hashes of affected contracts", "expectedHashes", pmh.receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 	privacyFlag := pmh.receivedPrivacyMetadata.PrivacyFlag
 	for _, addr := range actualACAddresses {
+		if core.ContractWhitelistMap != nil && core.ContractWhitelistMap.IsContractWhitelisted(addr) {
+			// introduce a whitelist to allow whitelisting of contracts for EP simulation skips
+			continue
+		}
 		// GetPrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
 		// 2. private contracts of type:

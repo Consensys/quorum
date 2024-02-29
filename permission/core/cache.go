@@ -652,6 +652,17 @@ func (c *ContractWhitelistCache) GetContractWhitelistByAddress(contractAddress c
 	return *v.(*ContractWhitelistInfo)
 }
 
+func (c *ContractWhitelistCache) IsContractWhitelisted(contractAddress common.Address) bool {
+	v, ok := c.c.Get(contractAddress)
+	if ok {
+		if v.(*ContractWhitelistInfo).ContractWhitelistStatus != 1 {
+			// 0 is inactive, 2 means contract whitelist was revoked
+			return false
+		}
+	}
+	return ok
+}
+
 // validates if the account can transact from the current node
 func ValidateNodeForTxn(nodeId enode.ID, from common.Address) bool {
 	if !PermissionsEnabled() || nodeId == (enode.ID{}) {
