@@ -353,8 +353,8 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*pcore.A
 }
 
 // getter to get a whitelist address from the contract
-func (p *PermissionCtrl) populateContractWhitelistToCache(contractAddress common.Address) (*pcore.ContractWhitelistInfo, error) {
-	return &pcore.ContractWhitelistInfo{ContractAddress: contractAddress}, nil
+func (p *PermissionCtrl) populateContractWhitelistToCache(contractKey string, contractAddress common.Address) (*pcore.ContractWhitelistInfo, error) {
+	return &pcore.ContractWhitelistInfo{ContractAddress: contractAddress, ContractKey: contractKey}, nil
 }
 
 // getter to get a org record from the contract

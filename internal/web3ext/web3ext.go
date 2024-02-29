@@ -1005,6 +1005,18 @@ web3._extend({
                        inputFormatter: [null, web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
 			   new web3._extend.Method({
+					   name: 'getContractWhitelistByKey',
+					   call: 'quorumPermission_getContractWhitelistByKey',
+					   params: 1,
+					   inputFormatter: [null]
+			   }),
+			   new web3._extend.Method({
+					   name: 'getContractWhitelistByAddress',
+					   call: 'quorumPermission_getContractWhitelistByAddress',
+					   params: 1,
+					   inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+			   }),
+			   new web3._extend.Method({
 					   name: 'addContractWhitelist',
 					   call: 'quorumPermission_addContractWhitelist',
 					   params: 3,
@@ -1115,8 +1127,8 @@ web3._extend({
 				       getter: 'quorumPermission_acctList'
 			  }),
 			  new web3._extend.Property({
-				name: 'contractWhitelist',
-				getter: 'quorumPermission_contractWhitelist'
+					   name: 'contractWhitelist',
+					   getter: 'quorumPermission_contractWhitelist'
 	   		  }),
        ]
 })

@@ -255,12 +255,13 @@ func NewAcctCache(cacheSize int) *AcctCache {
 }
 
 type ContractWhitelistCache struct {
-	c                 *lru.Cache
+	c                 *lru.Cache // address to contractWhitelistInfo
+	c2                *lru.Cache // key to contractWhitelistInfo
 	evicted           bool
-	populateCacheFunc func(account common.Address) (*ContractWhitelistInfo, error)
+	populateCacheFunc func(key string, account common.Address) (*ContractWhitelistInfo, error)
 }
 
-func (a *ContractWhitelistCache) PopulateCacheFunc(cf func(common.Address) (*ContractWhitelistInfo, error)) {
+func (a *ContractWhitelistCache) PopulateCacheFunc(cf func(string, common.Address) (*ContractWhitelistInfo, error)) {
 	a.populateCacheFunc = cf
 }
 
@@ -270,6 +271,7 @@ func NewContractWhitelistCache(cacheSize int) *ContractWhitelistCache {
 		contractWhitelistCache.evicted = true
 	}
 	contractWhitelistCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	contractWhitelistCache.c2, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &contractWhitelistCache
 }
 
@@ -392,7 +394,7 @@ func (o *OrgCache) GetOrg(orgId string) (*OrgInfo, error) {
 		//return the record
 		return orgRec, nil
 	}
-	return nil, errors.New("Org does not exist")
+	return nil, errors.New("org does not exist")
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
@@ -432,7 +434,7 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 		//return the record
 		return nodeRec, err
 	}
-	return nil, errors.New("Node does not exist")
+	return nil, errors.New("node does not exist")
 }
 
 func (n *NodeCache) getSourceList() []*NodeInfo {
@@ -542,7 +544,7 @@ func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
 		//return the record
 		return roleRec, nil
 	}
-	return nil, errors.New("Invalid role")
+	return nil, errors.New("invalid role")
 }
 
 func (r *RoleCache) GetRoleList() []RoleInfo {
@@ -622,6 +624,12 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 
 func (c *ContractWhitelistCache) UpsertContractWhitelist(contract common.Address, key string) {
 	c.c.Add(contract, &ContractWhitelistInfo{contract, key, 0})
+	c.c2.Add(key, &ContractWhitelistInfo{contract, key, 0})
+}
+
+func (c *ContractWhitelistCache) RemoveContractWhitelist(contract common.Address, key string) {
+	c.c.Remove(contract)
+	c.c2.Remove(key)
 }
 
 func (c *ContractWhitelistCache) GetContractWhitelist() []ContractWhitelistInfo {
@@ -632,6 +640,16 @@ func (c *ContractWhitelistCache) GetContractWhitelist() []ContractWhitelistInfo 
 		clist[i] = *vp
 	}
 	return clist
+}
+
+func (c *ContractWhitelistCache) GetContractWhitelistByKey(contractKey string) ContractWhitelistInfo {
+	v, _ := c.c2.Get(contractKey)
+	return *v.(*ContractWhitelistInfo)
+}
+
+func (c *ContractWhitelistCache) GetContractWhitelistByAddress(contractAddress common.Address) ContractWhitelistInfo {
+	v, _ := c.c.Get(contractAddress)
+	return *v.(*ContractWhitelistInfo)
 }
 
 // validates if the account can transact from the current node

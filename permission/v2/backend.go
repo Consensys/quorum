@@ -18,6 +18,7 @@ type Backend struct {
 
 func (b *Backend) ManageContractWhitelistPermissions() error {
 	chContractWhitelistModified := make(chan *eb.ContractWhitelistManagerContractWhitelistModified)
+	chContractWhitelistRevoked := make(chan *eb.ContractWhitelistManagerContractWhitelistRevoked)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -26,15 +27,19 @@ func (b *Backend) ManageContractWhitelistPermissions() error {
 	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistModified(opts, chContractWhitelistModified); err != nil {
 		return fmt.Errorf("failed ContractWhitelistModified: %v", err)
 	}
+	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistRevoked(opts, chContractWhitelistRevoked); err != nil {
+		return fmt.Errorf("failed ContractWhitelistRevoked: %v", err)
+	}
 	go func() {
 		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
-			case evtAccessModified := <-chContractWhitelistModified:
-				core.ContractWhitelistMap.UpsertContractWhitelist(evtAccessModified.ContractAddr, evtAccessModified.ContractKey)
+			case evtWhitelistModified := <-chContractWhitelistModified:
+				core.ContractWhitelistMap.UpsertContractWhitelist(evtWhitelistModified.ContractAddr, evtWhitelistModified.ContractKey)
 
-			// TODO(rl): Add access revoked
+			case evtWhitelistRevoked := <-chContractWhitelistRevoked:
+				core.ContractWhitelistMap.RemoveContractWhitelist(evtWhitelistRevoked.ContractAddr, evtWhitelistRevoked.ContractKey)
 
 			case <-stopChan:
 				log.Info("quit whitelist contract watch")

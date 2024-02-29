@@ -112,6 +112,14 @@ func (q *QuorumControlsAPI) ContractWhitelist() []core.ContractWhitelistInfo {
 	return core.ContractWhitelistMap.GetContractWhitelist()
 }
 
+func (q *QuorumControlsAPI) GetContractWhitelistByKey(contractKey string) core.ContractWhitelistInfo {
+	return core.ContractWhitelistMap.GetContractWhitelistByKey(contractKey)
+}
+
+func (q *QuorumControlsAPI) GetContractWhitelistByAddress(contractAddress common.Address) core.ContractWhitelistInfo {
+	return core.ContractWhitelistMap.GetContractWhitelistByAddress(contractAddress)
+}
+
 func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (core.OrgDetailInfo, error) {
 	o, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {
