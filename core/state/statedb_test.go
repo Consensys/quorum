@@ -1030,7 +1030,7 @@ func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t
 	if privMetaData == nil {
 		t.Errorf("privacy metadata should have been updated during commit")
 	} else if privMetaData.PrivacyFlag != engine.PrivacyFlagStateValidation {
-		t.Errorf("privacy metadata should have StateValidation as the the privacy flag")
+		t.Errorf("privacy metadata should have StateValidation as the privacy flag")
 	}
 }
 

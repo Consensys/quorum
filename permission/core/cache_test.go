@@ -366,7 +366,7 @@ func TestCheckIfAdminAccount(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "Normal account in in org",
+			name: "Normal account in org",
 			args: args{Acct6},
 			want: false,
 		},
