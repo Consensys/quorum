@@ -153,7 +153,6 @@ type Backend interface {
 	ManageRolePermissions() error
 	// monitors contract whitelist management related events and updates cache accordingly
 	ManageContractWhitelistPermissions() error
-
 	// monitors for network boot up complete event
 	MonitorNetworkBootUp() error
 }

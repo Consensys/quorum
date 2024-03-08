@@ -16,6 +16,7 @@
 //go:generate solc --abi --bin -o . --overwrite ../VoterManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../ContractWhitelistManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../openzeppelin-v5/Initializable.sol
+//go:generate solc --abi --bin -o . --overwrite ../openzeppelin-v5/EnumerableSet.sol
 
 //go:generate abigen -pkg bind -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type AcctManager               -out ../../bind/accounts.go 					--alias Initialized=InitializedAccs
 //go:generate abigen -pkg bind -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type NodeManager               -out ../../bind/nodes.go						--alias Initialized=InitializedNodes

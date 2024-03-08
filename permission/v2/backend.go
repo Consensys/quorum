@@ -17,29 +17,29 @@ type Backend struct {
 }
 
 func (b *Backend) ManageContractWhitelistPermissions() error {
-	chContractWhitelistModified := make(chan *eb.ContractWhitelistManagerContractWhitelistModified)
+	chContractWhitelistAdded := make(chan *eb.ContractWhitelistManagerContractWhitelistAdded)
 	chContractWhitelistRevoked := make(chan *eb.ContractWhitelistManagerContractWhitelistRevoked)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistModified(opts, chContractWhitelistModified); err != nil {
-		return fmt.Errorf("failed ContractWhitelistModified: %v", err)
+	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistAdded(opts, chContractWhitelistAdded, nil); err != nil {
+		return fmt.Errorf("failed watching on ContractWhitelistAdded event: %v", err)
 	}
-	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistRevoked(opts, chContractWhitelistRevoked); err != nil {
-		return fmt.Errorf("failed ContractWhitelistRevoked: %v", err)
+	if _, err := b.Contr.PermCtrWhitelist.ContractWhitelistManagerFilterer.WatchContractWhitelistRevoked(opts, chContractWhitelistRevoked, nil); err != nil {
+		return fmt.Errorf("failed watching on ContractWhitelistRevoked event: %v", err)
 	}
 	go func() {
 		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
-			case evtWhitelistModified := <-chContractWhitelistModified:
-				core.ContractWhitelistMap.UpsertContractWhitelist(evtWhitelistModified.ContractAddr, evtWhitelistModified.ContractKey)
+			case evtWhitelistAdded := <-chContractWhitelistAdded:
+				core.ContractWhitelistMap.AddContractWhitelist(evtWhitelistAdded.ContractAddr)
 
 			case evtWhitelistRevoked := <-chContractWhitelistRevoked:
-				core.ContractWhitelistMap.RemoveContractWhitelist(evtWhitelistRevoked.ContractAddr, evtWhitelistRevoked.ContractKey)
+				core.ContractWhitelistMap.RemoveContractWhitelist(evtWhitelistRevoked.ContractAddr)
 
 			case <-stopChan:
 				log.Info("quit whitelist contract watch")

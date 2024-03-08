@@ -100,14 +100,6 @@ func (i *Init) GetNumberOfAccounts() (*big.Int, error) {
 	return i.permAcctSession.GetNumberOfAccounts()
 }
 
-func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, string, *big.Int, error) {
-	return i.permCtrWhitelistSession.GetContractWhitelistDetailsFromIndex(_cIndex)
-}
-
-func (i *Init) GetNumberOfWhitelistedContracts() (*big.Int, error) {
-	return i.permCtrWhitelistSession.GetNumberOfWhitelistedContracts()
-}
-
 func (i *Init) GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
@@ -331,16 +323,16 @@ func (n *Node) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) 
 	return n.Backend.PermInterfSession.UpdateNodeStatus(_args.OrgId, enodeId, ip, port, raftPort, big.NewInt(int64(_args.Action)))
 }
 
-func (c *ContractWhitelist) AddWhitelist(_args ptype.TxArgs) (*types.Transaction, error) {
-	return c.Backend.PermInterfSession.AddContractWhitelist(_args.ContractKey, _args.ContractAddress)
+func (i *Init) GetWhitelistedContracts() ([]common.Address, error) {
+	return i.permCtrWhitelistSession.GetWhitelistedContracts()
 }
 
-func (c *ContractWhitelist) RevokeWhitelistByKey(_args ptype.TxArgs) (*types.Transaction, error) {
-	return c.Backend.PermInterfSession.RevokeContractWhitelistByKey(_args.ContractKey)
+func (c *ContractWhitelist) AddWhitelist(_args ptype.TxArgs) (*types.Transaction, error) {
+	return c.Backend.PermInterfSession.AddContractWhitelist(_args.ContractAddress)
 }
 
 func (c *ContractWhitelist) RevokeWhitelistByAddress(_args ptype.TxArgs) (*types.Transaction, error) {
-	return c.Backend.PermInterfSession.RevokeContractWhitelistByAddress(_args.ContractAddress)
+	return c.Backend.PermInterfSession.RevokeContractWhitelist(_args.ContractAddress)
 }
 
 func (i *Init) bindContract() error {

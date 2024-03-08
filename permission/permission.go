@@ -32,7 +32,7 @@ func (p *PermissionCtrl) AfterStart() error {
 
 	// populate the initial list of permissioned nodes, account accesses and contract whitelist
 	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
-		params.DEFAULT_NODECACHE_SIZE, params.DEFAULT_ACCOUNTCACHE_SIZE, params.DEFAULT_WHITELISTCACHE_SIZE); err != nil {
+		params.DEFAULT_NODECACHE_SIZE, params.DEFAULT_ACCOUNTCACHE_SIZE); err != nil {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
@@ -140,7 +140,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	return nil
 }
 
-func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize int) {
+func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
 	// instantiate the cache objects for permissions
 	pcore.OrgInfoMap = pcore.NewOrgCache(orgCacheSize)
 	pcore.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
@@ -155,14 +155,13 @@ func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCache
 	pcore.AcctInfoMap = pcore.NewAcctCache(accountCacheSize)
 	pcore.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
 
-	pcore.ContractWhitelistMap = pcore.NewContractWhitelistCache(contractWhitelistCacheSize)
-	pcore.ContractWhitelistMap.PopulateCacheFunc(p.populateContractWhitelistToCache)
+	pcore.ContractWhitelistMap = pcore.NewContractWhitelistCache()
 }
 
 // Thus function checks if the initial network boot up status and if no
 // populates permissions model with details from permission-config.json
-func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize int) error {
-	p.instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)
+func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) error {
+	p.instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 	networkInitialized, err := p.contract.GetNetworkBootStatus()
 	if err != nil {
 		// handle the scenario of no contract code.
@@ -240,14 +239,9 @@ func (p *PermissionCtrl) populateAccountsFromContract() error {
 
 // populates the contract whitelist details from contract into cache
 func (p *PermissionCtrl) populateContractWhitelistFromContract() error {
-	if numberOfWhitelistedContracts, err := p.contract.GetNumberOfWhitelistedContracts(); err == nil {
-		iContract := numberOfWhitelistedContracts.Uint64()
-		for k := uint64(0); k < iContract; k++ {
-			if addr, key, status, err := p.contract.GetContractWhitelistDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				if status.Cmp(big.NewInt(1)) == 0 {
-					pcore.ContractWhitelistMap.UpsertContractWhitelist(addr, key)
-				}
-			}
+	if whitelistedContracts, err := p.contract.GetWhitelistedContracts(); err == nil {
+		for _, addr := range whitelistedContracts {
+			pcore.ContractWhitelistMap.AddContractWhitelist(addr)
 		}
 	} else {
 		return err
@@ -350,11 +344,6 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*pcore.A
 		return nil, ptype.ErrAccountNotThere
 	}
 	return &pcore.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: pcore.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
-}
-
-// getter to get a whitelist address from the contract
-func (p *PermissionCtrl) populateContractWhitelistToCache(contractKey string, contractAddress common.Address) (*pcore.ContractWhitelistInfo, error) {
-	return &pcore.ContractWhitelistInfo{ContractAddress: contractAddress, ContractKey: contractKey}, nil
 }
 
 // getter to get a org record from the contract

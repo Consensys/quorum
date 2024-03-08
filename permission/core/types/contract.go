@@ -23,7 +23,6 @@ type TxArgs struct {
 	AcctId          common.Address
 	AccessType      uint8
 	Action          uint8
-	ContractKey     string
 	ContractAddress common.Address
 	Txa             ethapi.SendTxArgs
 }
@@ -40,7 +39,6 @@ type ContractBackend struct {
 type ContractWhitelistService interface {
 	AddWhitelist(_args TxArgs) (*types.Transaction, error)
 	RevokeWhitelistByAddress(_args TxArgs) (*types.Transaction, error)
-	RevokeWhitelistByKey(_args TxArgs) (*types.Transaction, error)
 }
 
 type RoleService interface {
@@ -100,8 +98,7 @@ type InitService interface {
 	GetNumberOfAccounts() (*big.Int, error)
 	GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error)
 
-	GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, string, *big.Int, error)
-	GetNumberOfWhitelistedContracts() (*big.Int, error)
+	GetWhitelistedContracts() ([]common.Address, error)
 
 	GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 		RoleId     string

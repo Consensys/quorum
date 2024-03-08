@@ -345,28 +345,19 @@ contract PermissionsImplementation is Initializable {
 
     /** @notice function to add/update contract whitelist
       * @param _contractAddress contract address to be added to whitelist
-      * @param _contractKey human readable identifier for a smart contract
       */
-    function addContractWhitelist(string calldata _contractKey, address _contractAddress, address _caller) external
+    function addContractWhitelist(address _contractAddress, address _caller) external
     onlyInterface networkAdmin(_caller) {
         //add new roles can be created by org admins only
-        contractWhitelistManager.addWhitelist(_contractKey, _contractAddress);
+        contractWhitelistManager.addWhitelist(_contractAddress);
     }
 
     /** @notice interface to revoke a contract whitelist by contract address
       * @param _contractAddress contract address to be removed from whitelist
       */
-    function revokeContractWhitelistByAddress(address _contractAddress, address _caller) external 
+    function revokeContractWhitelist(address _contractAddress, address _caller) external 
     onlyInterface networkAdmin(_caller) {
-        contractWhitelistManager.revokeWhitelistByAddress(_contractAddress);
-    }
-
-    /** @notice interface to revoke a contract whitelist by contract key
-      * @param _contractKey contract address to be removed from whitelist
-      */
-    function revokeContractWhitelistByKey(string calldata _contractKey, address _caller) external 
-    onlyInterface networkAdmin(_caller) {
-        contractWhitelistManager.revokeWhitelistByKey(_contractKey);
+        contractWhitelistManager.revokeWhitelist(_contractAddress);
     }
 
     // Role related functions

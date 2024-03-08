@@ -87,7 +87,7 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 	log.Trace("Verify hashes of affected contracts", "expectedHashes", pmh.receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 	privacyFlag := pmh.receivedPrivacyMetadata.PrivacyFlag
 	for _, addr := range actualACAddresses {
-		if core.ContractWhitelistMap != nil && core.ContractWhitelistMap.IsContractWhitelisted(addr) {
+		if core.ContractWhitelistMap != nil && core.ContractWhitelistMap.GetContractWhitelistByAddress(addr) {
 			// introduce a whitelist to allow whitelisting of contracts for EP simulation skips
 			continue
 		}

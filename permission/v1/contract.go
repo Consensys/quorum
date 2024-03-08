@@ -75,12 +75,8 @@ func (i *Init) GetNumberOfAccounts() (*big.Int, error) {
 	return i.permAcctSession.GetNumberOfAccounts()
 }
 
-func (i *Init) GetContractWhitelistDetailsFromIndex(_cIndex *big.Int) (common.Address, string, *big.Int, error) {
-	return common.Address{}, "", nil, nil // contract whitelist only supported for v2 permissions
-}
-
-func (i *Init) GetNumberOfWhitelistedContracts() (*big.Int, error) {
-	return big.NewInt(0), nil
+func (i *Init) GetWhitelistedContracts() ([]common.Address, error) {
+	return []common.Address{}, nil
 }
 
 func (i *Init) GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
@@ -288,10 +284,6 @@ func (i *ContractWhitelist) AddWhitelist(_args ptype.TxArgs) (*types.Transaction
 }
 
 func (i *ContractWhitelist) RevokeWhitelistByAddress(_args ptype.TxArgs) (*types.Transaction, error) {
-	return nil, fmt.Errorf("contract whitelist not supported in enhanced permissioning v1")
-}
-
-func (i *ContractWhitelist) RevokeWhitelistByKey(_args ptype.TxArgs) (*types.Transaction, error) {
 	return nil, fmt.Errorf("contract whitelist not supported in enhanced permissioning v1")
 }
 

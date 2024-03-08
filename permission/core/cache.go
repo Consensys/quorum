@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -131,12 +132,6 @@ type OrgDetailInfo struct {
 	SubOrgList []string      `json:"subOrgList"`
 }
 
-type ContractWhitelistInfo struct {
-	ContractAddress         common.Address `json:"address"`
-	ContractKey             string         `json:"key"`
-	ContractWhitelistStatus uint8          `json:"status"`
-}
-
 var syncStarted = false
 var defaultAccess = FullAccess
 var qip714BlockReached = false
@@ -255,23 +250,12 @@ func NewAcctCache(cacheSize int) *AcctCache {
 }
 
 type ContractWhitelistCache struct {
-	c                 *lru.Cache // address to contractWhitelistInfo
-	c2                *lru.Cache // key to contractWhitelistInfo
-	evicted           bool
-	populateCacheFunc func(key string, account common.Address) (*ContractWhitelistInfo, error)
+	c map[common.Address]bool // address to bool
 }
 
-func (a *ContractWhitelistCache) PopulateCacheFunc(cf func(string, common.Address) (*ContractWhitelistInfo, error)) {
-	a.populateCacheFunc = cf
-}
-
-func NewContractWhitelistCache(cacheSize int) *ContractWhitelistCache {
-	contractWhitelistCache := ContractWhitelistCache{evicted: false}
-	onEvictedFunc := func(k interface{}, v interface{}) {
-		contractWhitelistCache.evicted = true
-	}
-	contractWhitelistCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
-	contractWhitelistCache.c2, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+func NewContractWhitelistCache() *ContractWhitelistCache {
+	// we don't use a lru here since the entire whitelist should always be in memory
+	contractWhitelistCache := ContractWhitelistCache{c: make(map[common.Address]bool)}
 	return &contractWhitelistCache
 }
 
@@ -622,44 +606,25 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 	return false
 }
 
-func (c *ContractWhitelistCache) UpsertContractWhitelist(contract common.Address, key string) {
-	c.c.Add(contract, &ContractWhitelistInfo{contract, key, 0})
-	c.c2.Add(key, &ContractWhitelistInfo{contract, key, 0})
-}
-
-func (c *ContractWhitelistCache) RemoveContractWhitelist(contract common.Address, key string) {
-	c.c.Remove(contract)
-	c.c2.Remove(key)
-}
-
-func (c *ContractWhitelistCache) GetContractWhitelist() []ContractWhitelistInfo {
-	clist := make([]ContractWhitelistInfo, len(c.c.Keys()))
-	for i, k := range c.c.Keys() {
-		v, _ := c.c.Get(k)
-		vp := v.(*ContractWhitelistInfo)
-		clist[i] = *vp
+func (c *ContractWhitelistCache) GetContractWhitelist() []common.Address {
+	keysReflect := reflect.ValueOf(c.c).MapKeys()
+	keys := make([]common.Address, len(keysReflect))
+	for i, v := range keysReflect {
+		keys[i] = v.Interface().(common.Address)
 	}
-	return clist
+	return keys
 }
 
-func (c *ContractWhitelistCache) GetContractWhitelistByKey(contractKey string) ContractWhitelistInfo {
-	v, _ := c.c2.Get(contractKey)
-	return *v.(*ContractWhitelistInfo)
+func (c *ContractWhitelistCache) AddContractWhitelist(contract common.Address) {
+	c.c[contract] = true
 }
 
-func (c *ContractWhitelistCache) GetContractWhitelistByAddress(contractAddress common.Address) ContractWhitelistInfo {
-	v, _ := c.c.Get(contractAddress)
-	return *v.(*ContractWhitelistInfo)
+func (c *ContractWhitelistCache) RemoveContractWhitelist(contract common.Address) {
+	delete(c.c, contract)
 }
 
-func (c *ContractWhitelistCache) IsContractWhitelisted(contractAddress common.Address) bool {
-	v, ok := c.c.Get(contractAddress)
-	if ok {
-		if v.(*ContractWhitelistInfo).ContractWhitelistStatus != 1 {
-			// 0 is inactive, 2 means contract whitelist was revoked
-			return false
-		}
-	}
+func (c *ContractWhitelistCache) GetContractWhitelistByAddress(contractAddress common.Address) bool {
+	_, ok := c.c[contractAddress]
 	return ok
 }
 

@@ -108,15 +108,11 @@ func (q *QuorumControlsAPI) AcctList() []core.AccountInfo {
 	return core.AcctInfoMap.GetAcctList()
 }
 
-func (q *QuorumControlsAPI) ContractWhitelist() []core.ContractWhitelistInfo {
+func (q *QuorumControlsAPI) ContractWhitelist() []common.Address {
 	return core.ContractWhitelistMap.GetContractWhitelist()
 }
 
-func (q *QuorumControlsAPI) GetContractWhitelistByKey(contractKey string) core.ContractWhitelistInfo {
-	return core.ContractWhitelistMap.GetContractWhitelistByKey(contractKey)
-}
-
-func (q *QuorumControlsAPI) GetContractWhitelistByAddress(contractAddress common.Address) core.ContractWhitelistInfo {
+func (q *QuorumControlsAPI) GetContractWhitelistByAddress(contractAddress common.Address) bool {
 	return core.ContractWhitelistMap.GetContractWhitelistByAddress(contractAddress)
 }
 
@@ -344,12 +340,12 @@ func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8
 	return actionSuccess, nil
 }
 
-func (q *QuorumControlsAPI) AddContractWhitelist(contractKey string, contractAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
+func (q *QuorumControlsAPI) AddContractWhitelist(contractAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
 	contractWhitelistService, err := q.permCtrl.NewPermissionContractWhitelistService(txa)
 	if err != nil {
 		return "", err
 	}
-	args := ptype.TxArgs{ContractKey: contractKey, ContractAddress: contractAddress, Txa: txa}
+	args := ptype.TxArgs{ContractAddress: contractAddress, Txa: txa}
 	if err := q.valAddContractWhitelist(args); err != nil {
 		return "", err
 	}
@@ -361,7 +357,7 @@ func (q *QuorumControlsAPI) AddContractWhitelist(contractKey string, contractAdd
 	return actionSuccess, nil
 }
 
-func (q *QuorumControlsAPI) RevokeContractWhitelistByAddress(contractAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
+func (q *QuorumControlsAPI) RevokeContractWhitelist(contractAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
 	contractWhitelistService, err := q.permCtrl.NewPermissionContractWhitelistService(txa)
 	if err != nil {
 		return "", err
@@ -371,23 +367,6 @@ func (q *QuorumControlsAPI) RevokeContractWhitelistByAddress(contractAddress com
 		return "", err
 	}
 	tx, err := contractWhitelistService.RevokeWhitelistByAddress(args)
-	if err != nil {
-		return reportExecError(RevokeContractWhitelist, err)
-	}
-	log.Debug("executed permission action", "action", RevokeContractWhitelist, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) RevokeContractWhitelistByKey(contractAddress common.Address, txa ethapi.SendTxArgs) (string, error) {
-	contractWhitelistService, err := q.permCtrl.NewPermissionContractWhitelistService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{ContractAddress: contractAddress, Txa: txa}
-	if err := q.valRevokeContractWhitelist(args); err != nil {
-		return "", err
-	}
-	tx, err := contractWhitelistService.RevokeWhitelistByKey(args)
 	if err != nil {
 		return reportExecError(RevokeContractWhitelist, err)
 	}
@@ -1021,7 +1000,7 @@ func (q *QuorumControlsAPI) valApproveAdminRole(args ptype.TxArgs) error {
 }
 
 func (q *QuorumControlsAPI) valAddContractWhitelist(args ptype.TxArgs) error {
-	if args.ContractKey == "" || args.ContractAddress == (common.Address{}) {
+	if args.ContractAddress == (common.Address{}) {
 		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
@@ -1032,7 +1011,7 @@ func (q *QuorumControlsAPI) valAddContractWhitelist(args ptype.TxArgs) error {
 }
 
 func (q *QuorumControlsAPI) valRevokeContractWhitelist(args ptype.TxArgs) error {
-	if args.ContractKey == "" && args.ContractAddress == (common.Address{}) {
+	if args.ContractAddress == (common.Address{}) {
 		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin

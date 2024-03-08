@@ -1005,12 +1005,6 @@ web3._extend({
                        inputFormatter: [null, web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
 			   new web3._extend.Method({
-					   name: 'getContractWhitelistByKey',
-					   call: 'quorumPermission_getContractWhitelistByKey',
-					   params: 1,
-					   inputFormatter: [null]
-			   }),
-			   new web3._extend.Method({
 					   name: 'getContractWhitelistByAddress',
 					   call: 'quorumPermission_getContractWhitelistByAddress',
 					   params: 1,
@@ -1019,20 +1013,14 @@ web3._extend({
 			   new web3._extend.Method({
 					   name: 'addContractWhitelist',
 					   call: 'quorumPermission_addContractWhitelist',
-					   params: 3,
-					   inputFormatter: [null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
-			   }),
-			   new web3._extend.Method({
-					   name: 'revokeContractWhitelistByAddress',
-					   call: 'quorumPermission_revokeContractWhitelistByAddress',
 					   params: 2,
 					   inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
 			   }),
 			   new web3._extend.Method({
-					   name: 'revokeContractWhitelistByKey',
-					   call: 'quorumPermission_revokeContractWhitelistByKey',
+					   name: 'revokeContractWhitelist',
+					   call: 'quorumPermission_revokeContractWhitelist',
 					   params: 2,
-					   inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+					   inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
 			   }),
                new web3._extend.Method({
                        name: 'addNewRole',

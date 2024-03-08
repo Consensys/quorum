@@ -53,7 +53,6 @@ const (
 	roleCacheSize              = 4
 	nodeCacheSize              = 2
 	accountCacheSize           = 4
-	contractWhitelistCacheSize = 4
 )
 
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
@@ -291,6 +290,7 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 		assert.NotNil(t, contract.PermAcct)
 		assert.NotNil(t, contract.PermInterf)
 		assert.NotNil(t, contract.PermUpgr)
+		assert.NotNil(t, contract.PermCtrWhitelist)
 	} else {
 		var contract *v1.Init
 		contract, _ = testObject.contract.(*v1.Init)
@@ -311,7 +311,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 
 	assert.NoError(t, err)
 
@@ -351,7 +351,7 @@ func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
-	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)) {
+	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)) {
 		t.Fail()
 	}
 	return NewQuorumControlsAPI(pc)
@@ -366,7 +366,7 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 
 	orgDetails, err = testObject.GetOrgDetails("XYZ")
-	assert.Equal(t, err, errors.New("Org does not exist"))
+	assert.Equal(t, err, errors.New("org does not exist"))
 
 	// test NodeList
 	assert.Equal(t, len(testObject.NodeList()), 0)
@@ -376,6 +376,8 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 	assert.True(t, len(testObject.OrgList()) > 0, "expected non zero org list")
 	// test RoleList
 	assert.True(t, len(testObject.RoleList()) > 0, "expected non zero org list")
+	// test ContractWhitelist
+	assert.Equal(t, len(testObject.ContractWhitelist()), 0)
 }
 
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
@@ -810,7 +812,7 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize, contractWhitelistCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 	assert.NoError(t, err)
 
 	d, _ := ioutil.TempDir("", "qdata")
@@ -880,6 +882,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.RoleAddress = common.Address{}
 	tmpPermCofig.OrgAddress = common.Address{}
 	tmpPermCofig.NodeAddress = common.Address{}
+	tmpPermCofig.ContractWhitelistAddress = common.Address{}
 	tmpPermCofig.SubOrgBreadth = new(big.Int)
 	tmpPermCofig.SubOrgDepth = new(big.Int)
 
