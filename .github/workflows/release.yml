@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
 env:
-  GO_VERSION: 1.19
+  GO_VERSION: 1.22
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
