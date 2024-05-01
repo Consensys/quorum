@@ -55,7 +55,7 @@ type AuthNeededError struct {
 }
 
 // NewAuthNeededError creates a new authentication error with the extra details
-// about the needed fields set.
+// about the needed fields set..
 func NewAuthNeededError(needed string) error {
 	return &AuthNeededError{
 		Needed: needed,
