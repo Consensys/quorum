@@ -213,9 +213,10 @@ func doInstall(cmdline []string) {
 	buildTags := []string{"urfave_cli_no_docs"}
 
 	// Enable linking the CKZG library since we can make it work with additional flags.
-	if env.UbuntuVersion != "trusty" {
-		buildTags = append(buildTags, "ckzg")
-	}
+	// quorum: comment out for now
+	//if env.UbuntuVersion != "trusty" {
+	//	buildTags = append(buildTags, "ckzg")
+	//}
 
 	// Configure the build.
 	gobuild := tc.Go("build", buildFlags(env, *staticlink, buildTags)...)
