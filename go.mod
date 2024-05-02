@@ -68,11 +68,11 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
-	golang.org/x/crypto v0.14.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.13.0
-	golang.org/x/term v0.13.0
-	golang.org/x/text v0.13.0
+	golang.org/x/sys v0.15.0
+	golang.org/x/term v0.15.0
+	golang.org/x/text v0.14.0
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 	google.golang.org/grpc v1.56.3
 	google.golang.org/protobuf v1.33.0
