@@ -70,9 +70,9 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
-	golang.org/x/text v0.3.7
+	golang.org/x/sys v0.5.0
+	golang.org/x/term v0.5.0
+	golang.org/x/text v0.7.0
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
@@ -122,7 +122,7 @@ require (
 	github.com/prometheus/procfs v0.0.2 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20220426171045-31bebdecfb46 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
