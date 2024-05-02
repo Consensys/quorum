@@ -50,7 +50,7 @@ require (
 	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714175524-662195b38a5e
 	github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go v0.0.0-20200210211148-57f99f69eeb3
 	github.com/jpmorganchase/quorum-security-plugin-sdk-go v0.0.0-20200714173835-22a319bb78ce
-	github.com/julienschmidt/httprouter v1.2.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/karalabe/usb v0.0.2
 	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-isatty v0.0.14
@@ -93,7 +93,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.1.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.1.1 // indirect
 	github.com/aws/smithy-go v1.1.0 // indirect
-	github.com/beorn7/perks v1.0.0 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
@@ -116,10 +116,10 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.0.0 // indirect
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
-	github.com/prometheus/common v0.6.0 // indirect
-	github.com/prometheus/procfs v0.0.2 // indirect
+	github.com/prometheus/client_golang v1.11.1 // indirect
+	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/common v0.26.0 // indirect
+	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	golang.org/x/net v0.7.0 // indirect
