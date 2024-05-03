@@ -23,7 +23,6 @@ import (
 	mrand "math/rand"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,7 +30,7 @@ import (
 )
 
 func init() {
-	mrand.Seed(time.Now().Unix())
+	//mrand.Seed(time.Now().Unix()) // quorum: deprecated after go upgrade
 }
 
 // makeProvers creates Merkle trie provers based on different implementations to

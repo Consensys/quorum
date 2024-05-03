@@ -100,7 +100,7 @@ func TestSubscribeDuplicateType(t *testing.T) {
 }
 
 func TestMuxConcurrent(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	//rand.Seed(time.Now().Unix()) // quorum: deprecated after go upgrade
 	mux := new(TypeMux)
 	defer mux.Stop()
 

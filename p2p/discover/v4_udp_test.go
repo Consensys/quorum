@@ -165,7 +165,7 @@ func TestUDPv4_responseTimeouts(t *testing.T) {
 	test := newUDPTest(t)
 	defer test.close()
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 	randomDuration := func(max time.Duration) time.Duration {
 		return time.Duration(rand.Int63n(int64(max)))
 	}

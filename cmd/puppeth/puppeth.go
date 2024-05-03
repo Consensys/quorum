@@ -18,10 +18,8 @@
 package main
 
 import (
-	"math/rand"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
@@ -46,7 +44,7 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		// Set up the logger to print everything and the random generator
 		log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(c.Int("loglevel")), log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-		rand.Seed(time.Now().UnixNano())
+		//rand.Seed(time.Now().UnixNano())  // quorum: deprecated after go upgrade
 
 		return nil
 	}

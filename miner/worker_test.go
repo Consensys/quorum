@@ -17,9 +17,9 @@
 package miner
 
 import (
+	crand "crypto/rand"
 	"encoding/base64"
 	"math/big"
-	"math/rand"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -106,7 +106,7 @@ func init() {
 	})
 	newTxs = append(newTxs, tx2)
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 }
 
 // testWorkerBackend implements worker.Backend interfaces and wraps all information needed during the testing.
@@ -180,7 +180,7 @@ func (b *testWorkerBackend) newRandomUncle() *types.Block {
 	}
 	blocks, _ := core.GenerateChain(b.chain.Config(), parent, b.chain.Engine(), b.db, 1, func(i int, gen *core.BlockGen) {
 		var addr = make([]byte, common.AddressLength)
-		rand.Read(addr)
+		crand.Read(addr) // quorum: math/rand.Read deprecated after go upgrade
 		gen.SetCoinbase(common.BytesToAddress(addr))
 	})
 	return blocks[0]

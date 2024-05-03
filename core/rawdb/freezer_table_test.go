@@ -26,13 +26,12 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
 func init() {
-	rand.Seed(time.Now().Unix())
+	//rand.Seed(time.Now().Unix()) // quorum: deprecated after go upgrade
 }
 
 // Gets a chunk of data, filled with 'b'

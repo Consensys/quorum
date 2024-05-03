@@ -17,7 +17,7 @@
 package enode
 
 import (
-	"math/rand"
+	crand "crypto/rand"
 	"net"
 	"testing"
 
@@ -107,7 +107,7 @@ func TestLocalNodeEndpoint(t *testing.T) {
 		assert.Equal(t, uint64(2), ln.Node().Seq())
 
 		from := &net.UDPAddr{IP: make(net.IP, 4), Port: 90}
-		rand.Read(from.IP)
+		crand.Read(from.IP) // quorum: math/rand.Read deprecated after go upgrade
 		ln.UDPEndpointStatement(from, predicted)
 	}
 	assert.Equal(t, predicted.IP, ln.Node().IP())

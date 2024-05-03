@@ -17,6 +17,7 @@
 package ethash
 
 import (
+	crand "crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
@@ -90,16 +91,17 @@ func TestCalcDifficulty(t *testing.T) {
 
 func randSlice(min, max uint32) []byte {
 	var b = make([]byte, 4)
-	rand.Read(b)
+	crand.Read(b) // quorum: math/rand.Read deprecated after go upgrade
 	a := binary.LittleEndian.Uint32(b)
 	size := min + a%(max-min)
 	out := make([]byte, size)
-	rand.Read(out)
+	crand.Read(out) // quorum: math/rand.Read deprecated after go upgrade
 	return out
 }
 
 func TestDifficultyCalculators(t *testing.T) {
-	rand.Seed(2)
+	//rand.Seed(2) // quorum: deprecated after go upgrade
+	rand.New(rand.NewSource(2)) // quorum
 	for i := 0; i < 5000; i++ {
 		// 1 to 300 seconds diff
 		var timeDelta = uint64(1 + rand.Uint32()%3000)

@@ -20,11 +20,10 @@
 package signify
 
 import (
+	crand "crypto/rand"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/jedisct1/go-minisign"
 )
@@ -42,10 +41,10 @@ func TestSignify(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 
 	data := make([]byte, 1024)
-	rand.Read(data)
+	crand.Read(data) // quorum: math/rand.Read deprecated after go upgrade
 	tmpFile.Write(data)
 
 	if err = tmpFile.Close(); err != nil {
@@ -86,10 +85,10 @@ func TestSignifyTrustedCommentTooManyLines(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 
 	data := make([]byte, 1024)
-	rand.Read(data)
+	crand.Read(data) // quorum: math/rand.Read deprecated after go upgrade
 	tmpFile.Write(data)
 
 	if err = tmpFile.Close(); err != nil {
@@ -111,10 +110,10 @@ func TestSignifyTrustedCommentTooManyLinesLF(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 
 	data := make([]byte, 1024)
-	rand.Read(data)
+	crand.Read(data) // quorum: math/rand.Read deprecated after go upgrade
 	tmpFile.Write(data)
 
 	if err = tmpFile.Close(); err != nil {
@@ -136,10 +135,10 @@ func TestSignifyTrustedCommentEmpty(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 
 	data := make([]byte, 1024)
-	rand.Read(data)
+	crand.Read(data) // quorum: math/rand.Read deprecated after go upgrade
 	tmpFile.Write(data)
 
 	if err = tmpFile.Close(); err != nil {
