@@ -68,3 +68,6 @@ issues:
     - 'SA1019: strings.Title is deprecated'
     - 'SA1019: strings.Title has been deprecated since Go 1.18 and an alternative has been available since Go 1.0: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead.'
     - 'SA1029: should not use built-in type string as key for value'
+    # quorum: ignore due to large number of changes required to remedy. ioutil now only operates as a simple delegate for the preferred os and io packages anyway.
+    #   If we want to correctly resolve these lint issues, upstream PR https://github.com/ethereum/go-ethereum/pull/24869 can provide guidance.
+    - 'SA1019: "io/ioutil" has been deprecated since Go 1.19: As of Go 1.16, the same functionality is now provided by package .io. or package .os., and those implementations should be preferred in new code. See the specific function documentation for details.'

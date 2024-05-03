@@ -62,7 +62,6 @@ func transform(tlsData *proto.TLSConfiguration_Data) (*tls.Config, error) {
 		cipherSuites = defaultCipherSuites
 	}
 	tlsConfig.CipherSuites = cipherSuites
-	tlsConfig.PreferServerCipherSuites = true
 
 	cer, err := tls.X509KeyPair(tlsData.GetCertPem(), tlsData.GetKeyPem())
 	if err != nil {
