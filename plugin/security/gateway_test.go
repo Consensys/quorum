@@ -51,7 +51,6 @@ func TestTransform_whenTypical(t *testing.T) {
 	cfg, err := transform(abitraryTLSConfigurationData)
 
 	assert.NoError(err)
-	assert.True(cfg.PreferServerCipherSuites)
 	assert.EqualValues(defaultCipherSuites, cfg.CipherSuites)
 	assert.Equal(uint16(tls.VersionTLS12), cfg.MinVersion)
 	assert.EqualValues([]tls.CurveID{

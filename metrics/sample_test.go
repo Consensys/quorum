@@ -80,7 +80,8 @@ func BenchmarkUniformSample1028(b *testing.B) {
 }
 
 func TestExpDecaySample10(t *testing.T) {
-	rand.Seed(1)
+	//rand.Seed(1) // quorum: deprecated after go upgrade
+	rand.New(rand.NewSource(1)) // quorum
 	s := NewExpDecaySample(100, 0.99)
 	for i := 0; i < 10; i++ {
 		s.Update(int64(i))
@@ -102,7 +103,8 @@ func TestExpDecaySample10(t *testing.T) {
 }
 
 func TestExpDecaySample100(t *testing.T) {
-	rand.Seed(1)
+	//rand.Seed(1) // quorum: deprecated after go upgrade
+	rand.New(rand.NewSource(1)) // quorum
 	s := NewExpDecaySample(1000, 0.01)
 	for i := 0; i < 100; i++ {
 		s.Update(int64(i))
@@ -124,7 +126,8 @@ func TestExpDecaySample100(t *testing.T) {
 }
 
 func TestExpDecaySample1000(t *testing.T) {
-	rand.Seed(1)
+	//rand.Seed(1) // quorum: deprecated after go upgrade
+	rand.New(rand.NewSource(1)) // quorum
 	s := NewExpDecaySample(100, 0.99)
 	for i := 0; i < 1000; i++ {
 		s.Update(int64(i))
@@ -150,7 +153,8 @@ func TestExpDecaySample1000(t *testing.T) {
 // The priority becomes +Inf quickly after starting if this is done,
 // effectively freezing the set of samples until a rescale step happens.
 func TestExpDecaySampleNanosecondRegression(t *testing.T) {
-	rand.Seed(1)
+	//rand.Seed(1) // quorum: deprecated after go upgrade
+	rand.New(rand.NewSource(1)) // quorum
 	s := NewExpDecaySample(100, 0.99)
 	for i := 0; i < 100; i++ {
 		s.Update(10)

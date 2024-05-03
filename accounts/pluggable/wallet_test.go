@@ -1,8 +1,8 @@
 package pluggable
 
 import (
+	crand "crypto/rand"
 	"math/big"
-	"math/rand"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -282,7 +282,7 @@ func TestWallet_SignTx(t *testing.T) {
 			hashToSign := tt.signer.Hash(toSign)
 
 			mockSig := make([]byte, 65)
-			rand.Read(mockSig)
+			crand.Read(mockSig) // quorum: math/rand.Read deprecated after go upgrade
 
 			mockClient := mock_plugin.NewMockService(ctrl)
 			mockClient.
@@ -370,7 +370,7 @@ func TestWallet_SignTxWithPassphrase(t *testing.T) {
 			hashToSign := tt.signer.Hash(toSign)
 
 			mockSig := make([]byte, 65)
-			rand.Read(mockSig)
+			crand.Read(mockSig) // quorum: math/rand.Read deprecated after go upgrade
 
 			mockClient := mock_plugin.NewMockService(ctrl)
 			mockClient.

@@ -17,6 +17,7 @@
 package snapshot
 
 import (
+	crand "crypto/rand"
 	"math/rand"
 	"testing"
 
@@ -49,7 +50,7 @@ func TestWipe(t *testing.T) {
 		}
 		// Randomize the suffix, dedup and inject it under the snapshot namespace
 		keysuffix := make([]byte, keysize)
-		rand.Read(keysuffix)
+		crand.Read(keysuffix) // quorum: math/rand.Read deprecated after go upgrade
 
 		if rand.Int31n(2) == 0 {
 			db.Put(append(rawdb.SnapshotAccountPrefix, keysuffix...), randomHash().Bytes())

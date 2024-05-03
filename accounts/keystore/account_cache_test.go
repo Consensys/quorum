@@ -95,7 +95,7 @@ func TestWatchNoDir(t *testing.T) {
 	t.Parallel()
 
 	// Create ks but not the directory that it watches.
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) // quorum: deprecated after go upgrade
 	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
 	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
 
@@ -321,7 +321,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary kesytore to test with
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano())  // quorum: deprecated after go upgrade
 	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
 	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
 
