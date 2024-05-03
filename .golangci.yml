@@ -63,6 +63,8 @@ issues:
       text: 'SA1019: "github.com/golang/protobuf/proto" is deprecated: Use the "google.golang.org/protobuf/proto" package instead.'
     - path: rpc/
       text: 'SA1019: "github.com/golang/protobuf/ptypes" is deprecated: Well-known types have specialized functionality directly injected into the generated packages for each message type. See the deprecation notice for each function for the suggested alternative'
+    - path: metrics/sample_test.go
+      text: 'SA1019: rand.Seed has been deprecated since Go 1.20 and an alternative has been available since Go 1.0: As of Go 1.20 there is no reason to call Seed with a random value. Programs that call Seed with a known value to get a specific sequence of results should use New.NewSource.seed.. to obtain a local random generator.'
   exclude:
     - 'SA1019: event.TypeMux is deprecated: use Feed'
     - 'SA1019: strings.Title is deprecated'
