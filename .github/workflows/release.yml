@@ -55,7 +55,8 @@ jobs:
         run: |
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
           echo "::set-output name=key::$(go env GOOS)_$(go env GOARCH)"
-          echo "::set-output name=version::${GITHUB_REF##*/}"
+          echo "::set-output name=version::v24.4.0"
+#          echo "::set-output name=version::${GITHUB_REF##*/}"
       - name: 'Check out project files'
         uses: actions/checkout@v2
         with:
