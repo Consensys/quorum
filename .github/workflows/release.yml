@@ -32,16 +32,18 @@ jobs:
       - name: 'Build ARM image to Docker Hub'
         id: build
         run: |
-          output_dir=${{ runner.temp }}/docker
-          mkdir -p $output_dir
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_ACCESS_TOKEN }}
-          docker buildx build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
+          echo "skipping..."
+#          output_dir=${{ runner.temp }}/docker
+#          mkdir -p $output_dir
+#          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_ACCESS_TOKEN }}
+#          docker buildx build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
   build-binary:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-20.04", "macos-latest" ]
+#        os: [ "ubuntu-20.04", "macos-latest" ]
+        os: [ "macos-latest" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
@@ -103,7 +105,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goarch: [ "linux_amd64", "darwin_amd64" ]
+#        goarch: [ "linux_amd64", "darwin_arm64" ]
+        goarch: [ "darwin_arm64" ]
     runs-on: ubuntu-latest
     steps:
       - name: 'Prepare environment'
@@ -142,44 +145,45 @@ jobs:
       - name: 'Generate release notes'
         id: release_notes
         run: |
-          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-          file="generated-release-notes.md"
-          current_version="${GITHUB_REF##*/}"
-          last_version=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1  --max-count=1`)
-          last_release_date=$(git log -1 --format=%cd --date=short $last_version)
-          echo "Last version: $last_version on $last_release_date"
-          # pulling from git logs
-          curl -q -s -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/search/issues?q=repo:ConsenSys/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
-            >> $file
-          # pulling file hashes from Cloudsmith
-          echo "" >> $file
-          echo "| Filename | SHA256 Hash |" >> $file
-          echo "|:---------|:------------|" >> $file
-          curl --request GET \
-            --url "https://api.cloudsmith.io/v1/packages/consensys/go-quorum/?query=version:$current_version" \
-            --header 'Accept: application/json' \
-            --header 'X-Api-Key: ${{ secrets.CLOUDSMITH_API_KEY }}' \
-                    	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](\(.cdn_url))|`\(.checksum_sha256)`|"' -r \
-                    	>> $file
-          content=$(cat $file)
-          # escape newline
-          content="${content//'%'/'%25'}"
-          content="${content//$'\n'/'%0A'}"
-          content="${content//$'\r'/'%0D'}"
-          echo "::set-output name=content::$content"
-      - name: 'Create Github draft release'
-        uses: actions/create-release@v1
-        env:
-          # This token is provided by Actions, you do not need to create your own token
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          body: |
-            ${{ steps.release_notes.outputs.content }}
-          draft: true
-          prerelease: false
+          echo "skipping..."
+#          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+#          file="generated-release-notes.md"
+#          current_version="${GITHUB_REF##*/}"
+#          last_version=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1  --max-count=1`)
+#          last_release_date=$(git log -1 --format=%cd --date=short $last_version)
+#          echo "Last version: $last_version on $last_release_date"
+#          # pulling from git logs
+#          curl -q -s -H "Accept: application/vnd.github.v3+json" \
+#            "https://api.github.com/search/issues?q=repo:ConsenSys/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
+#            >> $file
+#          # pulling file hashes from Cloudsmith
+#          echo "" >> $file
+#          echo "| Filename | SHA256 Hash |" >> $file
+#          echo "|:---------|:------------|" >> $file
+#          curl --request GET \
+#            --url "https://api.cloudsmith.io/v1/packages/consensys/go-quorum/?query=version:$current_version" \
+#            --header 'Accept: application/json' \
+#            --header 'X-Api-Key: ${{ secrets.CLOUDSMITH_API_KEY }}' \
+#                    	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](\(.cdn_url))|`\(.checksum_sha256)`|"' -r \
+#                    	>> $file
+#          content=$(cat $file)
+#          # escape newline
+#          content="${content//'%'/'%25'}"
+#          content="${content//$'\n'/'%0A'}"
+#          content="${content//$'\r'/'%0D'}"
+#          echo "::set-output name=content::$content"
+#      - name: 'Create Github draft release'
+#        uses: actions/create-release@v1
+#        env:
+#          # This token is provided by Actions, you do not need to create your own token
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          tag_name: ${{ github.ref }}
+#          release_name: ${{ github.ref }}
+#          body: |
+#            ${{ steps.release_notes.outputs.content }}
+#          draft: true
+#          prerelease: false
   notify:
     if: always()
     name: 'Notify'
