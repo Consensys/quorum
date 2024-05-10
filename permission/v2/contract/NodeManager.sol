@@ -38,7 +38,8 @@ contract NodeManager {
     mapping(bytes32 => uint256) private enodeIdToIndex;
     // tracking total number of nodes in network
     uint256 private numberOfNodes;
-
+    // whether to do IP validation during checks if connection is allowed. This is enabled by default.
+    bool private isIpValidationEnabled = true;
 
     // node permission events for new node propose
     event NodeProposed(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
@@ -289,6 +290,15 @@ contract NodeManager {
         return nodeList[_getNodeIndex(_enodeId)].status;
     }
 
+    /** @notice specify whether to perform source node IP validation in determining the connection permission.
+        This is enabled by default.
+      * @param _isIpValidationEnabled whether to enable or disable the IP validation
+      */
+    function setIpValidation(bool _isIpValidationEnabled) public 
+    onlyImplementation {
+        isIpValidationEnabled = _isIpValidationEnabled;
+    }
+
     /** @notice checks if the node is allowed to connect or not
     * @param _enodeId enode id
     * @param _ip IP of node
@@ -301,7 +311,11 @@ contract NodeManager {
             return false;
         }
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if (nodeList[nodeIndex].status == 2 && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
+        if (nodeList[nodeIndex].status == 2 
+            && (!isIpValidationEnabled 
+                || keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))
+            )
+        ) {
             return true;
         }
 
