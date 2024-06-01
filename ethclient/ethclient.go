@@ -546,7 +546,17 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, ar
 		return err
 	}
 	if args.PrivateFor != nil {
-		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", hexutil.Encode(data), bind.PrivateTxArgs{PrivateFor: args.PrivateFor})
+		privateTxArgs := bind.PrivateTxArgs{PrivateFor: args.PrivateFor}
+		if args.PrivacyFlag.IsNotStandardPrivate() {
+			privateTxArgs.PrivacyFlag = args.PrivacyFlag
+		}
+		if args.MandatoryRecipients != nil {
+			privateTxArgs.MandatoryRecipients = args.MandatoryRecipients
+		}
+		if args.PrivateFrom != "" {
+			privateTxArgs.PrivateFrom = args.PrivateFrom
+		}
+		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", hexutil.Encode(data), privateTxArgs)
 	} else {
 		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
 	}
