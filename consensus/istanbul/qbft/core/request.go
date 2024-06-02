@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -46,12 +47,15 @@ func (c *core) handleRequest(request *Request) error {
 
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
+		logger.Marc(log.LvlTrace, "STATE: ACCEPT REQUEST")
 		config := c.config.GetConfig(c.current.Sequence())
 		if config.EmptyBlockPeriod == 0 { // emptyBlockPeriod is not set
 			// Start ROUND-CHANGE timer
+			c.logger.Marc(log.LvlTrace, "START ROUND CHANGE TIMER")
 			c.newRoundChangeTimer()
 
 			// Send PRE-PREPARE message to other validators
+			c.logger.Marc(log.LvlTrace, "SENDING PREPREPARE")
 			c.sendPreprepareMsg(request)
 		} else { // emptyBlockPeriod is set
 			c.newRoundMutex.Lock()
@@ -79,15 +83,19 @@ func (c *core) handleRequest(request *Request) error {
 				}
 			}
 			if delay > 0 {
+				logger.Marc(log.LvlTrace, fmt.Sprintf("DELAYING START OF ROUND CHANGE TIMER BY %d millis", delay.Milliseconds()))
 				c.newRoundTimer = time.AfterFunc(delay, func() {
 					c.newRoundTimer = nil
 					// Start ROUND-CHANGE timer
 					c.newRoundChangeTimer()
 
+					logger.Marc(log.LvlTrace, "ROUND CHANGE TIMER STARTED, SENDING PREPREPARE MSG")
 					// Send PRE-PREPARE message to other validators
 					c.sendPreprepareMsg(request)
 				})
 			} else {
+				logger.Marc(log.LvlTrace, "STARTING ROUND CHANGE TIMER IMMEDIATELY AND SENDING PREPREPARE MSG")
+
 				// Start ROUND-CHANGE timer
 				c.newRoundChangeTimer()
 
