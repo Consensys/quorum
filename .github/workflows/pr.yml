@@ -150,7 +150,9 @@ jobs:
           echo "::set-output name=dockerEnvFile::$docker_env_file"
       - name: 'Run acceptance tests'
         run: |
+          echo ${{ steps.setup.outputs.dockerEnvFile }} 
           cat ${{ steps.setup.outputs.dockerEnvFile }}
+          echo "docker run..."
           docker run --rm \
             --network host \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -161,6 +163,7 @@ jobs:
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
       - name: 'Debug'
+        if: always()
         run: |
           docker images
           docker ps -a
