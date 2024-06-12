@@ -74,7 +74,7 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 		Validators:    addrs,
 		Vote:          nil,
 		CommittedSeal: [][]byte{},
-		Round:         0,
+		Round:         make([]byte, 0),
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
