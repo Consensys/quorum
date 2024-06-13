@@ -322,7 +322,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return "", errors.New("invalid new recipient transaction manager key provided")
 	}
 
-	// check the the intended new recipient will actually receive the extension request
+	// check the intended new recipient will actually receive the extension request
 	switch len(txa.PrivateFor) {
 	case 0:
 		txa.PrivateFor = append(txa.PrivateFor, newRecipientPtmPublicKey)
