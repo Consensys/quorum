@@ -226,7 +226,7 @@ func TestVoting(t *testing.T) {
 			},
 			results: []string{"A", "B"},
 		}, {
-			// Cascading changes are not allowed, only the the account being voted on may change
+			// Cascading changes are not allowed, only the account being voted on may change
 			validators: []string{"A", "B", "C", "D"},
 			votes: []testerVote{
 				{validator: "A", voted: "C", auth: false},
