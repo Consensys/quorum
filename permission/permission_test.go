@@ -125,6 +125,8 @@ func setup() {
 			Balance: big.NewInt(100000000000000),
 		},
 	}
+	conf := params.AllEthashProtocolChanges
+	conf.Transitions = []params.Transition{{Block: big.NewInt(0), ContractSizeLimit: 32 * 1024}}
 	ethConf := &eth.Config{
 		Genesis: &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
 		Miner:   miner.Config{Etherbase: guardianAddress},
