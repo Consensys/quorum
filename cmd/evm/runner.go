@@ -223,6 +223,7 @@ func runCmd(ctx *cli.Context) error {
 			fmt.Println("could not create CPU profile: ", err)
 			os.Exit(1)
 		}
+		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
 			fmt.Println("could not start CPU profile: ", err)
 			os.Exit(1)
