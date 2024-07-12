@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -39,7 +40,10 @@ type SignerFn func(common.Address, *types.Transaction) (*types.Transaction, erro
 //
 // Additional arguments in order to support transaction privacy
 type PrivateTxArgs struct {
-	PrivateFor []string `json:"privateFor"`
+	PrivateFrom         string                 `json:"privateFrom"`
+	PrivateFor          []string               `json:"privateFor"`
+	PrivacyFlag         engine.PrivacyFlagType `json:"privacyFlag"`
+	MandatoryRecipients []string               `json:"mandatoryFor"`
 }
 
 // CallOpts is the collection of options to fine tune a contract call request.
@@ -68,6 +72,8 @@ type TransactOpts struct {
 	// Quorum
 	PrivateFrom              string   // The public key of the Tessera/Constellation identity to send this tx from.
 	PrivateFor               []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	PrivacyFlag              engine.PrivacyFlagType
+	MandatoryRecipients      []string
 	IsUsingPrivacyPrecompile bool
 }
 
@@ -282,7 +288,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		rawTx = c.createPrivateTransaction(rawTx, payload)
 
 		if opts.IsUsingPrivacyPrecompile {
-			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFor: opts.PrivateFor})
+			rawTx, _ = c.createMarkerTx(opts, rawTx, PrivateTxArgs{PrivateFrom: opts.PrivateFrom, PrivateFor: opts.PrivateFor, PrivacyFlag: opts.PrivacyFlag, MandatoryRecipients: opts.MandatoryRecipients})
 			opts.PrivateFor = nil
 		}
 	}
@@ -298,7 +304,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if opts.NoSend {
 		return signedTx, nil
 	}
-	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx, PrivateTxArgs{PrivateFor: opts.PrivateFor}); err != nil {
+	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx, PrivateTxArgs{PrivateFrom: opts.PrivateFrom, PrivateFor: opts.PrivateFor, PrivacyFlag: opts.PrivacyFlag, MandatoryRecipients: opts.MandatoryRecipients}); err != nil {
 		return nil, err
 	}
 	return signedTx, nil
