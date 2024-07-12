@@ -165,6 +165,17 @@ contract PermissionsImplementation {
         roleManager.addRole(adminRole, adminOrg, fullAccess, true, true);
         accountManager.setDefaults(adminRole, orgAdminRole);
     }
+
+    /** @notice specify whether to perform source node IP validation in determining the connection permission.
+        This can only be set before network initialization is finalized
+      * @param _isIpValidationEnabled whether to enable or disable the IP validation
+      */
+    function setIpValidation(bool _isIpValidationEnabled) external 
+    onlyInterface
+    networkBootStatus(false) {
+        nodeManager.setIpValidation(_isIpValidationEnabled);
+    }
+
     /** @notice as a part of network initialization add all nodes which
         are part of static-nodes.json as nodes belonging to
         network admin org

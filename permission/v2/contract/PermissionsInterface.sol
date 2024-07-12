@@ -47,6 +47,13 @@ contract PermissionsInterface {
         permImplementation.init(_breadth, _depth);
     }
 
+    /** @notice specify whether to perform source node IP validation in determining the connection permission.
+      * @param _isIpValidationEnabled whether to enable or disable the IP validation
+      */
+    function setIpValidation(bool _isIpValidationEnabled) external {
+        permImplementation.setIpValidation(_isIpValidationEnabled);
+    }
+
     /** @notice interface to add new node to an admin organization
       * @param _enodeId enode id of the node to be added
       * @param _ip IP of node
