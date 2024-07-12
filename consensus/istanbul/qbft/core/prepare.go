@@ -19,6 +19,7 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -72,6 +73,7 @@ func (c *core) broadcastPrepare() {
 // - when quorum is reached update states to "Prepared" and broadcast COMMIT
 func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	logger := c.currentLogger(true, prepare).New()
+	logger.Marc(log.LvlTrace, "VALIDATING PREPARE MESSAGE")
 
 	logger.Info("QBFT: handle PREPARE message", "prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
 
@@ -94,6 +96,8 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 		logger.Info("QBFT: received quorum of PREPARE messages")
 
+		logger.Marc(log.LvlTrace, "QUORUM OF PREPARE MESSAGES RECEIVED")
+
 		// Accumulates PREPARE messages
 		c.current.preparedRound = c.currentView().Round
 		c.QBFTPreparedPrepares = make([]*qbfttypes.Prepare, 0)
@@ -109,6 +113,7 @@ func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 			c.current.preparedBlock = c.current.Proposal()
 		}
 
+		logger.Marc(log.LvlTrace, "SETTING STATE TO PREPARED AND MOVING TO BROADCAST COMMIT")
 		c.setState(StatePrepared)
 		c.broadcastCommit()
 	} else {
