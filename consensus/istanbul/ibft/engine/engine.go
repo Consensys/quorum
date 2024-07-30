@@ -2,6 +2,7 @@ package ibftengine
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -330,6 +332,8 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 	number := header.Number.Uint64()
 
 	if _, v := validators.GetByAddress(e.signer); v == nil {
+		log.Debug("Engine signer (sealing) is not part of validator set", "signer", e.signer, "validators", fmt.Sprintf("%v", validators.List()))
+
 		return block, istanbulcommon.ErrUnauthorized
 	}
 
