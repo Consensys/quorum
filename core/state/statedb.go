@@ -75,7 +75,7 @@ type StateDB struct {
 	snapAccounts  map[common.Hash][]byte
 	snapStorage   map[common.Hash]map[common.Hash][]byte
 
-	mutex        sync.Mutex
+	mutex        sync.RWMutex
 	journalMutex sync.Mutex
 
 	// Quorum - a trie to hold extra account information that cannot be stored in the accounts trie
@@ -202,7 +202,12 @@ func (s *StateDB) Error() error {
 }
 
 func (s *StateDB) AddLog(log *types.Log) {
+	s.journalMutex.Lock()
 	s.journal.append(addLogChange{txhash: s.thash})
+	s.journalMutex.Unlock()
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	log.TxHash = s.thash
 	log.BlockHash = s.bhash
@@ -213,10 +218,14 @@ func (s *StateDB) AddLog(log *types.Log) {
 }
 
 func (s *StateDB) GetLogs(hash common.Hash) []*types.Log {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.logs[hash]
 }
 
 func (s *StateDB) Logs() []*types.Log {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var logs []*types.Log
 	for _, lgs := range s.logs {
 		logs = append(logs, lgs...)
@@ -340,12 +349,12 @@ func (s *StateDB) Reset(root common.Hash) error {
 	s.stateObjects = make(map[common.Address]*stateObject)
 	s.stateObjectsPending = make(map[common.Address]struct{})
 	s.stateObjectsDirty = make(map[common.Address]struct{})
+	s.logs = make(map[common.Hash][]*types.Log)
+	s.logSize = 0
 	s.mutex.Unlock()
 	s.thash = common.Hash{}
 	s.bhash = common.Hash{}
 	s.txIndex = 0
-	s.logs = make(map[common.Hash][]*types.Log)
-	s.logSize = 0
 	s.preimages = make(map[common.Hash][]byte)
 	s.clearJournalAndRefund()
 
@@ -816,6 +825,7 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	journal.mutex.Unlock()
 
+	s.mutex.RLock()
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
 		db:                  s.db,
@@ -833,7 +843,6 @@ func (s *StateDB) Copy() *StateDB {
 		accountExtraDataTrie: s.db.CopyTrie(s.accountExtraDataTrie),
 	}
 
-	s.mutex.Lock()
 	// Copy the dirty states, logs, and preimages
 	for _, addr := range dirties {
 		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
@@ -865,7 +874,6 @@ func (s *StateDB) Copy() *StateDB {
 		}
 		state.stateObjectsDirty[addr] = struct{}{}
 	}
-	s.mutex.Unlock()
 	for hash, logs := range s.logs {
 		cpy := make([]*types.Log, len(logs))
 		for i, l := range logs {
@@ -874,6 +882,7 @@ func (s *StateDB) Copy() *StateDB {
 		}
 		state.logs[hash] = cpy
 	}
+	s.mutex.RUnlock()
 	for hash, preimage := range s.preimages {
 		state.preimages[hash] = preimage
 	}
