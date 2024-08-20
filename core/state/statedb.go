@@ -75,7 +75,7 @@ type StateDB struct {
 	snapAccounts  map[common.Hash][]byte
 	snapStorage   map[common.Hash]map[common.Hash][]byte
 
-	mutex        sync.RWMutex
+	mutex        sync.Mutex
 	journalMutex sync.Mutex
 
 	// Quorum - a trie to hold extra account information that cannot be stored in the accounts trie
@@ -98,7 +98,7 @@ type StateDB struct {
 
 	thash, bhash common.Hash
 	txIndex      int
-	logs         map[common.Hash][]*types.Log
+	logs         sync.Map
 	logSize      uint
 
 	preimages map[common.Hash][]byte
@@ -142,6 +142,9 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 	}
 	// End Quorum - Privacy Enhancements
 
+	// Ensure mapping is type of map[common.Hash][]*types.Log
+	var logs sync.Map
+
 	sdb := &StateDB{
 		db:                  db,
 		trie:                tr,
@@ -150,7 +153,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
-		logs:                make(map[common.Hash][]*types.Log),
+		logs:                logs,
 		preimages:           make(map[common.Hash][]byte),
 		journal:             newJournal(),
 		accessList:          newAccessList(),
@@ -206,30 +209,38 @@ func (s *StateDB) AddLog(log *types.Log) {
 	s.journal.append(addLogChange{txhash: s.thash})
 	s.journalMutex.Unlock()
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	log.TxHash = s.thash
 	log.BlockHash = s.bhash
 	log.TxIndex = uint(s.txIndex)
 	log.Index = s.logSize
-	s.logs[s.thash] = append(s.logs[s.thash], log)
+
+	var logs []*types.Log
+	txHashLogs, ok := s.logs.Load(s.thash)
+	if ok {
+		logs = txHashLogs.([]*types.Log)
+	}
+	s.logs.Store(s.thash, append(logs, log))
+
 	s.logSize++
 }
 
 func (s *StateDB) GetLogs(hash common.Hash) []*types.Log {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.logs[hash]
+	txLogs, ok := s.logs.Load(hash)
+	if !ok {
+		return make([]*types.Log, 0)
+	}
+	return txLogs.([]*types.Log)
 }
 
 func (s *StateDB) Logs() []*types.Log {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	var logs []*types.Log
-	for _, lgs := range s.logs {
-		logs = append(logs, lgs...)
-	}
+
+	s.logs.Range(func(key, value interface{}) bool {
+		logValue := value.([]*types.Log)
+		logs = append(logs, logValue...)
+		return true
+	})
+
 	return logs
 }
 
@@ -349,7 +360,6 @@ func (s *StateDB) Reset(root common.Hash) error {
 	s.stateObjects = make(map[common.Address]*stateObject)
 	s.stateObjectsPending = make(map[common.Address]struct{})
 	s.stateObjectsDirty = make(map[common.Address]struct{})
-	s.logs = make(map[common.Hash][]*types.Log)
 	s.logSize = 0
 	s.mutex.Unlock()
 	s.thash = common.Hash{}
@@ -357,6 +367,12 @@ func (s *StateDB) Reset(root common.Hash) error {
 	s.txIndex = 0
 	s.preimages = make(map[common.Hash][]byte)
 	s.clearJournalAndRefund()
+
+	// Clear all entries
+	s.logs.Range(func(key, value interface{}) bool {
+		s.logs.Delete(key)
+		return true
+	})
 
 	if s.snaps != nil {
 		s.snapAccounts, s.snapDestructs, s.snapStorage = nil, nil, nil
@@ -825,7 +841,9 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	journal.mutex.Unlock()
 
-	s.mutex.RLock()
+	// Instantiate new copy of "logs"
+	var copyOfLogs sync.Map
+
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
 		db:                  s.db,
@@ -834,7 +852,7 @@ func (s *StateDB) Copy() *StateDB {
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, size),
 		refund:              s.refund,
-		logs:                make(map[common.Hash][]*types.Log, len(s.logs)),
+		logs:                copyOfLogs,
 		logSize:             s.logSize,
 		preimages:           make(map[common.Hash][]byte, len(s.preimages)),
 		journal:             newJournal(),
@@ -843,6 +861,7 @@ func (s *StateDB) Copy() *StateDB {
 		accountExtraDataTrie: s.db.CopyTrie(s.accountExtraDataTrie),
 	}
 
+	s.mutex.Lock()
 	// Copy the dirty states, logs, and preimages
 	for _, addr := range dirties {
 		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
@@ -874,15 +893,13 @@ func (s *StateDB) Copy() *StateDB {
 		}
 		state.stateObjectsDirty[addr] = struct{}{}
 	}
-	for hash, logs := range s.logs {
-		cpy := make([]*types.Log, len(logs))
-		for i, l := range logs {
-			cpy[i] = new(types.Log)
-			*cpy[i] = *l
-		}
-		state.logs[hash] = cpy
-	}
-	s.mutex.RUnlock()
+	s.mutex.Unlock()
+
+	s.logs.Range(func(key, value interface{}) bool {
+		state.logs.Store(key, value)
+		return true
+	})
+
 	for hash, preimage := range s.preimages {
 		state.preimages[hash] = preimage
 	}

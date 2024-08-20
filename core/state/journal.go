@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -247,14 +248,20 @@ func (ch refundChange) dirtied() *common.Address {
 }
 
 func (ch addLogChange) revert(s *StateDB) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	
-	logs := s.logs[ch.txhash]
+	logsInterface, ok := s.logs.Load(ch.txhash)
+	if !ok {
+		return
+	}
+
+	logs, ok := logsInterface.([]*types.Log)
+	if !ok {
+		return
+	}
+
 	if len(logs) == 1 {
-		delete(s.logs, ch.txhash)
+		s.logs.Delete(ch.txhash)
 	} else {
-		s.logs[ch.txhash] = logs[:len(logs)-1]
+		s.logs.Store(ch.txhash, logs[:len(logs)-1])
 	}
 	s.logSize--
 }
