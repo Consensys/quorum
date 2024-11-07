@@ -2159,6 +2159,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 				"diff", block.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()),
 				"root", block.Root())
+			// Quorum
+			if bc.chainConfig.IsQuorum {
+				log.Error("Fork detected - which is not an expected behavior in Quorum",
+					"number", block.Number(), "hash", block.Hash(),
+					"diff", block.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
+					"txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()),
+					"root", block.Root())
+			}
+			// End Quorum
 
 		default:
 			// This in theory is impossible, but lets be nice to our future selves and leave
