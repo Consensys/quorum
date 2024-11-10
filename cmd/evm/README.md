@@ -6,7 +6,7 @@ which can
 1. Take a prestate, including
   - Accounts,
   - Block context information,
-  - Previous blockshashes (*optional)
+  - Previous blockhashes (*optional)
 2. Apply a set of transactions,
 3. Apply a mining-reward (*optional),
 4. And generate a post-state, including
@@ -16,7 +16,7 @@ which can
 
 ## Specification
 
-The idea is to specify the behaviour of this binary very _strict_, so that other
+The idea is to specify the behavior of this binary very _strict_, so that other
 node implementors can build replicas based on their own state-machines, and the
 state generators can swap between a `geth`-based implementation and a `parityvm`-based
 implementation.
