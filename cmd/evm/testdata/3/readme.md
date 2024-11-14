@@ -1,2 +1,2 @@
-These files examplify a transition where a transaction (excuted on block 5) requests
-the blockhash for block `1`. 
+These files exemplify a transition where a transaction (executed on block 5) requests
+the block hash for block `1`. 
