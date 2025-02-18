@@ -1,7 +1,7 @@
 
 # Building Quorum
 
-Note: Building Quorum requires both a Go (version 1.9 or later) and a C compiler. You can install them using your favourite package manager. 
+Note: Building Quorum requires both a Go (version 1.9 or later) and a C compiler. You can install them using your favorite package manager. 
 
 Clone the repository and build the source:
 
@@ -20,7 +20,7 @@ cp ./build/bin/geth ./build/bin/bootnode /usr/local/bin/
 ```
 
 # Building on Windows
-It is possible to build and run Quorum on Windows. Below are the steps required, please use Slack for any questions or support. Keep in mind that original Go-Ethereum provides a number of helper scripts for environment configuration and build execution. We're not planning ot provide this ourselves, but steps below explain what you may need to set up on your system to create such scripts.
+It is possible to build and run Quorum on Windows. Below are the steps required, please use Slack for any questions or support. Keep in mind that original Go-Ethereum provides a number of helper scripts for environment configuration and build execution. We're not planning to provide this ourselves, but steps below explain what you may need to set up on your system to create such scripts.
 
 1. Install Go version 1.10 or 1.11 for Windows
 2. Create a folder that you will bind to be GOPATH
