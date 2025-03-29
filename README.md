@@ -1,7 +1,7 @@
 # <img src="https://raw.githubusercontent.com/consensys/quorum/master/logo.png" width="200" height="35"/>
 
 
-[![Build Check](https://github.com/jpmorganchase/quorum/workflows/Build%20Check/badge.svg?branch=master)](https://github.com/Consensys/quorum/actions/workflows/build.yml)
+[![Build Check](https://github.com/Consensys/quorum/actions/workflows/build.yml/badge.svg)](https://github.com/Consensys/quorum/actions/workflows/build.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum)
 [![Discord](https://img.shields.io/discord/697535391594446898)](https://discord.com/invite/consensys)
 
