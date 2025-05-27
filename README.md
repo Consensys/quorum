@@ -14,7 +14,7 @@ Key enhancements over go-ethereum:
 
 * [__Privacy__](https://consensys.net/docs/goquorum//en/latest/concepts/privacy/) - GoQuorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Tessera](https://github.com/consensys/tessera)) for directed transfer of private data to network participants
 * [__Alternative Consensus Mechanisms__](https://consensys.net/docs/goquorum//en/latest/concepts/consensus/overview/) - with no need for POW/POS in a permissioned network, GoQuorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
-    * [__QBFT__](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/configure/consensus-protocols/qbft/) - Improved version of IBFT that is interoperable with Hyperledger Besu
+    * [__QBFT__](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/configure/consensus-protocols/qbft/) - Improved version of IBFT that is interoperable with Besu
     * [__Istanbul BFT__](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/configure/consensus-protocols/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
     * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
     * [__Raft-based Consensus__](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/configure/consensus-protocols/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
@@ -40,7 +40,7 @@ Check out some of the interesting projects we are actively working on:
 * [Cakeshop](https://consensys.net/docs/goquorum/en/latest/configure-and-manage/monitor/cakeshop/): An integrated development environment and SDK for GoQuorum
 * [quorum-examples](https://github.com/ConsenSys/quorum-examples): GoQuorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [Quorum-Kubernetes](https://consensys.net/docs/goquorum/en/latest/deploy/install/kubernetes/): Deploy GoQuorum on Kubernetes
-* [we3js-quorum](https://consensys.net/docs/goquorum/en/latest/reference/web3js-quorum/): Extends web3.js to support GoQuorum and Hyperledger Besu specific APIs
+* [we3js-quorum](https://consensys.net/docs/goquorum/en/latest/reference/web3js-quorum/): Extends web3.js to support GoQuorum and Besu specific APIs
 * Zero Knowledge on GoQuorum
    * [ZSL on GoQuorum](https://github.com/ConsenSys/zsl-q/)
    * [Anonymous Zether](https://github.com/ConsenSys/anonymous-zether)
