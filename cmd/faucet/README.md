@@ -10,7 +10,7 @@ The `faucet` is a single binary app (everything included) with all configuration
 
 First thing's first, the `faucet` needs to connect to an Ethereum network, for which it needs the necessary genesis and network infos. Each of the following flags must be set:
 
-- `--genesis` is a path to a file containin the network `genesis.json`
+- `--genesis` is a path to a file containing the network `genesis.json`
 - `--network` is the devp2p network id used during connection
 - `--bootnodes` is a list of `enode://` ids to join the network through
 
@@ -25,8 +25,8 @@ To be able to distribute funds, the `faucet` needs access to an already funded E
 
 The faucet is able to distribute various amounts of Ether in exchange for various timeouts. These can be configured via:
 
-- `--faucet.amount` is the number of Ethers to send by default
-- `--faucet.minutes` is the time to wait before allowing a rerequest
+- `--faucet.amount` is the number of Ether to send by default
+- `--faucet.minutes` is the time to wait before allowing a re-request
 - `--faucet.tiers` is the funding tiers to support  (x3 time, x2.5 funds)
 
 ## Sybil protection

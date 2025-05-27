@@ -399,7 +399,7 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 		if err = conn.ReadJSON(&msg); err != nil {
 			return
 		}
-		if !*noauthFlag && !strings.HasPrefix(msg.URL, "https://twitter.com/") && !strings.HasPrefix(msg.URL, "https://www.facebook.com/") {
+		if !*noauthFlag && !strings.HasPrefix(msg.URL, "https://x.com/") && !strings.HasPrefix(msg.URL, "https://www.facebook.com/") {
 			if err = sendError(wsconn, errors.New("URL doesn't link to supported services")); err != nil {
 				log.Warn("Failed to send URL error to client", "err", err)
 				return
@@ -461,7 +461,7 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 			address  common.Address
 		)
 		switch {
-		case strings.HasPrefix(msg.URL, "https://twitter.com/"):
+		case strings.HasPrefix(msg.URL, "https://x.com/"):
 			id, username, avatar, address, err = authTwitter(msg.URL, *twitterTokenV1Flag, *twitterTokenFlag)
 		case strings.HasPrefix(msg.URL, "https://www.facebook.com/"):
 			username, avatar, address, err = authFacebook(msg.URL)
@@ -717,7 +717,7 @@ func authTwitter(url string, tokenV1, tokenV2 string) (string, string, string, c
 	// Twiter API token isn't provided so we just load the public posts
 	// and scrape it for the Ethereum address and profile URL. We need to load
 	// the mobile page though since the main page loads tweet contents via JS.
-	url = strings.Replace(url, "https://twitter.com/", "https://mobile.twitter.com/", 1)
+	url = strings.Replace(url, "https://x.com/", "https://mobile.twitter.com/", 1)
 
 	res, err := http.Get(url)
 	if err != nil {
