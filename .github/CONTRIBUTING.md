@@ -36,7 +36,7 @@ Please see the [Developers' Guide](https://geth.ethereum.org/docs/developers/dev
 for more details on configuring your environment, managing project dependencies
 and testing procedures.
 
-## Issue reproductibility
+## Issue reproducibility
 
 Before you create an issue, please try to reproduce it with [quorum quick dev start framework](https://github.com/ConsenSys/quorum-dev-quickstart) with the latest release.
 Many issues have been creating under an environment we are not able to reproduce quickly.
