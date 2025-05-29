@@ -6,7 +6,7 @@ Note: Building Quorum requires both a Go (version 1.9 or later) and a C compiler
 Clone the repository and build the source:
 
 ```
-git clone https://github.com/jpmorganchase/quorum.git
+git clone https://github.com/Consensys/quorum.git
 cd quorum
 make all
 make test
