@@ -275,7 +275,7 @@ func TestAuthProviderImpl_Authorize_AuthManagerEnabledNotEntitledToPSI(t *testin
 			authToken: &proto.PreAuthenticatedAuthenticationToken{
 				RawToken:  nil,
 				ExpiredAt: nil,
-				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+				Authorities: []*proto.GrantedAuthority{{
 					Service:              "psi",
 					Method:               "psi2",
 					Raw:                  "psi://psi2",
@@ -311,14 +311,14 @@ func TestAuthProviderImpl_Authorize_AuthManagerEnabledMissingEntitlement(t *test
 			authToken: &proto.PreAuthenticatedAuthenticationToken{
 				RawToken:  nil,
 				ExpiredAt: nil,
-				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+				Authorities: []*proto.GrantedAuthority{{
 					Service:              "psi",
 					Method:               "psi1",
 					Raw:                  "psi://psi1",
 					XXX_NoUnkeyedLiteral: struct{}{},
 					XXX_unrecognized:     nil,
 					XXX_sizecache:        0,
-				}, &proto.GrantedAuthority{
+				}, {
 					Service:              "p2p",
 					Method:               "qlight",
 					Raw:                  "p2p://qlight",
@@ -355,21 +355,21 @@ func TestAuthProviderImpl_Authorize_AuthManagerEnabledSuccess(t *testing.T) {
 			authToken: &proto.PreAuthenticatedAuthenticationToken{
 				RawToken:  nil,
 				ExpiredAt: nil,
-				Authorities: []*proto.GrantedAuthority{&proto.GrantedAuthority{
+				Authorities: []*proto.GrantedAuthority{{
 					Service:              "psi",
 					Method:               "psi1",
 					Raw:                  "psi://psi1",
 					XXX_NoUnkeyedLiteral: struct{}{},
 					XXX_unrecognized:     nil,
 					XXX_sizecache:        0,
-				}, &proto.GrantedAuthority{
+				}, {
 					Service:              "p2p",
 					Method:               "qlight",
 					Raw:                  "p2p://qlight",
 					XXX_NoUnkeyedLiteral: struct{}{},
 					XXX_unrecognized:     nil,
 					XXX_sizecache:        0,
-				}, &proto.GrantedAuthority{
+				}, {
 					Service:              "rpc",
 					Method:               "eth_*",
 					Raw:                  "rpc://eth_*",
