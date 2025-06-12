@@ -313,7 +313,7 @@ func (g *transactionReceiptGetter) get(ctx context.Context) (*types.Receipt, err
 }
 
 // (Quorum) privateTransactionReceiptGetter implements receiptGetter and gets privacy precompile transaction receipts
-// from the the db
+// from the db
 type privateTransactionReceiptGetter struct {
 	pmt *Transaction
 }

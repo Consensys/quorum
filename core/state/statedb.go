@@ -1174,7 +1174,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 			return common.Hash{}, fmt.Errorf("Unable to link the state root to the privacy metadata root: %v", err)
 		}
 		// add a reference from the AccountExtraData root to the state root so that when the state root is written
-		// to the DB the the AccountExtraData root is also written
+		// to the DB the AccountExtraData root is also written
 		s.db.TrieDB().Reference(extraDataRoot, root)
 	}
 	return root, err
