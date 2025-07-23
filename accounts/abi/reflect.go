@@ -24,7 +24,7 @@ import (
 	"strings"
 )
 
-// ConvertType converts an interface of a runtime type into a interface of the
+// ConvertType converts an interface of a runtime type into an interface of the
 // given type
 // e.g. turn
 // var fields []reflect.StructField

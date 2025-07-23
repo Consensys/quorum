@@ -29,7 +29,7 @@ var (
 	// ErrInvalidNonce is returned if a block's nonce is invalid
 	ErrInvalidNonce = errors.New("invalid nonce")
 
-	// ErrInvalidUncleHash is returned if a block contains an non-empty uncle list.
+	// ErrInvalidUncleHash is returned if a block contains a non-empty uncle list.
 	ErrInvalidUncleHash = errors.New("non empty uncle hash")
 
 	// ErrInconsistentValidatorSet is returned if the validator set is inconsistent

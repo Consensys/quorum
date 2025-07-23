@@ -113,7 +113,7 @@ func (p *AccountRangePacket) Unpack() ([]common.Hash, [][]byte, error) {
 	return hashes, accounts, nil
 }
 
-// GetStorageRangesPacket represents an storage slot query.
+// GetStorageRangesPacket represents a storage slot query.
 type GetStorageRangesPacket struct {
 	ID       uint64        // Request ID to match up responses with
 	Root     common.Hash   // Root hash of the account trie to serve

@@ -462,7 +462,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-// prepareExtra returns a extra-data of the given header and validators
+// prepareExtra returns an extra-data of the given header and validators
 func prepareExtra(header *types.Header, vals []common.Address) ([]byte, error) {
 	var buf bytes.Buffer
 

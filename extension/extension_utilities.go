@@ -8,7 +8,7 @@ import (
 
 // generateUuid sends some data to the linked Private Transaction Manager which
 // uses a randomly generated key to encrypt the data and then hash it this
-// means we get a effectively random hash, whilst also having a reference
+// means we get an effectively random hash, whilst also having a reference
 // transaction inside the PTM
 func generateUuid(contractAddress common.Address, privateFrom string, privateFor []string, ptm private.PrivateTransactionManager) (string, error) {
 	// to ensure recoverability , the UUID generation logic is as below:

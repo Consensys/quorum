@@ -37,7 +37,7 @@ type ContractRef interface {
 // is a ContractRef.
 type AccountRef common.Address
 
-// Address casts AccountRef to a Address
+// Address casts AccountRef to an Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
 
 // Contract represents an ethereum contract in the state database. It contains

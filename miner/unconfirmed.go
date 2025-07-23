@@ -36,7 +36,7 @@ type chainRetriever interface {
 }
 
 // unconfirmedBlock is a small collection of metadata about a locally mined block
-// that is placed into a unconfirmed set for canonical chain inclusion tracking.
+// that is placed into an unconfirmed set for canonical chain inclusion tracking.
 type unconfirmedBlock struct {
 	index uint64
 	hash  common.Hash
