@@ -153,7 +153,7 @@ func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address
 }
 
 // Only block height 5 will return true
-func (self *testSystemBackend) HasPropsal(hash common.Hash, number *big.Int) bool {
+func (self *testSystemBackend) HasProposal(hash common.Hash, number *big.Int) bool {
 	return number.Cmp(big.NewInt(5)) == 0
 }
 
