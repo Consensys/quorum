@@ -18,10 +18,15 @@ RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
 RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/bootnode
 
 # Pull Geth into a second stage deploy alpine container
-FROM alpine:latest
+FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates curl
-RUN apk add --no-cache openssl # quorum (6 may 2024): 3.1.4-r5 is the installed openssl version, want 3.1.4-r6 to get fix for CVE-2024-2511
+# Update busybox to fix CVE (Alpine Linux Security Advisory 511246)
+# Required version: busybox 1.36.1-r29 or higher
+RUN apk update && \
+    apk upgrade --no-cache busybox busybox-binsh ssl_client && \
+    apk add --no-cache ca-certificates curl openssl && \
+    rm -rf /var/cache/apk/*
+
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 COPY --from=builder /go-ethereum/build/bin/bootnode /usr/local/bin/
 
