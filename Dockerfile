@@ -24,9 +24,11 @@ FROM alpine:3.20
 # Required version: busybox 1.36.1-r29 or higher
 # Update OpenSSL to fix CVE (Alpine Linux Security Advisory 513818)
 # Required version: openssl 3.3.1-r1, libssl3 3.3.1-r1, libcrypto3 3.3.1-r1
+# Update curl to fix CVE (Alpine Linux Security Advisory 513861)
+# Required version: curl 8.9.0-r0, libcurl 8.9.0-r0
 RUN apk update && \
-    apk upgrade --no-cache busybox busybox-binsh ssl_client libssl3 libcrypto3 openssl && \
-    apk add --no-cache ca-certificates curl && \
+    apk upgrade --no-cache busybox busybox-binsh ssl_client libssl3 libcrypto3 openssl curl libcurl && \
+    apk add --no-cache ca-certificates && \
     rm -rf /var/cache/apk/*
 
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
