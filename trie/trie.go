@@ -183,6 +183,9 @@ func (t *Trie) tryGetNode(origNode node, path []byte, pos int) (item []byte, new
 		if node, ok := origNode.(hashNode); ok {
 			hash = node
 		} else {
+			if origNode == nil {
+				return nil, origNode, 0, errors.New("cannot get node from nil")
+			}
 			hash, _ = origNode.cache()
 		}
 		if hash == nil {
