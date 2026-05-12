@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@0caeaed6fd66a828038c2da3c0f662a42862658f # v1.1.3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: '0'
           submodules: false
@@ -38,11 +38,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@0caeaed6fd66a828038c2da3c0f662a42862658f # v1.1.3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
         with:
           submodules: recursive
       - name: 'Prepare environment'
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Check out project files'
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
       - name: 'Build docker image'
         id: build
         run: |
@@ -70,7 +70,7 @@ jobs:
           tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
@@ -81,9 +81,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Checkout'
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
       - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@18f0f591fbc635562c815484d73b6e8e3980482e # v1.0.0
         with:
           name: docker-image
       - name: 'Load Docker image'
@@ -94,7 +94,7 @@ jobs:
           docker image tag quorumengineering/quorum:pr quorumengineering/quorum:develop
           docker image ls
       - name: Set up Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@91d3aa4956ec4a53e477c4907347b5e3481be8c9 # v2.5.1
         with:
           distribution: 'adopt'
           java-version: 11
@@ -104,7 +104,7 @@ jobs:
           cd build
           ./run-peeps.sh
       - name: PEEPS Test Report
-        uses: mikepenz/action-junit-report@v2
+        uses: mikepenz/action-junit-report@127c778ac944abc0f48a5103964304bab7eb208b # v2.9.1
         if: always()
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@18f0f591fbc635562c815484d73b6e8e3980482e # v1.0.0
         with:
           name: docker-image
       - name: 'Load Docker image'
