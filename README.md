@@ -1,10 +1,11 @@
 # <img src="https://raw.githubusercontent.com/consensys/quorum/master/logo.png" width="200" height="35"/>
 
-
 ![Build Check](https://github.com/jpmorganchase/quorum/workflows/Build%20Check/badge.svg?branch=master)
 [![Docker Pulls](https://img.shields.io/docker/pulls/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum)
 [![Discord](https://img.shields.io/discord/697535391594446898)](https://discord.com/channels/697535391594446898/747810572937986240)
 
+> [!WARNING]
+> GoQuorum is no longer actively maintained or supported by Consensys. This repository has been archived and remains available for historical reference only. We do not recommend using GoQuorum for new projects.
 
 GoQuorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
